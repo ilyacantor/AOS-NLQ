@@ -31,11 +31,19 @@ aos-nlq is a standalone Natural Language Query interface for financial data. It 
 
 ## Recent Changes
 - **2026-01-27:** Rebuilt with React + Vite + Tailwind v4 (migrated from Streamlit)
+- **2026-01-27:** Fixed Tailwind v4 PostCSS config (requires `@tailwindcss/postcss` package)
+- **2026-01-27:** Added production build scripts
 
 ## Running the Application
 ```bash
-npm run dev
+npm run dev      # Development
+npm run build    # Production build
+npm run start    # Serve production build
 ```
+
+## Configuration Notes
+- **postcss.config.js** - Uses `@tailwindcss/postcss` (required for Tailwind v4)
+- **vite.config.ts** - Server configured with `allowedHosts: true` for Replit preview
 
 ## User Preferences
 - Dark mode interface (default, no light mode toggle)
