@@ -36,10 +36,12 @@ function App() {
   ])
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = async () => {
-    if (!query.trim()) return
+  const handleSubmit = async (queryText?: string) => {
+    const textToSubmit = queryText ?? query
+    if (!textToSubmit.trim()) return
 
     setIsLoading(true)
+    setQuery(textToSubmit)  // Show the query in the input
     const now = new Date()
     const timestamp = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
 
@@ -48,7 +50,7 @@ function App() {
 
     const newItem: QueryHistoryItem = {
       id: Date.now().toString(),
-      query: query,
+      query: textToSubmit,
       timestamp: timestamp,
       duration: `${Math.floor(Math.random() * 100) + 10}ms`,
       tag: 'nlq.query',
@@ -60,7 +62,8 @@ function App() {
   }
 
   const handleQuickAction = (action: string) => {
-    setQuery(action)
+    // Immediately submit the quick action query
+    handleSubmit(action)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
