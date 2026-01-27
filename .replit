@@ -14,7 +14,6 @@ language = "python3"
 [userenv]
 
 [userenv.shared]
-SUPABASE_URL = "postgresql://postgres.yuxrdoamtjmodjzqpeds:UZKbBgI7runK4XvX@aws-1-us-east-2.pooler.supabase.com:5432/postgres"
 
 [workflows]
 runButton = "Project"
