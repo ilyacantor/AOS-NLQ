@@ -8,7 +8,7 @@ Contains Pydantic models for:
 
 from datetime import date
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -91,6 +91,23 @@ class ParsedQuery(BaseModel):
     comparison_period: Optional[str] = Field(
         default=None,
         description="Second period for comparison queries"
+    )
+
+    # Aggregation query fields
+    aggregation_type: Optional[str] = Field(
+        default=None,
+        description="Type of aggregation: 'sum' or 'average'"
+    )
+
+    aggregation_periods: Optional[List[str]] = Field(
+        default=None,
+        description="List of periods to aggregate over"
+    )
+
+    # Breakdown query fields
+    breakdown_metrics: Optional[List[str]] = Field(
+        default=None,
+        description="List of metrics to show in breakdown"
     )
 
     raw_metric: Optional[str] = Field(

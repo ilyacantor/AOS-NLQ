@@ -57,6 +57,18 @@ class QueryParser:
         raw_period = raw_parse.get("period_reference", "")
         normalized_period = normalize_period(raw_period)
 
+        # Normalize comparison period if present
+        raw_comparison = raw_parse.get("comparison_period")
+        normalized_comparison = normalize_period(raw_comparison) if raw_comparison else None
+
+        # Normalize aggregation periods if present
+        raw_agg_periods = raw_parse.get("aggregation_periods", [])
+        normalized_agg_periods = [normalize_period(p) for p in raw_agg_periods] if raw_agg_periods else None
+
+        # Normalize breakdown metrics if present
+        raw_breakdown = raw_parse.get("breakdown_metrics", [])
+        normalized_breakdown = [normalize_metric(m) for m in raw_breakdown] if raw_breakdown else None
+
         # Map string intent to enum
         intent_str = raw_parse.get("intent", "POINT_QUERY")
         try:
@@ -78,6 +90,10 @@ class QueryParser:
             period_reference=normalized_period,
             is_relative=raw_parse.get("is_relative", False),
             raw_metric=raw_metric,
+            comparison_period=normalized_comparison,
+            aggregation_type=raw_parse.get("aggregation_type"),
+            aggregation_periods=normalized_agg_periods,
+            breakdown_metrics=normalized_breakdown,
         )
 
     def parse_without_llm(self, question: str) -> Optional[ParsedQuery]:

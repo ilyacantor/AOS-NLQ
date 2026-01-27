@@ -11,15 +11,29 @@ Given a natural language question about financial data, extract:
 1. intent: One of [POINT_QUERY, COMPARISON_QUERY, TREND_QUERY, AGGREGATION_QUERY, BREAKDOWN_QUERY]
 2. metric: The financial metric being asked about (use canonical names)
 3. period_type: One of [annual, quarterly, half_year, ytd]
-4. period_reference: Either absolute (e.g., "2024", "Q4 2025") or relative (e.g., "last_year", "last_quarter")
+4. period_reference: The primary period (e.g., "2024", "Q4 2025", "last_year")
 5. is_relative: Boolean - does this use relative time references?
+6. comparison_period: (For COMPARISON_QUERY only) The second period to compare against
 
 Intent definitions:
 - POINT_QUERY: Single metric, single period (e.g., "What was revenue in 2024?")
-- COMPARISON_QUERY: Compare two periods (e.g., "How did revenue change from 2023 to 2024?")
+- COMPARISON_QUERY: Compare two periods or ask about growth/change (e.g., "How did revenue change from 2023 to 2024?", "YoY growth in 2025")
 - TREND_QUERY: Multiple periods over time (e.g., "Show revenue trend for the last 4 quarters")
-- AGGREGATION_QUERY: Sum/avg over periods (e.g., "Total revenue for 2024")
-- BREAKDOWN_QUERY: Breakdown by dimension (e.g., "Revenue by quarter in 2024")
+- AGGREGATION_QUERY: Sum/avg over multiple periods (e.g., "What was H1 2025 revenue?", "Average quarterly revenue in 2025")
+- BREAKDOWN_QUERY: Breakdown by dimension (e.g., "Break down operating expenses for 2025")
+
+COMPARISON_QUERY examples (period_reference is the later/current period, comparison_period is the earlier/base period):
+- "How much did revenue grow from 2024 to 2025?" → period_reference: "2025", comparison_period: "2024"
+- "What was YoY revenue growth in 2025?" → period_reference: "2025", comparison_period: "2024" (prior year)
+- "Compare Q4 2024 to Q4 2025 revenue" → period_reference: "Q4 2025", comparison_period: "Q4 2024"
+- "Did operating margin improve from 2024 to 2025?" → period_reference: "2025", comparison_period: "2024"
+
+AGGREGATION_QUERY examples:
+- "What was H1 2025 revenue?" → aggregation_type: "sum", aggregation_periods: ["Q1 2025", "Q2 2025"]
+- "What was average quarterly revenue in 2025?" → aggregation_type: "average", aggregation_periods: ["Q1 2025", "Q2 2025", "Q3 2025", "Q4 2025"]
+
+BREAKDOWN_QUERY examples:
+- "Break down operating expenses for 2025" → breakdown_metrics: ["selling_expenses", "g_and_a_expenses", "sga"]
 
 Canonical metric names:
 - revenue, bookings, cogs, gross_profit, gross_margin_pct
@@ -43,7 +57,11 @@ Respond ONLY with valid JSON, no markdown, no explanation:
   "metric": "...",
   "period_type": "...",
   "period_reference": "...",
-  "is_relative": true/false
+  "is_relative": true/false,
+  "comparison_period": "..." (only for COMPARISON_QUERY),
+  "aggregation_type": "..." (only for AGGREGATION_QUERY: "sum" or "average"),
+  "aggregation_periods": [...] (only for AGGREGATION_QUERY),
+  "breakdown_metrics": [...] (only for BREAKDOWN_QUERY)
 }"""
 
 

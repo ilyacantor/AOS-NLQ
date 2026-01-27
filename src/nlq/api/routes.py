@@ -25,7 +25,7 @@ from src.nlq.core.resolver import PeriodResolver
 from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.knowledge.schema import FINANCIAL_SCHEMA, get_metric_unit
 from src.nlq.llm.client import ClaudeClient
-from src.nlq.models.query import NLQRequest
+from src.nlq.models.query import NLQRequest, QueryIntent
 from src.nlq.models.response import NLQResponse
 
 logger = logging.getLogger(__name__)
@@ -110,16 +110,25 @@ async def query(request: NLQRequest) -> NLQResponse:
         parsed = parser.parse(request.question)
         logger.info(f"Parsed query: {parsed}")
 
-        # Resolve relative periods
-        if parsed.is_relative:
-            resolved = resolver.resolve(parsed.period_reference, parsed.period_type)
-            parsed.resolved_period = resolver.to_period_key(resolved)
-        else:
-            # Parse absolute period
-            resolved = resolver.resolve(parsed.period_reference)
-            parsed.resolved_period = resolver.to_period_key(resolved)
-
+        # Resolve the primary period
+        resolved = resolver.resolve(parsed.period_reference)
+        parsed.resolved_period = resolver.to_period_key(resolved)
         logger.info(f"Resolved period: {parsed.resolved_period}")
+
+        # Resolve comparison period for comparison queries
+        if parsed.intent == QueryIntent.COMPARISON_QUERY and parsed.comparison_period:
+            comp_resolved = resolver.resolve(parsed.comparison_period)
+            parsed.comparison_period = resolver.to_period_key(comp_resolved)
+            logger.info(f"Resolved comparison period: {parsed.comparison_period}")
+
+        # Resolve aggregation periods for aggregation queries
+        if parsed.intent == QueryIntent.AGGREGATION_QUERY and parsed.aggregation_periods:
+            resolved_agg_periods = []
+            for period in parsed.aggregation_periods:
+                agg_resolved = resolver.resolve(period)
+                resolved_agg_periods.append(resolver.to_period_key(agg_resolved))
+            parsed.aggregation_periods = resolved_agg_periods
+            logger.info(f"Resolved aggregation periods: {parsed.aggregation_periods}")
 
         # Execute the query
         result = executor.execute(parsed)
@@ -135,13 +144,9 @@ async def query(request: NLQRequest) -> NLQResponse:
                 resolved_period=parsed.resolved_period,
             )
 
-        # Format the answer (limit to 1 decimal place)
+        # Format the answer based on intent type
         unit = get_metric_unit(parsed.metric)
-        formatted_value = round(result.value, 1) if isinstance(result.value, (int, float)) else result.value
-        if unit == "%":
-            answer = f"{parsed.metric.replace('_', ' ').title()} for {parsed.resolved_period} was {formatted_value}%"
-        else:
-            answer = f"{parsed.metric.replace('_', ' ').title()} for {parsed.resolved_period} was ${formatted_value} million"
+        answer, formatted_value = _format_answer(parsed, result, unit)
 
         return NLQResponse(
             success=True,
@@ -170,6 +175,89 @@ async def query(request: NLQRequest) -> NLQResponse:
             error_code="INTERNAL_ERROR",
             error_message="An unexpected error occurred",
         )
+
+
+def _format_answer(parsed, result, unit: str) -> tuple:
+    """Format the answer based on intent type."""
+    metric_display = parsed.metric.replace('_', ' ').title()
+
+    if parsed.intent == QueryIntent.POINT_QUERY:
+        formatted_value = round(result.value, 1)
+        if unit == "%":
+            answer = f"{metric_display} for {parsed.resolved_period} was {formatted_value}%"
+        else:
+            answer = f"{metric_display} for {parsed.resolved_period} was ${formatted_value} million"
+        return answer, formatted_value
+
+    elif parsed.intent == QueryIntent.COMPARISON_QUERY:
+        data = result.value
+        val1 = round(data["value1"], 1)
+        val2 = round(data["value2"], 1)
+        diff = round(data["difference"], 1)
+        pct = round(data["pct_change"], 1) if data["pct_change"] else 0
+
+        period1, period2 = data["period1"], data["period2"]
+
+        if unit == "%":
+            # For percentage metrics, show the values and whether it improved
+            if diff > 0:
+                answer = f"{metric_display} improved from {val2}% in {period2} to {val1}% in {period1}"
+            elif diff < 0:
+                answer = f"{metric_display} declined from {val2}% in {period2} to {val1}% in {period1}"
+            else:
+                answer = f"{metric_display} remained at {val1}% from {period2} to {period1}"
+        else:
+            # For dollar metrics, show the change
+            direction = "increased" if diff > 0 else "decreased" if diff < 0 else "remained unchanged"
+            answer = f"{metric_display} {direction} from ${val2} million in {period2} to ${val1} million in {period1} (${abs(diff)} million, {abs(pct)}%)"
+
+        return answer, {"period1": period1, "value1": val1, "period2": period2, "value2": val2, "change": diff, "pct_change": pct}
+
+    elif parsed.intent == QueryIntent.AGGREGATION_QUERY:
+        data = result.value
+        agg_result = round(data["result"], 1)
+        agg_type = data["aggregation_type"]
+
+        if agg_type == "average":
+            if unit == "%":
+                answer = f"Average {metric_display.lower()} was {agg_result}%"
+            else:
+                answer = f"Average {metric_display.lower()} was ${agg_result} million"
+        else:  # sum
+            if unit == "%":
+                answer = f"Total {metric_display.lower()} was {agg_result}%"
+            else:
+                answer = f"Total {metric_display.lower()} was ${agg_result} million"
+
+        return answer, agg_result
+
+    elif parsed.intent == QueryIntent.BREAKDOWN_QUERY:
+        data = result.value
+        breakdown = data["breakdown"]
+        period = data["period"]
+
+        # Format breakdown as readable string
+        parts = []
+        for metric, value in breakdown.items():
+            metric_unit = get_metric_unit(metric)
+            formatted = round(value, 1)
+            display = metric.replace('_', ' ').title()
+            if metric_unit == "%":
+                parts.append(f"{display}: {formatted}%")
+            else:
+                parts.append(f"{display}: ${formatted}M")
+
+        answer = f"Breakdown for {period}: {', '.join(parts)}"
+        return answer, breakdown
+
+    else:
+        # Fallback for unknown intent
+        formatted_value = round(result.value, 1) if isinstance(result.value, (int, float)) else result.value
+        if unit == "%":
+            answer = f"{metric_display} for {parsed.resolved_period} was {formatted_value}%"
+        else:
+            answer = f"{metric_display} for {parsed.resolved_period} was ${formatted_value} million"
+        return answer, formatted_value
 
 
 @router.get("/health", response_model=HealthResponse)

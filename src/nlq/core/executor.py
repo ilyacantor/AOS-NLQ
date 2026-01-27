@@ -44,7 +44,7 @@ class QueryExecutor:
         Returns:
             QueryResult with value or error information
 
-        CRITICAL: This method performs three validation checks before returning
+        CRITICAL: This method performs validation checks before returning
         results to ensure we never return empty/invalid data silently.
         """
         # Check 1: Does the metric exist in our schema?
@@ -57,7 +57,18 @@ class QueryExecutor:
                 confidence=0.0
             )
 
-        # Check 2: Does the period exist in our data?
+        # Execute the query based on intent
+        # Note: Comparison, aggregation, and breakdown queries handle their own period validation
+        if parsed_query.intent == QueryIntent.COMPARISON_QUERY:
+            return self._execute_comparison_query(parsed_query)
+        elif parsed_query.intent == QueryIntent.AGGREGATION_QUERY:
+            return self._execute_aggregation_query(parsed_query)
+        elif parsed_query.intent == QueryIntent.BREAKDOWN_QUERY:
+            return self._execute_breakdown_query(parsed_query)
+        elif parsed_query.intent == QueryIntent.TREND_QUERY:
+            return self._execute_trend_query(parsed_query)
+
+        # For point queries, validate the period first
         period_key = parsed_query.resolved_period
         if not period_key:
             return QueryResult(
@@ -76,18 +87,7 @@ class QueryExecutor:
                 confidence=0.0
             )
 
-        # Execute the query based on intent
-        if parsed_query.intent == QueryIntent.POINT_QUERY:
-            return self._execute_point_query(parsed_query)
-        elif parsed_query.intent == QueryIntent.COMPARISON_QUERY:
-            return self._execute_comparison_query(parsed_query)
-        elif parsed_query.intent == QueryIntent.TREND_QUERY:
-            return self._execute_trend_query(parsed_query)
-        elif parsed_query.intent == QueryIntent.AGGREGATION_QUERY:
-            return self._execute_aggregation_query(parsed_query)
-        else:
-            # Default to point query for unrecognized intents
-            return self._execute_point_query(parsed_query)
+        return self._execute_point_query(parsed_query)
 
     def _execute_point_query(self, parsed_query: ParsedQuery) -> QueryResult:
         """Execute a single metric, single period query."""
@@ -176,10 +176,88 @@ class QueryExecutor:
 
     def _execute_aggregation_query(self, parsed_query: ParsedQuery) -> QueryResult:
         """Execute an aggregation query (sum, average, etc.)."""
-        # TODO: Implement aggregation queries
+        if not parsed_query.aggregation_periods:
+            return QueryResult(
+                success=False,
+                error="MISSING_AGGREGATION_PERIODS",
+                message="Aggregation query requires periods to aggregate over",
+                confidence=0.0
+            )
+
+        # Get values for all periods
+        values = []
+        for period in parsed_query.aggregation_periods:
+            value = self.fact_base.query(parsed_query.metric, period)
+            if value is not None:
+                values.append((period, value))
+
+        if not values:
+            return QueryResult(
+                success=False,
+                error="NO_DATA_FOR_AGGREGATION",
+                message=f"No data found for any of the specified periods",
+                confidence=0.0
+            )
+
+        # Calculate aggregation
+        agg_type = parsed_query.aggregation_type or "sum"
+        all_values = [v[1] for v in values]
+
+        if agg_type == "average":
+            result_value = sum(all_values) / len(all_values)
+        else:  # default to sum
+            result_value = sum(all_values)
+
         return QueryResult(
-            success=False,
-            error="NOT_IMPLEMENTED",
-            message="Aggregation queries are not yet implemented",
-            confidence=0.0
+            success=True,
+            value={
+                "aggregation_type": agg_type,
+                "result": result_value,
+                "periods": [v[0] for v in values],
+                "values": [v[1] for v in values],
+            },
+            confidence=bounded_confidence(0.95)
+        )
+
+    def _execute_breakdown_query(self, parsed_query: ParsedQuery) -> QueryResult:
+        """Execute a breakdown query (multiple metrics for one period)."""
+        if not parsed_query.breakdown_metrics:
+            return QueryResult(
+                success=False,
+                error="MISSING_BREAKDOWN_METRICS",
+                message="Breakdown query requires metrics to break down",
+                confidence=0.0
+            )
+
+        period = parsed_query.resolved_period
+        if not period:
+            return QueryResult(
+                success=False,
+                error="UNRESOLVED_PERIOD",
+                message="Period could not be resolved for breakdown",
+                confidence=0.0
+            )
+
+        # Get values for all metrics
+        breakdown = {}
+        for metric in parsed_query.breakdown_metrics:
+            value = self.fact_base.query(metric, period)
+            if value is not None:
+                breakdown[metric] = value
+
+        if not breakdown:
+            return QueryResult(
+                success=False,
+                error="NO_DATA_FOR_BREAKDOWN",
+                message=f"No data found for any of the specified metrics in {period}",
+                confidence=0.0
+            )
+
+        return QueryResult(
+            success=True,
+            value={
+                "period": period,
+                "breakdown": breakdown,
+            },
+            confidence=bounded_confidence(0.95)
         )
