@@ -25,6 +25,11 @@ interface DragState {
   offsetY: number;
 }
 
+interface FloatOffset {
+  x: number;
+  y: number;
+}
+
 export const GalaxyView: React.FC<GalaxyViewProps> = ({
   data,
   width = 700,
@@ -34,21 +39,72 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const [hoveredNode, setHoveredNode] = useState<IntentNode | null>(null);
   const [hoveredPosition, setHoveredPosition] = useState<{ x: number; y: number } | null>(null);
   const [isFloating, setIsFloating] = useState(true);
+  const [isReady, setIsReady] = useState(false); // Prevents initial flicker
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [nodeOffsets, setNodeOffsets] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [snappingNodes, setSnappingNodes] = useState<Set<string>>(new Set());
+  const [floatOffsets, setFloatOffsets] = useState<Map<string, FloatOffset>>(new Map());
   const svgRef = useRef<SVGSVGElement>(null);
+  const animationRef = useRef<number | null>(null);
 
   const centerX = width / 2;
   const centerY = height / 2;
+
+  // Mark as ready after a tick to prevent initial position flicker
+  useEffect(() => {
+    const timer = requestAnimationFrame(() => {
+      setIsReady(true);
+    });
+    return () => cancelAnimationFrame(timer);
+  }, []);
 
   // Stop floating animation after 3 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsFloating(false);
+      // Clear float offsets when stopping
+      setFloatOffsets(new Map());
     }, 3000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Floating animation loop using requestAnimationFrame
+  useEffect(() => {
+    if (!isFloating || !isReady) return;
+
+    const startTime = Date.now();
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const newOffsets = new Map<string, FloatOffset>();
+
+      data.nodes.forEach((node, index) => {
+        // Different phase and speed for each node
+        const phase = index * 0.7;
+        const speedX = 0.8 + (index % 3) * 0.3;
+        const speedY = 0.6 + (index % 3) * 0.2;
+
+        const x = Math.sin((elapsed / 1000) * speedX + phase) * 4;
+        const y = Math.cos((elapsed / 1000) * speedY + phase * 1.3) * 4;
+
+        newOffsets.set(node.id, { x, y });
+      });
+
+      setFloatOffsets(newOffsets);
+
+      if (isFloating) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [isFloating, isReady, data.nodes]);
 
   // Group nodes by ring (match_type)
   const nodesByRing = useMemo(() => {
@@ -84,20 +140,32 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
     return positions;
   }, [nodesByRing, centerX, centerY]);
 
-  // Get current position including any drag offset
+  // Get current position including any drag offset and float animation
   const getNodePosition = useCallback((nodeId: string) => {
     const basePos = nodePositions.get(nodeId);
-    if (!basePos) return { x: 0, y: 0 };
+    if (!basePos) return { x: centerX, y: centerY }; // Default to center if not found
 
-    const offset = nodeOffsets.get(nodeId);
-    if (offset) {
-      return {
-        x: basePos.x + offset.x,
-        y: basePos.y + offset.y,
-      };
+    let x = basePos.x;
+    let y = basePos.y;
+
+    // Add drag offset if being dragged
+    const dragOffset = nodeOffsets.get(nodeId);
+    if (dragOffset) {
+      x += dragOffset.x;
+      y += dragOffset.y;
     }
-    return basePos;
-  }, [nodePositions, nodeOffsets]);
+
+    // Add float animation offset (only when not being dragged)
+    if (!dragOffset && isFloating) {
+      const floatOffset = floatOffsets.get(nodeId);
+      if (floatOffset) {
+        x += floatOffset.x;
+        y += floatOffset.y;
+      }
+    }
+
+    return { x, y };
+  }, [nodePositions, nodeOffsets, floatOffsets, isFloating, centerX, centerY]);
 
   // Handle mouse down on node - start drag
   const handleMouseDown = useCallback((e: React.MouseEvent, node: IntentNode) => {
@@ -241,38 +309,12 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
           >
-            {/* CSS for floating animation */}
+            {/* Gradient definitions */}
             <defs>
               <radialGradient id="bgGradient" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stopColor="#0f172a" />
                 <stop offset="100%" stopColor="#020617" />
               </radialGradient>
-              <style>{`
-                @keyframes float0 {
-                  0%, 100% { transform: translate(0, 0); }
-                  25% { transform: translate(3px, -4px); }
-                  50% { transform: translate(-2px, 3px); }
-                  75% { transform: translate(4px, 2px); }
-                }
-                @keyframes float1 {
-                  0%, 100% { transform: translate(0, 0); }
-                  25% { transform: translate(-4px, 2px); }
-                  50% { transform: translate(3px, -3px); }
-                  75% { transform: translate(-2px, 4px); }
-                }
-                @keyframes float2 {
-                  0%, 100% { transform: translate(0, 0); }
-                  25% { transform: translate(2px, 4px); }
-                  50% { transform: translate(-3px, -2px); }
-                  75% { transform: translate(3px, -3px); }
-                }
-                .floating-0 { animation: float0 2.5s ease-in-out infinite; }
-                .floating-1 { animation: float1 2.8s ease-in-out infinite; animation-delay: 0.3s; }
-                .floating-2 { animation: float2 2.2s ease-in-out infinite; animation-delay: 0.6s; }
-                .snapping {
-                  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                }
-              `}</style>
             </defs>
             <rect width={width} height={height} fill="url(#bgGradient)" />
 
@@ -352,7 +394,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             </g>
 
             {/* Nodes */}
-            {data.nodes.map((node, index) => {
+            {isReady && data.nodes.map((node) => {
               const pos = getNodePosition(node.id);
               const isPrimary = node.id === data.primary_node_id;
               const isSelected = selectedNode?.id === node.id;
@@ -363,9 +405,11 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               const color = DOMAIN_COLORS[node.domain] || DOMAIN_COLORS.finance;
               const arcRadius = radius + 6;
 
-              // Determine animation class
-              const floatClass = isFloating && !isDragging ? `floating-${index % 3}` : '';
-              const snapClass = isSnapping ? 'snapping' : '';
+              // Style for smooth snap-back transition
+              const nodeStyle: React.CSSProperties = {
+                cursor: isDragging ? 'grabbing' : 'grab',
+                transition: isSnapping ? 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' : 'none',
+              };
 
               return (
                 <g
@@ -375,8 +419,8 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                   onMouseDown={(e) => handleMouseDown(e, node)}
                   onMouseEnter={() => handleNodeMouseEnter(node)}
                   onMouseLeave={handleNodeMouseLeave}
-                  style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-                  className={`galaxy-node ${floatClass} ${snapClass}`}
+                  style={nodeStyle}
+                  className="galaxy-node"
                 >
                   {/* Selection/hover ring */}
                   {(isSelected || isHovered) && (

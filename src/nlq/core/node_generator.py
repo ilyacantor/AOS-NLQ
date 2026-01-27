@@ -224,12 +224,15 @@ def generate_nodes_for_ambiguous_query(
             ))
 
     elif ambiguity_type == AmbiguityType.NOT_APPLICABLE:
-        # Primary is HYPOTHESIS (doesn't apply), alternative is POTENTIAL
+        # The concept doesn't apply - show as HYPOTHESIS with low confidence
+        # Alternatives are POTENTIAL but labeled as "Alternative" not "Likely"
         if candidates:
+            # The requested concept that doesn't apply
+            requested_concept = candidates[0] if candidates else "N/A"
             nodes.append(IntentNode(
                 id="not-applicable",
                 metric="not_applicable",
-                display_name=candidates[0] if candidates else "N/A",
+                display_name=requested_concept.replace('_', ' ').title(),
                 match_type=MatchType.HYPOTHESIS,
                 domain=Domain.FINANCE,
                 confidence=0.30,
@@ -238,28 +241,29 @@ def generate_nodes_for_ambiguous_query(
                 value=None,
                 formatted_value="Not Applicable",
                 period=period,
-                rationale="Concept doesn't apply to this company",
-                semantic_label="Context"
+                rationale="This concept doesn't apply to profitable companies",
+                semantic_label="Context: not_applicable"
             ))
 
-            # Add alternative metric
-            if len(candidates) > 1:
-                alt_metric = candidates[1]
+            # Add alternative metrics - these are suggestions, not interpretations
+            for i, alt_metric in enumerate(candidates[1:3]):  # Up to 2 alternatives
                 alt_value = fact_base.query(alt_metric, period) if fact_base else None
+                # Lower confidence since these aren't what was asked for
+                alt_conf = bounded_confidence(0.75 - (i * 0.05))
                 nodes.append(IntentNode(
-                    id=f"{alt_metric}-alternative",
+                    id=f"{alt_metric}-alternative-{i}",
                     metric=alt_metric,
                     display_name=get_display_name(alt_metric),
                     match_type=MatchType.POTENTIAL,
                     domain=get_domain(alt_metric),
-                    confidence=0.75,
+                    confidence=alt_conf,
                     data_quality=get_data_quality(alt_metric),
                     freshness=get_freshness(alt_metric),
                     value=alt_value,
                     formatted_value=format_value(alt_metric, alt_value),
                     period=period,
                     rationale="Relevant alternative",
-                    semantic_label="Likely"
+                    semantic_label="Alternative"  # NOT "Likely" - this isn't what they asked for
                 ))
 
     else:
