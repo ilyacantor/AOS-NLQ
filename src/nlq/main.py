@@ -31,8 +31,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API routes
+# Include API routes (both prefixes for dev proxy and production)
 app.include_router(router, prefix="/v1")
+app.include_router(router, prefix="/api/v1")
 
 # Serve static React build in production
 DIST_DIR = Path(__file__).parent.parent.parent / "dist"
