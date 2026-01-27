@@ -162,7 +162,7 @@ AMBIGUITY_CANDIDATES = {
         "how'd we do": ["revenue", "net_income"],
         "how": ["revenue", "net_income"],
         "margin": ["gross_margin_pct", "operating_margin_pct", "net_income_pct"],
-        "ratio": ["current_assets", "current_liabilities"],
+        "ratio": ["total_current_assets", "current_liabilities"],
         "new business": ["new_logo_revenue", "new_logos", "customer_count"],
         "reps performing": ["reps_at_quota_pct", "quota_attainment", "sales_headcount"],
         "pipeline coverage": ["pipeline", "sales_quota"],

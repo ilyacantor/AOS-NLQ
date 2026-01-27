@@ -1212,7 +1212,16 @@
       "cloud_spend_pct_revenue": 2.4,
       "cost_per_transaction": 0.012,
       "api_requests_millions": 150,
-      "cash": 27.62
+      "cash": 27.62,
+      "total_current_assets": 50.39,
+      "current_liabilities": 16.66,
+      "ar": 13.81,
+      "ap": 3.22,
+      "ppe": 16.8,
+      "deferred_revenue": 13.44,
+      "unbilled_revenue": 8.96,
+      "retained_earnings": 29.4,
+      "stockholders_equity": 79.4
     },
     "2025": {
       "revenue": 150.0,
@@ -1291,7 +1300,16 @@
       "cloud_spend_pct_revenue": 2.1,
       "cost_per_transaction": 0.009,
       "api_requests_millions": 280,
-      "cash": 41.42
+      "cash": 41.42,
+      "total_current_assets": 75.57,
+      "current_liabilities": 24.99,
+      "ar": 20.71,
+      "ap": 4.83,
+      "ppe": 25.2,
+      "deferred_revenue": 20.16,
+      "unbilled_revenue": 13.44,
+      "retained_earnings": 88.24,
+      "stockholders_equity": 138.24
     },
     "2026": {
       "revenue": 200.0,
@@ -1370,7 +1388,16 @@
       "cloud_spend_pct_revenue": 2.0,
       "cost_per_transaction": 0.007,
       "api_requests_millions": 450,
-      "cash": 55.23
+      "cash": 55.23,
+      "total_current_assets": 100.77,
+      "current_liabilities": 33.32,
+      "ar": 27.62,
+      "ap": 6.44,
+      "ppe": 33.6,
+      "deferred_revenue": 26.88,
+      "unbilled_revenue": 17.92,
+      "retained_earnings": 176.4,
+      "stockholders_equity": 226.4
     }
   }
 }
