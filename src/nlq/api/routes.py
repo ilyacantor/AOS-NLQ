@@ -135,17 +135,18 @@ async def query(request: NLQRequest) -> NLQResponse:
                 resolved_period=parsed.resolved_period,
             )
 
-        # Format the answer
+        # Format the answer (limit to 1 decimal place)
         unit = get_metric_unit(parsed.metric)
+        formatted_value = round(result.value, 1) if isinstance(result.value, (int, float)) else result.value
         if unit == "%":
-            answer = f"{parsed.metric.replace('_', ' ').title()} for {parsed.resolved_period} was {result.value}%"
+            answer = f"{parsed.metric.replace('_', ' ').title()} for {parsed.resolved_period} was {formatted_value}%"
         else:
-            answer = f"{parsed.metric.replace('_', ' ').title()} for {parsed.resolved_period} was ${result.value} million"
+            answer = f"{parsed.metric.replace('_', ' ').title()} for {parsed.resolved_period} was ${formatted_value} million"
 
         return NLQResponse(
             success=True,
             answer=answer,
-            value=result.value,
+            value=formatted_value,
             unit=unit,
             confidence=bounded_confidence(result.confidence),
             parsed_intent=parsed.intent.value,
