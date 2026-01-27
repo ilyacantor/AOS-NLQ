@@ -33,17 +33,30 @@ aos-nlq is a standalone Natural Language Query interface for financial data. It 
 - **2026-01-27:** Rebuilt with React + Vite + Tailwind v4 (migrated from Streamlit)
 - **2026-01-27:** Fixed Tailwind v4 PostCSS config (requires `@tailwindcss/postcss` package)
 - **2026-01-27:** Added production build scripts
+- **2026-01-27:** Implemented single server architecture (FastAPI serves React build)
 
 ## Running the Application
+
+### Development
 ```bash
-npm run dev      # Development
-npm run build    # Production build
-npm run start    # Serve production build
+npm run dev                    # Start Vite dev server (port 5000)
+uvicorn src.nlq.main:app --port 8000  # Start API server (port 8000)
 ```
+
+### Production (Deployment)
+```bash
+./start.sh                     # Build React + start FastAPI on port 5000
+```
+
+The production setup uses FastAPI to serve both:
+- API routes at `/v1/*`
+- Static React build at `/`
 
 ## Configuration Notes
 - **postcss.config.js** - Uses `@tailwindcss/postcss` (required for Tailwind v4)
 - **vite.config.ts** - Server configured with `allowedHosts: true` for Replit preview
+- **src/nlq/main.py** - FastAPI serves static files from `dist/` when it exists
+- **start.sh** - Production script: builds React then starts FastAPI on port 5000
 
 ## User Preferences
 - Dark mode interface (default, no light mode toggle)
