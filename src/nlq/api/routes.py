@@ -367,6 +367,142 @@ class SchemaResponse(BaseModel):
     metric_details: Dict
 
 
+def _handle_ambiguous_query_text(
+    question: str,
+    ambiguity_type: AmbiguityType,
+    candidates: list,
+    clarification: Optional[str],
+    fact_base: FactBase,
+) -> NLQResponse:
+    """Handle an ambiguous query and return text response."""
+    from datetime import date as date_type
+    period = str(date_type.today().year)
+
+    # Build answer based on ambiguity type
+    if ambiguity_type == AmbiguityType.NOT_APPLICABLE:
+        # Concept doesn't apply - show alternatives
+        concept = candidates[0] if candidates else "this concept"
+        alternatives = []
+        for alt in candidates[1:3]:
+            val = fact_base.query(alt, period) if fact_base else None
+            if val is not None:
+                unit = get_metric_unit(alt)
+                formatted = f"{round(val, 1)}%" if unit == "%" else f"${round(val, 1)}M"
+                display = alt.replace('_', ' ').title()
+                alternatives.append(f"{display}: {formatted}")
+
+        answer = f"'{concept.replace('_', ' ')}' doesn't apply to this company (we're profitable)."
+        if alternatives:
+            answer += f" Instead, consider: {', '.join(alternatives)}."
+
+        return NLQResponse(
+            success=True,
+            answer=answer,
+            value=None,
+            unit=None,
+            confidence=0.6,
+            parsed_intent="AMBIGUOUS",
+            resolved_metric=None,
+            resolved_period=period,
+        )
+
+    elif ambiguity_type == AmbiguityType.VAGUE_METRIC:
+        # Multiple possible metrics
+        options = []
+        for metric in candidates[:4]:
+            val = fact_base.query(metric, period) if fact_base else None
+            if val is not None:
+                unit = get_metric_unit(metric)
+                formatted = f"{round(val, 1)}%" if unit == "%" else f"${round(val, 1)}M"
+                display = metric.replace('_', ' ').title()
+                options.append(f"{display}: {formatted}")
+
+        answer = ", ".join(options) if options else "Multiple metrics match your query."
+        if clarification:
+            answer += f" {clarification}"
+
+        return NLQResponse(
+            success=True,
+            answer=answer,
+            value=None,
+            unit=None,
+            confidence=0.7,
+            parsed_intent="AMBIGUOUS",
+            resolved_metric=None,
+            resolved_period=period,
+        )
+
+    elif ambiguity_type == AmbiguityType.BROAD_REQUEST:
+        # User wants multiple metrics
+        parts = []
+        for metric in candidates[:6]:
+            val = fact_base.query(metric, period) if fact_base else None
+            if val is not None:
+                unit = get_metric_unit(metric)
+                formatted = f"{round(val, 1)}%" if unit == "%" else f"${round(val, 1)}M"
+                display = metric.replace('_', ' ').title()
+                parts.append(f"{display}: {formatted}")
+
+        answer = f"Summary for {period}: " + ", ".join(parts) if parts else "Financial summary requested."
+
+        return NLQResponse(
+            success=True,
+            answer=answer,
+            value=None,
+            unit=None,
+            confidence=0.85,
+            parsed_intent="AMBIGUOUS",
+            resolved_metric=None,
+            resolved_period=period,
+        )
+
+    else:
+        # Default handling for other ambiguity types (YES_NO, INCOMPLETE, CASUAL, etc.)
+        if candidates:
+            primary = candidates[0]
+            val = fact_base.query(primary, period) if fact_base else None
+            if val is not None:
+                unit = get_metric_unit(primary)
+                formatted = f"{round(val, 1)}%" if unit == "%" else f"${round(val, 1)}M"
+                display = primary.replace('_', ' ').title()
+                answer = f"{display} for {period}: {formatted}"
+
+                # Add related context
+                if len(candidates) > 1:
+                    related = []
+                    for rel in candidates[1:3]:
+                        rel_val = fact_base.query(rel, period) if fact_base else None
+                        if rel_val is not None:
+                            rel_unit = get_metric_unit(rel)
+                            rel_fmt = f"{round(rel_val, 1)}%" if rel_unit == "%" else f"${round(rel_val, 1)}M"
+                            rel_display = rel.replace('_', ' ').title()
+                            related.append(f"{rel_display}: {rel_fmt}")
+                    if related:
+                        answer += f". Related: {', '.join(related)}"
+
+                return NLQResponse(
+                    success=True,
+                    answer=answer,
+                    value=val,
+                    unit=unit,
+                    confidence=0.75,
+                    parsed_intent="AMBIGUOUS",
+                    resolved_metric=primary,
+                    resolved_period=period,
+                )
+
+        return NLQResponse(
+            success=True,
+            answer=clarification or "Query interpreted with multiple possibilities.",
+            value=None,
+            unit=None,
+            confidence=0.5,
+            parsed_intent="AMBIGUOUS",
+            resolved_metric=None,
+            resolved_period=period,
+        )
+
+
 @router.post("/query", response_model=NLQResponse)
 async def query(request: NLQRequest) -> NLQResponse:
     """
@@ -378,6 +514,19 @@ async def query(request: NLQRequest) -> NLQResponse:
         # Get dependencies
         fact_base = get_fact_base()
         claude_client = get_claude_client()
+
+        # Check for ambiguity first (same as Galaxy endpoint)
+        ambiguity_type, candidates, clarification = detect_ambiguity(request.question)
+
+        if ambiguity_type and ambiguity_type != AmbiguityType.NONE:
+            # Handle ambiguous query with text response
+            return _handle_ambiguous_query_text(
+                request.question,
+                ambiguity_type,
+                candidates,
+                clarification,
+                fact_base,
+            )
 
         # Set up components
         parser = QueryParser(claude_client)
