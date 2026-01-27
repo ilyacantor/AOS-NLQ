@@ -35,6 +35,10 @@ args = "Start Frontend"
 name = "Start Backend"
 author = "agent"
 
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pip install fastapi uvicorn anthropic pydantic python-dotenv && uvicorn src.nlq.main:app --host 0.0.0.0 --port 8000"
+waitForPort = 8000
 
 [[workflows.workflow]]
 name = "Start Frontend"
@@ -51,4 +55,8 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 8000
+externalPort = 8000
 
