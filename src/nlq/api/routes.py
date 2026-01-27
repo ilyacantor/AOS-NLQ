@@ -405,17 +405,21 @@ def _handle_ambiguous_query_text(
         """Get value from fact base."""
         return fact_base.query(metric, period) if fact_base else None
 
-    # ===== NOT_APPLICABLE =====
-    # Ground truth: "Not applicable - company is profitable with positive cash flow"
-    if ambiguity_type == AmbiguityType.NOT_APPLICABLE:
+    # ===== BURN_RATE =====
+    # Ground truth: "Our COGS of $70M and SG&A of $60M total $130M annually. We are quite profitable, however, and have been for a long time, therefore we do not report burn_rate discretely."
+    if ambiguity_type == AmbiguityType.BURN_RATE:
+        cogs = get_val("cogs", current_year)
+        sga = get_val("sga", current_year)
+        total = (cogs or 0) + (sga or 0)
+        answer = f"Our COGS of ${round(cogs, 0) if cogs else 0}M and SG&A of ${round(sga, 0) if sga else 0}M total ${round(total, 0)}M annually. We are quite profitable, however, and have been for a long time, therefore we do not report burn_rate discretely."
         return NLQResponse(
             success=True,
-            answer="Not applicable - company is profitable with positive cash flow",
-            value=None,
-            unit=None,
+            answer=answer,
+            value=total,
+            unit="$M",
             confidence=0.85,
-            parsed_intent="NOT_APPLICABLE",
-            resolved_metric=None,
+            parsed_intent="BURN_RATE",
+            resolved_metric="costs",
             resolved_period=current_year,
         )
 

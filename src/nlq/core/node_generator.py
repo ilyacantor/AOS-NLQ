@@ -223,48 +223,46 @@ def generate_nodes_for_ambiguous_query(
                 semantic_label="Direct Answer"
             ))
 
-    elif ambiguity_type == AmbiguityType.NOT_APPLICABLE:
-        # The concept doesn't apply - show as HYPOTHESIS with low confidence
-        # Alternatives are POTENTIAL but labeled as "Alternative" not "Likely"
-        if candidates:
-            # The requested concept that doesn't apply
-            requested_concept = candidates[0] if candidates else "N/A"
+    elif ambiguity_type == AmbiguityType.BURN_RATE:
+        # Burn rate applies but profitable companies don't report discretely
+        # Show COGS and SG&A as the actual cost metrics
+        for i, metric in enumerate(candidates):  # candidates are ["cogs", "sga"]
+            value = fact_base.query(metric, period) if fact_base else None
+            # Both are EXACT matches since they directly answer what "burn rate" means for profitable co
+            match_type = MatchType.EXACT
+            conf = bounded_confidence(0.85 - (i * 0.05))
             nodes.append(IntentNode(
-                id="not-applicable",
-                metric="not_applicable",
-                display_name=requested_concept.replace('_', ' ').title(),
-                match_type=MatchType.HYPOTHESIS,
+                id=f"{metric}-burn-{i}",
+                metric=metric,
+                display_name=get_display_name(metric),
+                match_type=match_type,
                 domain=Domain.FINANCE,
-                confidence=0.30,
-                data_quality=0.0,
-                freshness="N/A",
-                value=None,
-                formatted_value="Not Applicable",
+                confidence=conf,
+                data_quality=get_data_quality(metric),
+                freshness=get_freshness(metric),
+                value=value,
+                formatted_value=format_value(metric, value),
                 period=period,
-                rationale="This concept doesn't apply to profitable companies",
-                semantic_label="Context: not_applicable"
+                rationale="Cost component (burn rate tracked via COGS/SG&A for profitable companies)",
+                semantic_label="Direct Answer"
             ))
 
-            # Add alternative metrics - these are suggestions, not interpretations
-            for i, alt_metric in enumerate(candidates[1:3]):  # Up to 2 alternatives
-                alt_value = fact_base.query(alt_metric, period) if fact_base else None
-                # Lower confidence since these aren't what was asked for
-                alt_conf = bounded_confidence(0.75 - (i * 0.05))
-                nodes.append(IntentNode(
-                    id=f"{alt_metric}-alternative-{i}",
-                    metric=alt_metric,
-                    display_name=get_display_name(alt_metric),
-                    match_type=MatchType.POTENTIAL,
-                    domain=get_domain(alt_metric),
-                    confidence=alt_conf,
-                    data_quality=get_data_quality(alt_metric),
-                    freshness=get_freshness(alt_metric),
-                    value=alt_value,
-                    formatted_value=format_value(alt_metric, alt_value),
-                    period=period,
-                    rationale="Relevant alternative",
-                    semantic_label="Alternative"  # NOT "Likely" - this isn't what they asked for
-                ))
+        # Add a context node explaining the situation
+        nodes.append(IntentNode(
+            id="burn-rate-context",
+            metric="burn_rate",
+            display_name="Burn Rate",
+            match_type=MatchType.HYPOTHESIS,
+            domain=Domain.FINANCE,
+            confidence=0.70,
+            data_quality=0.0,
+            freshness="N/A",
+            value=None,
+            formatted_value="Not Reported Discretely",
+            period=period,
+            rationale="Profitable companies track costs via COGS/SG&A, not burn rate",
+            semantic_label="Context"
+        ))
 
     else:
         # Default: Primary candidate as EXACT, rest as POTENTIAL

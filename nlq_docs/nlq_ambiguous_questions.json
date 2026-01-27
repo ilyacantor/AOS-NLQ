@@ -17,7 +17,7 @@
     "context_dependent": "Answer depends on current date/state",
     "comparison": "Wants relationship between metrics",
     "summary_request": "Asking for condensed overview",
-    "not_applicable": "Question doesn't apply to this dataset"
+    "burn_rate": "Burn rate question - applies but not reported discretely for profitable companies"
   },
   "questions": [
     {
@@ -151,10 +151,10 @@
     {
       "id": 72,
       "question": "burn rate?",
-      "ground_truth": "Not applicable - company is profitable with positive cash flow",
-      "interpretation": "Cash burn assessment",
-      "ambiguity_type": "not_applicable",
-      "notes": "Startup terminology that doesn't apply here"
+      "ground_truth": "Our COGS of $70M and SG&A of $60M total $130M annually. We are quite profitable, however, and have been for a long time, therefore we do not report burn_rate discretely.",
+      "interpretation": "Cash burn assessment - acknowledge costs but explain profitable companies don't report discretely",
+      "ambiguity_type": "burn_rate",
+      "notes": "Burn rate applies to profitable companies for tracking expansion/efficiency, but not reported discretely"
     },
     {
       "id": 73,

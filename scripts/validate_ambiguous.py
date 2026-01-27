@@ -111,9 +111,10 @@ def check_match(ground_truth: str, actual: str, amb_type: str) -> str:
     gt = ground_truth.lower()
     act = actual.lower()
 
-    # Special case: NOT_APPLICABLE
-    if amb_type == "not_applicable":
-        if "not applicable" in act and "profitable" in act:
+    # Special case: BURN_RATE
+    if amb_type == "burn_rate":
+        # Should mention COGS, SG&A, total, and "profitable" / "not report discretely"
+        if "cogs" in act and "sg&a" in act and "profitable" in act:
             return "PASS"
         return "FAIL"
 

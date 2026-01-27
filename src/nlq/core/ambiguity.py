@@ -15,9 +15,9 @@ from src.nlq.models.response import AmbiguityType
 # ORDER MATTERS - more specific patterns should come before general ones
 AMBIGUITY_PATTERNS = {
     # Most specific first
-    AmbiguityType.NOT_APPLICABLE: [
-        r"burn rate",                   # Doesn't apply to profitable company
-        r"runway",                      # Doesn't apply
+    AmbiguityType.BURN_RATE: [
+        r"burn rate",                   # Applies but not reported discretely for profitable companies
+        r"runway",                      # Similar - tracked via COGS/SG&A for profitable companies
     ],
     AmbiguityType.IMPLIED_CONTEXT: [
         r"did we hit \d+",              # "did we hit 150" - implies revenue target
@@ -127,10 +127,10 @@ AMBIGUITY_CANDIDATES = {
         "nutshell": ["revenue", "net_income", "operating_margin_pct"],
         "default": ["revenue", "net_income", "operating_margin_pct"],
     },
-    AmbiguityType.NOT_APPLICABLE: {
-        "burn rate": ["burn_rate"],  # We'll handle specially
-        "runway": ["runway"],
-        "default": ["not_applicable"],
+    AmbiguityType.BURN_RATE: {
+        "burn rate": ["cogs", "sga"],  # Show actual costs for profitable companies
+        "runway": ["cogs", "sga"],
+        "default": ["cogs", "sga"],
     },
 }
 
@@ -147,7 +147,7 @@ CLARIFICATION_PROMPTS = {
     AmbiguityType.CONTEXT_DEPENDENT: "Year over year for which metric?",
     AmbiguityType.COMPARISON: None,  # Can provide comparison
     AmbiguityType.SUMMARY: None,  # Provide summary
-    AmbiguityType.NOT_APPLICABLE: None,  # Explain N/A
+    AmbiguityType.BURN_RATE: None,  # Provide cost breakdown and explain not reported discretely
 }
 
 

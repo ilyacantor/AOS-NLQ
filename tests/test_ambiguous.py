@@ -73,11 +73,12 @@ class TestAmbiguityDetection:
         assert amb_type == AmbiguityType.SHORTHAND
         assert "cash" in candidates
 
-    def test_detect_not_applicable_burn_rate(self):
-        """'burn rate' should be NOT_APPLICABLE."""
+    def test_detect_burn_rate(self):
+        """'burn rate' should be BURN_RATE (applies but not reported discretely)."""
         amb_type, candidates, _ = detect_ambiguity("burn rate?")
-        assert amb_type == AmbiguityType.NOT_APPLICABLE
-        assert "burn_rate" in candidates  # Candidates track the concept, not literal "not_applicable"
+        assert amb_type == AmbiguityType.BURN_RATE
+        assert "cogs" in candidates  # Burn rate is tracked via COGS/SG&A for profitable companies
+        assert "sga" in candidates
 
     def test_non_ambiguous_returns_none(self):
         """Clear questions should not be detected as ambiguous."""
@@ -152,19 +153,24 @@ class TestAmbiguousNodeGeneration:
         for node in nodes:
             assert node.match_type == MatchType.EXACT
 
-    def test_not_applicable_has_hypothesis(self, fact_base):
-        """NOT_APPLICABLE should have hypothesis node."""
+    def test_burn_rate_has_cost_nodes_and_context(self, fact_base):
+        """BURN_RATE should have COGS/SG&A as EXACT and context node as HYPOTHESIS."""
         nodes = generate_nodes_for_ambiguous_query(
-            AmbiguityType.NOT_APPLICABLE,
-            ["burn_rate", "net_income"],
+            AmbiguityType.BURN_RATE,
+            ["cogs", "sga"],
             "2025",
             fact_base,
         )
 
-        # First node should be the N/A hypothesis
-        na_node = nodes[0]
-        assert na_node.match_type == MatchType.HYPOTHESIS
-        assert na_node.confidence < 0.5
+        # First two nodes should be cost metrics (EXACT)
+        cogs_node = nodes[0]
+        assert cogs_node.metric == "cogs"
+        assert cogs_node.match_type == MatchType.EXACT
+
+        # Context node should be HYPOTHESIS
+        context_node = [n for n in nodes if "context" in n.id or n.metric == "burn_rate"]
+        assert len(context_node) >= 1
+        assert context_node[0].match_type == MatchType.HYPOTHESIS
 
     def test_context_nodes_added(self, fact_base):
         """Ambiguous queries should include context nodes."""
@@ -195,7 +201,7 @@ class TestThe20AmbiguousQuestions:
         ("cash position", AmbiguityType.SHORTHAND),
         ("year over year", AmbiguityType.CONTEXT_DEPENDENT),
         ("what about Q2", AmbiguityType.CONTEXT_DEPENDENT),
-        ("burn rate?", AmbiguityType.NOT_APPLICABLE),
+        ("burn rate?", AmbiguityType.BURN_RATE),
         ("opex breakdown pls", AmbiguityType.CASUAL_LANGUAGE),
         ("we growing?", AmbiguityType.YES_NO),
         ("2025 in a nutshell", AmbiguityType.SUMMARY),

@@ -45,6 +45,7 @@ class AmbiguityType(str, Enum):
     COMPARISON = "comparison"
     SUMMARY = "summary"
     NOT_APPLICABLE = "not_applicable"
+    BURN_RATE = "burn_rate"
 
 
 class IntentNode(BaseModel):
