@@ -47,6 +47,11 @@ class QueryExecutor:
         CRITICAL: This method performs validation checks before returning
         results to ensure we never return empty/invalid data silently.
         """
+        # Execute the query based on intent
+        # Note: Breakdown queries skip metric validation since they use breakdown_metrics
+        if parsed_query.intent == QueryIntent.BREAKDOWN_QUERY:
+            return self._execute_breakdown_query(parsed_query)
+
         # Check 1: Does the metric exist in our schema?
         available_metrics = self.fact_base.available_metrics
         if parsed_query.metric not in available_metrics:
@@ -57,14 +62,11 @@ class QueryExecutor:
                 confidence=0.0
             )
 
-        # Execute the query based on intent
-        # Note: Comparison, aggregation, and breakdown queries handle their own period validation
+        # Route to appropriate handler
         if parsed_query.intent == QueryIntent.COMPARISON_QUERY:
             return self._execute_comparison_query(parsed_query)
         elif parsed_query.intent == QueryIntent.AGGREGATION_QUERY:
             return self._execute_aggregation_query(parsed_query)
-        elif parsed_query.intent == QueryIntent.BREAKDOWN_QUERY:
-            return self._execute_breakdown_query(parsed_query)
         elif parsed_query.intent == QueryIntent.TREND_QUERY:
             return self._execute_trend_query(parsed_query)
 
