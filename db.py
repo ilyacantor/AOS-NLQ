@@ -1,4 +1,5 @@
 import os
+from typing import Optional, Any
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -17,16 +18,17 @@ def test_connection():
         conn = get_connection()
         cur = conn.cursor()
         cur.execute("SELECT 1")
-        result = cur.fetchone()
+        cur.fetchone()
         cur.close()
         conn.close()
         return True, "Connection successful"
     except Exception as e:
         return False, str(e)
 
-def execute_query(query: str, params: tuple = None):
+def execute_query(query: str, params: Optional[tuple] = None) -> dict[str, Any]:
     """Execute a query and return results."""
     conn = get_connection()
+    cur = None
     try:
         cur = conn.cursor()
         cur.execute(query, params)
@@ -39,10 +41,11 @@ def execute_query(query: str, params: tuple = None):
             conn.commit()
             return {"affected_rows": cur.rowcount}
     finally:
-        cur.close()
+        if cur:
+            cur.close()
         conn.close()
 
-def get_tables():
+def get_tables() -> list[str]:
     """Get list of tables in the database."""
     query = """
     SELECT table_name 
@@ -51,7 +54,8 @@ def get_tables():
     ORDER BY table_name;
     """
     result = execute_query(query)
-    return [row["table_name"] for row in result.get("data", [])]
+    data = result.get("data", [])
+    return [row["table_name"] for row in data] if data else []
 
 def get_table_schema(table_name: str):
     """Get schema for a specific table."""
