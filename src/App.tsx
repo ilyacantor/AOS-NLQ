@@ -214,7 +214,9 @@ function App() {
                       <div>
                         <div className="text-slate-500 text-xs mb-1">Value</div>
                         <div className="text-slate-200 font-mono text-xl">
-                          {response.unit === '%' ? `${response.value}%` : `$${response.value}M`}
+                          {response.unit === '%'
+                            ? `${Number(response.value).toFixed(1)}%`
+                            : `$${Number(response.value).toFixed(1)}M`}
                         </div>
                       </div>
                       <div>
