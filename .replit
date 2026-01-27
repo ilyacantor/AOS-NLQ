@@ -5,3 +5,12 @@ run = ["streamlit", "run", "app.py", "--server.port", "5000"]
 
 [nix]
 channel = "stable-25_05"
+packages = ["glibcLocales"]
+
+[agent]
+integrations = ["python_openai_ai_integrations:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+SUPABASE_URL = "postgresql://postgres.yuxrdoamtjmodjzqpeds:UZKbBgI7runK4XvX@aws-1-us-east-2.pooler.supabase.com:5432/postgres"
