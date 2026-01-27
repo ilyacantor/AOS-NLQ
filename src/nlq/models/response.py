@@ -4,13 +4,197 @@ Response models for AOS-NLQ.
 Contains Pydantic models for:
 - API response structure (NLQResponse)
 - Internal query execution results (QueryResult)
+- Galaxy visualization models (IntentNode, IntentMapResponse)
 
 CRITICAL: Confidence scores are bounded [0.0, 1.0] using Pydantic Field constraints.
 """
 
-from typing import Any, Optional
+from enum import Enum
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class MatchType(str, Enum):
+    """Orbital ring assignment for Galaxy visualization."""
+    EXACT = "exact"           # Inner ring - direct answer
+    POTENTIAL = "potential"   # Middle ring - likely interpretation
+    HYPOTHESIS = "hypothesis" # Outer ring - contextual
+
+
+class Domain(str, Enum):
+    """Domain colors for Galaxy visualization."""
+    FINANCE = "finance"       # Blue
+    GROWTH = "growth"         # Pink
+    OPS = "ops"               # Green
+    PRODUCT = "product"       # Purple
+
+
+class AmbiguityType(str, Enum):
+    """Types of query ambiguity."""
+    NONE = "none"
+    INCOMPLETE = "incomplete"
+    VAGUE_METRIC = "vague_metric"
+    CASUAL_LANGUAGE = "casual"
+    YES_NO = "yes_no"
+    BROAD_REQUEST = "broad"
+    IMPLIED_CONTEXT = "implied"
+    JUDGMENT_CALL = "judgment"
+    SHORTHAND = "shorthand"
+    CONTEXT_DEPENDENT = "context"
+    COMPARISON = "comparison"
+    SUMMARY = "summary"
+    NOT_APPLICABLE = "not_applicable"
+
+
+class IntentNode(BaseModel):
+    """Single node on the Galaxy visualization."""
+
+    # Identity
+    id: str = Field(..., description="Unique node identifier")
+    metric: str = Field(..., description="Canonical metric name")
+    display_name: str = Field(..., description="Human-readable label")
+
+    # Visual positioning
+    match_type: MatchType = Field(..., description="Orbital ring assignment")
+    domain: Domain = Field(..., description="Circle color based on domain")
+
+    # Visual sizing & indicators
+    confidence: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Circle size (larger = higher confidence)"
+    )
+    data_quality: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Arc completion percentage"
+    )
+    freshness: str = Field(
+        ...,
+        description="Data age indicator (e.g., '2h', '24h', '48h')"
+    )
+
+    # Data
+    value: Optional[Any] = Field(default=None, description="Raw value")
+    formatted_value: Optional[str] = Field(
+        default=None,
+        description="Formatted value (e.g., '$150.0M', '65.0%')"
+    )
+    period: Optional[str] = Field(
+        default=None,
+        description="Time period (e.g., '2025', 'Q4 2025')"
+    )
+
+    # Metadata
+    rationale: Optional[str] = Field(
+        default=None,
+        description="Why this node is included"
+    )
+    semantic_label: Optional[str] = Field(
+        default=None,
+        description="Semantic classification (e.g., 'Exact Match', 'Likely')"
+    )
+
+
+class IntentMapResponse(BaseModel):
+    """Full response for Galaxy visualization."""
+
+    # Query info
+    query: str = Field(..., description="Original question")
+    query_type: str = Field(
+        ...,
+        description="POINT_QUERY, COMPARISON_QUERY, AMBIGUOUS, etc."
+    )
+    ambiguity_type: Optional[AmbiguityType] = Field(
+        default=None,
+        description="Type of ambiguity if query is ambiguous"
+    )
+
+    # Persona (displayed at center)
+    persona: Optional[str] = Field(
+        default=None,
+        description="Query persona (e.g., 'CFO', 'CEO')"
+    )
+
+    # Overall metrics (displayed in header)
+    overall_confidence: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Aggregate confidence score"
+    )
+    overall_data_quality: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Aggregate data quality score"
+    )
+    node_count: int = Field(..., description="Total number of nodes")
+
+    # All nodes for visualization
+    nodes: List[IntentNode] = Field(..., description="Nodes for the Galaxy view")
+
+    # Primary answer
+    primary_node_id: Optional[str] = Field(
+        default=None,
+        description="ID of the primary answer node"
+    )
+    primary_answer: Optional[str] = Field(
+        default=None,
+        description="Main answer text"
+    )
+
+    # Text response
+    text_response: str = Field(..., description="Full text response")
+
+    # Disambiguation
+    needs_clarification: bool = Field(
+        default=False,
+        description="Whether clarification is needed"
+    )
+    clarification_prompt: Optional[str] = Field(
+        default=None,
+        description="Question to ask for clarification"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "query": "What was revenue in 2025?",
+                "query_type": "POINT_QUERY",
+                "ambiguity_type": None,
+                "persona": "CFO",
+                "overall_confidence": 0.95,
+                "overall_data_quality": 0.95,
+                "node_count": 4,
+                "nodes": [
+                    {
+                        "id": "revenue-primary",
+                        "metric": "revenue",
+                        "display_name": "Revenue",
+                        "match_type": "exact",
+                        "domain": "finance",
+                        "confidence": 0.95,
+                        "data_quality": 0.95,
+                        "freshness": "24h",
+                        "value": 150.0,
+                        "formatted_value": "$150.0M",
+                        "period": "2025",
+                        "rationale": "Direct answer",
+                        "semantic_label": "Exact Match"
+                    }
+                ],
+                "primary_node_id": "revenue-primary",
+                "primary_answer": "Revenue for 2025 was $150.0 million",
+                "text_response": "Revenue for 2025 was $150.0 million",
+                "needs_clarification": False,
+                "clarification_prompt": None
+            }
+        }
+    )
 
 
 class QueryResult(BaseModel):

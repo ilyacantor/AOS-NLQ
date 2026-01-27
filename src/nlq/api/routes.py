@@ -2,7 +2,8 @@
 API route definitions for AOS-NLQ.
 
 Endpoints:
-- POST /v1/query: Process natural language query
+- POST /v1/query: Process natural language query (NLQResponse)
+- POST /v1/query/galaxy: Process query with Galaxy visualization (IntentMapResponse)
 - GET /v1/health: Health check
 - GET /v1/schema: Return available metrics and periods
 
@@ -13,20 +14,29 @@ import logging
 import os
 from datetime import date
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from src.nlq.core.ambiguity import detect_ambiguity, needs_clarification
 from src.nlq.core.confidence import bounded_confidence
 from src.nlq.core.executor import QueryExecutor
+from src.nlq.core.node_generator import (
+    calculate_overall_metrics,
+    generate_nodes_for_aggregation_query,
+    generate_nodes_for_ambiguous_query,
+    generate_nodes_for_breakdown_query,
+    generate_nodes_for_comparison_query,
+    generate_nodes_for_point_query,
+)
 from src.nlq.core.parser import QueryParser
 from src.nlq.core.resolver import PeriodResolver
 from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.knowledge.schema import FINANCIAL_SCHEMA, get_metric_unit
 from src.nlq.llm.client import ClaudeClient
 from src.nlq.models.query import NLQRequest, QueryIntent
-from src.nlq.models.response import NLQResponse
+from src.nlq.models.response import AmbiguityType, IntentMapResponse, NLQResponse
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +185,241 @@ async def query(request: NLQRequest) -> NLQResponse:
             error_code="INTERNAL_ERROR",
             error_message="An unexpected error occurred",
         )
+
+
+@router.post("/query/galaxy", response_model=IntentMapResponse)
+async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
+    """
+    Process a natural language query and return Galaxy visualization data.
+
+    Returns IntentMapResponse with:
+    - Nodes for orbital rings (EXACT, POTENTIAL, HYPOTHESIS)
+    - Confidence and data quality metrics
+    - Persona and disambiguation info
+    """
+    try:
+        fact_base = get_fact_base()
+        claude_client = get_claude_client()
+
+        parser = QueryParser(claude_client)
+        reference_date = request.reference_date or date.today()
+        resolver = PeriodResolver(reference_date)
+        executor = QueryExecutor(fact_base)
+
+        # Check for ambiguity first
+        ambiguity_type, candidates, clarification = detect_ambiguity(request.question)
+
+        if ambiguity_type and ambiguity_type != AmbiguityType.NONE:
+            # Handle ambiguous query
+            return _handle_ambiguous_query_galaxy(
+                request.question,
+                ambiguity_type,
+                candidates,
+                clarification,
+                fact_base,
+                resolver,
+            )
+
+        # Parse the query
+        parsed = parser.parse(request.question)
+        logger.info(f"Parsed query for galaxy: {parsed}")
+
+        # Resolve periods
+        resolved = resolver.resolve(parsed.period_reference)
+        parsed.resolved_period = resolver.to_period_key(resolved)
+
+        if parsed.intent == QueryIntent.COMPARISON_QUERY and parsed.comparison_period:
+            comp_resolved = resolver.resolve(parsed.comparison_period)
+            parsed.comparison_period = resolver.to_period_key(comp_resolved)
+
+        if parsed.intent == QueryIntent.AGGREGATION_QUERY and parsed.aggregation_periods:
+            resolved_agg_periods = []
+            for period in parsed.aggregation_periods:
+                agg_resolved = resolver.resolve(period)
+                resolved_agg_periods.append(resolver.to_period_key(agg_resolved))
+            parsed.aggregation_periods = resolved_agg_periods
+
+        # Execute the query
+        result = executor.execute(parsed)
+
+        if not result.success:
+            return _create_error_galaxy_response(
+                request.question,
+                parsed.intent.value,
+                result.error,
+                result.message,
+            )
+
+        # Generate nodes based on intent
+        nodes = _generate_nodes_for_intent(parsed, result, fact_base)
+
+        # Calculate overall metrics
+        overall_confidence, overall_data_quality = calculate_overall_metrics(nodes)
+
+        # Format text response
+        unit = get_metric_unit(parsed.metric)
+        text_response, _ = _format_answer(parsed, result, unit)
+
+        # Get primary node
+        primary_node_id = nodes[0].id if nodes else None
+
+        return IntentMapResponse(
+            query=request.question,
+            query_type=parsed.intent.value,
+            ambiguity_type=None,
+            persona="CFO",  # Default persona
+            overall_confidence=overall_confidence,
+            overall_data_quality=overall_data_quality,
+            node_count=len(nodes),
+            nodes=nodes,
+            primary_node_id=primary_node_id,
+            primary_answer=text_response,
+            text_response=text_response,
+            needs_clarification=False,
+            clarification_prompt=None,
+        )
+
+    except ValueError as e:
+        logger.error(f"Query parsing error: {e}")
+        return _create_error_galaxy_response(
+            request.question,
+            "UNKNOWN",
+            "PARSE_ERROR",
+            str(e),
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error processing galaxy query: {e}")
+        return _create_error_galaxy_response(
+            request.question,
+            "UNKNOWN",
+            "INTERNAL_ERROR",
+            "An unexpected error occurred",
+        )
+
+
+def _handle_ambiguous_query_galaxy(
+    question: str,
+    ambiguity_type: AmbiguityType,
+    candidates: list,
+    clarification: Optional[str],
+    fact_base: FactBase,
+    resolver: PeriodResolver,
+) -> IntentMapResponse:
+    """Handle an ambiguous query and return Galaxy response."""
+    # Default to current year
+    period = str(date.today().year)
+
+    # Generate nodes for ambiguous query
+    nodes = generate_nodes_for_ambiguous_query(
+        ambiguity_type,
+        candidates,
+        period,
+        fact_base,
+    )
+
+    overall_confidence, overall_data_quality = calculate_overall_metrics(nodes)
+
+    # Build text response from candidates
+    if nodes:
+        text_parts = []
+        for node in nodes:
+            if node.formatted_value and node.formatted_value != "N/A":
+                text_parts.append(f"{node.display_name}: {node.formatted_value}")
+        text_response = ", ".join(text_parts) if text_parts else "Multiple interpretations possible"
+    else:
+        text_response = "Unable to interpret query"
+
+    return IntentMapResponse(
+        query=question,
+        query_type="AMBIGUOUS",
+        ambiguity_type=ambiguity_type,
+        persona="CFO",
+        overall_confidence=overall_confidence,
+        overall_data_quality=overall_data_quality,
+        node_count=len(nodes),
+        nodes=nodes,
+        primary_node_id=None,
+        primary_answer=None,
+        text_response=text_response,
+        needs_clarification=needs_clarification(ambiguity_type),
+        clarification_prompt=clarification,
+    )
+
+
+def _generate_nodes_for_intent(parsed, result, fact_base) -> list:
+    """Generate nodes based on query intent."""
+    if parsed.intent == QueryIntent.POINT_QUERY:
+        return generate_nodes_for_point_query(
+            parsed.metric,
+            result.value,
+            parsed.resolved_period,
+            fact_base,
+        )
+
+    elif parsed.intent == QueryIntent.COMPARISON_QUERY:
+        data = result.value
+        return generate_nodes_for_comparison_query(
+            parsed.metric,
+            data["period1"],
+            data["value1"],
+            data["period2"],
+            data["value2"],
+            data["difference"],
+            data["pct_change"],
+            fact_base,
+        )
+
+    elif parsed.intent == QueryIntent.AGGREGATION_QUERY:
+        data = result.value
+        return generate_nodes_for_aggregation_query(
+            parsed.metric,
+            data["aggregation_type"],
+            data["result"],
+            data["periods"],
+            data["values"],
+            fact_base,
+        )
+
+    elif parsed.intent == QueryIntent.BREAKDOWN_QUERY:
+        data = result.value
+        return generate_nodes_for_breakdown_query(
+            data["breakdown"],
+            data["period"],
+            fact_base,
+        )
+
+    else:
+        # Fallback to point query style
+        return generate_nodes_for_point_query(
+            parsed.metric,
+            result.value,
+            parsed.resolved_period,
+            fact_base,
+        )
+
+
+def _create_error_galaxy_response(
+    question: str,
+    query_type: str,
+    error_code: str,
+    error_message: str,
+) -> IntentMapResponse:
+    """Create an error response for Galaxy endpoint."""
+    return IntentMapResponse(
+        query=question,
+        query_type=query_type,
+        ambiguity_type=None,
+        persona="CFO",
+        overall_confidence=0.0,
+        overall_data_quality=0.0,
+        node_count=0,
+        nodes=[],
+        primary_node_id=None,
+        primary_answer=None,
+        text_response=f"Error: {error_message}",
+        needs_clarification=False,
+        clarification_prompt=None,
+    )
 
 
 def _format_answer(parsed, result, unit: str) -> tuple:
