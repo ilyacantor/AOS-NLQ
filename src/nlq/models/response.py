@@ -229,6 +229,19 @@ class QueryResult(BaseModel):
     )
 
 
+class RelatedMetric(BaseModel):
+    """A related metric for Text View (equivalent to Galaxy View node)."""
+
+    metric: str = Field(..., description="Canonical metric name")
+    display_name: str = Field(..., description="Human-readable label")
+    value: Optional[float] = Field(default=None, description="Metric value")
+    formatted_value: str = Field(..., description="Formatted display value")
+    period: str = Field(..., description="Time period")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score")
+    match_type: str = Field(..., description="exact, potential, or hypothesis")
+    rationale: Optional[str] = Field(default=None, description="Why this metric is related")
+
+
 class NLQResponse(BaseModel):
     """Output model for natural language query responses."""
 
@@ -275,6 +288,12 @@ class NLQResponse(BaseModel):
         description="Absolute period after resolution"
     )
 
+    # Related metrics (same as Galaxy View nodes, but for Text View)
+    related_metrics: Optional[List["RelatedMetric"]] = Field(
+        default=None,
+        description="Related metrics with values and context (equivalent to Galaxy View nodes)"
+    )
+
     # Error handling
     error_code: Optional[str] = Field(
         default=None,
@@ -297,6 +316,18 @@ class NLQResponse(BaseModel):
                 "parsed_intent": "POINT_QUERY",
                 "resolved_metric": "revenue",
                 "resolved_period": "2025",
+                "related_metrics": [
+                    {
+                        "metric": "net_income",
+                        "display_name": "Net Income",
+                        "value": 28.13,
+                        "formatted_value": "$28.13M",
+                        "period": "2025",
+                        "confidence": 0.85,
+                        "match_type": "potential",
+                        "rationale": "Related profitability metric"
+                    }
+                ],
                 "error_code": None,
                 "error_message": None
             }

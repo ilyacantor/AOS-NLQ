@@ -36,9 +36,26 @@ from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.knowledge.schema import FINANCIAL_SCHEMA, get_metric_unit
 from src.nlq.llm.client import ClaudeClient
 from src.nlq.models.query import NLQRequest, QueryIntent
-from src.nlq.models.response import AmbiguityType, IntentMapResponse, IntentNode, MatchType, NLQResponse
+from src.nlq.models.response import AmbiguityType, IntentMapResponse, IntentNode, MatchType, NLQResponse, RelatedMetric
 
 logger = logging.getLogger(__name__)
+
+
+def _nodes_to_related_metrics(nodes: List[IntentNode]) -> List[RelatedMetric]:
+    """Convert Galaxy View nodes to Text View related metrics."""
+    return [
+        RelatedMetric(
+            metric=node.metric,
+            display_name=node.display_name,
+            value=node.value,
+            formatted_value=node.formatted_value,
+            period=node.period,
+            confidence=node.confidence,
+            match_type=node.match_type.value,
+            rationale=node.rationale,
+        )
+        for node in nodes
+    ]
 
 
 def _format_enriched_text_response(
@@ -377,8 +394,10 @@ def _handle_ambiguous_query_text(
     """
     Handle an ambiguous query and return text response matching ground truth format.
 
+    Now includes related_metrics for consistency with Galaxy View.
+
     Ground truth formats by type:
-    - NOT_APPLICABLE: "Not applicable - company is profitable with positive cash flow"
+    - BURN_RATE: "Our COGS of $70M and SG&A of $60M total $130M..."
     - VAGUE_METRIC (margin): "Gross: 65.0%, Operating: 35.0%, Net: 22.5%"
     - YES_NO: "Yes, {evidence}" or "No, {reason}"
     - COMPARISON: "{metric} {value1} vs {value2} (+X%)"
@@ -391,6 +410,15 @@ def _handle_ambiguous_query_text(
     current_year = str(date_type.today().year)
     last_year = str(int(current_year) - 1)
     year_before = str(int(current_year) - 2)
+
+    # Generate nodes for related metrics (same as Galaxy View)
+    nodes = generate_nodes_for_ambiguous_query(
+        ambiguity_type,
+        candidates,
+        current_year,
+        fact_base,
+    )
+    related_metrics = _nodes_to_related_metrics(nodes)
 
     def fmt_val(metric: str, val: float) -> str:
         """Format a value based on metric type."""
@@ -421,6 +449,7 @@ def _handle_ambiguous_query_text(
             parsed_intent="BURN_RATE",
             resolved_metric="costs",
             resolved_period=current_year,
+            related_metrics=related_metrics,
         )
 
     # ===== VAGUE_METRIC =====
@@ -432,7 +461,8 @@ def _handle_ambiguous_query_text(
             net = get_val("net_income_pct", current_year)
             answer = f"Gross: {fmt_val('gross_margin_pct', gross)}, Operating: {fmt_val('operating_margin_pct', op)}, Net: {fmt_val('net_income_pct', net)}"
             return NLQResponse(success=True, answer=answer, value=None, unit="%",
-                confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="margin", resolved_period=current_year)
+                confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="margin", resolved_period=current_year,
+                related_metrics=related_metrics)
 
         # "how'd we do last year" -> "$150.0M revenue, $28.13M net income"
         if "last year" in q or "how" in q:
@@ -440,7 +470,8 @@ def _handle_ambiguous_query_text(
             ni = get_val("net_income", last_year)
             answer = f"${round(rev, 1) if rev else 0}M revenue, ${round(ni, 2) if ni else 0}M net income"
             return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
-                confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="revenue", resolved_period=last_year)
+                confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="revenue", resolved_period=last_year,
+                related_metrics=related_metrics)
 
         # "quick ratio stuff" -> "Current Assets $75.57M, Current Liabilities $26.47M, Ratio ~2.9x"
         if "ratio" in q or "quick" in q:
@@ -449,7 +480,8 @@ def _handle_ambiguous_query_text(
             ratio = round(ca / cl, 1) if ca and cl else 0
             answer = f"Current Assets ${round(ca, 2) if ca else 0}M, Current Liabilities ${round(cl, 2) if cl else 0}M, Ratio ~{ratio}x"
             return NLQResponse(success=True, answer=answer, value=ratio, unit="x",
-                confidence=0.85, parsed_intent="VAGUE_METRIC", resolved_metric="quick_ratio", resolved_period=f"Q4 {last_year}")
+                confidence=0.85, parsed_intent="VAGUE_METRIC", resolved_metric="quick_ratio", resolved_period=f"Q4 {last_year}",
+                related_metrics=related_metrics)
 
     # ===== YES_NO =====
     if ambiguity_type == AmbiguityType.YES_NO:
@@ -458,7 +490,8 @@ def _handle_ambiguous_query_text(
             margin = get_val("net_income_pct", current_year)
             answer = f"Yes, {fmt_val('net_income_pct', margin)} net margin in {current_year} forecast"
             return NLQResponse(success=True, answer=answer, value=margin, unit="%",
-                confidence=0.95, parsed_intent="YES_NO", resolved_metric="net_income_pct", resolved_period=current_year)
+                confidence=0.95, parsed_intent="YES_NO", resolved_metric="net_income_pct", resolved_period=current_year,
+                related_metrics=related_metrics)
 
         # "we growing?" -> "Yes, 50% revenue growth 2024→2025, 33% forecast 2025→2026"
         if "growing" in q:
@@ -469,7 +502,8 @@ def _handle_ambiguous_query_text(
             growth2 = round((rev_cy - rev_ly) / rev_ly * 100) if rev_cy and rev_ly else 0
             answer = f"Yes, {growth1}% revenue growth {year_before}→{last_year}, {growth2}% forecast {last_year}→{current_year}"
             return NLQResponse(success=True, answer=answer, value=growth2, unit="%",
-                confidence=0.95, parsed_intent="YES_NO", resolved_metric="revenue_growth", resolved_period=current_year)
+                confidence=0.95, parsed_intent="YES_NO", resolved_metric="revenue_growth", resolved_period=current_year,
+                related_metrics=related_metrics)
 
     # ===== IMPLIED_CONTEXT =====
     if ambiguity_type == AmbiguityType.IMPLIED_CONTEXT:
@@ -485,7 +519,8 @@ def _handle_ambiguous_query_text(
             else:
                 answer = f"No, {last_year} revenue was ${round(rev, 1) if rev else 0}M (target was {target})"
             return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
-                confidence=0.95, parsed_intent="IMPLIED_CONTEXT", resolved_metric="revenue", resolved_period=last_year)
+                confidence=0.95, parsed_intent="IMPLIED_CONTEXT", resolved_metric="revenue", resolved_period=last_year,
+                related_metrics=related_metrics)
 
     # ===== JUDGMENT_CALL =====
     if ambiguity_type == AmbiguityType.JUDGMENT_CALL:
@@ -497,7 +532,8 @@ def _handle_ambiguous_query_text(
         sga_pct = round(sga / rev * 100) if sga and rev else 0
         answer = f"COGS {cogs_pct}% of revenue, SG&A {sga_pct}% - consistent with targets"
         return NLQResponse(success=True, answer=answer, value=None, unit=None,
-            confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="costs", resolved_period=current_year)
+            confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="costs", resolved_period=current_year,
+            related_metrics=related_metrics)
 
     # ===== SHORTHAND =====
     if ambiguity_type == AmbiguityType.SHORTHAND:
@@ -506,7 +542,8 @@ def _handle_ambiguous_query_text(
             cash = get_val("cash", f"Q4 {last_year}")
             answer = f"${round(cash, 2) if cash else 0}M as of Q4 {last_year}"
             return NLQResponse(success=True, answer=answer, value=cash, unit="$M",
-                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="cash", resolved_period=f"Q4 {last_year}")
+                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="cash", resolved_period=f"Q4 {last_year}",
+                related_metrics=related_metrics)
 
     # ===== CONTEXT_DEPENDENT =====
     if ambiguity_type == AmbiguityType.CONTEXT_DEPENDENT:
@@ -519,7 +556,8 @@ def _handle_ambiguous_query_text(
             growth2 = round((rev_cy - rev_ly) / rev_ly * 100) if rev_cy and rev_ly else 0
             answer = f"Revenue +{growth1}% ({year_before}→{last_year}), +{growth2}% ({last_year}→{current_year}F)"
             return NLQResponse(success=True, answer=answer, value=growth2, unit="%",
-                confidence=0.9, parsed_intent="CONTEXT_DEPENDENT", resolved_metric="revenue_growth", resolved_period=current_year)
+                confidence=0.9, parsed_intent="CONTEXT_DEPENDENT", resolved_metric="revenue_growth", resolved_period=current_year,
+                related_metrics=related_metrics)
 
         # "what about Q2" -> "Q2 2026 forecast: Revenue $48.0M, Net Income $12.6M"
         if "q2" in q:
@@ -527,7 +565,8 @@ def _handle_ambiguous_query_text(
             ni = get_val("net_income", f"Q2 {current_year}")
             answer = f"Q2 {current_year} forecast: Revenue ${round(rev, 1) if rev else 0}M, Net Income ${round(ni, 1) if ni else 0}M"
             return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
-                confidence=0.85, parsed_intent="CONTEXT_DEPENDENT", resolved_metric="revenue", resolved_period=f"Q2 {current_year}")
+                confidence=0.85, parsed_intent="CONTEXT_DEPENDENT", resolved_metric="revenue", resolved_period=f"Q2 {current_year}",
+                related_metrics=related_metrics)
 
     # ===== COMPARISON =====
     if ambiguity_type == AmbiguityType.COMPARISON:
@@ -538,7 +577,8 @@ def _handle_ambiguous_query_text(
             ratio = round(bookings / rev * 100) if bookings and rev else 0
             answer = f"Bookings {ratio}% of revenue ({last_year}: ${round(bookings, 1) if bookings else 0}M bookings vs ${round(rev, 1) if rev else 0}M revenue)"
             return NLQResponse(success=True, answer=answer, value=ratio, unit="%",
-                confidence=0.9, parsed_intent="COMPARISON", resolved_metric="bookings_ratio", resolved_period=last_year)
+                confidence=0.9, parsed_intent="COMPARISON", resolved_metric="bookings_ratio", resolved_period=last_year,
+                related_metrics=related_metrics)
 
         # "compare this year to last" -> comprehensive comparison
         if "compare" in q or "this year to last" in q:
@@ -553,7 +593,8 @@ def _handle_ambiguous_query_text(
             om_chg = "flat" if om_cy == om_ly else f"+{round(om_cy - om_ly, 1)}%" if om_cy > om_ly else f"{round(om_cy - om_ly, 1)}%"
             answer = f"{current_year} vs {last_year}: Revenue ${round(rev_cy, 0) if rev_cy else 0}M vs ${round(rev_ly, 0) if rev_ly else 0}M (+{rev_chg}%), Net Income ${round(ni_cy, 0) if ni_cy else 0}M vs ${round(ni_ly, 2) if ni_ly else 0}M (+{ni_chg}%), Operating Margin {fmt_val('operating_margin_pct', om_cy)} vs {fmt_val('operating_margin_pct', om_ly)} ({om_chg})"
             return NLQResponse(success=True, answer=answer, value=rev_chg, unit="%",
-                confidence=0.9, parsed_intent="COMPARISON", resolved_metric="comparison", resolved_period=current_year)
+                confidence=0.9, parsed_intent="COMPARISON", resolved_metric="comparison", resolved_period=current_year,
+                related_metrics=related_metrics)
 
     # ===== SUMMARY =====
     if ambiguity_type == AmbiguityType.SUMMARY:
@@ -571,7 +612,8 @@ def _handle_ambiguous_query_text(
 
         answer = f"Revenue ${round(rev, 0) if rev else 0}M (+{yoy}% YoY), Net Income ${round(ni, 2) if ni else 0}M ({ni_margin}% margin), Operating Margin {fmt_val('operating_margin_pct', om)}"
         return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
-            confidence=0.9, parsed_intent="SUMMARY", resolved_metric="summary", resolved_period=year)
+            confidence=0.9, parsed_intent="SUMMARY", resolved_metric="summary", resolved_period=year,
+            related_metrics=related_metrics)
 
     # ===== BROAD_REQUEST =====
     if ambiguity_type == AmbiguityType.BROAD_REQUEST:
@@ -585,7 +627,8 @@ def _handle_ambiguous_query_text(
             ni = get_val("net_income", current_year)
             answer = f"{current_year}: Revenue ${round(rev, 0) if rev else 0}M, COGS ${round(cogs, 0) if cogs else 0}M, Gross Profit ${round(gp, 0) if gp else 0}M, SG&A ${round(sga, 0) if sga else 0}M, Operating Profit ${round(op, 0) if op else 0}M, Net Income ${round(ni, 0) if ni else 0}M"
             return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
-                confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="pl", resolved_period=current_year)
+                confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="pl", resolved_period=current_year,
+                related_metrics=related_metrics)
 
     # ===== CASUAL_LANGUAGE =====
     if ambiguity_type == AmbiguityType.CASUAL_LANGUAGE:
@@ -596,7 +639,8 @@ def _handle_ambiguous_query_text(
             growth = round((rev_cy - rev_ly) / rev_ly * 100) if rev_cy and rev_ly else 0
             answer = f"${round(rev_cy, 1) if rev_cy else 0}M forecast for {current_year}, up {growth}% from {last_year}"
             return NLQResponse(success=True, answer=answer, value=rev_cy, unit="$M",
-                confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="revenue", resolved_period=current_year)
+                confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="revenue", resolved_period=current_year,
+                related_metrics=related_metrics)
 
         # "where are we on AR" -> "$20.71M as of Q4 2025, ~45 days sales outstanding"
         if "ar" in q:
@@ -605,7 +649,8 @@ def _handle_ambiguous_query_text(
             dso = round(ar / rev * 365) if ar and rev else 45
             answer = f"${round(ar, 2) if ar else 0}M as of Q4 {last_year}, ~{dso} days sales outstanding"
             return NLQResponse(success=True, answer=answer, value=ar, unit="$M",
-                confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="ar", resolved_period=f"Q4 {last_year}")
+                confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="ar", resolved_period=f"Q4 {last_year}",
+                related_metrics=related_metrics)
 
         # "opex breakdown pls" -> "2026: Selling $36M, G&A $24M, Total SG&A $60M"
         if "opex" in q or "breakdown" in q:
@@ -614,7 +659,8 @@ def _handle_ambiguous_query_text(
             ga = round(sga * 0.4, 0) if sga else 0
             answer = f"{current_year}: Selling ${selling}M, G&A ${ga}M, Total SG&A ${round(sga, 0) if sga else 0}M"
             return NLQResponse(success=True, answer=answer, value=sga, unit="$M",
-                confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="sga", resolved_period=current_year)
+                confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="sga", resolved_period=current_year,
+                related_metrics=related_metrics)
 
     # ===== INCOMPLETE =====
     if ambiguity_type == AmbiguityType.INCOMPLETE:
@@ -623,7 +669,8 @@ def _handle_ambiguous_query_text(
             rev = get_val("revenue", current_year)
             answer = f"${round(rev, 1) if rev else 0}M"
             return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
-                confidence=0.95, parsed_intent="INCOMPLETE", resolved_metric="revenue", resolved_period=current_year)
+                confidence=0.95, parsed_intent="INCOMPLETE", resolved_metric="revenue", resolved_period=current_year,
+                related_metrics=related_metrics)
 
         # "q4 numbers" -> "Q4 2025: Revenue $42.0M, Net Income $11.03M"
         if "q4" in q:
@@ -631,7 +678,8 @@ def _handle_ambiguous_query_text(
             ni = get_val("net_income", f"Q4 {last_year}")
             answer = f"Q4 {last_year}: Revenue ${round(rev, 1) if rev else 0}M, Net Income ${round(ni, 2) if ni else 0}M"
             return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
-                confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="revenue", resolved_period=f"Q4 {last_year}")
+                confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="revenue", resolved_period=f"Q4 {last_year}",
+                related_metrics=related_metrics)
 
     # ===== FALLBACK =====
     # Default handling
@@ -641,13 +689,15 @@ def _handle_ambiguous_query_text(
         if val is not None:
             answer = fmt_val(primary, val)
             return NLQResponse(success=True, answer=answer, value=val, unit=get_metric_unit(primary),
-                confidence=0.75, parsed_intent="AMBIGUOUS", resolved_metric=primary, resolved_period=current_year)
+                confidence=0.75, parsed_intent="AMBIGUOUS", resolved_metric=primary, resolved_period=current_year,
+                related_metrics=related_metrics)
 
     return NLQResponse(
         success=True,
         answer=clarification or "Query interpreted with multiple possibilities.",
         value=None, unit=None, confidence=0.5,
         parsed_intent="AMBIGUOUS", resolved_metric=None, resolved_period=current_year,
+        related_metrics=related_metrics,
     )
 
 
