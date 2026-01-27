@@ -3,6 +3,7 @@ export { GalaxyView } from './GalaxyView';
 export { GalaxyHeader } from './GalaxyHeader';
 export { GalaxyLegend } from './GalaxyLegend';
 export { NodeDetailPanel } from './NodeDetailPanel';
+export { NodeTooltip } from './NodeTooltip';
 
 // Types
 export type {

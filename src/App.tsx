@@ -134,10 +134,12 @@ function App() {
     handleSubmit(historyQuery)
   }
 
+  const hasResponse = galaxyResponse || textResponse
+
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+      <header className="flex items-center justify-between px-6 py-3 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <span className="text-cyan-400 text-2xl font-bold">AOS</span>
@@ -148,7 +150,7 @@ function App() {
           <div className="flex items-center gap-1 ml-8 bg-slate-900 rounded-lg p-1">
             <button
               onClick={() => setViewMode('galaxy')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 viewMode === 'galaxy'
                   ? 'bg-slate-700 text-white'
                   : 'text-slate-400 hover:text-slate-200'
@@ -158,7 +160,7 @@ function App() {
             </button>
             <button
               onClick={() => setViewMode('text')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 viewMode === 'text'
                   ? 'bg-slate-700 text-white'
                   : 'text-slate-400 hover:text-slate-200'
@@ -166,28 +168,6 @@ function App() {
             >
               Text View
             </button>
-          </div>
-        </div>
-
-        {/* Query Input in Header */}
-        <div className="flex-1 max-w-xl mx-8">
-          <div className="relative">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask a question..."
-              className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
-            />
-            {isLoading && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <svg className="w-5 h-5 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-              </div>
-            )}
           </div>
         </div>
 
@@ -200,97 +180,127 @@ function App() {
       <div className="flex flex-1 overflow-hidden">
         {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          {/* Quick Actions (shown when no response) */}
-          {!galaxyResponse && !textResponse && (
-            <div className="flex-1 flex flex-col items-center justify-center px-8">
-              <div className="text-slate-500 text-sm mb-6">
-                Using dataset: <span className="text-slate-300">nlq_test</span>{' '}
-                <span className="text-slate-600">(reference: 2026-01-27)</span>
-              </div>
-
-              <h2 className="text-slate-300 text-lg mb-6">Quick queries:</h2>
-              <div className="flex flex-wrap justify-center gap-3 max-w-3xl">
-                {quickActions.map((action) => (
-                  <button
-                    key={action}
-                    onClick={() => handleQuickAction(action)}
-                    className="px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-sm hover:bg-slate-700 hover:border-slate-600 transition-colors"
-                  >
-                    {action}
-                  </button>
-                ))}
-              </div>
+          {/* Query Input Section - Always at top middle */}
+          <div className="flex flex-col items-center pt-6 pb-4 px-8">
+            <div className="text-slate-500 text-sm mb-4">
+              Using dataset: <span className="text-slate-300">nlq_test</span>{' '}
+              <span className="text-slate-600">(reference: 2026-01-27)</span>
             </div>
-          )}
 
-          {/* Galaxy View */}
-          {viewMode === 'galaxy' && galaxyResponse && (
-            <div className="flex-1 overflow-hidden">
-              <GalaxyView data={galaxyResponse} />
-            </div>
-          )}
-
-          {/* Text View */}
-          {viewMode === 'text' && textResponse && (
-            <div className="flex-1 overflow-y-auto p-8">
-              <div className="max-w-3xl mx-auto bg-slate-900 border border-slate-700 rounded-xl p-6">
-                {/* Query echo */}
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-slate-400 text-sm">{lastQuery}</span>
-                  <button
-                    onClick={() => setTextResponse(null)}
-                    className="text-slate-500 hover:text-slate-300"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {textResponse.success ? (
-                  <>
-                    {/* Answer */}
-                    <div className="text-slate-200 text-lg mb-4 p-4 bg-slate-800/50 rounded-lg">
-                      {textResponse.answer}
-                    </div>
-
-                    {/* Metadata row */}
-                    <div className="flex items-center gap-4 text-sm text-slate-400 mb-4">
-                      <span>Definition: <span className="text-cyan-400">{textResponse.resolved_metric}</span></span>
-                      <span>Confidence: <span className="text-green-400">{Math.round(textResponse.confidence * 100)}%</span></span>
-                      <span>{lastDuration}</span>
-                    </div>
-
-                    {/* Value display */}
-                    {textResponse.value !== undefined && (
-                      <div className="grid grid-cols-3 gap-4 p-4 bg-slate-800/30 rounded-lg">
-                        <div>
-                          <div className="text-slate-500 text-xs mb-1">Value</div>
-                          <div className="text-slate-200 font-mono text-xl">
-                            {textResponse.unit === '%'
-                              ? `${Number(textResponse.value).toFixed(1)}%`
-                              : `$${Number(textResponse.value).toFixed(1)}M`}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-slate-500 text-xs mb-1">Period</div>
-                          <div className="text-slate-200">{textResponse.resolved_period}</div>
-                        </div>
-                        <div>
-                          <div className="text-slate-500 text-xs mb-1">Intent</div>
-                          <div className="text-slate-200">{textResponse.parsed_intent}</div>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  /* Error display */
-                  <div className="p-4 bg-red-900/20 border border-red-800/50 rounded-lg">
-                    <div className="text-red-400 font-medium mb-1">{textResponse.error_code}</div>
-                    <div className="text-red-300/80 text-sm">{textResponse.error_message}</div>
+            {/* Query Input */}
+            <div className="w-full max-w-2xl">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask a question..."
+                  className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-lg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
+                />
+                {isLoading && (
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                    <svg className="w-5 h-5 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
                   </div>
                 )}
               </div>
             </div>
-          )}
+
+            {/* Quick Action Buttons - Always visible */}
+            <div className="flex flex-wrap justify-center gap-2 mt-4 max-w-3xl">
+              {quickActions.map((action) => (
+                <button
+                  key={action}
+                  onClick={() => handleQuickAction(action)}
+                  className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-xs hover:bg-slate-700 hover:border-slate-600 transition-colors"
+                >
+                  {action}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Results Area */}
+          <div className="flex-1 overflow-hidden">
+            {/* Galaxy View */}
+            {viewMode === 'galaxy' && galaxyResponse && (
+              <div className="h-full overflow-hidden">
+                <GalaxyView data={galaxyResponse} />
+              </div>
+            )}
+
+            {/* Text View */}
+            {viewMode === 'text' && textResponse && (
+              <div className="h-full overflow-y-auto p-8">
+                <div className="max-w-3xl mx-auto bg-slate-900 border border-slate-700 rounded-xl p-6">
+                  {/* Query echo */}
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-slate-400 text-sm">{lastQuery}</span>
+                    <button
+                      onClick={() => setTextResponse(null)}
+                      className="text-slate-500 hover:text-slate-300"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {textResponse.success ? (
+                    <>
+                      {/* Answer */}
+                      <div className="text-slate-200 text-lg mb-4 p-4 bg-slate-800/50 rounded-lg">
+                        {textResponse.answer}
+                      </div>
+
+                      {/* Metadata row */}
+                      <div className="flex items-center gap-4 text-sm text-slate-400 mb-4">
+                        <span>Definition: <span className="text-cyan-400">{textResponse.resolved_metric}</span></span>
+                        <span>Confidence: <span className="text-green-400">{Math.round(textResponse.confidence * 100)}%</span></span>
+                        <span>{lastDuration}</span>
+                      </div>
+
+                      {/* Value display */}
+                      {textResponse.value !== undefined && (
+                        <div className="grid grid-cols-3 gap-4 p-4 bg-slate-800/30 rounded-lg">
+                          <div>
+                            <div className="text-slate-500 text-xs mb-1">Value</div>
+                            <div className="text-slate-200 font-mono text-xl">
+                              {textResponse.unit === '%'
+                                ? `${Number(textResponse.value).toFixed(1)}%`
+                                : `$${Number(textResponse.value).toFixed(1)}M`}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-slate-500 text-xs mb-1">Period</div>
+                            <div className="text-slate-200">{textResponse.resolved_period}</div>
+                          </div>
+                          <div>
+                            <div className="text-slate-500 text-xs mb-1">Intent</div>
+                            <div className="text-slate-200">{textResponse.parsed_intent}</div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* Error display */
+                    <div className="p-4 bg-red-900/20 border border-red-800/50 rounded-lg">
+                      <div className="text-red-400 font-medium mb-1">{textResponse.error_code}</div>
+                      <div className="text-red-300/80 text-sm">{textResponse.error_message}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!hasResponse && (
+              <div className="h-full flex items-center justify-center text-slate-500">
+                <p>Enter a query above to see results</p>
+              </div>
+            )}
+          </div>
         </main>
 
         {/* Right Sidebar - History Panel */}
