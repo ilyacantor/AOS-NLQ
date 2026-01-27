@@ -221,6 +221,7 @@ PERIOD_SYNONYMS: Dict[str, List[str]] = {
     "last_year": [
         "prior year",
         "previous year",
+        "year ago",
         "ly",
         "last fiscal year",
         "prior fiscal year",
@@ -235,6 +236,7 @@ PERIOD_SYNONYMS: Dict[str, List[str]] = {
     "last_quarter": [
         "prior quarter",
         "previous quarter",
+        "quarter ago",
         "lq",
         "last q",
     ],
