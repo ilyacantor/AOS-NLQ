@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { GalaxyView, IntentMapResponse } from './components/galaxy'
 
 interface QueryHistoryItem {
   id: string
@@ -21,27 +22,28 @@ interface NLQResponse {
   error_message?: string
 }
 
-type TabType = 'Ask' | 'Graph' | 'Dashboard'
+type ViewMode = 'text' | 'galaxy'
 type PanelTab = 'History' | 'Debug'
 
 const quickActions = [
   'What was revenue last year?',
   'What was revenue in 2024?',
-  'What was net income in 2025?',
-  'What was gross margin in 2024?',
-  'What was COGS last year?',
-  'What was operating profit in 2025?',
-  'What was cash last quarter?',
-  'What was AR in Q4 2025?',
+  'whats the margin',
+  'give me the P&L',
+  'how\'d we do last year',
+  'are we profitable',
+  'cash position',
+  'burn rate?',
 ]
 
 function App() {
   const [query, setQuery] = useState('')
-  const [activeTab, setActiveTab] = useState<TabType>('Ask')
+  const [viewMode, setViewMode] = useState<ViewMode>('galaxy')
   const [panelTab, setPanelTab] = useState<PanelTab>('History')
   const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [response, setResponse] = useState<NLQResponse | null>(null)
+  const [textResponse, setTextResponse] = useState<NLQResponse | null>(null)
+  const [galaxyResponse, setGalaxyResponse] = useState<IntentMapResponse | null>(null)
   const [lastQuery, setLastQuery] = useState('')
   const [lastDuration, setLastDuration] = useState('')
 
@@ -51,13 +53,16 @@ function App() {
 
     setIsLoading(true)
     setQuery(textToSubmit)
-    setResponse(null)
+    setTextResponse(null)
+    setGalaxyResponse(null)
     const now = new Date()
     const timestamp = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
     const startTime = performance.now()
 
     try {
-      const res = await fetch('/api/v1/query', {
+      // Fetch from intent-map endpoint for Galaxy view
+      const endpoint = viewMode === 'galaxy' ? '/api/v1/intent-map' : '/api/v1/query'
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -66,10 +71,15 @@ function App() {
         })
       })
 
-      const data: NLQResponse = await res.json()
+      const data = await res.json()
       const duration = Math.round(performance.now() - startTime)
 
-      setResponse(data)
+      if (viewMode === 'galaxy') {
+        setGalaxyResponse(data as IntentMapResponse)
+      } else {
+        setTextResponse(data as NLQResponse)
+      }
+
       setLastQuery(textToSubmit)
       setLastDuration(`${duration}ms`)
 
@@ -78,18 +88,31 @@ function App() {
         query: textToSubmit,
         timestamp: timestamp,
         duration: `${duration}ms`,
-        tag: data.resolved_metric || 'nlq.query',
+        tag: viewMode === 'galaxy'
+          ? (data as IntentMapResponse).query_type || 'intent-map'
+          : (data as NLQResponse).resolved_metric || 'nlq.query',
       }
 
       setQueryHistory(prev => [newItem, ...prev])
     } catch (error) {
       console.error('Query failed:', error)
-      setResponse({
-        success: false,
-        confidence: 0,
-        error_code: 'NETWORK_ERROR',
-        error_message: 'Failed to connect to backend. Is the server running?'
-      })
+      if (viewMode === 'galaxy') {
+        // Show error in text mode
+        setTextResponse({
+          success: false,
+          confidence: 0,
+          error_code: 'NETWORK_ERROR',
+          error_message: 'Failed to connect to backend. Is the server running?'
+        })
+        setViewMode('text')
+      } else {
+        setTextResponse({
+          success: false,
+          confidence: 0,
+          error_code: 'NETWORK_ERROR',
+          error_message: 'Failed to connect to backend. Is the server running?'
+        })
+      }
     }
 
     setQuery('')
@@ -97,7 +120,6 @@ function App() {
   }
 
   const handleQuickAction = (action: string) => {
-    // Immediately submit the quick action query
     handleSubmit(action)
   }
 
@@ -108,141 +130,171 @@ function App() {
     }
   }
 
+  const handleHistoryClick = (historyQuery: string) => {
+    handleSubmit(historyQuery)
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Header */}
-      <header className="flex items-center gap-3 px-6 py-4 border-b border-slate-800">
-        <div className="flex items-center gap-2">
-          <span className="text-cyan-400 text-2xl font-bold">DCL</span>
-          <span className="text-slate-300 text-lg">Data Connectivity Layer</span>
-        </div>
+      <header className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-cyan-400 text-2xl font-bold">AOS</span>
+            <span className="text-slate-300 text-lg">Intent Map</span>
+          </div>
 
-        {/* Navigation Tabs */}
-        <nav className="flex items-center gap-1 ml-8">
-          {(['Ask', 'Graph', 'Dashboard'] as TabType[]).map((tab) => (
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-1 ml-8 bg-slate-900 rounded-lg p-1">
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab
-                  ? 'bg-slate-800 text-white'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              onClick={() => setViewMode('galaxy')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'galaxy'
+                  ? 'bg-slate-700 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              {tab}
+              Galaxy View
             </button>
-          ))}
-        </nav>
+            <button
+              onClick={() => setViewMode('text')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'text'
+                  ? 'bg-slate-700 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Text View
+            </button>
+          </div>
+        </div>
+
+        {/* Query Input in Header */}
+        <div className="flex-1 max-w-xl mx-8">
+          <div className="relative">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask a question..."
+              className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
+            />
+            {isLoading && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <svg className="w-5 h-5 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="text-slate-500 text-sm">
+          {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
+        </div>
       </header>
 
       {/* Main Content Area */}
-      <div className="flex flex-1">
-        {/* Center Content */}
-        <main className="flex-1 flex flex-col items-center pt-12 px-8">
-          {/* Dataset indicator */}
-          <div className="text-slate-500 text-sm mb-6">
-            Using dataset: <span className="text-slate-300">nlq_test</span>{' '}
-            <span className="text-slate-600">(env)</span>
-          </div>
-
-          {/* Query Input */}
-          <div className="w-full max-w-2xl">
-            <div className="relative">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask a question..."
-                className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-lg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
-              />
-              {isLoading && (
-                <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                  <svg className="w-5 h-5 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Action Buttons */}
-          <div className="flex flex-wrap justify-center gap-3 mt-8 max-w-3xl">
-            {quickActions.map((action) => (
-              <button
-                key={action}
-                onClick={() => handleQuickAction(action)}
-                className="px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-sm hover:bg-slate-700 hover:border-slate-600 transition-colors"
-              >
-                {action}
-              </button>
-            ))}
-          </div>
-
-          {/* Results Display */}
-          {response && (
-            <div className="w-full max-w-3xl mt-8 bg-slate-900 border border-slate-700 rounded-xl p-6">
-              {/* Query echo */}
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-slate-400 text-sm">{lastQuery}</span>
-                <button
-                  onClick={() => setResponse(null)}
-                  className="text-slate-500 hover:text-slate-300"
-                >
-                  ✕
-                </button>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Main Content */}
+        <main className="flex-1 flex flex-col overflow-hidden">
+          {/* Quick Actions (shown when no response) */}
+          {!galaxyResponse && !textResponse && (
+            <div className="flex-1 flex flex-col items-center justify-center px-8">
+              <div className="text-slate-500 text-sm mb-6">
+                Using dataset: <span className="text-slate-300">nlq_test</span>{' '}
+                <span className="text-slate-600">(reference: 2026-01-27)</span>
               </div>
 
-              {response.success ? (
-                <>
-                  {/* Answer */}
-                  <div className="text-slate-200 text-lg mb-4 p-4 bg-slate-800/50 rounded-lg">
-                    {response.answer}
-                  </div>
+              <h2 className="text-slate-300 text-lg mb-6">Quick queries:</h2>
+              <div className="flex flex-wrap justify-center gap-3 max-w-3xl">
+                {quickActions.map((action) => (
+                  <button
+                    key={action}
+                    onClick={() => handleQuickAction(action)}
+                    className="px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-sm hover:bg-slate-700 hover:border-slate-600 transition-colors"
+                  >
+                    {action}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-                  {/* Metadata row */}
-                  <div className="flex items-center gap-4 text-sm text-slate-400 mb-4">
-                    <span>Definition: <span className="text-cyan-400">{response.resolved_metric}</span></span>
-                    <span>Confidence: <span className="text-green-400">{Math.round(response.confidence * 100)}%</span></span>
-                    <span>{lastDuration}</span>
-                  </div>
+          {/* Galaxy View */}
+          {viewMode === 'galaxy' && galaxyResponse && (
+            <div className="flex-1 overflow-hidden">
+              <GalaxyView data={galaxyResponse} />
+            </div>
+          )}
 
-                  {/* Value display */}
-                  {response.value !== undefined && (
-                    <div className="grid grid-cols-3 gap-4 p-4 bg-slate-800/30 rounded-lg">
-                      <div>
-                        <div className="text-slate-500 text-xs mb-1">Value</div>
-                        <div className="text-slate-200 font-mono text-xl">
-                          {response.unit === '%'
-                            ? `${Number(response.value).toFixed(1)}%`
-                            : `$${Number(response.value).toFixed(1)}M`}
+          {/* Text View */}
+          {viewMode === 'text' && textResponse && (
+            <div className="flex-1 overflow-y-auto p-8">
+              <div className="max-w-3xl mx-auto bg-slate-900 border border-slate-700 rounded-xl p-6">
+                {/* Query echo */}
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-slate-400 text-sm">{lastQuery}</span>
+                  <button
+                    onClick={() => setTextResponse(null)}
+                    className="text-slate-500 hover:text-slate-300"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {textResponse.success ? (
+                  <>
+                    {/* Answer */}
+                    <div className="text-slate-200 text-lg mb-4 p-4 bg-slate-800/50 rounded-lg">
+                      {textResponse.answer}
+                    </div>
+
+                    {/* Metadata row */}
+                    <div className="flex items-center gap-4 text-sm text-slate-400 mb-4">
+                      <span>Definition: <span className="text-cyan-400">{textResponse.resolved_metric}</span></span>
+                      <span>Confidence: <span className="text-green-400">{Math.round(textResponse.confidence * 100)}%</span></span>
+                      <span>{lastDuration}</span>
+                    </div>
+
+                    {/* Value display */}
+                    {textResponse.value !== undefined && (
+                      <div className="grid grid-cols-3 gap-4 p-4 bg-slate-800/30 rounded-lg">
+                        <div>
+                          <div className="text-slate-500 text-xs mb-1">Value</div>
+                          <div className="text-slate-200 font-mono text-xl">
+                            {textResponse.unit === '%'
+                              ? `${Number(textResponse.value).toFixed(1)}%`
+                              : `$${Number(textResponse.value).toFixed(1)}M`}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 text-xs mb-1">Period</div>
+                          <div className="text-slate-200">{textResponse.resolved_period}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 text-xs mb-1">Intent</div>
+                          <div className="text-slate-200">{textResponse.parsed_intent}</div>
                         </div>
                       </div>
-                      <div>
-                        <div className="text-slate-500 text-xs mb-1">Period</div>
-                        <div className="text-slate-200">{response.resolved_period}</div>
-                      </div>
-                      <div>
-                        <div className="text-slate-500 text-xs mb-1">Intent</div>
-                        <div className="text-slate-200">{response.parsed_intent}</div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                /* Error display */
-                <div className="p-4 bg-red-900/20 border border-red-800/50 rounded-lg">
-                  <div className="text-red-400 font-medium mb-1">{response.error_code}</div>
-                  <div className="text-red-300/80 text-sm">{response.error_message}</div>
-                </div>
-              )}
+                    )}
+                  </>
+                ) : (
+                  /* Error display */
+                  <div className="p-4 bg-red-900/20 border border-red-800/50 rounded-lg">
+                    <div className="text-red-400 font-medium mb-1">{textResponse.error_code}</div>
+                    <div className="text-red-300/80 text-sm">{textResponse.error_message}</div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </main>
 
         {/* Right Sidebar - History Panel */}
-        <aside className="w-80 border-l border-slate-800 flex flex-col">
+        <aside className="w-72 border-l border-slate-800 flex flex-col bg-slate-900/30">
           {/* Panel Tabs */}
           <div className="flex border-b border-slate-800">
             {(['History', 'Debug'] as PanelTab[]).map((tab) => (
@@ -263,37 +315,55 @@ function App() {
           {/* Panel Content */}
           <div className="flex-1 overflow-y-auto">
             {panelTab === 'History' && (
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-slate-300 font-medium">History</h3>
-                  <button className="text-slate-500 text-sm hover:text-slate-300">
-                    Refresh
-                  </button>
-                </div>
-
-                <div className="space-y-1">
-                  {queryHistory.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-3 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-colors"
-                    >
-                      <p className="text-slate-200 text-sm truncate">{item.query}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-slate-500 text-xs">{item.timestamp}</span>
-                        <span className="text-slate-600 text-xs">{item.duration}</span>
-                        <span className="text-cyan-400/70 text-xs">{item.tag}</span>
+              <div className="p-3">
+                {queryHistory.length === 0 ? (
+                  <div className="text-slate-500 text-sm text-center py-8">
+                    No queries yet
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {queryHistory.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => handleHistoryClick(item.query)}
+                        className="p-3 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-colors"
+                      >
+                        <p className="text-slate-200 text-sm truncate">{item.query}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-slate-500 text-xs">{item.timestamp}</span>
+                          <span className="text-slate-600 text-xs">{item.duration}</span>
+                          <span className="text-cyan-400/70 text-xs truncate">{item.tag}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
             {panelTab === 'Debug' && (
-              <div className="p-4">
-                <div className="text-slate-500 text-sm">
-                  Debug information will appear here
-                </div>
+              <div className="p-3">
+                {galaxyResponse && (
+                  <div className="text-xs font-mono">
+                    <div className="text-slate-400 mb-2">IntentMapResponse:</div>
+                    <pre className="text-slate-500 whitespace-pre-wrap break-words overflow-x-auto">
+                      {JSON.stringify(galaxyResponse, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                {textResponse && (
+                  <div className="text-xs font-mono">
+                    <div className="text-slate-400 mb-2">NLQResponse:</div>
+                    <pre className="text-slate-500 whitespace-pre-wrap break-words overflow-x-auto">
+                      {JSON.stringify(textResponse, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                {!galaxyResponse && !textResponse && (
+                  <div className="text-slate-500 text-sm text-center py-8">
+                    Run a query to see debug data
+                  </div>
+                )}
               </div>
             )}
           </div>

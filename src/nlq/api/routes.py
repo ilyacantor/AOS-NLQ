@@ -187,6 +187,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         )
 
 
+@router.post("/intent-map", response_model=IntentMapResponse)
 @router.post("/query/galaxy", response_model=IntentMapResponse)
 async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
     """
