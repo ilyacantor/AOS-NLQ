@@ -1,0 +1,184 @@
+{
+  "metadata": {
+    "description": "Ambiguous/human-style questions for NLQ robustness testing",
+    "reference_date": "2026-01-27",
+    "question_range": "56-75",
+    "total_questions": 20
+  },
+  "ambiguity_types": {
+    "incomplete": "Missing key information (metric, period, or both)",
+    "vague_metric": "Unclear which specific metric is requested",
+    "casual_language": "Informal phrasing, slang, abbreviations",
+    "yes_no": "Boolean question requiring contextual answer",
+    "broad_request": "Asking for multiple data points at once",
+    "implied_context": "References unstated assumptions",
+    "judgment_call": "Requires interpretation beyond raw data",
+    "shorthand": "Telegraphic style with minimal words",
+    "context_dependent": "Answer depends on current date/state",
+    "comparison": "Wants relationship between metrics",
+    "summary_request": "Asking for condensed overview",
+    "not_applicable": "Question doesn't apply to this dataset"
+  },
+  "questions": [
+    {
+      "id": 56,
+      "question": "rev?",
+      "ground_truth": "$200.0M",
+      "interpretation": "Assumes current year (2026) revenue",
+      "ambiguity_type": "incomplete",
+      "notes": "Single word query - must infer they want current/this year"
+    },
+    {
+      "id": 57,
+      "question": "how'd we do last year",
+      "ground_truth": "$150.0M revenue, $28.13M net income",
+      "interpretation": "General performance = revenue and profit",
+      "ambiguity_type": "vague_metric",
+      "notes": "No specific metric requested - provide key financials"
+    },
+    {
+      "id": 58,
+      "question": "whats the margin",
+      "ground_truth": "Gross: 65.0%, Operating: 35.0%, Net: 22.5%",
+      "interpretation": "Which margin? Provide all three for current year",
+      "ambiguity_type": "vague_metric",
+      "notes": "Margin could mean gross, operating, or net"
+    },
+    {
+      "id": 59,
+      "question": "q4 numbers",
+      "ground_truth": "Q4 2025: Revenue $42.0M, Net Income $11.03M",
+      "interpretation": "Most recent Q4 (2025), key metrics",
+      "ambiguity_type": "incomplete",
+      "notes": "No year specified - assume most recent completed Q4"
+    },
+    {
+      "id": 60,
+      "question": "are we profitable",
+      "ground_truth": "Yes, 22.5% net margin in 2026 forecast",
+      "interpretation": "Boolean + supporting data",
+      "ambiguity_type": "yes_no",
+      "notes": "Requires yes/no answer with context"
+    },
+    {
+      "id": 61,
+      "question": "hows the top line looking",
+      "ground_truth": "$200.0M forecast for 2026, up 33% from 2025",
+      "interpretation": "Revenue trend/outlook",
+      "ambiguity_type": "casual_language",
+      "notes": "Casual phrasing, wants current state + trend"
+    },
+    {
+      "id": 62,
+      "question": "give me the P&L",
+      "ground_truth": "2026: Revenue $200M, COGS $70M, Gross Profit $130M, SG&A $60M, Operating Profit $70M, Net Income $45M",
+      "interpretation": "Full P&L summary for current year",
+      "ambiguity_type": "broad_request",
+      "notes": "Wants full income statement, not single metric"
+    },
+    {
+      "id": 63,
+      "question": "did we hit 150",
+      "ground_truth": "Yes, 2025 revenue was exactly $150.0M",
+      "interpretation": "Revenue target of $150M",
+      "ambiguity_type": "implied_context",
+      "notes": "Must infer 150 = revenue target in millions"
+    },
+    {
+      "id": 64,
+      "question": "costs too high?",
+      "ground_truth": "COGS 35% of revenue, SG&A 30% - consistent with targets",
+      "interpretation": "Cost structure assessment",
+      "ambiguity_type": "judgment_call",
+      "notes": "Requires interpretation of 'too high'"
+    },
+    {
+      "id": 65,
+      "question": "cash position",
+      "ground_truth": "$41.42M as of Q4 2025",
+      "interpretation": "Most recent cash balance",
+      "ambiguity_type": "shorthand",
+      "notes": "Two words, no verb, no timeframe"
+    },
+    {
+      "id": 66,
+      "question": "year over year",
+      "ground_truth": "Revenue +50% (2024\u21922025), +33% (2025\u21922026F)",
+      "interpretation": "YoY growth rates",
+      "ambiguity_type": "incomplete",
+      "notes": "No metric specified - assume revenue growth"
+    },
+    {
+      "id": 67,
+      "question": "what about Q2",
+      "ground_truth": "Q2 2026 forecast: Revenue $48.0M, Net Income $12.6M",
+      "interpretation": "Next Q2 (2026) since we're in Q1 2026",
+      "ambiguity_type": "context_dependent",
+      "notes": "Which Q2? Depends on current date context"
+    },
+    {
+      "id": 68,
+      "question": "bookings vs revenue",
+      "ground_truth": "Bookings 115% of revenue (e.g., 2025: $172.5M bookings vs $150M revenue)",
+      "interpretation": "Ratio/comparison of the two metrics",
+      "ambiguity_type": "comparison",
+      "notes": "Wants relationship between metrics, not raw numbers"
+    },
+    {
+      "id": 69,
+      "question": "where are we on AR",
+      "ground_truth": "$20.71M as of Q4 2025, ~45 days sales outstanding",
+      "interpretation": "AR balance and context",
+      "ambiguity_type": "casual_language",
+      "notes": "Casual phrasing for accounts receivable status"
+    },
+    {
+      "id": 70,
+      "question": "quick ratio stuff",
+      "ground_truth": "Current Assets $75.57M, Current Liabilities $26.47M, Ratio ~2.9x",
+      "interpretation": "Liquidity metrics",
+      "ambiguity_type": "vague_request",
+      "notes": "Wants liquidity info but imprecise request"
+    },
+    {
+      "id": 71,
+      "question": "2025 in a nutshell",
+      "ground_truth": "Revenue $150M (+50% YoY), Net Income $28.13M (18.8% margin), Operating Margin 35%",
+      "interpretation": "Year summary with key highlights",
+      "ambiguity_type": "summary_request",
+      "notes": "Wants condensed annual overview"
+    },
+    {
+      "id": 72,
+      "question": "burn rate?",
+      "ground_truth": "Not applicable - company is profitable with positive cash flow",
+      "interpretation": "Cash burn assessment",
+      "ambiguity_type": "not_applicable",
+      "notes": "Startup terminology that doesn't apply here"
+    },
+    {
+      "id": 73,
+      "question": "opex breakdown pls",
+      "ground_truth": "2026: Selling $36M, G&A $24M, Total SG&A $60M",
+      "interpretation": "Operating expense detail for current year",
+      "ambiguity_type": "casual_language",
+      "notes": "Casual with abbreviation"
+    },
+    {
+      "id": 74,
+      "question": "we growing?",
+      "ground_truth": "Yes, 50% revenue growth 2024\u21922025, 33% forecast 2025\u21922026",
+      "interpretation": "Growth confirmation with data",
+      "ambiguity_type": "yes_no",
+      "notes": "Yes/no question needing supporting evidence"
+    },
+    {
+      "id": 75,
+      "question": "compare this year to last",
+      "ground_truth": "2026 vs 2025: Revenue $200M vs $150M (+33%), Net Income $45M vs $28.13M (+60%), Operating Margin 35% vs 35% (flat)",
+      "interpretation": "Year-over-year comparison of key metrics",
+      "ambiguity_type": "comparison",
+      "notes": "No specific metrics - provide comprehensive comparison"
+    }
+  ]
+}
