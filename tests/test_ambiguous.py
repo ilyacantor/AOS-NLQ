@@ -41,9 +41,9 @@ class TestAmbiguityDetection:
         assert "revenue" in candidates
 
     def test_detect_casual_how_did_we_do(self):
-        """'how'd we do last year' should be CASUAL_LANGUAGE."""
+        """'how'd we do last year' should be VAGUE_METRIC (wants key financials)."""
         amb_type, candidates, _ = detect_ambiguity("how'd we do last year")
-        assert amb_type == AmbiguityType.CASUAL_LANGUAGE
+        assert amb_type == AmbiguityType.VAGUE_METRIC
         assert len(candidates) > 0
 
     def test_detect_vague_metric_margin(self):
@@ -77,7 +77,7 @@ class TestAmbiguityDetection:
         """'burn rate' should be NOT_APPLICABLE."""
         amb_type, candidates, _ = detect_ambiguity("burn rate?")
         assert amb_type == AmbiguityType.NOT_APPLICABLE
-        assert "not_applicable" in candidates
+        assert "burn_rate" in candidates  # Candidates track the concept, not literal "not_applicable"
 
     def test_non_ambiguous_returns_none(self):
         """Clear questions should not be detected as ambiguous."""
@@ -184,19 +184,23 @@ class TestThe20AmbiguousQuestions:
 
     @pytest.mark.parametrize("question,expected_type", [
         ("rev?", AmbiguityType.INCOMPLETE),
-        ("how'd we do last year", AmbiguityType.CASUAL_LANGUAGE),
+        ("how'd we do last year", AmbiguityType.VAGUE_METRIC),  # Ground truth: vague_metric
         ("whats the margin", AmbiguityType.VAGUE_METRIC),
-        # ("q4 numbers", AmbiguityType.INCOMPLETE),  # Needs pattern update
+        ("q4 numbers", AmbiguityType.INCOMPLETE),
         ("are we profitable", AmbiguityType.YES_NO),
         ("hows the top line looking", AmbiguityType.CASUAL_LANGUAGE),
         ("give me the p&l", AmbiguityType.BROAD_REQUEST),
-        # ("did we hit 150", AmbiguityType.IMPLIED_CONTEXT),  # Needs pattern
-        # ("costs too high?", AmbiguityType.JUDGMENT_CALL),  # Needs pattern
+        ("did we hit 150", AmbiguityType.IMPLIED_CONTEXT),
+        ("costs too high?", AmbiguityType.JUDGMENT_CALL),
         ("cash position", AmbiguityType.SHORTHAND),
-        # ("year over year", AmbiguityType.CONTEXT_DEPENDENT),  # Needs pattern
+        ("year over year", AmbiguityType.CONTEXT_DEPENDENT),
+        ("what about Q2", AmbiguityType.CONTEXT_DEPENDENT),
         ("burn rate?", AmbiguityType.NOT_APPLICABLE),
         ("opex breakdown pls", AmbiguityType.CASUAL_LANGUAGE),
         ("we growing?", AmbiguityType.YES_NO),
+        ("2025 in a nutshell", AmbiguityType.SUMMARY),
+        ("bookings vs revenue", AmbiguityType.COMPARISON),
+        ("compare this year to last", AmbiguityType.COMPARISON),
     ])
     def test_ambiguous_question_detection(self, question, expected_type):
         """Test that specific ambiguous questions are detected correctly."""

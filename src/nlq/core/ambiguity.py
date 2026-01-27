@@ -12,21 +12,27 @@ from src.nlq.models.response import AmbiguityType
 
 
 # Patterns for detecting different ambiguity types
+# ORDER MATTERS - more specific patterns should come before general ones
 AMBIGUITY_PATTERNS = {
-    AmbiguityType.INCOMPLETE: [
-        r"^rev\??$",           # "rev?" - incomplete metric
-        r"^q\d\s*$",           # "q4" - incomplete period
-        r"^20\d{2}\s*$",       # Just a year
-        r"numbers?$",          # "q4 numbers"
-        r"^what about\s",      # "what about Q2"
+    # Most specific first
+    AmbiguityType.NOT_APPLICABLE: [
+        r"burn rate",                   # Doesn't apply to profitable company
+        r"runway",                      # Doesn't apply
     ],
-    AmbiguityType.CASUAL_LANGUAGE: [
-        r"how['\u2019]?d we do",       # "how'd we do"
-        r"hows .*looking",              # "hows the top line looking"
-        r"where are we on",             # "where are we on AR"
-        r"\bpls\b|\bplease\b$",         # "opex breakdown pls"
+    AmbiguityType.IMPLIED_CONTEXT: [
+        r"did we hit \d+",              # "did we hit 150" - implies revenue target
+    ],
+    AmbiguityType.SUMMARY: [
+        r"in a nutshell",               # Summary request
+        r"^\d{4} in a nutshell",        # "2025 in a nutshell"
+    ],
+    AmbiguityType.COMPARISON: [
+        r"\bvs\.?\s",                   # "bookings vs revenue"
+        r"compare.*to",                 # "compare this year to last"
+        r"(this|last) year to (last|this)",
     ],
     AmbiguityType.VAGUE_METRIC: [
+        r"how['\u2019]?d we do",        # "how'd we do" - wants key financials
         r"^whats? the margin",          # "whats the margin" - which margin?
         r"^quick ratio stuff",          # Vague ratio reference
         r"^the numbers$",               # Very vague
@@ -34,63 +40,59 @@ AMBIGUITY_PATTERNS = {
     AmbiguityType.YES_NO: [
         r"^are we profitable",          # Boolean question
         r"^we growing\??$",             # "we growing?"
-        r"^did we hit",                 # "did we hit 150"
         r"^is .*\?$",                   # "is X?"
     ],
     AmbiguityType.BROAD_REQUEST: [
         r"give me the p&l",             # Wants full P&L
-        r"in a nutshell",               # Summary request
         r"full (report|breakdown)",     # Comprehensive request
-    ],
-    AmbiguityType.IMPLIED_CONTEXT: [
-        r"did we hit \d+",              # "did we hit 150" - implies revenue target
     ],
     AmbiguityType.JUDGMENT_CALL: [
         r"too (high|low)\??$",          # "costs too high?"
         r"good (enough|result)",        # Subjective judgment
     ],
-    AmbiguityType.NOT_APPLICABLE: [
-        r"burn rate",                   # Doesn't apply to profitable company
-        r"runway",                      # Doesn't apply
-    ],
     AmbiguityType.SHORTHAND: [
         r"^cash position",              # Common shorthand
     ],
     AmbiguityType.CONTEXT_DEPENDENT: [
+        r"^what about\s+q\d",           # "what about Q2" - which Q2?
         r"^year over year$",            # Missing metric
         r"^yoy$",                       # Missing metric
     ],
-    AmbiguityType.COMPARISON: [
-        r"vs\.?\s",                     # "bookings vs revenue"
-        r"compare",                     # "compare this year to last"
-        r"(this|last) year to (last|this)",
+    AmbiguityType.CASUAL_LANGUAGE: [
+        r"hows .*looking",              # "hows the top line looking"
+        r"where are we on",             # "where are we on AR"
+        r"\bpls\b|\bplease\b$",         # "opex breakdown pls"
     ],
-    AmbiguityType.SUMMARY: [
-        r"in a nutshell",               # Summary request
-        r"overall",                     # General overview
-        r"^summary",                    # Explicit summary
+    AmbiguityType.INCOMPLETE: [
+        r"^rev\??$",                    # "rev?" - incomplete metric
+        r"^q\d\s*numbers?",             # "q4 numbers"
+        r"^20\d{2}\s*$",                # Just a year
     ],
 }
 
 # Candidate metrics for each ambiguity type
 AMBIGUITY_CANDIDATES = {
     AmbiguityType.INCOMPLETE: {
-        "rev": ["revenue", "bookings", "net_income"],
-        "default": ["revenue", "net_income", "gross_profit"],
+        "rev": ["revenue"],
+        "q4": ["revenue", "net_income"],
+        "default": ["revenue", "net_income"],
     },
     AmbiguityType.CASUAL_LANGUAGE: {
-        "how'd we do": ["revenue", "net_income", "gross_margin_pct", "operating_margin_pct"],
-        "top line": ["revenue", "yoy_growth", "bookings"],
+        "top line": ["revenue"],
+        "ar": ["ar"],
+        "opex": ["sga", "selling_expense", "ga_expense"],
         "default": ["revenue", "net_income"],
     },
     AmbiguityType.VAGUE_METRIC: {
+        "how'd we do": ["revenue", "net_income"],  # Key financials
+        "how": ["revenue", "net_income"],
         "margin": ["gross_margin_pct", "operating_margin_pct", "net_income_pct"],
-        "ratio": ["gross_margin_pct", "operating_margin_pct", "dso", "dpo"],
+        "ratio": ["current_assets", "current_liabilities"],
         "default": ["revenue", "net_income"],
     },
     AmbiguityType.YES_NO: {
-        "profitable": ["net_income", "operating_profit", "net_income_pct"],
-        "growing": ["yoy_growth", "revenue", "bookings"],
+        "profitable": ["net_income_pct", "net_income"],
+        "growing": ["revenue"],
         "default": ["net_income", "revenue"],
     },
     AmbiguityType.BROAD_REQUEST: {
@@ -98,32 +100,36 @@ AMBIGUITY_CANDIDATES = {
         "default": ["revenue", "gross_profit", "operating_profit", "net_income"],
     },
     AmbiguityType.IMPLIED_CONTEXT: {
-        "hit": ["revenue", "bookings"],  # Target implies revenue
+        "hit": ["revenue"],
         "default": ["revenue"],
     },
     AmbiguityType.JUDGMENT_CALL: {
-        "costs": ["sga", "cogs", "operating_margin_pct"],
-        "default": ["sga", "cogs"],
+        "costs": ["cogs", "sga"],
+        "default": ["cogs", "sga"],
     },
     AmbiguityType.SHORTHAND: {
-        "cash position": ["cash", "ar", "ap"],
-        "burn rate": ["net_income", "operating_profit"],
-        "default": ["cash", "net_income"],
+        "cash position": ["cash"],
+        "default": ["cash"],
     },
     AmbiguityType.CONTEXT_DEPENDENT: {
-        "yoy": ["yoy_growth", "revenue"],
+        "q2": ["revenue", "net_income"],
+        "yoy": ["revenue"],
+        "year over year": ["revenue"],
         "default": ["revenue", "net_income"],
     },
     AmbiguityType.COMPARISON: {
-        "vs": ["revenue", "bookings"],
-        "default": ["revenue", "net_income"],
+        "bookings vs revenue": ["bookings", "revenue"],
+        "vs": ["bookings", "revenue"],
+        "compare": ["revenue", "net_income", "operating_margin_pct"],
+        "default": ["revenue", "net_income", "operating_margin_pct"],
     },
     AmbiguityType.SUMMARY: {
-        "default": ["revenue", "net_income", "gross_margin_pct", "operating_margin_pct"],
+        "nutshell": ["revenue", "net_income", "operating_margin_pct"],
+        "default": ["revenue", "net_income", "operating_margin_pct"],
     },
     AmbiguityType.NOT_APPLICABLE: {
-        "burn rate": ["not_applicable", "net_income"],
-        "runway": ["not_applicable", "cash"],
+        "burn rate": ["burn_rate"],  # We'll handle specially
+        "runway": ["runway"],
         "default": ["not_applicable"],
     },
 }
