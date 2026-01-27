@@ -8,55 +8,90 @@ interface QueryHistoryItem {
   tag: string
 }
 
+interface NLQResponse {
+  success: boolean
+  answer?: string
+  value?: number | string
+  unit?: string
+  confidence: number
+  parsed_intent?: string
+  resolved_metric?: string
+  resolved_period?: string
+  error_code?: string
+  error_message?: string
+}
+
 type TabType = 'Ask' | 'Graph' | 'Dashboard'
 type PanelTab = 'History' | 'Debug'
 
 const quickActions = [
-  'Top 5 customers',
-  'Top 10 customers',
-  'Sales pipeline',
-  'Current ARR',
-  'Burn rate',
-  'Idle resources',
-  'Unallocated spend',
-  'SLO status',
-  'MTTR metrics',
+  'What was revenue last year?',
+  'What was revenue in 2024?',
+  'What was net income in 2025?',
+  'What was gross margin in 2024?',
+  'What was COGS last year?',
+  'What was operating profit in 2025?',
+  'What was cash last quarter?',
+  'What was AR in Q4 2025?',
 ]
 
 function App() {
   const [query, setQuery] = useState('')
   const [activeTab, setActiveTab] = useState<TabType>('Ask')
   const [panelTab, setPanelTab] = useState<PanelTab>('History')
-  const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([
-    { id: '1', query: '"Top 3 customers in Q4?"', timestamp: '05:11 AM', duration: '22ms', tag: 'crm.top_customers' },
-    { id: '2', query: '"Top 3 customers in Q4?"', timestamp: '04:49 AM', duration: '8ms', tag: 'crm.top_customers' },
-    { id: '3', query: '"What\'s our revenue this month?"', timestamp: '04:47 AM', duration: '135ms', tag: 'finops.total_revenue' },
-    { id: '4', query: 'What was the revenue for last year?', timestamp: '04:21 AM', duration: '15ms', tag: 'finops.total_revenue' },
-    { id: '5', query: 'what are our total sales', timestamp: '04:20 AM', duration: '27ms', tag: 'finops.total_revenue' },
-  ])
+  const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [response, setResponse] = useState<NLQResponse | null>(null)
+  const [lastQuery, setLastQuery] = useState('')
+  const [lastDuration, setLastDuration] = useState('')
 
   const handleSubmit = async (queryText?: string) => {
     const textToSubmit = queryText ?? query
     if (!textToSubmit.trim()) return
 
     setIsLoading(true)
-    setQuery(textToSubmit)  // Show the query in the input
+    setQuery(textToSubmit)
+    setResponse(null)
     const now = new Date()
     const timestamp = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+    const startTime = performance.now()
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500))
+    try {
+      const res = await fetch('/api/v1/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: textToSubmit,
+          reference_date: '2026-01-27'
+        })
+      })
 
-    const newItem: QueryHistoryItem = {
-      id: Date.now().toString(),
-      query: textToSubmit,
-      timestamp: timestamp,
-      duration: `${Math.floor(Math.random() * 100) + 10}ms`,
-      tag: 'nlq.query',
+      const data: NLQResponse = await res.json()
+      const duration = Math.round(performance.now() - startTime)
+
+      setResponse(data)
+      setLastQuery(textToSubmit)
+      setLastDuration(`${duration}ms`)
+
+      const newItem: QueryHistoryItem = {
+        id: Date.now().toString(),
+        query: textToSubmit,
+        timestamp: timestamp,
+        duration: `${duration}ms`,
+        tag: data.resolved_metric || 'nlq.query',
+      }
+
+      setQueryHistory(prev => [newItem, ...prev])
+    } catch (error) {
+      console.error('Query failed:', error)
+      setResponse({
+        success: false,
+        confidence: 0,
+        error_code: 'NETWORK_ERROR',
+        error_message: 'Failed to connect to backend. Is the server running?'
+      })
     }
 
-    setQueryHistory(prev => [newItem, ...prev])
     setQuery('')
     setIsLoading(false)
   }
@@ -144,6 +179,64 @@ function App() {
               </button>
             ))}
           </div>
+
+          {/* Results Display */}
+          {response && (
+            <div className="w-full max-w-3xl mt-8 bg-slate-900 border border-slate-700 rounded-xl p-6">
+              {/* Query echo */}
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-slate-400 text-sm">{lastQuery}</span>
+                <button
+                  onClick={() => setResponse(null)}
+                  className="text-slate-500 hover:text-slate-300"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {response.success ? (
+                <>
+                  {/* Answer */}
+                  <div className="text-slate-200 text-lg mb-4 p-4 bg-slate-800/50 rounded-lg">
+                    {response.answer}
+                  </div>
+
+                  {/* Metadata row */}
+                  <div className="flex items-center gap-4 text-sm text-slate-400 mb-4">
+                    <span>Definition: <span className="text-cyan-400">{response.resolved_metric}</span></span>
+                    <span>Confidence: <span className="text-green-400">{Math.round(response.confidence * 100)}%</span></span>
+                    <span>{lastDuration}</span>
+                  </div>
+
+                  {/* Value display */}
+                  {response.value !== undefined && (
+                    <div className="grid grid-cols-3 gap-4 p-4 bg-slate-800/30 rounded-lg">
+                      <div>
+                        <div className="text-slate-500 text-xs mb-1">Value</div>
+                        <div className="text-slate-200 font-mono text-xl">
+                          {response.unit === '%' ? `${response.value}%` : `$${response.value}M`}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-slate-500 text-xs mb-1">Period</div>
+                        <div className="text-slate-200">{response.resolved_period}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-500 text-xs mb-1">Intent</div>
+                        <div className="text-slate-200">{response.parsed_intent}</div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Error display */
+                <div className="p-4 bg-red-900/20 border border-red-800/50 rounded-lg">
+                  <div className="text-red-400 font-medium mb-1">{response.error_code}</div>
+                  <div className="text-red-300/80 text-sm">{response.error_message}</div>
+                </div>
+              )}
+            </div>
+          )}
         </main>
 
         {/* Right Sidebar - History Panel */}
