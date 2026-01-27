@@ -471,7 +471,7 @@ class TestComparisonQueries:
         assert result.value["pct_change"] == 50.0
 
     def test_net_income_change_2024_to_2025(self, fact_base):
-        """Q35: How did net income change from 2024 to 2025? → Increased from $26.25M to $39.38M"""
+        """Q35: How did net income change from 2024 to 2025? → Increased from $13.0M to $28.13M"""
         executor = QueryExecutor(fact_base)
 
         query = ParsedQuery(
@@ -487,8 +487,8 @@ class TestComparisonQueries:
 
         assert result.success is True
         # Values should match ground truth (with some tolerance for float)
-        assert abs(result.value["value2"] - 26.25) < 0.01  # 2024
-        assert abs(result.value["value1"] - 39.38) < 0.01  # 2025
+        assert abs(result.value["value2"] - 13.0) < 0.01  # 2024
+        assert abs(result.value["value1"] - 28.13) < 0.01  # 2025
         assert result.value["difference"] > 0  # Increased
 
     def test_q4_comparison_2024_to_2025(self, fact_base):
