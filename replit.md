@@ -8,12 +8,13 @@ aos-nlq is a standalone Natural Language Query interface for financial data. It 
 ## Project Architecture
 
 ### Core Components
-- **app.py** - Main Streamlit application with AutonomOS branded UI
+- **src/App.tsx** - Main React application with AutonomOS branded UI
+- **src/index.css** - Tailwind v4 CSS with custom theme
 - **db.py** - Supabase PostgreSQL database connection utilities
 - **dcl_client.py** - HTTP client for DCLv2 data unification engine
 
 ### Technology Stack
-- **Frontend:** Streamlit with custom CSS (AutonomOS color palette)
+- **Frontend:** React + Vite + TypeScript + Tailwind CSS v4
 - **Database:** Supabase PostgreSQL (external)
 - **DCL Integration:** HTTP/API client for DCLv2 entities
 
@@ -29,17 +30,18 @@ aos-nlq is a standalone Natural Language Query interface for financial data. It 
 - `SUPABASE_URL` - PostgreSQL connection string for Supabase
 
 ## Recent Changes
-- **2026-01-27:** Initial project setup with Streamlit UI and AutonomOS branding
+- **2026-01-27:** Rebuilt with React + Vite + Tailwind v4 (migrated from Streamlit)
 
 ## Running the Application
 ```bash
-streamlit run app.py --server.port 5000
+npm run dev
 ```
 
 ## User Preferences
 - Dark mode interface (default, no light mode toggle)
 - AutonomOS color palette with Cyan accents
 - Quicksand font family
+- React + Tailwind frontend (NOT Streamlit)
 
 ## Next Steps
 1. Upload test data set for development
