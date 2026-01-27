@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import * as d3 from 'd3';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   IntentMapResponse,
   IntentNode,
@@ -20,14 +19,13 @@ interface GalaxyViewProps {
   height?: number;
 }
 
-// Simulation node type extending IntentNode with D3 simulation properties
-interface SimulationNode extends IntentNode {
-  x?: number;
-  y?: number;
-  fx?: number | null;
-  fy?: number | null;
-  vx?: number;
-  vy?: number;
+interface NodeState {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  targetX: number;
+  targetY: number;
 }
 
 export const GalaxyView: React.FC<GalaxyViewProps> = ({
@@ -38,122 +36,172 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const [selectedNode, setSelectedNode] = useState<IntentNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<IntentNode | null>(null);
   const [hoveredPosition, setHoveredPosition] = useState<{ x: number; y: number } | null>(null);
-  const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
-  const [isDragging, setIsDragging] = useState(false);
+  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
+  const [nodeStates, setNodeStates] = useState<Map<string, NodeState>>(new Map());
 
   const svgRef = useRef<SVGSVGElement>(null);
-  const simulationRef = useRef<d3.Simulation<SimulationNode, undefined> | null>(null);
+  const animationRef = useRef<number | null>(null);
 
   const centerX = width / 2;
   const centerY = height / 2;
 
-  // Ring radii for radial force
-  const ringRadii = {
-    exact: RING_CONFIG.inner.radius,
-    potential: RING_CONFIG.middle.radius,
-    hypothesis: RING_CONFIG.outer.radius,
-  };
+  // Calculate target positions for nodes on their rings
+  const targetPositions = useMemo(() => {
+    const positions = new Map<string, { x: number; y: number }>();
 
-  // Initialize D3 force simulation
+    const placeNodesOnRing = (nodes: IntentNode[], radius: number) => {
+      if (nodes.length === 0) return;
+      const angleStep = (2 * Math.PI) / nodes.length;
+      const startAngle = -Math.PI / 2;
+
+      nodes.forEach((node, i) => {
+        const angle = startAngle + angleStep * i;
+        positions.set(node.id, {
+          x: centerX + radius * Math.cos(angle),
+          y: centerY + radius * Math.sin(angle),
+        });
+      });
+    };
+
+    const inner = data.nodes.filter(n => n.match_type === 'exact');
+    const middle = data.nodes.filter(n => n.match_type === 'potential');
+    const outer = data.nodes.filter(n => n.match_type === 'hypothesis');
+
+    placeNodesOnRing(inner, RING_CONFIG.inner.radius);
+    placeNodesOnRing(middle, RING_CONFIG.middle.radius);
+    placeNodesOnRing(outer, RING_CONFIG.outer.radius);
+
+    return positions;
+  }, [data.nodes, centerX, centerY]);
+
+  // Initialize node states when data changes
   useEffect(() => {
-    if (!svgRef.current || data.nodes.length === 0) return;
-
-    // Create simulation nodes with initial positions on their respective rings
-    const simNodes: SimulationNode[] = data.nodes.map((node, i) => {
-      const ringRadius = ringRadii[node.match_type as keyof typeof ringRadii] || ringRadii.potential;
-      const nodesInRing = data.nodes.filter(n => n.match_type === node.match_type);
-      const indexInRing = nodesInRing.indexOf(node);
-      const angleStep = (2 * Math.PI) / nodesInRing.length;
-      const angle = -Math.PI / 2 + angleStep * indexInRing;
-
-      return {
-        ...node,
-        x: centerX + ringRadius * Math.cos(angle),
-        y: centerY + ringRadius * Math.sin(angle),
-      };
-    });
-
-    // Create force simulation
-    const simulation = d3.forceSimulation<SimulationNode>(simNodes)
-      .force("charge", d3.forceManyBody<SimulationNode>().strength(-150))
-      .force("center", d3.forceCenter(centerX, centerY).strength(0.01))
-      .force("collision", d3.forceCollide<SimulationNode>()
-        .radius(d => 15 + d.confidence * 35)
-        .strength(0.8)
-      )
-      .force("radial", d3.forceRadial<SimulationNode>(
-        d => ringRadii[d.match_type as keyof typeof ringRadii] || ringRadii.potential,
-        centerX,
-        centerY
-      ).strength(0.6))
-      .alphaDecay(0.02)
-      .velocityDecay(0.3);
-
-    // Update positions on each tick
-    simulation.on("tick", () => {
-      const newPositions = new Map<string, { x: number; y: number }>();
-      simNodes.forEach(node => {
-        newPositions.set(node.id, { x: node.x || centerX, y: node.y || centerY });
+    const newStates = new Map<string, NodeState>();
+    data.nodes.forEach(node => {
+      const target = targetPositions.get(node.id) || { x: centerX, y: centerY };
+      const existing = nodeStates.get(node.id);
+      newStates.set(node.id, {
+        x: existing?.x ?? target.x,
+        y: existing?.y ?? target.y,
+        vx: 0,
+        vy: 0,
+        targetX: target.x,
+        targetY: target.y,
       });
-      setNodePositions(newPositions);
     });
+    setNodeStates(newStates);
+  }, [data.nodes, targetPositions]);
 
-    simulationRef.current = simulation;
+  // Physics simulation loop - nodes smoothly return to their orbital positions
+  useEffect(() => {
+    const simulate = () => {
+      setNodeStates(prev => {
+        const next = new Map(prev);
+        let needsUpdate = false;
 
-    // Setup drag behavior on nodes
-    const svg = d3.select(svgRef.current);
+        next.forEach((state, nodeId) => {
+          // Skip dragged node
+          if (nodeId === draggedNodeId) return;
 
-    const drag = d3.drag<SVGGElement, SimulationNode>()
-      .on("start", (event, d) => {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-        setIsDragging(true);
-        setHoveredNode(null);
-        setHoveredPosition(null);
-      })
-      .on("drag", (event, d) => {
-        d.fx = event.x;
-        d.fy = event.y;
-      })
-      .on("end", (event, d) => {
-        if (!event.active) simulation.alphaTarget(0);
-        // Let node return to its natural position
-        d.fx = null;
-        d.fy = null;
-        setIsDragging(false);
+          // Spring force toward target position
+          const dx = state.targetX - state.x;
+          const dy = state.targetY - state.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance > 0.5) {
+            needsUpdate = true;
+            // Spring constant
+            const springStrength = 0.08;
+            // Damping
+            const damping = 0.85;
+
+            // Apply spring force
+            state.vx = (state.vx + dx * springStrength) * damping;
+            state.vy = (state.vy + dy * springStrength) * damping;
+
+            // Update position
+            state.x += state.vx;
+            state.y += state.vy;
+          } else {
+            // Snap to target when close enough
+            state.x = state.targetX;
+            state.y = state.targetY;
+            state.vx = 0;
+            state.vy = 0;
+          }
+        });
+
+        return next;
       });
 
-    // Apply drag behavior to node groups
-    svg.selectAll<SVGGElement, SimulationNode>(".galaxy-node")
-      .data(simNodes, d => d.id)
-      .call(drag);
+      animationRef.current = requestAnimationFrame(simulate);
+    };
+
+    animationRef.current = requestAnimationFrame(simulate);
 
     return () => {
-      simulation.stop();
-      simulationRef.current = null;
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
     };
-  }, [data.nodes, centerX, centerY, width, height]);
+  }, [draggedNodeId]);
 
-  // Reheat simulation when data changes
-  useEffect(() => {
-    if (simulationRef.current) {
-      simulationRef.current.alpha(0.5).restart();
-    }
-  }, [data]);
-
+  // Get current position for a node
   const getNodePosition = useCallback((nodeId: string) => {
-    return nodePositions.get(nodeId) || { x: centerX, y: centerY };
-  }, [nodePositions, centerX, centerY]);
+    const state = nodeStates.get(nodeId);
+    if (state) {
+      return { x: state.x, y: state.y };
+    }
+    return targetPositions.get(nodeId) || { x: centerX, y: centerY };
+  }, [nodeStates, targetPositions, centerX, centerY]);
+
+  // Drag handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent, node: IntentNode) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggedNodeId(node.id);
+    setHoveredNode(null);
+    setHoveredPosition(null);
+  }, []);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!draggedNodeId || !svgRef.current) return;
+
+    const svgRect = svgRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - svgRect.left;
+    const mouseY = e.clientY - svgRect.top;
+
+    setNodeStates(prev => {
+      const next = new Map(prev);
+      const state = next.get(draggedNodeId);
+      if (state) {
+        state.x = mouseX;
+        state.y = mouseY;
+        state.vx = 0;
+        state.vy = 0;
+      }
+      return next;
+    });
+  }, [draggedNodeId]);
+
+  const handleMouseUp = useCallback(() => {
+    setDraggedNodeId(null);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setDraggedNodeId(null);
+    setHoveredNode(null);
+    setHoveredPosition(null);
+  }, []);
 
   const handleNodeClick = (node: IntentNode) => {
-    if (!isDragging) {
+    if (!draggedNodeId) {
       setSelectedNode(prev => prev?.id === node.id ? null : node);
     }
   };
 
   const handleNodeMouseEnter = (node: IntentNode) => {
-    if (!isDragging) {
+    if (!draggedNodeId) {
       setHoveredNode(node);
       const pos = getNodePosition(node.id);
       setHoveredPosition(pos);
@@ -161,7 +209,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   };
 
   const handleNodeMouseLeave = () => {
-    if (!isDragging) {
+    if (!draggedNodeId) {
       setHoveredNode(null);
       setHoveredPosition(null);
     }
@@ -187,6 +235,9 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             height={height}
             className="galaxy-svg"
             style={{ filter: 'drop-shadow(0 0 20px rgba(59, 130, 246, 0.15))' }}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
           >
             {/* Gradient definitions */}
             <defs>
@@ -278,6 +329,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               const isPrimary = node.id === data.primary_node_id;
               const isSelected = selectedNode?.id === node.id;
               const isHovered = hoveredNode?.id === node.id;
+              const isDragging = draggedNodeId === node.id;
               const radius = getCircleRadius(node.confidence, isPrimary);
               const color = DOMAIN_COLORS[node.domain] || DOMAIN_COLORS.finance;
               const arcRadius = radius + 6;
@@ -287,9 +339,10 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                   key={node.id}
                   transform={`translate(${pos.x}, ${pos.y})`}
                   onClick={() => handleNodeClick(node)}
+                  onMouseDown={(e) => handleMouseDown(e, node)}
                   onMouseEnter={() => handleNodeMouseEnter(node)}
                   onMouseLeave={handleNodeMouseLeave}
-                  style={{ cursor: 'grab' }}
+                  style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
                   className="galaxy-node"
                 >
                   {/* Selection/hover ring */}
@@ -371,7 +424,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             })}
 
             {/* Hover Tooltip */}
-            {hoveredNode && hoveredPosition && !isDragging && (
+            {hoveredNode && hoveredPosition && !draggedNodeId && (
               <NodeTooltip
                 node={hoveredNode}
                 isPrimary={hoveredNode.id === data.primary_node_id}
