@@ -905,8 +905,24 @@ def _handle_ambiguous_query_text(
                 confidence=0.9, parsed_intent="CONTEXT_DEPENDENT", resolved_metric="revenue_growth", resolved_period=current_year,
                 related_metrics=related_metrics)
 
-        # "biggest deals" -> "Need timeframe - which period?"
-        if "biggest deals" in q:
+        # "biggest deals" or "2025 biggest deals" -> Check for year, return deal data or ask for timeframe
+        if "biggest deals" in q or ("deals" in q and "biggest" in q):
+            # Check if year is specified in question
+            year_match = re.search(r'20\d{2}', question)
+            if year_match:
+                year = year_match.group()
+                # Get top deals from fact base
+                import json
+                with open('data/fact_base.json') as f:
+                    fb_data = json.load(f)
+                top_deals = fb_data.get('top_deals', {}).get(year, [])
+                if top_deals:
+                    deal_list = ", ".join([f"{d['company']} ${d['value']}M" for d in top_deals[:3]])
+                    total = sum(d['value'] for d in top_deals)
+                    answer = f"Top deals {year}: {deal_list}... (${total}M total)"
+                    return NLQResponse(success=True, answer=answer, value=total, unit="$M",
+                        confidence=0.9, parsed_intent="CONTEXT_DEPENDENT", resolved_metric="top_deals", resolved_period=year,
+                        related_metrics=related_metrics)
             answer = "Need timeframe - which period?"
             return NLQResponse(success=True, answer=answer, value=None, unit=None,
                 confidence=0.5, parsed_intent="CONTEXT_DEPENDENT", resolved_metric=None, resolved_period=None,

@@ -101,7 +101,7 @@ AMBIGUITY_PATTERNS = {
         r"^what about\s+q\d",           # "what about Q2" - which Q2?
         r"^year over year$",            # Missing metric
         r"^yoy$",                       # Missing metric
-        r"^biggest deals",              # CRO - needs timeframe
+        r"(^|\d{4}\s+)biggest deals",   # CRO - needs timeframe or "2025 biggest deals"
         r"^who'?s growing fastest",     # COO - fastest growing team
     ],
     AmbiguityType.CASUAL_LANGUAGE: [
@@ -231,6 +231,7 @@ AMBIGUITY_CANDIDATES = {
         "q2": ["revenue", "net_income"],
         "yoy": ["revenue"],
         "year over year": ["revenue"],
+        "biggest deals": ["bookings", "avg_deal_size"],
         "growing fastest": ["engineering_headcount", "sales_headcount"],
         "default": ["revenue", "net_income"],
     },

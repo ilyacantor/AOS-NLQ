@@ -26,14 +26,18 @@ type ViewMode = 'text' | 'galaxy'
 type PanelTab = 'History' | 'Debug'
 
 const quickActions = [
-  'What was revenue last year?',
-  'What was revenue in 2024?',
+  // CFO
   'whats the margin',
-  'give me the P&L',
-  'how\'d we do last year',
   'are we profitable',
-  'cash position',
-  'burn rate?',
+  // CRO
+  'how\'s pipeline looking',
+  'churn?',
+  // COO
+  'are we efficient',
+  'magic number',
+  // CTO
+  'platform stable?',
+  'how\'s velocity',
 ]
 
 function App() {

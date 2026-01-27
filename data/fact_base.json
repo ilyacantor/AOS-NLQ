@@ -1399,5 +1399,88 @@
       "retained_earnings": 176.4,
       "stockholders_equity": 226.4
     }
+  },
+  "top_deals": {
+    "2024": [
+      {
+        "company": "Acme Corp",
+        "value": 2.8,
+        "quarter": "Q3"
+      },
+      {
+        "company": "TechGiant",
+        "value": 2.1,
+        "quarter": "Q4"
+      },
+      {
+        "company": "Global Systems",
+        "value": 1.9,
+        "quarter": "Q2"
+      },
+      {
+        "company": "DataFlow Inc",
+        "value": 1.7,
+        "quarter": "Q4"
+      },
+      {
+        "company": "CloudFirst",
+        "value": 1.5,
+        "quarter": "Q1"
+      }
+    ],
+    "2025": [
+      {
+        "company": "MegaCorp",
+        "value": 4.2,
+        "quarter": "Q4"
+      },
+      {
+        "company": "Enterprise One",
+        "value": 3.5,
+        "quarter": "Q3"
+      },
+      {
+        "company": "Nexus Industries",
+        "value": 3.1,
+        "quarter": "Q2"
+      },
+      {
+        "company": "Quantum Tech",
+        "value": 2.8,
+        "quarter": "Q4"
+      },
+      {
+        "company": "Apex Solutions",
+        "value": 2.4,
+        "quarter": "Q1"
+      }
+    ],
+    "2026": [
+      {
+        "company": "Titan Corp",
+        "value": 5.5,
+        "quarter": "Q2"
+      },
+      {
+        "company": "OmniTech",
+        "value": 4.8,
+        "quarter": "Q1"
+      },
+      {
+        "company": "Stellar Systems",
+        "value": 4.2,
+        "quarter": "Q3"
+      },
+      {
+        "company": "Phoenix Group",
+        "value": 3.9,
+        "quarter": "Q4"
+      },
+      {
+        "company": "Atlas Global",
+        "value": 3.5,
+        "quarter": "Q2"
+      }
+    ]
   }
 }
