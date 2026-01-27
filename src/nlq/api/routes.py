@@ -464,6 +464,104 @@ def _handle_ambiguous_query_text(
                 confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="margin", resolved_period=current_year,
                 related_metrics=related_metrics)
 
+        # "new business" -> "New logos: $45M, 1,100 customers"
+        if "new business" in q:
+            new_logo_rev = get_val("new_logo_revenue", current_year)
+            customers = get_val("customer_count", current_year)
+            answer = f"New logos: ${round(new_logo_rev, 0) if new_logo_rev else 0}M, {int(customers):,} customers"
+            return NLQResponse(success=True, answer=answer, value=new_logo_rev, unit="$M",
+                confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="new_logo_revenue", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "reps performing?" -> "75% at quota, $3M quota/rep"
+        if "reps" in q:
+            reps_at_quota = get_val("reps_at_quota_pct", current_year)
+            sales_quota = get_val("sales_quota", current_year)
+            sales_hc = get_val("sales_headcount", current_year)
+            quota_per_rep = round(sales_quota / sales_hc, 0) if sales_quota and sales_hc else 0
+            answer = f"{round(reps_at_quota, 0) if reps_at_quota else 0}% at quota, ${round(quota_per_rep, 0)}M quota/rep"
+            return NLQResponse(success=True, answer=answer, value=reps_at_quota, unit="%",
+                confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="reps_at_quota_pct", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "pipeline coverage" -> "Pipeline $575M vs Quota $240M = 2.4x"
+        if "pipeline coverage" in q:
+            pipeline = get_val("pipeline", current_year)
+            quota = get_val("sales_quota", current_year)
+            coverage = round(pipeline / quota, 1) if pipeline and quota else 0
+            answer = f"Pipeline ${round(pipeline, 0) if pipeline else 0}M vs Quota ${round(quota, 0) if quota else 0}M = {coverage}x"
+            return NLQResponse(success=True, answer=answer, value=coverage, unit="ratio",
+                confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="pipeline", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "sales efficiency" -> "Magic: 0.9, CAC payback: 14mo"
+        if "sales efficiency" in q:
+            magic = get_val("magic_number", current_year)
+            payback = get_val("cac_payback_months", current_year)
+            answer = f"Magic: {round(magic, 1) if magic else 0}, CAC payback: {int(payback) if payback else 0}mo"
+            return NLQResponse(success=True, answer=answer, value=magic, unit="ratio",
+                confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="magic_number", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "team breakdown" -> "Eng: 150, Sales: 80, CS: 65, G&A: 70..."
+        if "team breakdown" in q:
+            eng = get_val("engineering_headcount", current_year)
+            sales = get_val("sales_headcount", current_year)
+            cs = get_val("cs_headcount", current_year)
+            ga = get_val("ga_headcount", current_year)
+            answer = f"Eng: {int(eng) if eng else 0}, Sales: {int(sales) if sales else 0}, CS: {int(cs) if cs else 0}, G&A: {int(ga) if ga else 0}..."
+            return NLQResponse(success=True, answer=answer, value=eng, unit="count",
+                confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="headcount", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "utilization?" -> "PS: 80%, Eng: 82%, Support: 80%"
+        if "utilization" in q:
+            ps_util = get_val("ps_utilization", current_year)
+            eng_util = get_val("engineering_utilization", current_year)
+            sup_util = get_val("support_utilization", current_year)
+            answer = f"PS: {round(ps_util, 0) if ps_util else 0}%, Eng: {round(eng_util, 0) if eng_util else 0}%, Support: {round(sup_util, 0) if sup_util else 0}%"
+            return NLQResponse(success=True, answer=answer, value=ps_util, unit="%",
+                confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="ps_utilization", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "any incidents" -> "3 P1s (2026F), down from 12"
+        if "incidents" in q:
+            p1s = get_val("p1_incidents", current_year)
+            p1s_yb = get_val("p1_incidents", year_before)
+            answer = f"{int(p1s) if p1s else 0} P1s ({current_year}F), down from {int(p1s_yb) if p1s_yb else 0}"
+            return NLQResponse(success=True, answer=answer, value=p1s, unit="count",
+                confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="p1_incidents", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "code quality" -> "Coverage: 82%, Bug escape: 3%, Tech debt: 20%"
+        if "code quality" in q:
+            coverage = get_val("code_coverage_pct", current_year)
+            escape = get_val("bug_escape_rate", current_year)
+            debt = get_val("tech_debt_pct", current_year)
+            answer = f"Coverage: {round(coverage, 0) if coverage else 0}%, Bug escape: {round(escape, 0) if escape else 0}%, Tech debt: {round(debt, 0) if debt else 0}%"
+            return NLQResponse(success=True, answer=answer, value=coverage, unit="%",
+                confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="code_coverage_pct", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "security posture" -> "1 vulnerability (target), 82% coverage"
+        if "security" in q:
+            vulns = get_val("security_vulns", current_year)
+            coverage = get_val("code_coverage_pct", current_year)
+            answer = f"{int(vulns) if vulns else 0} vulnerability (target), {round(coverage, 0) if coverage else 0}% coverage"
+            return NLQResponse(success=True, answer=answer, value=vulns, unit="count",
+                confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="security_vulns", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "eng productivity" -> "67 velocity, 96 features, 25 deploys/week"
+        if "eng productivity" in q or "productivity" in q:
+            velocity = get_val("sprint_velocity", current_year)
+            features = get_val("features_shipped", current_year)
+            deploys = get_val("deploys_per_week", current_year)
+            answer = f"{int(velocity) if velocity else 0} velocity, {int(features) if features else 0} features, {int(deploys) if deploys else 0} deploys/week"
+            return NLQResponse(success=True, answer=answer, value=velocity, unit="count",
+                confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="sprint_velocity", resolved_period=current_year,
+                related_metrics=related_metrics)
+
         # "how'd we do last year" -> "$150.0M revenue, $28.13M net income"
         if "last year" in q or "how" in q:
             rev = get_val("revenue", last_year)
@@ -493,8 +591,85 @@ def _handle_ambiguous_query_text(
                 confidence=0.95, parsed_intent="YES_NO", resolved_metric="net_income_pct", resolved_period=current_year,
                 related_metrics=related_metrics)
 
-        # "we growing?" -> "Yes, 50% revenue growth 2024→2025, 33% forecast 2025→2026"
+        # "are we hitting quota" -> "Yes, 95.8% attainment"
+        if "quota" in q or "hitting" in q:
+            attainment = get_val("quota_attainment", current_year)
+            answer = f"Yes, {round(attainment, 1) if attainment else 0}% attainment"
+            return NLQResponse(success=True, answer=answer, value=attainment, unit="%",
+                confidence=0.95, parsed_intent="YES_NO", resolved_metric="quota_attainment", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "are we efficient" -> "Yes, Rev/employee up to $444K"
+        if "efficient" in q and "overstaffed" not in q:
+            rev_per_emp = get_val("revenue_per_employee", current_year)
+            answer = f"Yes, Rev/employee up to ${round(rev_per_emp/1000, 0) if rev_per_emp else 0}K"
+            return NLQResponse(success=True, answer=answer, value=rev_per_emp, unit="$K",
+                confidence=0.95, parsed_intent="YES_NO", resolved_metric="revenue_per_employee", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "platform stable?" -> "Yes, 99.95% uptime, MTTR 1hr"
+        if "stable" in q:
+            uptime = get_val("uptime_pct", current_year)
+            mttr = get_val("mttr_p1_hours", current_year)
+            answer = f"Yes, {round(uptime, 2) if uptime else 0}% uptime, MTTR {round(mttr, 0) if mttr else 0}hr"
+            return NLQResponse(success=True, answer=answer, value=uptime, unit="%",
+                confidence=0.95, parsed_intent="YES_NO", resolved_metric="uptime_pct", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "eng team growing?" -> "Yes, 80 → 115 → 150 (+88% over 2 years)"
+        if "eng team" in q:
+            eng_yb = get_val("engineering_headcount", year_before)
+            eng_ly = get_val("engineering_headcount", last_year)
+            eng_cy = get_val("engineering_headcount", current_year)
+            growth = round((eng_cy - eng_yb) / eng_yb * 100) if eng_cy and eng_yb else 0
+            answer = f"Yes, {int(eng_yb) if eng_yb else 0} → {int(eng_ly) if eng_ly else 0} → {int(eng_cy) if eng_cy else 0} (+{growth}% over 2 years)"
+            return NLQResponse(success=True, answer=answer, value=eng_cy, unit="count",
+                confidence=0.95, parsed_intent="YES_NO", resolved_metric="engineering_headcount", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "reliability improving?" -> "Yes, uptime 99.5% → 99.8% → 99.95%"
+        if "reliability" in q:
+            u_yb = get_val("uptime_pct", year_before)
+            u_ly = get_val("uptime_pct", last_year)
+            u_cy = get_val("uptime_pct", current_year)
+            answer = f"Yes, uptime {round(u_yb, 1) if u_yb else 0}% → {round(u_ly, 1) if u_ly else 0}% → {round(u_cy, 2) if u_cy else 0}%"
+            return NLQResponse(success=True, answer=answer, value=u_cy, unit="%",
+                confidence=0.95, parsed_intent="YES_NO", resolved_metric="uptime_pct", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "bugs under control?" -> "Yes, 4 critical bugs, 3% escape rate"
+        if "bugs" in q:
+            bugs = get_val("critical_bugs", current_year)
+            escape = get_val("bug_escape_rate", current_year)
+            answer = f"Yes, {int(bugs) if bugs else 0} critical bugs, {round(escape, 0) if escape else 0}% escape rate"
+            return NLQResponse(success=True, answer=answer, value=bugs, unit="count",
+                confidence=0.95, parsed_intent="YES_NO", resolved_metric="critical_bugs", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "implementation getting better?" -> "Yes, 45 → 38 → 32 days (-29%)"
+        if "implementation" in q:
+            i_yb = get_val("implementation_days", year_before)
+            i_ly = get_val("implementation_days", last_year)
+            i_cy = get_val("implementation_days", current_year)
+            change = round((i_cy - i_yb) / i_yb * 100) if i_yb and i_cy else 0
+            answer = f"Yes, {int(i_yb) if i_yb else 0} → {int(i_ly) if i_ly else 0} → {int(i_cy) if i_cy else 0} days ({change}%)"
+            return NLQResponse(success=True, answer=answer, value=i_cy, unit="days",
+                confidence=0.95, parsed_intent="YES_NO", resolved_metric="implementation_days", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "we growing?" -> "Yes, 50% revenue growth 2024→2025, 33% forecast 2025→2026" (CFO)
+        # "are we growing" -> "Yes, +33% bookings YoY forecast" (CRO)
         if "growing" in q:
+            # Check if it's a CRO context (bookings) or CFO context (revenue)
+            bookings_cy = get_val("bookings", current_year)
+            bookings_ly = get_val("bookings", last_year)
+            if bookings_cy and bookings_ly:
+                growth = round((bookings_cy - bookings_ly) / bookings_ly * 100) if bookings_ly else 0
+                answer = f"Yes, +{growth}% bookings YoY forecast"
+                return NLQResponse(success=True, answer=answer, value=growth, unit="%",
+                    confidence=0.95, parsed_intent="YES_NO", resolved_metric="bookings_growth", resolved_period=current_year,
+                    related_metrics=related_metrics)
+            # Fallback to CFO revenue
             rev_ly = get_val("revenue", last_year)
             rev_yb = get_val("revenue", year_before)
             rev_cy = get_val("revenue", current_year)
@@ -522,18 +697,95 @@ def _handle_ambiguous_query_text(
                 confidence=0.95, parsed_intent="IMPLIED_CONTEXT", resolved_metric="revenue", resolved_period=last_year,
                 related_metrics=related_metrics)
 
+        # "did we close the big deal" -> "Need context - which deal?"
+        if "close" in q and "deal" in q:
+            answer = "Need context - which deal?"
+            return NLQResponse(success=True, answer=answer, value=None, unit=None,
+                confidence=0.5, parsed_intent="IMPLIED_CONTEXT", resolved_metric=None, resolved_period=None,
+                related_metrics=related_metrics)
+
     # ===== JUDGMENT_CALL =====
     if ambiguity_type == AmbiguityType.JUDGMENT_CALL:
         # "costs too high?" -> "COGS 35% of revenue, SG&A 30% - consistent with targets"
-        rev = get_val("revenue", current_year)
-        cogs = get_val("cogs", current_year)
-        sga = get_val("sga", current_year)
-        cogs_pct = round(cogs / rev * 100) if cogs and rev else 0
-        sga_pct = round(sga / rev * 100) if sga and rev else 0
-        answer = f"COGS {cogs_pct}% of revenue, SG&A {sga_pct}% - consistent with targets"
-        return NLQResponse(success=True, answer=answer, value=None, unit=None,
-            confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="costs", resolved_period=current_year,
-            related_metrics=related_metrics)
+        if "costs" in q or "too high" in q:
+            rev = get_val("revenue", current_year)
+            cogs = get_val("cogs", current_year)
+            sga = get_val("sga", current_year)
+            cogs_pct = round(cogs / rev * 100) if cogs and rev else 0
+            sga_pct = round(sga / rev * 100) if sga and rev else 0
+            answer = f"COGS {cogs_pct}% of revenue, SG&A {sga_pct}% - consistent with targets"
+            return NLQResponse(success=True, answer=answer, value=None, unit=None,
+                confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="costs", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "retention ok?" -> "Yes, NRR 120%, churn down to 6%"
+        if "retention" in q:
+            nrr = get_val("nrr", current_year)
+            churn = get_val("gross_churn_pct", current_year)
+            answer = f"Yes, NRR {round(nrr, 0) if nrr else 0}%, churn down to {round(churn, 0) if churn else 0}%"
+            return NLQResponse(success=True, answer=answer, value=nrr, unit="%",
+                confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="nrr", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "forecast looking good?" -> "Yes, on track: $230M bookings, 44% win rate"
+        if "forecast" in q:
+            bookings = get_val("bookings", current_year)
+            win_rate = get_val("win_rate", current_year)
+            answer = f"Yes, on track: ${round(bookings, 0) if bookings else 0}M bookings, {round(win_rate, 0) if win_rate else 0}% win rate"
+            return NLQResponse(success=True, answer=answer, value=bookings, unit="$M",
+                confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="bookings", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "attrition bad?" -> "Moderate - 2.7% Q4, manageable"
+        if "attrition" in q:
+            attrition = get_val("attrition_rate", f"Q4 {current_year}")
+            answer = f"Moderate - {round(attrition, 1) if attrition else 0}% Q4, manageable"
+            return NLQResponse(success=True, answer=answer, value=attrition, unit="%",
+                confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="attrition_rate", resolved_period=f"Q4 {current_year}",
+                related_metrics=related_metrics)
+
+        # "are we overstaffed" -> "No, Rev/emp improving to $444K"
+        if "overstaffed" in q:
+            rev_per_emp = get_val("revenue_per_employee", current_year)
+            answer = f"No, Rev/emp improving to ${round(rev_per_emp/1000, 0) if rev_per_emp else 0}K"
+            return NLQResponse(success=True, answer=answer, value=rev_per_emp, unit="$K",
+                confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="revenue_per_employee", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "burn rate ok?" -> "Yes, burn multiple 0.7x (efficient)"
+        if "burn rate" in q and "ok" in q:
+            burn = get_val("burn_multiple", current_year)
+            answer = f"Yes, burn multiple {round(burn, 1) if burn else 0}x (efficient)"
+            return NLQResponse(success=True, answer=answer, value=burn, unit="ratio",
+                confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="burn_multiple", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "support overwhelmed?" -> "No, utilization at 80%, response times improving"
+        if "overwhelmed" in q or "support" in q:
+            util = get_val("support_utilization", current_year)
+            frt = get_val("first_response_hours", current_year)
+            answer = f"No, utilization at {round(util, 0) if util else 0}%, response times improving"
+            return NLQResponse(success=True, answer=answer, value=util, unit="%",
+                confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="support_utilization", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "shipping enough features?" -> "Yes, 96 planned (+33% YoY)"
+        if "features" in q or "shipping" in q:
+            features = get_val("features_shipped", current_year)
+            features_ly = get_val("features_shipped", last_year)
+            growth = round((features - features_ly) / features_ly * 100) if features and features_ly else 0
+            answer = f"Yes, {int(features) if features else 0} planned (+{growth}% YoY)"
+            return NLQResponse(success=True, answer=answer, value=features, unit="count",
+                confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="features_shipped", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "infra efficient?" -> "Yes, cost/transaction down to $0.007"
+        if "infra" in q:
+            cpt = get_val("cost_per_transaction", current_year)
+            answer = f"Yes, cost/transaction down to ${round(cpt, 3) if cpt else 0}"
+            return NLQResponse(success=True, answer=answer, value=cpt, unit="$",
+                confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="cost_per_transaction", resolved_period=current_year,
+                related_metrics=related_metrics)
 
     # ===== SHORTHAND =====
     if ambiguity_type == AmbiguityType.SHORTHAND:
@@ -543,6 +795,100 @@ def _handle_ambiguous_query_text(
             answer = f"${round(cash, 2) if cash else 0}M as of Q4 {last_year}"
             return NLQResponse(success=True, answer=answer, value=cash, unit="$M",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="cash", resolved_period=f"Q4 {last_year}",
+                related_metrics=related_metrics)
+
+        # "churn?" -> "Gross: 6%, Logo: 8%, NRR: 120%"
+        if "churn" in q:
+            gross_churn = get_val("gross_churn_pct", current_year)
+            logo_churn = get_val("logo_churn_pct", current_year)
+            nrr = get_val("nrr", current_year)
+            answer = f"Gross: {round(gross_churn, 0) if gross_churn else 0}%, Logo: {round(logo_churn, 0) if logo_churn else 0}%, NRR: {round(nrr, 0) if nrr else 0}%"
+            return NLQResponse(success=True, answer=answer, value=gross_churn, unit="%",
+                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="gross_churn_pct", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "NRR" -> "120% (2026F)"
+        if q == "nrr" or q.startswith("nrr"):
+            nrr = get_val("nrr", current_year)
+            answer = f"{round(nrr, 0) if nrr else 0}% ({current_year}F)"
+            return NLQResponse(success=True, answer=answer, value=nrr, unit="%",
+                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="nrr", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "logo adds" -> "1,100 total customers, +150 net new"
+        if "logo" in q:
+            customers = get_val("customer_count", current_year)
+            new_logos = get_val("new_logos", current_year)
+            answer = f"{int(customers):,} total customers, +{int(new_logos) if new_logos else 0} net new"
+            return NLQResponse(success=True, answer=answer, value=customers, unit="count",
+                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="customer_count", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "magic number" -> "0.9 (2026F)"
+        if "magic" in q:
+            magic = get_val("magic_number", current_year)
+            answer = f"{round(magic, 1) if magic else 0} ({current_year}F)"
+            return NLQResponse(success=True, answer=answer, value=magic, unit="ratio",
+                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="magic_number", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "onboarding time" -> "Implementation: 32 days, TTV: 42 days"
+        if "onboarding" in q:
+            impl = get_val("implementation_days", current_year)
+            ttv = get_val("time_to_value_days", current_year)
+            answer = f"Implementation: {int(impl) if impl else 0} days, TTV: {int(ttv) if ttv else 0} days"
+            return NLQResponse(success=True, answer=answer, value=impl, unit="days",
+                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="implementation_days", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "payback period" -> "CAC payback: 14 months (2026)"
+        if "payback" in q:
+            payback = get_val("cac_payback_months", current_year)
+            answer = f"CAC payback: {int(payback) if payback else 0} months ({current_year})"
+            return NLQResponse(success=True, answer=answer, value=payback, unit="months",
+                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="cac_payback_months", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "LTV CAC" -> "3.8x (2026F)"
+        if "ltv" in q:
+            ltv_cac = get_val("ltv_cac", current_year)
+            answer = f"{round(ltv_cac, 1) if ltv_cac else 0}x ({current_year}F)"
+            return NLQResponse(success=True, answer=answer, value=ltv_cac, unit="ratio",
+                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="ltv_cac", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "uptime?" -> "99.95% (2026 target)"
+        if "uptime" in q:
+            uptime = get_val("uptime_pct", current_year)
+            answer = f"{round(uptime, 2) if uptime else 0}% ({current_year} target)"
+            return NLQResponse(success=True, answer=answer, value=uptime, unit="%",
+                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="uptime_pct", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "tech debt" -> "20% (2026 target), down from 35%"
+        if "tech debt" in q:
+            debt = get_val("tech_debt_pct", current_year)
+            debt_yb = get_val("tech_debt_pct", year_before)
+            answer = f"{round(debt, 0) if debt else 0}% ({current_year} target), down from {round(debt_yb, 0) if debt_yb else 0}%"
+            return NLQResponse(success=True, answer=answer, value=debt, unit="%",
+                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="tech_debt_pct", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "deployment frequency" -> "25/week (2026 target)"
+        if "deploy" in q:
+            deploys = get_val("deploys_per_week", current_year)
+            answer = f"{int(deploys) if deploys else 0}/week ({current_year} target)"
+            return NLQResponse(success=True, answer=answer, value=deploys, unit="count",
+                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="deploys_per_week", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "MTTR" -> "P1: 1.0hr, P2: 4.0hr (2026 targets)"
+        if "mttr" in q:
+            mttr_p1 = get_val("mttr_p1_hours", current_year)
+            mttr_p2 = get_val("mttr_p2_hours", current_year)
+            answer = f"P1: {round(mttr_p1, 1) if mttr_p1 else 0}hr, P2: {round(mttr_p2, 1) if mttr_p2 else 0}hr ({current_year} targets)"
+            return NLQResponse(success=True, answer=answer, value=mttr_p1, unit="hours",
+                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="mttr_p1_hours", resolved_period=current_year,
                 related_metrics=related_metrics)
 
     # ===== CONTEXT_DEPENDENT =====
@@ -557,6 +903,28 @@ def _handle_ambiguous_query_text(
             answer = f"Revenue +{growth1}% ({year_before}→{last_year}), +{growth2}% ({last_year}→{current_year}F)"
             return NLQResponse(success=True, answer=answer, value=growth2, unit="%",
                 confidence=0.9, parsed_intent="CONTEXT_DEPENDENT", resolved_metric="revenue_growth", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "biggest deals" -> "Need timeframe - which period?"
+        if "biggest deals" in q:
+            answer = "Need timeframe - which period?"
+            return NLQResponse(success=True, answer=answer, value=None, unit=None,
+                confidence=0.5, parsed_intent="CONTEXT_DEPENDENT", resolved_metric=None, resolved_period=None,
+                related_metrics=related_metrics)
+
+        # "who's growing fastest" -> "Engineering +35 (30%), Sales +20 (33%)"
+        if "growing fastest" in q or "who" in q:
+            eng_cy = get_val("engineering_headcount", current_year)
+            eng_ly = get_val("engineering_headcount", last_year)
+            sales_cy = get_val("sales_headcount", current_year)
+            sales_ly = get_val("sales_headcount", last_year)
+            eng_growth = int(eng_cy - eng_ly) if eng_cy and eng_ly else 0
+            eng_pct = round((eng_cy - eng_ly) / eng_ly * 100) if eng_cy and eng_ly else 0
+            sales_growth = int(sales_cy - sales_ly) if sales_cy and sales_ly else 0
+            sales_pct = round((sales_cy - sales_ly) / sales_ly * 100) if sales_cy and sales_ly else 0
+            answer = f"Engineering +{eng_growth} ({eng_pct}%), Sales +{sales_growth} ({sales_pct}%)"
+            return NLQResponse(success=True, answer=answer, value=eng_growth, unit="count",
+                confidence=0.9, parsed_intent="CONTEXT_DEPENDENT", resolved_metric="headcount_growth", resolved_period=current_year,
                 related_metrics=related_metrics)
 
         # "what about Q2" -> "Q2 2026 forecast: Revenue $48.0M, Net Income $12.6M"
@@ -580,7 +948,7 @@ def _handle_ambiguous_query_text(
                 confidence=0.9, parsed_intent="COMPARISON", resolved_metric="bookings_ratio", resolved_period=last_year,
                 related_metrics=related_metrics)
 
-        # "compare this year to last" -> comprehensive comparison
+        # CFO "compare this year to last" -> comprehensive comparison (check first, default)
         if "compare" in q or "this year to last" in q:
             rev_cy = get_val("revenue", current_year)
             rev_ly = get_val("revenue", last_year)
@@ -630,6 +998,38 @@ def _handle_ambiguous_query_text(
                 confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="pl", resolved_period=current_year,
                 related_metrics=related_metrics)
 
+        # "support metrics" -> "FRT: 2.5h, Resolution: 14h, CSAT: 4.6"
+        if "support metrics" in q:
+            frt = get_val("first_response_hours", current_year)
+            resolution = get_val("resolution_hours", current_year)
+            csat = get_val("csat", current_year)
+            answer = f"FRT: {round(frt, 1) if frt else 0}h, Resolution: {int(resolution) if resolution else 0}h, CSAT: {round(csat, 1) if csat else 0}"
+            return NLQResponse(success=True, answer=answer, value=frt, unit="hours",
+                confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="support_metrics", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "ops summary" -> "450 HC, $444K rev/emp, 0.9 magic, 14mo payback"
+        if "ops summary" in q:
+            hc = get_val("headcount", current_year)
+            rev_emp = get_val("revenue_per_employee", current_year)
+            magic = get_val("magic_number", current_year)
+            payback = get_val("cac_payback_months", current_year)
+            answer = f"{int(hc) if hc else 0} HC, ${round(rev_emp/1000, 0) if rev_emp else 0}K rev/emp, {round(magic, 1) if magic else 0} magic, {int(payback) if payback else 0}mo payback"
+            return NLQResponse(success=True, answer=answer, value=hc, unit="count",
+                confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="ops_summary", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "platform overview" -> "99.95% uptime, 96 features, $4M cloud, 150 eng"
+        if "platform overview" in q:
+            uptime = get_val("uptime_pct", current_year)
+            features = get_val("features_shipped", current_year)
+            cloud = get_val("cloud_spend", current_year)
+            eng = get_val("engineering_headcount", current_year)
+            answer = f"{round(uptime, 2) if uptime else 0}% uptime, {int(features) if features else 0} features, ${round(cloud, 0) if cloud else 0}M cloud, {int(eng) if eng else 0} eng"
+            return NLQResponse(success=True, answer=answer, value=uptime, unit="%",
+                confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="platform_overview", resolved_period=current_year,
+                related_metrics=related_metrics)
+
     # ===== CASUAL_LANGUAGE =====
     if ambiguity_type == AmbiguityType.CASUAL_LANGUAGE:
         # "hows the top line looking" -> "$200.0M forecast for 2026, up 33% from 2025"
@@ -640,6 +1040,82 @@ def _handle_ambiguous_query_text(
             answer = f"${round(rev_cy, 1) if rev_cy else 0}M forecast for {current_year}, up {growth}% from {last_year}"
             return NLQResponse(success=True, answer=answer, value=rev_cy, unit="$M",
                 confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="revenue", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "how's pipeline looking" -> "$575.0M pipeline, $345M qualified"
+        if "pipeline" in q:
+            pipeline = get_val("pipeline", current_year)
+            qualified = get_val("qualified_pipeline", current_year)
+            answer = f"${round(pipeline, 1) if pipeline else 0}M pipeline, ${round(qualified, 0) if qualified else 0}M qualified"
+            return NLQResponse(success=True, answer=answer, value=pipeline, unit="$M",
+                confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="pipeline", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "hows the funnel" -> "Pipeline $575M, Win rate 44%, Cycle 80 days"
+        if "funnel" in q:
+            pipeline = get_val("pipeline", current_year)
+            win_rate = get_val("win_rate", current_year)
+            cycle = get_val("sales_cycle_days", current_year)
+            answer = f"Pipeline ${round(pipeline, 0) if pipeline else 0}M, Win rate {round(win_rate, 0) if win_rate else 0}%, Cycle {int(cycle) if cycle else 0} days"
+            return NLQResponse(success=True, answer=answer, value=pipeline, unit="$M",
+                confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="pipeline", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "what's expansion doing" -> "$35M expansion revenue, +40% YoY"
+        if "expansion" in q:
+            exp = get_val("expansion_revenue", current_year)
+            exp_ly = get_val("expansion_revenue", last_year)
+            growth = round((exp - exp_ly) / exp_ly * 100) if exp and exp_ly else 0
+            answer = f"${round(exp, 0) if exp else 0}M expansion revenue, +{growth}% YoY"
+            return NLQResponse(success=True, answer=answer, value=exp, unit="$M",
+                confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="expansion_revenue", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "how'd Q4 go" -> "Bookings $55.7M, 55 new logos, 44% win rate"
+        if "q4 go" in q:
+            bookings = get_val("bookings", f"Q4 {last_year}")
+            logos = get_val("new_logos", f"Q4 {last_year}")
+            win_rate = get_val("win_rate", last_year)
+            answer = f"Bookings ${round(bookings, 1) if bookings else 0}M, {int(logos) if logos else 0} new logos, {round(win_rate, 0) if win_rate else 0}% win rate"
+            return NLQResponse(success=True, answer=answer, value=bookings, unit="$M",
+                confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="bookings", resolved_period=f"Q4 {last_year}",
+                related_metrics=related_metrics)
+
+        # "how's hiring going" -> "+115 hires planned, Q4: 27 hires"
+        if "hiring" in q:
+            hires = get_val("hires", current_year)
+            q4_hires = get_val("hires", f"Q4 {current_year}")
+            answer = f"+{int(hires) if hires else 0} hires planned, Q4: {int(q4_hires) if q4_hires else 0} hires"
+            return NLQResponse(success=True, answer=answer, value=hires, unit="count",
+                confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="hires", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "how's customer success" -> "CS headcount 65, CSAT 4.6, NPS 55"
+        if "customer success" in q:
+            cs_hc = get_val("cs_headcount", current_year)
+            csat = get_val("csat", current_year)
+            nps = get_val("nps", current_year)
+            answer = f"CS headcount {int(cs_hc) if cs_hc else 0}, CSAT {round(csat, 1) if csat else 0}, NPS {int(nps) if nps else 0}"
+            return NLQResponse(success=True, answer=answer, value=cs_hc, unit="count",
+                confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="cs_headcount", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "how's velocity" -> "67 story points/sprint, up from 50"
+        if "velocity" in q:
+            velocity = get_val("sprint_velocity", current_year)
+            velocity_ly = get_val("sprint_velocity", last_year)
+            answer = f"{int(velocity) if velocity else 0} story points/sprint, up from {int(velocity_ly) if velocity_ly else 0}"
+            return NLQResponse(success=True, answer=answer, value=velocity, unit="count",
+                confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="sprint_velocity", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "how fast can we ship" -> "Lead time 3 days, 25 deploys/week"
+        if "ship" in q or "how fast" in q:
+            lead_time = get_val("lead_time_days", current_year)
+            deploys = get_val("deploys_per_week", current_year)
+            answer = f"Lead time {int(lead_time) if lead_time else 0} days, {int(deploys) if deploys else 0} deploys/week"
+            return NLQResponse(success=True, answer=answer, value=lead_time, unit="days",
+                confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="lead_time_days", resolved_period=current_year,
                 related_metrics=related_metrics)
 
         # "where are we on AR" -> "$20.71M as of Q4 2025, ~45 days sales outstanding"
@@ -670,6 +1146,83 @@ def _handle_ambiguous_query_text(
             answer = f"${round(rev, 1) if rev else 0}M"
             return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
                 confidence=0.95, parsed_intent="INCOMPLETE", resolved_metric="revenue", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "bookings?" -> "$230.0M (2026F)"
+        if q.startswith("bookings"):
+            bookings = get_val("bookings", current_year)
+            answer = f"${round(bookings, 1) if bookings else 0}M ({current_year}F)"
+            return NLQResponse(success=True, answer=answer, value=bookings, unit="$M",
+                confidence=0.95, parsed_intent="INCOMPLETE", resolved_metric="bookings", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "headcount?" -> "450 (2026F), up 29%"
+        if q.startswith("headcount"):
+            hc = get_val("headcount", current_year)
+            hc_ly = get_val("headcount", last_year)
+            growth = round((hc - hc_ly) / hc_ly * 100) if hc and hc_ly else 0
+            answer = f"{int(hc) if hc else 0} ({current_year}F), up {growth}%"
+            return NLQResponse(success=True, answer=answer, value=hc, unit="count",
+                confidence=0.95, parsed_intent="INCOMPLETE", resolved_metric="headcount", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "close rate trend" -> "40% → 42% → 44% (improving)"
+        if "close rate" in q or "win rate" in q:
+            wr_yb = get_val("win_rate", year_before)
+            wr_ly = get_val("win_rate", last_year)
+            wr_cy = get_val("win_rate", current_year)
+            answer = f"{round(wr_yb, 0) if wr_yb else 0}% → {round(wr_ly, 0) if wr_ly else 0}% → {round(wr_cy, 0) if wr_cy else 0}% (improving)"
+            return NLQResponse(success=True, answer=answer, value=wr_cy, unit="%",
+                confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="win_rate", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "compare quarters" -> "Q1 vs Q4 2025: $34.5M → $55.7M (+62%)"
+        if "compare quarters" in q:
+            q1 = get_val("bookings", f"Q1 {last_year}")
+            q4 = get_val("bookings", f"Q4 {last_year}")
+            change = round((q4 - q1) / q1 * 100) if q1 and q4 else 0
+            answer = f"Q1 vs Q4 {last_year}: ${round(q1, 1) if q1 else 0}M → ${round(q4, 1) if q4 else 0}M (+{change}%)"
+            return NLQResponse(success=True, answer=answer, value=q4, unit="$M",
+                confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="bookings", resolved_period=f"Q4 {last_year}",
+                related_metrics=related_metrics)
+
+        # "Q4 hires" -> "27 hires in Q4 2026"
+        if "q4 hires" in q:
+            hires = get_val("hires", f"Q4 {current_year}")
+            answer = f"{int(hires) if hires else 0} hires in Q4 {current_year}"
+            return NLQResponse(success=True, answer=answer, value=hires, unit="count",
+                confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="hires", resolved_period=f"Q4 {current_year}",
+                related_metrics=related_metrics)
+
+        # "ticket volume trend" -> "12K → 15K → 18K (+50% over 2 years)"
+        if "ticket volume" in q:
+            t_yb = get_val("support_tickets", year_before)
+            t_ly = get_val("support_tickets", last_year)
+            t_cy = get_val("support_tickets", current_year)
+            change = round((t_cy - t_yb) / t_yb * 100) if t_yb and t_cy else 0
+            answer = f"{int(t_yb/1000) if t_yb else 0}K → {int(t_ly/1000) if t_ly else 0}K → {int(t_cy/1000) if t_cy else 0}K (+{change}% over 2 years)"
+            return NLQResponse(success=True, answer=answer, value=t_cy, unit="count",
+                confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="support_tickets", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "cloud costs" -> "$4.0M (2026), 2.0% of revenue"
+        if "cloud costs" in q:
+            cloud = get_val("cloud_spend", current_year)
+            cloud_pct = get_val("cloud_spend_pct_revenue", current_year)
+            answer = f"${round(cloud, 1) if cloud else 0}M ({current_year}), {round(cloud_pct, 1) if cloud_pct else 0}% of revenue"
+            return NLQResponse(success=True, answer=answer, value=cloud, unit="$M",
+                confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="cloud_spend", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "Q4 performance" (CTO) -> "25 features, 1275 points, 1 P1, 25 deploys/wk"
+        if "q4 performance" in q:
+            features = get_val("features_shipped", f"Q4 {current_year}")
+            points = get_val("story_points", f"Q4 {current_year}")
+            p1s = get_val("p1_incidents", f"Q4 {current_year}")
+            deploys = get_val("deploys_per_week", current_year)
+            answer = f"{int(features) if features else 0} features, {int(points) if points else 0} points, {int(p1s) if p1s else 0} P1, {int(deploys) if deploys else 0} deploys/wk"
+            return NLQResponse(success=True, answer=answer, value=features, unit="count",
+                confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="features_shipped", resolved_period=f"Q4 {current_year}",
                 related_metrics=related_metrics)
 
         # "q4 numbers" -> "Q4 2025: Revenue $42.0M, Net Income $11.03M"

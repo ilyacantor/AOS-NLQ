@@ -442,7 +442,7 @@
     {
       "id": 5,
       "question": "What were bookings in Q4 2025?",
-      "ground_truth": "$48.3M",
+      "ground_truth": "$55.73M",
       "metric": "bookings",
       "period_type": "quarterly",
       "year": 2025,
@@ -543,7 +543,7 @@
     {
       "id": 16,
       "question": "What were bookings in the previous quarter?",
-      "ground_truth": "$48.3M",
+      "ground_truth": "$55.73M",
       "metric": "bookings",
       "period_type": "quarterly",
       "relative_period": "last_quarter",

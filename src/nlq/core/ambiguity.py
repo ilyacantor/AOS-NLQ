@@ -21,52 +21,112 @@ AMBIGUITY_PATTERNS = {
     ],
     AmbiguityType.IMPLIED_CONTEXT: [
         r"did we hit \d+",              # "did we hit 150" - implies revenue target
+        r"did we close the big",        # CRO - "did we close the big deal"
     ],
     AmbiguityType.SUMMARY: [
         r"in a nutshell",               # Summary request
         r"^\d{4} in a nutshell",        # "2025 in a nutshell"
+        r"^ops summary",                # COO summary
+        r"^platform overview",          # CTO summary
     ],
     AmbiguityType.COMPARISON: [
         r"\bvs\.?\s",                   # "bookings vs revenue"
         r"compare.*to",                 # "compare this year to last"
         r"(this|last) year to (last|this)",
+        r"^compare quarters",           # CRO - quarter comparison
     ],
     AmbiguityType.VAGUE_METRIC: [
         r"how['\u2019]?d we do",        # "how'd we do" - wants key financials
         r"^whats? the margin",          # "whats the margin" - which margin?
         r"^quick ratio stuff",          # Vague ratio reference
         r"^the numbers$",               # Very vague
+        r"^new business$",              # CRO - new logos or new revenue?
+        r"^reps performing",            # CRO - sales rep performance
+        r"^pipeline coverage",          # CRO - coverage ratio
+        r"^sales efficiency",           # CRO - efficiency metrics
+        r"^team breakdown",             # COO - headcount by function
+        r"^utilization\??$",            # COO - which utilization?
+        r"^any incidents",              # CTO - incident count
+        r"^code quality",               # CTO - quality metrics
+        r"^security posture",           # CTO - security metrics
+        r"^eng productivity",           # CTO - engineering metrics
     ],
     AmbiguityType.YES_NO: [
-        r"^are we profitable",          # Boolean question
-        r"^we growing\??$",             # "we growing?"
-        r"^is .*\?$",                   # "is X?"
+        r"^are we profitable",          # CFO - profitability
+        r"^we growing\??$",             # CFO - growth
+        r"^is .*\?$",                   # Generic yes/no
+        r"^are we (hitting|at) quota",  # CRO - quota
+        r"^are we growing",             # CRO - growth
+        r"^are we efficient",           # COO - efficiency
+        r"^implementation.* better",    # COO - improvement
+        r"^platform stable",            # CTO - stability
+        r"^eng team growing",           # CTO - headcount
+        r"^reliability improving",      # CTO - reliability
+        r"^bugs under control",         # CTO - bugs
     ],
     AmbiguityType.BROAD_REQUEST: [
-        r"give me the p&l",             # Wants full P&L
+        r"give me the p&l",             # CFO - P&L
         r"full (report|breakdown)",     # Comprehensive request
+        r"^support metrics",            # COO - support metrics
+        r"^ops summary",                # COO - operations summary
+        r"^platform overview",          # CTO - platform summary
     ],
     AmbiguityType.JUDGMENT_CALL: [
         r"too (high|low)\??$",          # "costs too high?"
         r"good (enough|result)",        # Subjective judgment
+        r"^retention ok",               # CRO - retention assessment
+        r"^forecast.* good",            # CRO - forecast assessment
+        r"^attrition bad",              # COO - attrition assessment
+        r"^are we overstaffed",         # COO - headcount assessment
+        r"^burn rate ok",               # COO - burn assessment
+        r"^support overwhelmed",        # COO - support capacity assessment
+        r"^shipping enough",            # CTO - features assessment
+        r"^infra efficient",            # CTO - infrastructure efficiency
     ],
     AmbiguityType.SHORTHAND: [
-        r"^cash position",              # Common shorthand
+        r"^cash position",              # CFO shorthand
+        r"^churn\??$",                  # CRO - churn metrics
+        r"^nrr$",                       # CRO - net revenue retention
+        r"^logo adds",                  # CRO - logo additions
+        r"^magic number$",              # COO - sales efficiency
+        r"^payback period",             # COO - CAC payback
+        r"^ltv cac",                    # COO - LTV/CAC ratio
+        r"^onboarding time",            # COO - onboarding
+        r"^uptime\??$",                 # CTO - uptime
+        r"^tech debt$",                 # CTO - tech debt
+        r"^deployment frequency",       # CTO - deploys
+        r"^mttr$",                      # CTO - mean time to recovery
     ],
     AmbiguityType.CONTEXT_DEPENDENT: [
         r"^what about\s+q\d",           # "what about Q2" - which Q2?
         r"^year over year$",            # Missing metric
         r"^yoy$",                       # Missing metric
+        r"^biggest deals",              # CRO - needs timeframe
+        r"^who'?s growing fastest",     # COO - fastest growing team
     ],
     AmbiguityType.CASUAL_LANGUAGE: [
-        r"hows .*looking",              # "hows the top line looking"
+        r"how['']?s? .*looking",        # "hows the top line looking" / "how's pipeline looking"
         r"where are we on",             # "where are we on AR"
         r"\bpls\b|\bplease\b$",         # "opex breakdown pls"
+        r"how['']?s? (the )?funnel",    # CRO - sales funnel
+        r"what['']?s expansion doing",  # CRO - expansion
+        r"how['']?d q\d go",            # CRO - quarter results
+        r"how['']?s hiring",            # COO - hiring status
+        r"how['']?s customer success",  # COO - CS team
+        r"how['']?s velocity",          # CTO - velocity
+        r"how fast can we ship",        # CTO - shipping speed
     ],
     AmbiguityType.INCOMPLETE: [
         r"^rev\??$",                    # "rev?" - incomplete metric
         r"^q\d\s*numbers?",             # "q4 numbers"
         r"^20\d{2}\s*$",                # Just a year
+        r"^bookings\??$",               # CRO - just bookings
+        r"^close rate trend",           # CRO - trend without period
+        r"^headcount\??$",              # COO - just headcount
+        r"^q\d hires",                  # COO - quarterly hires
+        r"^ticket volume trend",        # COO - trend
+        r"^cloud costs$",               # CTO - cloud costs
+        r"^q\d performance",            # CTO - quarterly performance
     ],
 }
 
@@ -75,60 +135,121 @@ AMBIGUITY_CANDIDATES = {
     AmbiguityType.INCOMPLETE: {
         "rev": ["revenue"],
         "q4": ["revenue", "net_income"],
+        "bookings": ["bookings", "pipeline", "win_rate"],
+        "close rate": ["win_rate"],
+        "headcount": ["headcount", "engineering_headcount", "sales_headcount"],
+        "q4 hires": ["hires"],
+        "ticket volume": ["support_tickets"],
+        "cloud costs": ["cloud_spend", "cloud_spend_pct_revenue"],
+        "q4 performance": ["features_shipped", "story_points", "p1_incidents"],
         "default": ["revenue", "net_income"],
     },
     AmbiguityType.CASUAL_LANGUAGE: {
         "top line": ["revenue"],
         "ar": ["ar"],
         "opex": ["sga", "selling_expense", "ga_expense"],
+        "pipeline": ["pipeline", "qualified_pipeline", "win_rate"],
+        "funnel": ["pipeline", "win_rate", "sales_cycle_days"],
+        "expansion": ["expansion_revenue"],
+        "q4 go": ["bookings", "new_logos", "win_rate"],
+        "hiring": ["hires", "headcount"],
+        "customer success": ["cs_headcount", "csat", "nps"],
+        "velocity": ["sprint_velocity", "features_shipped"],
+        "ship": ["lead_time_days", "deploys_per_week"],
         "default": ["revenue", "net_income"],
     },
     AmbiguityType.VAGUE_METRIC: {
-        "how'd we do": ["revenue", "net_income"],  # Key financials
+        "how'd we do": ["revenue", "net_income"],
         "how": ["revenue", "net_income"],
         "margin": ["gross_margin_pct", "operating_margin_pct", "net_income_pct"],
         "ratio": ["current_assets", "current_liabilities"],
+        "new business": ["new_logo_revenue", "new_logos", "customer_count"],
+        "reps performing": ["reps_at_quota_pct", "quota_attainment", "sales_headcount"],
+        "pipeline coverage": ["pipeline", "sales_quota"],
+        "sales efficiency": ["magic_number", "cac_payback_months"],
+        "team breakdown": ["engineering_headcount", "sales_headcount", "cs_headcount", "ga_headcount"],
+        "utilization": ["ps_utilization", "engineering_utilization", "support_utilization"],
+        "incidents": ["p1_incidents", "p2_incidents"],
+        "code quality": ["code_coverage_pct", "bug_escape_rate", "tech_debt_pct"],
+        "security": ["security_vulns", "code_coverage_pct"],
+        "eng productivity": ["sprint_velocity", "features_shipped", "deploys_per_week"],
         "default": ["revenue", "net_income"],
     },
     AmbiguityType.YES_NO: {
         "profitable": ["net_income_pct", "net_income"],
-        "growing": ["revenue"],
+        "growing": ["revenue", "bookings"],
+        "quota": ["quota_attainment", "reps_at_quota_pct"],
+        "retention": ["nrr", "gross_churn_pct"],
+        "forecast": ["bookings", "win_rate"],
+        "efficient": ["revenue_per_employee", "magic_number"],
+        "overstaffed": ["revenue_per_employee", "headcount"],
+        "overwhelmed": ["support_utilization", "first_response_hours"],
+        "implementation": ["implementation_days", "time_to_value_days"],
+        "stable": ["uptime_pct", "mttr_p1_hours"],
+        "eng team": ["engineering_headcount"],
+        "reliability": ["uptime_pct"],
+        "bugs": ["critical_bugs", "bug_escape_rate"],
+        "shipping": ["features_shipped"],
         "default": ["net_income", "revenue"],
     },
     AmbiguityType.BROAD_REQUEST: {
         "p&l": ["revenue", "cogs", "gross_profit", "sga", "operating_profit", "net_income"],
+        "support metrics": ["first_response_hours", "resolution_hours", "csat"],
+        "ops summary": ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months"],
+        "platform overview": ["uptime_pct", "features_shipped", "cloud_spend", "engineering_headcount"],
         "default": ["revenue", "gross_profit", "operating_profit", "net_income"],
     },
     AmbiguityType.IMPLIED_CONTEXT: {
         "hit": ["revenue"],
+        "close": ["bookings"],
+        "biggest": ["bookings"],
         "default": ["revenue"],
     },
     AmbiguityType.JUDGMENT_CALL: {
         "costs": ["cogs", "sga"],
+        "attrition": ["attrition_rate", "attrition"],
+        "burn rate ok": ["burn_multiple"],
+        "infra": ["cost_per_transaction", "cloud_spend_pct_revenue"],
         "default": ["cogs", "sga"],
     },
     AmbiguityType.SHORTHAND: {
         "cash position": ["cash"],
+        "churn": ["gross_churn_pct", "logo_churn_pct", "nrr"],
+        "nrr": ["nrr"],
+        "logo adds": ["customer_count", "new_logos"],
+        "magic number": ["magic_number"],
+        "payback": ["cac_payback_months"],
+        "ltv": ["ltv_cac"],
+        "onboarding": ["implementation_days", "time_to_value_days"],
+        "uptime": ["uptime_pct"],
+        "tech debt": ["tech_debt_pct"],
+        "deployment": ["deploys_per_week"],
+        "mttr": ["mttr_p1_hours", "mttr_p2_hours"],
         "default": ["cash"],
     },
     AmbiguityType.CONTEXT_DEPENDENT: {
         "q2": ["revenue", "net_income"],
         "yoy": ["revenue"],
         "year over year": ["revenue"],
+        "growing fastest": ["engineering_headcount", "sales_headcount"],
         "default": ["revenue", "net_income"],
     },
     AmbiguityType.COMPARISON: {
         "bookings vs revenue": ["bookings", "revenue"],
         "vs": ["bookings", "revenue"],
         "compare": ["revenue", "net_income", "operating_margin_pct"],
+        "quarters": ["bookings"],
+        "this year": ["features_shipped", "uptime_pct"],
         "default": ["revenue", "net_income", "operating_margin_pct"],
     },
     AmbiguityType.SUMMARY: {
         "nutshell": ["revenue", "net_income", "operating_margin_pct"],
+        "ops": ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months"],
+        "platform": ["uptime_pct", "features_shipped", "cloud_spend", "engineering_headcount"],
         "default": ["revenue", "net_income", "operating_margin_pct"],
     },
     AmbiguityType.BURN_RATE: {
-        "burn rate": ["cogs", "sga"],  # Show actual costs for profitable companies
+        "burn rate": ["cogs", "sga"],
         "runway": ["cogs", "sga"],
         "default": ["cogs", "sga"],
     },

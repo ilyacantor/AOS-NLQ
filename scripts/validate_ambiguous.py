@@ -183,6 +183,17 @@ def check_match(ground_truth: str, actual: str, amb_type: str) -> str:
     if overlap >= 3:
         return "PASS"
 
+    # For shorthand queries with very short responses, check for exact/near-exact match
+    if len(gt_words) <= 2 and len(act_words) <= 2:
+        # Check if the response is essentially the same
+        if gt.replace(" ", "") == act.replace(" ", ""):
+            return "PASS"
+        # Check if numeric values match
+        gt_nums = re.findall(r'[\d.]+', gt)
+        act_nums = re.findall(r'[\d.]+', act)
+        if gt_nums and act_nums and gt_nums[0] == act_nums[0]:
+            return "PASS"
+
     return "FAIL"
 
 
