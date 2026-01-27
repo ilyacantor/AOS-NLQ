@@ -112,20 +112,22 @@ class PeriodResolver:
 
         Supports formats:
         - "2024" -> annual
-        - "Q4 2025", "2025-Q4", "2025_Q4" -> quarterly
+        - "Q4 2025", "Q4_2025", "q4_2025" -> quarterly
+        - "2025-Q4", "2025_Q4", "2025_q4" -> quarterly
         """
+        import re
+
         ref = period_reference.strip()
 
         # Try to parse as year only
         if ref.isdigit() and len(ref) == 4:
             return {"type": "annual", "year": int(ref)}
 
-        # Try to parse quarterly formats
-        ref_upper = ref.upper()
+        # Normalize: uppercase and replace underscores/dashes with spaces
+        ref_normalized = ref.upper().replace("_", " ").replace("-", " ")
 
-        # Format: Q4 2025
-        import re
-        match = re.match(r'Q(\d)\s*(\d{4})', ref_upper)
+        # Format: Q4 2025 (or Q4_2025, q4_2025 after normalization)
+        match = re.match(r'Q(\d)\s*(\d{4})', ref_normalized)
         if match:
             return {
                 "type": "quarterly",
@@ -133,8 +135,8 @@ class PeriodResolver:
                 "quarter": int(match.group(1))
             }
 
-        # Format: 2025-Q4 or 2025_Q4
-        match = re.match(r'(\d{4})[-_]Q(\d)', ref_upper)
+        # Format: 2025-Q4 or 2025_Q4 (after normalization: 2025 Q4)
+        match = re.match(r'(\d{4})\s*Q(\d)', ref_normalized)
         if match:
             return {
                 "type": "quarterly",
