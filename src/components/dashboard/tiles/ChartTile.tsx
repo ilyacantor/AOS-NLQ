@@ -297,10 +297,10 @@ const WaterfallChart: React.FC<{
   const minValue = Math.min(...allValues, 0);
   const range = maxValue - minValue || 1;
 
-  // SVG dimensions - increased bottom padding for labels
-  const padding = { top: 25, right: 15, bottom: 55, left: 15 };
+  // SVG dimensions
+  const padding = { top: 20, right: 10, bottom: 35, left: 10 };
   const chartWidth = 100;
-  const chartHeight = 100;
+  const chartHeight = 80;
   const barCount = chartData.length;
   const barWidth = (chartWidth - padding.left - padding.right) / barCount;
   const barPadding = barWidth * 0.2;
@@ -317,12 +317,11 @@ const WaterfallChart: React.FC<{
   };
 
   return (
-    <div className="w-full h-full flex flex-col" style={{ minHeight: '200px' }}>
+    <div className="w-full h-full flex flex-col">
       <svg
         viewBox={`0 0 ${chartWidth} ${chartHeight}`}
         className="w-full flex-1"
         preserveAspectRatio="xMidYMid meet"
-        style={{ minHeight: '180px' }}
       >
         {/* Bars and connectors */}
         {chartData.map((bar, i) => {
@@ -361,24 +360,23 @@ const WaterfallChart: React.FC<{
               {/* Value label above bar */}
               <text
                 x={x + width / 2}
-                y={y - 3}
+                y={y - 2}
                 textAnchor="middle"
                 className="fill-slate-300 font-medium"
-                style={{ fontSize: '4px' }}
+                style={{ fontSize: '2.5px' }}
               >
                 {bar.type === 'decrease' ? '-' : ''}{formatValue(Math.abs(bar.value))}
               </text>
 
-              {/* X-axis label - full text, rotated for readability */}
+              {/* X-axis label */}
               <text
                 x={x + width / 2}
-                y={chartHeight - padding.bottom + 8}
-                textAnchor="end"
-                className="fill-slate-300"
-                style={{ fontSize: '4px' }}
-                transform={`rotate(-35, ${x + width / 2}, ${chartHeight - padding.bottom + 8})`}
+                y={chartHeight - padding.bottom + 5}
+                textAnchor="middle"
+                className="fill-slate-400"
+                style={{ fontSize: '2.5px' }}
               >
-                {bar.label}
+                {bar.label.length > 10 ? bar.label.substring(0, 10) : bar.label}
               </text>
             </g>
           );
@@ -386,18 +384,18 @@ const WaterfallChart: React.FC<{
       </svg>
 
       {/* Legend */}
-      <div className="flex justify-center gap-4 mt-2 flex-shrink-0">
+      <div className="flex justify-center gap-3 mt-1 flex-shrink-0">
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded" style={{ backgroundColor: WATERFALL_COLORS.increase }} />
-          <span className="text-xs text-slate-400">Increase</span>
+          <div className="w-2 h-2 rounded" style={{ backgroundColor: WATERFALL_COLORS.increase }} />
+          <span className="text-[10px] text-slate-400">Increase</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded" style={{ backgroundColor: WATERFALL_COLORS.decrease }} />
-          <span className="text-xs text-slate-400">Decrease</span>
+          <div className="w-2 h-2 rounded" style={{ backgroundColor: WATERFALL_COLORS.decrease }} />
+          <span className="text-[10px] text-slate-400">Decrease</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded" style={{ backgroundColor: WATERFALL_COLORS.total }} />
-          <span className="text-xs text-slate-400">Total</span>
+          <div className="w-2 h-2 rounded" style={{ backgroundColor: WATERFALL_COLORS.total }} />
+          <span className="text-[10px] text-slate-400">Total</span>
         </div>
       </div>
     </div>

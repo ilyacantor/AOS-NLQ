@@ -40,6 +40,7 @@ interface NLQResponse {
 type ViewMode = 'text' | 'galaxy' | 'dashboard'
 type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'People'
 type PanelTab = 'History' | 'Learning' | 'Debug'
+type QueryMode = 'static' | 'ai'
 
 const quickActions = [
   // Dashboards
@@ -80,6 +81,7 @@ const isDashboardQuery = (q: string): Persona | null => {
 function App() {
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('galaxy')
+  const [queryMode, setQueryMode] = useState<QueryMode>('ai')  // Default to AI (Prod mode)
   const [dashboardPersona, setDashboardPersona] = useState<Persona>('CFO')
   const [panelTab, setPanelTab] = useState<PanelTab>('History')
   const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([])
@@ -135,7 +137,8 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           question: textToSubmit,
-          reference_date: '2026-01-27'
+          reference_date: '2026-01-27',
+          mode: queryMode  // Pass static/ai mode to backend
         })
       })
 
@@ -256,6 +259,32 @@ function App() {
         </div>
 
         <div className="flex items-center gap-4 text-slate-500 text-sm">
+          {/* Static/AI Mode Toggle */}
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500 text-xs">Mode:</span>
+            <div className="flex items-center bg-slate-900 rounded-lg p-0.5">
+              <button
+                onClick={() => setQueryMode('static')}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                  queryMode === 'static'
+                    ? 'bg-amber-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Static
+              </button>
+              <button
+                onClick={() => setQueryMode('ai')}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                  queryMode === 'ai'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                AI
+              </button>
+            </div>
+          </div>
           <LLMCallCounter />
           {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
         </div>
