@@ -241,6 +241,7 @@ class RelatedMetric(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score")
     match_type: str = Field(..., description="exact, potential, or hypothesis")
     rationale: Optional[str] = Field(default=None, description="Why this metric is related")
+    domain: Optional[str] = Field(default=None, description="Domain: finance, growth, ops, product, people")
 
 
 class NLQResponse(BaseModel):

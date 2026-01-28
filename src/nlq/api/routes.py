@@ -708,35 +708,66 @@ def _handle_dashboard_query(question: str, fact_base) -> Optional[IntentMapRespo
         text_lines.append(f"Engineering: {period_data.get('engineering_headcount')} | Sales: {period_data.get('sales_headcount')} | CS: {period_data.get('cs_headcount')}")
 
     elif "kpi" in q:
-        # Comprehensive KPI dashboard - key metrics from each persona
+        # Comprehensive KPI dashboard - 2025 vs 2024 full year comparison
+        annual = data.get('annual', {})
+        y25 = annual.get('2025', {})
+        y24 = annual.get('2024', {})
+
+        def calc_change(v25, v24, is_pct=False):
+            """Calculate YoY change."""
+            if v25 is None or v24 is None or v24 == 0:
+                return ""
+            if is_pct:
+                diff = v25 - v24
+                return f"+{diff:.1f}pp" if diff > 0 else f"{diff:.1f}pp"
+            else:
+                pct = ((v25 - v24) / v24) * 100
+                return f"+{pct:.0f}%" if pct > 0 else f"{pct:.0f}%"
+
+        # Build comparison metrics with 2025 values and change indicators
         metrics = [
             # CFO (Finance - Blue)
-            ("revenue", "Revenue", period_data.get('revenue'), "M", Domain.FINANCE),
-            ("gross_margin_pct", "Gross Margin", period_data.get('gross_margin_pct'), "%", Domain.FINANCE),
-            ("cash", "Cash", period_data.get('cash'), "M", Domain.FINANCE),
+            ("revenue", "Revenue", y25.get('revenue'), "M", Domain.FINANCE),
+            ("gross_margin_pct", "Gross Margin", y25.get('gross_margin_pct'), "%", Domain.FINANCE),
+            ("net_income", "Net Income", y25.get('net_income'), "M", Domain.FINANCE),
             # CRO (Growth - Pink)
-            ("pipeline", "Pipeline", period_data.get('pipeline'), "M", Domain.GROWTH),
-            ("nrr", "NRR", period_data.get('nrr'), "%", Domain.GROWTH),
-            ("win_rate", "Win Rate", period_data.get('win_rate'), "%", Domain.GROWTH),
+            ("pipeline", "Pipeline", y25.get('pipeline'), "M", Domain.GROWTH),
+            ("nrr", "NRR", y25.get('nrr'), "%", Domain.GROWTH),
+            ("win_rate", "Win Rate", y25.get('win_rate'), "%", Domain.GROWTH),
             # COO (Ops - Green)
-            ("headcount", "Headcount", period_data.get('headcount'), "", Domain.OPS),
-            ("magic_number", "Magic Number", period_data.get('magic_number'), "", Domain.OPS),
-            ("ltv_cac", "LTV/CAC", period_data.get('ltv_cac'), "x", Domain.OPS),
+            ("headcount", "Headcount", y25.get('headcount'), "", Domain.OPS),
+            ("magic_number", "Magic Number", y25.get('magic_number'), "", Domain.OPS),
+            ("ltv_cac", "LTV/CAC", y25.get('ltv_cac'), "x", Domain.OPS),
             # CTO (Product - Purple)
-            ("uptime_pct", "Uptime", period_data.get('uptime_pct'), "%", Domain.PRODUCT),
-            ("deploys_per_week", "Deploys/Week", period_data.get('deploys_per_week'), "", Domain.PRODUCT),
-            ("sprint_velocity", "Velocity", period_data.get('sprint_velocity'), "pts", Domain.PRODUCT),
+            ("uptime_pct", "Uptime", y25.get('uptime_pct'), "%", Domain.PRODUCT),
+            ("deploys_per_week", "Deploys/Week", y25.get('deploys_per_week'), "", Domain.PRODUCT),
+            ("features_shipped", "Features Shipped", y25.get('features_shipped'), "", Domain.PRODUCT),
             # People (Orange)
-            ("hires", "New Hires", period_data.get('hires'), "", Domain.PEOPLE),
-            ("attrition_rate", "Attrition", period_data.get('attrition_rate'), "%", Domain.PEOPLE),
+            ("headcount", "Total Headcount", y25.get('headcount'), "", Domain.PEOPLE),
+            ("employee_growth_rate", "HC Growth", y25.get('employee_growth_rate'), "%", Domain.PEOPLE),
         ]
         persona = "KPIs"
-        text_lines.append(f"**{period} KPIs - All Personas**")
-        text_lines.append(f"**CFO:** Revenue ${period_data.get('revenue')}M | Margin {period_data.get('gross_margin_pct')}% | Cash ${period_data.get('cash')}M")
-        text_lines.append(f"**CRO:** Pipeline ${period_data.get('pipeline')}M | NRR {period_data.get('nrr')}% | Win Rate {period_data.get('win_rate')}%")
-        text_lines.append(f"**COO:** Headcount {period_data.get('headcount')} | Magic # {period_data.get('magic_number')} | LTV/CAC {period_data.get('ltv_cac')}x")
-        text_lines.append(f"**CTO:** Uptime {period_data.get('uptime_pct')}% | Deploys {period_data.get('deploys_per_week')}/wk | Velocity {period_data.get('sprint_velocity')} pts")
-        text_lines.append(f"**People:** Hires {period_data.get('hires')} | Attrition {period_data.get('attrition_rate')}%")
+        period = "2025 vs 2024"
+
+        # Build detailed comparison text
+        text_lines.append("**2025 vs 2024 Full Year KPIs**")
+        text_lines.append("")
+        text_lines.append("| Persona | Metric | 2024 | 2025 | Change |")
+        text_lines.append("|---------|--------|------|------|--------|")
+        text_lines.append(f"| **CFO** | Revenue | ${y24.get('revenue')}M | ${y25.get('revenue')}M | {calc_change(y25.get('revenue'), y24.get('revenue'))} |")
+        text_lines.append(f"| | Gross Margin | {y24.get('gross_margin_pct')}% | {y25.get('gross_margin_pct')}% | {calc_change(y25.get('gross_margin_pct'), y24.get('gross_margin_pct'), True)} |")
+        text_lines.append(f"| | Net Income | ${y24.get('net_income')}M | ${y25.get('net_income')}M | {calc_change(y25.get('net_income'), y24.get('net_income'))} |")
+        text_lines.append(f"| **CRO** | Pipeline | ${y24.get('pipeline')}M | ${y25.get('pipeline')}M | {calc_change(y25.get('pipeline'), y24.get('pipeline'))} |")
+        text_lines.append(f"| | NRR | {y24.get('nrr')}% | {y25.get('nrr')}% | {calc_change(y25.get('nrr'), y24.get('nrr'), True)} |")
+        text_lines.append(f"| | Win Rate | {y24.get('win_rate')}% | {y25.get('win_rate')}% | {calc_change(y25.get('win_rate'), y24.get('win_rate'), True)} |")
+        text_lines.append(f"| **COO** | Headcount | {y24.get('headcount')} | {y25.get('headcount')} | {calc_change(y25.get('headcount'), y24.get('headcount'))} |")
+        text_lines.append(f"| | Magic Number | {y24.get('magic_number')} | {y25.get('magic_number')} | {calc_change(y25.get('magic_number'), y24.get('magic_number'))} |")
+        text_lines.append(f"| | LTV/CAC | {y24.get('ltv_cac')}x | {y25.get('ltv_cac')}x | {calc_change(y25.get('ltv_cac'), y24.get('ltv_cac'))} |")
+        text_lines.append(f"| **CTO** | Uptime | {y24.get('uptime_pct')}% | {y25.get('uptime_pct')}% | {calc_change(y25.get('uptime_pct'), y24.get('uptime_pct'), True)} |")
+        text_lines.append(f"| | Deploys/Week | {y24.get('deploys_per_week')} | {y25.get('deploys_per_week')} | {calc_change(y25.get('deploys_per_week'), y24.get('deploys_per_week'))} |")
+        text_lines.append(f"| | Features | {y24.get('features_shipped')} | {y25.get('features_shipped')} | {calc_change(y25.get('features_shipped'), y24.get('features_shipped'))} |")
+        text_lines.append(f"| **People** | Headcount | {y24.get('headcount')} | {y25.get('headcount')} | {calc_change(y25.get('headcount'), y24.get('headcount'))} |")
+        text_lines.append(f"| | Growth Rate | {y24.get('employee_growth_rate')}% | {y25.get('employee_growth_rate')}% | {calc_change(y25.get('employee_growth_rate'), y24.get('employee_growth_rate'), True)} |")
 
     else:
         # Executive/General dashboard - mix of all
@@ -828,6 +859,7 @@ def _nodes_to_related_metrics(nodes: List[IntentNode]) -> List[RelatedMetric]:
             confidence=node.confidence,
             match_type=node.match_type.value,
             rationale=node.rationale,
+            domain=node.domain.value if node.domain else None,
         )
         for node in nodes
     ]

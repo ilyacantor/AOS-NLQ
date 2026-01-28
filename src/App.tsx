@@ -9,6 +9,18 @@ interface QueryHistoryItem {
   tag: string
 }
 
+interface RelatedMetric {
+  metric: string
+  display_name: string
+  value: number | string | null
+  formatted_value: string | null
+  period: string | null
+  confidence: number
+  match_type: string
+  rationale: string | null
+  domain?: string
+}
+
 interface NLQResponse {
   success: boolean
   answer?: string
@@ -20,6 +32,7 @@ interface NLQResponse {
   resolved_period?: string
   error_code?: string
   error_message?: string
+  related_metrics?: RelatedMetric[]
 }
 
 type ViewMode = 'text' | 'galaxy'
@@ -245,8 +258,8 @@ function App() {
             {/* Text View */}
             {viewMode === 'text' && textResponse && (
               <div className="h-full overflow-y-auto p-8">
-                <div className="max-w-3xl mx-auto bg-slate-900 border border-slate-700 rounded-xl p-6">
-                  {/* Query echo */}
+                <div className="max-w-4xl mx-auto">
+                  {/* Query echo header */}
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-slate-400 text-sm">{lastQuery}</span>
                     <button
@@ -258,46 +271,152 @@ function App() {
                   </div>
 
                   {textResponse.success ? (
-                    <>
-                      {/* Answer */}
-                      <div className="text-slate-200 text-lg mb-4 p-4 bg-slate-800/50 rounded-lg">
-                        {textResponse.answer}
-                      </div>
-
-                      {/* Metadata row */}
-                      <div className="flex items-center gap-4 text-sm text-slate-400 mb-4">
-                        <span>Definition: <span className="text-cyan-400">{textResponse.resolved_metric}</span></span>
-                        <span>Confidence: <span className="text-green-400">{Math.round(textResponse.confidence * 100)}%</span></span>
-                        <span>{lastDuration}</span>
-                      </div>
-
-                      {/* Value display */}
-                      {textResponse.value !== undefined && (
-                        <div className="grid grid-cols-3 gap-4 p-4 bg-slate-800/30 rounded-lg">
-                          <div>
-                            <div className="text-slate-500 text-xs mb-1">Value</div>
-                            <div className="text-slate-200 font-mono text-xl">
-                              {textResponse.unit === '%'
-                                ? `${Number(textResponse.value).toFixed(1)}%`
-                                : `$${Number(textResponse.value).toFixed(1)}M`}
-                            </div>
+                    textResponse.parsed_intent === 'DASHBOARD' ? (
+                      /* Dashboard View - with table */
+                      <div className="flex gap-6">
+                        {/* Main Table */}
+                        <div className="flex-1 bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+                          <div className="p-4 border-b border-slate-700">
+                            <h2 className="text-lg font-semibold text-white">
+                              {textResponse.answer?.split('\n')[0]?.replace(/\*\*/g, '') || '2025 vs 2024 KPIs'}
+                            </h2>
                           </div>
-                          <div>
-                            <div className="text-slate-500 text-xs mb-1">Period</div>
-                            <div className="text-slate-200">{textResponse.resolved_period}</div>
-                          </div>
-                          <div>
-                            <div className="text-slate-500 text-xs mb-1">Intent</div>
-                            <div className="text-slate-200">{textResponse.parsed_intent}</div>
+                          <div className="p-4">
+                            {(() => {
+                              const lines = (textResponse.answer || '').split('\n');
+                              const tableLines = lines.filter(l => l.startsWith('|'));
+                              if (tableLines.length > 2) {
+                                const headers = tableLines[0].split('|').filter(c => c.trim());
+                                const rows = tableLines.slice(2);
+                                return (
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="border-b border-slate-700">
+                                        {headers.map((h, i) => (
+                                          <th key={i} className="px-3 py-2 text-left text-slate-400 font-medium">
+                                            {h.trim()}
+                                          </th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {rows.map((row, rowIdx) => {
+                                        const cells = row.split('|').filter(c => c.trim());
+                                        const isPersonaRow = cells[0]?.includes('**');
+                                        return (
+                                          <tr key={rowIdx} className={`border-b border-slate-800 ${isPersonaRow ? 'bg-slate-800/30' : ''}`}>
+                                            {cells.map((cell, cellIdx) => {
+                                              const content = cell.trim().replace(/\*\*/g, '');
+                                              const isChange = cellIdx === cells.length - 1;
+                                              const isPositive = content.startsWith('+');
+                                              const isNeutral = content === '0.0pp' || content === '0%';
+                                              return (
+                                                <td key={cellIdx} className={`px-3 py-2 ${
+                                                  cellIdx === 0 && isPersonaRow ? 'font-semibold text-white' :
+                                                  isChange ? (isPositive ? 'text-emerald-400' : isNeutral ? 'text-slate-400' : 'text-red-400') :
+                                                  'text-slate-300'
+                                                }`}>
+                                                  {content}
+                                                </td>
+                                              );
+                                            })}
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                );
+                              }
+                              return <pre className="text-slate-300 whitespace-pre-wrap">{textResponse.answer}</pre>;
+                            })()}
                           </div>
                         </div>
-                      )}
-                    </>
+
+                        {/* Sidebar - Metrics by Persona */}
+                        {textResponse.related_metrics && textResponse.related_metrics.length > 0 && (
+                          <div className="w-64 flex-shrink-0">
+                            <div className="bg-slate-900 border border-slate-700 rounded-xl p-4">
+                              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                                Metrics by Domain
+                              </h3>
+                              {(() => {
+                                const domainColors: Record<string, string> = {
+                                  finance: '#3B82F6', growth: '#EC4899', ops: '#10B981', product: '#8B5CF6', people: '#F97316'
+                                };
+                                const domainLabels: Record<string, string> = {
+                                  finance: 'CFO', growth: 'CRO', ops: 'COO', product: 'CTO', people: 'People'
+                                };
+                                const byDomain = textResponse.related_metrics.reduce((acc, m) => {
+                                  const d = (m as any).domain || 'finance';
+                                  if (!acc[d]) acc[d] = [];
+                                  acc[d].push(m);
+                                  return acc;
+                                }, {} as Record<string, typeof textResponse.related_metrics>);
+
+                                return Object.entries(byDomain).map(([domain, metrics]) => (
+                                  <div key={domain} className="mb-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: domainColors[domain] }} />
+                                      <span className="text-slate-400 text-xs font-medium">{domainLabels[domain] || domain}</span>
+                                    </div>
+                                    {metrics.map((m, i) => (
+                                      <div key={i} className="flex justify-between text-xs py-1 border-b border-slate-800/50">
+                                        <span className="text-slate-400">{m.display_name}</span>
+                                        <span className="text-slate-200 font-mono">{m.formatted_value}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ));
+                              })()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Standard Text View */
+                      <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
+                        {/* Answer */}
+                        <div className="text-slate-200 text-lg mb-4 p-4 bg-slate-800/50 rounded-lg">
+                          {textResponse.answer}
+                        </div>
+
+                        {/* Metadata row */}
+                        <div className="flex items-center gap-4 text-sm text-slate-400 mb-4">
+                          <span>Definition: <span className="text-cyan-400">{textResponse.resolved_metric}</span></span>
+                          <span>Confidence: <span className="text-green-400">{Math.round(textResponse.confidence * 100)}%</span></span>
+                          <span>{lastDuration}</span>
+                        </div>
+
+                        {/* Value display */}
+                        {textResponse.value !== undefined && (
+                          <div className="grid grid-cols-3 gap-4 p-4 bg-slate-800/30 rounded-lg">
+                            <div>
+                              <div className="text-slate-500 text-xs mb-1">Value</div>
+                              <div className="text-slate-200 font-mono text-xl">
+                                {textResponse.unit === '%'
+                                  ? `${Number(textResponse.value).toFixed(1)}%`
+                                  : `$${Number(textResponse.value).toFixed(1)}M`}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-slate-500 text-xs mb-1">Period</div>
+                              <div className="text-slate-200">{textResponse.resolved_period}</div>
+                            </div>
+                            <div>
+                              <div className="text-slate-500 text-xs mb-1">Intent</div>
+                              <div className="text-slate-200">{textResponse.parsed_intent}</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
                   ) : (
                     /* Error display */
-                    <div className="p-4 bg-red-900/20 border border-red-800/50 rounded-lg">
-                      <div className="text-red-400 font-medium mb-1">{textResponse.error_code}</div>
-                      <div className="text-red-300/80 text-sm">{textResponse.error_message}</div>
+                    <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
+                      <div className="p-4 bg-red-900/20 border border-red-800/50 rounded-lg">
+                        <div className="text-red-400 font-medium mb-1">{textResponse.error_code}</div>
+                        <div className="text-red-300/80 text-sm">{textResponse.error_message}</div>
+                      </div>
                     </div>
                   )}
                 </div>

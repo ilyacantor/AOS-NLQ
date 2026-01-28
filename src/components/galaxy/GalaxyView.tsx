@@ -13,6 +13,7 @@ import { GalaxyLegend } from './GalaxyLegend';
 import { NodeDetailPanel } from './NodeDetailPanel';
 import { NodeTooltip } from './NodeTooltip';
 import { DataTable } from './DataTable';
+import { DashboardModal } from './DashboardModal';
 
 interface GalaxyViewProps {
   data: IntentMapResponse;
@@ -39,6 +40,17 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const [hoveredPosition, setHoveredPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [nodeStates, setNodeStates] = useState<Map<string, NodeState>>(new Map());
+  const [showDashboardModal, setShowDashboardModal] = useState(false);
+
+  // Auto-show modal for dashboard queries
+  const isDashboard = data.query_type === 'DASHBOARD';
+  useEffect(() => {
+    if (isDashboard) {
+      setShowDashboardModal(true);
+    } else {
+      setShowDashboardModal(false);
+    }
+  }, [isDashboard, data.query]);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const animationRef = useRef<number | null>(null);
@@ -481,6 +493,15 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
           />
         )}
       </div>
+
+      {/* Dashboard Modal - for KPI/Dashboard queries */}
+      <DashboardModal
+        isOpen={showDashboardModal}
+        onClose={() => setShowDashboardModal(false)}
+        title={data.persona === 'KPIs' ? '2025 vs 2024 KPIs' : `${data.persona || 'Executive'} Dashboard`}
+        textResponse={data.text_response || ''}
+        nodes={data.nodes}
+      />
     </div>
   );
 };
