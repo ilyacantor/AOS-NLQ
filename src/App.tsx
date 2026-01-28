@@ -69,7 +69,7 @@ function App() {
   const [galaxyResponse, setGalaxyResponse] = useState<IntentMapResponse | null>(null)
   const [lastQuery, setLastQuery] = useState('')
   const [lastDuration, setLastDuration] = useState('')
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const handleSubmit = async (queryText?: string) => {
     const textToSubmit = queryText ?? query
