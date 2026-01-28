@@ -3,7 +3,6 @@ import { Persona, DashboardConfig, TimeRange } from '../../types/dashboard';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { DashboardGrid } from './DashboardGrid';
 import { TimeRangeSelector } from './shared/TimeRangeSelector';
-import { NLQBar } from './tiles/NLQBar';
 
 // Import dashboard configurations
 import cfoConfigJson from '../../config/dashboards/cfo.json';
@@ -217,14 +216,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     [onNLQQuery]
   );
 
-  // Handle NLQ bar submission
-  const handleNLQSubmit = useCallback(
-    (query: string) => {
-      onNLQQuery(query);
-    },
-    [onNLQQuery]
-  );
-
   // Handle time range change
   const handleTimeRangeChange = useCallback((newRange: string) => {
     setTimeRange(newRange as TimeRange);
@@ -348,18 +339,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
           onTileClick={handleTileClick}
         />
       </main>
-
-      {/* NLQ Input Bar */}
-      <footer className="flex-shrink-0 px-6 py-4 border-t border-slate-800">
-        <div className="max-w-2xl mx-auto">
-          <NLQBar
-            persona={persona}
-            onSubmit={handleNLQSubmit}
-            placeholder={`Ask the ${persona}: "Why is margin declining?"`}
-            disabled={loading}
-          />
-        </div>
-      </footer>
     </div>
   );
 };

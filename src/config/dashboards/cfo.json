@@ -120,15 +120,14 @@
       "type": "chart",
       "position": { "x": 4, "y": 6, "w": 4, "h": 3 },
       "config": {
-        "chartType": "donut",
+        "chartType": "horizontalBar",
         "title": "Expense Breakdown",
         "query": "Show expense breakdown by category year to date",
         "clickQuery": "Show detailed expenses for {category}",
         "colorScheme": "categorical",
-        "showLegend": true,
+        "showLegend": false,
         "showLabels": true,
-        "enableDrilldown": true,
-        "showPercentages": true
+        "enableDrilldown": true
       }
     },
     {

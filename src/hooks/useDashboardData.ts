@@ -77,12 +77,12 @@ const STATIC_CFO_DATA: Record<string, TileData> = {
     formattedValue: '',
     rawData: {
       chartData: [
-        { label: 'Starting', value: 40.8, type: 'total' },
+        { label: '2024', value: 40.8, type: 'total' },
         { label: 'New Sales', value: 8.2, type: 'increase' },
         { label: 'Expansions', value: 3.5, type: 'increase' },
         { label: 'Churn', value: -2.8, type: 'decrease' },
         { label: 'Downgrades', value: -1.5, type: 'decrease' },
-        { label: 'Ending', value: 48.2, type: 'total' },
+        { label: '2025', value: 48.2, type: 'total' },
       ]
     },
     status: 'healthy',
@@ -117,6 +117,11 @@ const STATIC_CFO_DATA: Record<string, TileData> = {
         { label: 'Global Solutions', value: 2900000 },
         { label: 'DataFlow Ltd', value: 2100000 },
         { label: 'CloudFirst Co', value: 1800000 },
+        { label: 'Nexus Systems', value: 1650000 },
+        { label: 'InnovateTech', value: 1420000 },
+        { label: 'Quantum Partners', value: 1280000 },
+        { label: 'Stellar Labs', value: 1150000 },
+        { label: 'Vertex Group', value: 980000 },
       ]
     },
     status: 'healthy',

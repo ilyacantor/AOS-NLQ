@@ -124,8 +124,9 @@ function App() {
     const startTime = performance.now()
 
     try {
-      // Fetch from intent-map endpoint for Galaxy view
-      const endpoint = viewMode === 'galaxy' || viewMode === 'dashboard' ? '/api/v1/intent-map' : '/api/v1/query'
+      // Fetch from appropriate endpoint based on view mode
+      // Galaxy uses intent-map endpoint, Text uses query endpoint
+      const endpoint = viewMode === 'galaxy' ? '/api/v1/intent-map' : '/api/v1/query'
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -140,7 +141,7 @@ function App() {
 
       if (viewMode === 'galaxy') {
         setGalaxyResponse(data as IntentMapResponse)
-      } else {
+      } else if (viewMode === 'text') {
         setTextResponse(data as NLQResponse)
       }
 
@@ -260,43 +261,45 @@ function App() {
       <div className="flex flex-1 overflow-hidden relative">
         {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          {/* Query Input Section - Always at top middle */}
-          <div className="flex flex-col items-center pt-6 pb-4 px-8">
-            {/* Query Input */}
-            <div className="w-full max-w-2xl">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask any question, use a preset from below, or just say hi"
-                  className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-lg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
-                />
-                {isLoading && (
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                    <svg className="w-5 h-5 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  </div>
-                )}
+          {/* Query Input Section - Hidden in Dashboard view */}
+          {viewMode !== 'dashboard' && (
+            <div className="flex flex-col items-center pt-6 pb-4 px-8">
+              {/* Query Input */}
+              <div className="w-full max-w-2xl">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ask any question, use a preset from below, or just say hi"
+                    className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-lg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
+                  />
+                  {isLoading && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      <svg className="w-5 h-5 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Action Buttons */}
+              <div className="flex flex-wrap justify-center gap-2 mt-4 max-w-3xl">
+                {quickActions.map((action) => (
+                  <button
+                    key={action}
+                    onClick={() => handleQuickAction(action)}
+                    className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-xs hover:bg-slate-700 hover:border-slate-600 transition-colors"
+                  >
+                    {action}
+                  </button>
+                ))}
               </div>
             </div>
-
-            {/* Quick Action Buttons - Always visible */}
-            <div className="flex flex-wrap justify-center gap-2 mt-4 max-w-3xl">
-              {quickActions.map((action) => (
-                <button
-                  key={action}
-                  onClick={() => handleQuickAction(action)}
-                  className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-xs hover:bg-slate-700 hover:border-slate-600 transition-colors"
-                >
-                  {action}
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
 
           {/* Results Area */}
           <div className="flex-1 overflow-hidden">
