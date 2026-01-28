@@ -707,6 +707,37 @@ def _handle_dashboard_query(question: str, fact_base) -> Optional[IntentMapRespo
         text_lines.append(f"Headcount: {period_data.get('headcount')} | Hires: {period_data.get('hires')} | Attrition: {period_data.get('attrition_rate')}%")
         text_lines.append(f"Engineering: {period_data.get('engineering_headcount')} | Sales: {period_data.get('sales_headcount')} | CS: {period_data.get('cs_headcount')}")
 
+    elif "kpi" in q:
+        # Comprehensive KPI dashboard - key metrics from each persona
+        metrics = [
+            # CFO (Finance - Blue)
+            ("revenue", "Revenue", period_data.get('revenue'), "M", Domain.FINANCE),
+            ("gross_margin_pct", "Gross Margin", period_data.get('gross_margin_pct'), "%", Domain.FINANCE),
+            ("cash", "Cash", period_data.get('cash'), "M", Domain.FINANCE),
+            # CRO (Growth - Pink)
+            ("pipeline", "Pipeline", period_data.get('pipeline'), "M", Domain.GROWTH),
+            ("nrr", "NRR", period_data.get('nrr'), "%", Domain.GROWTH),
+            ("win_rate", "Win Rate", period_data.get('win_rate'), "%", Domain.GROWTH),
+            # COO (Ops - Green)
+            ("headcount", "Headcount", period_data.get('headcount'), "", Domain.OPS),
+            ("magic_number", "Magic Number", period_data.get('magic_number'), "", Domain.OPS),
+            ("ltv_cac", "LTV/CAC", period_data.get('ltv_cac'), "x", Domain.OPS),
+            # CTO (Product - Purple)
+            ("uptime_pct", "Uptime", period_data.get('uptime_pct'), "%", Domain.PRODUCT),
+            ("deploys_per_week", "Deploys/Week", period_data.get('deploys_per_week'), "", Domain.PRODUCT),
+            ("sprint_velocity", "Velocity", period_data.get('sprint_velocity'), "pts", Domain.PRODUCT),
+            # People (Orange)
+            ("hires", "New Hires", period_data.get('hires'), "", Domain.PEOPLE),
+            ("attrition_rate", "Attrition", period_data.get('attrition_rate'), "%", Domain.PEOPLE),
+        ]
+        persona = "KPIs"
+        text_lines.append(f"**{period} KPIs - All Personas**")
+        text_lines.append(f"**CFO:** Revenue ${period_data.get('revenue')}M | Margin {period_data.get('gross_margin_pct')}% | Cash ${period_data.get('cash')}M")
+        text_lines.append(f"**CRO:** Pipeline ${period_data.get('pipeline')}M | NRR {period_data.get('nrr')}% | Win Rate {period_data.get('win_rate')}%")
+        text_lines.append(f"**COO:** Headcount {period_data.get('headcount')} | Magic # {period_data.get('magic_number')} | LTV/CAC {period_data.get('ltv_cac')}x")
+        text_lines.append(f"**CTO:** Uptime {period_data.get('uptime_pct')}% | Deploys {period_data.get('deploys_per_week')}/wk | Velocity {period_data.get('sprint_velocity')} pts")
+        text_lines.append(f"**People:** Hires {period_data.get('hires')} | Attrition {period_data.get('attrition_rate')}%")
+
     else:
         # Executive/General dashboard - mix of all
         metrics = [

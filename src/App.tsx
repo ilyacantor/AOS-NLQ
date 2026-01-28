@@ -42,6 +42,8 @@ const quickActions = [
   'who is the CEO',
   'pto days',
   '401k match',
+  // Dashboard
+  '2025 KPIs',
 ]
 
 function App() {
