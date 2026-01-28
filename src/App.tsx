@@ -69,6 +69,7 @@ function App() {
   const [galaxyResponse, setGalaxyResponse] = useState<IntentMapResponse | null>(null)
   const [lastQuery, setLastQuery] = useState('')
   const [lastDuration, setLastDuration] = useState('')
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const handleSubmit = async (queryText?: string) => {
     const textToSubmit = queryText ?? query
@@ -205,7 +206,7 @@ function App() {
       </header>
 
       {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-hidden">
           {/* Query Input Section - Always at top middle */}
@@ -437,15 +438,30 @@ function App() {
           </div>
         </main>
 
+        {/* Hamburger Toggle Button */}
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-slate-800 border border-slate-700 rounded-l-lg hover:bg-slate-700 transition-colors"
+          style={{ right: sidebarOpen ? '283px' : '0' }}
+        >
+          <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {sidebarOpen ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            )}
+          </svg>
+        </button>
+
         {/* Right Sidebar - History Panel */}
-        <aside className="w-[283px] border-l border-slate-800 flex flex-col bg-slate-900/30">
+        <aside className={`${sidebarOpen ? 'w-[283px]' : 'w-0 overflow-hidden'} border-l border-slate-800 flex flex-col bg-slate-900/30 transition-all duration-300`}>
           {/* Panel Tabs */}
           <div className="flex border-b border-slate-800">
             {(['History', 'Debug'] as PanelTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setPanelTab(tab)}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
                   panelTab === tab
                     ? 'text-white border-b-2 border-cyan-400 bg-slate-900/50'
                     : 'text-slate-400 hover:text-slate-200'
