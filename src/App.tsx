@@ -199,7 +199,7 @@ function App() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask a question..."
+                  placeholder="Ask any question, use a preset from below, or just say hi"
                   className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-lg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
                 />
                 {isLoading && (
