@@ -627,6 +627,125 @@ def _handle_people_query(question: str, fact_base) -> Optional[NLQResponse]:
     return None  # Not a People query we can handle
 
 
+# =============================================================================
+# SIMPLE RULE-BASED QUERY PARSER (NO LLM REQUIRED)
+# =============================================================================
+
+# Common metric synonyms for simple queries
+SIMPLE_METRIC_PATTERNS = {
+    "revenue": ["revenue", "sales", "top line", "total revenue"],
+    "bookings": ["bookings", "tcv", "acv", "new bookings"],
+    "arr": ["arr", "annual recurring revenue"],
+    "gross_margin_pct": ["gross margin", "margin", "gm"],
+    "net_income": ["net income", "profit", "net profit", "bottom line"],
+    "operating_margin_pct": ["operating margin", "op margin"],
+    "headcount": ["headcount", "employees", "team size", "staff", "total headcount"],
+    "customer_count": ["customers", "customer count", "total customers"],
+    "win_rate": ["win rate", "close rate"],
+    "pipeline": ["pipeline", "sales pipeline"],
+    "churn": ["churn", "churn rate", "gross churn"],
+    "nrr": ["nrr", "net revenue retention"],
+    "uptime_pct": ["uptime", "availability"],
+    "features_shipped": ["features", "features shipped"],
+    "engineering_headcount": ["engineering headcount", "engineers", "eng headcount"],
+    "csat": ["csat", "customer satisfaction"],
+    "nps": ["nps", "net promoter"],
+}
+
+
+def _try_simple_parse(question: str) -> Optional[ParsedQuery]:
+    """
+    Try to parse simple queries without LLM.
+    Handles patterns like: "2025 revenue", "revenue 2025", "what is revenue", etc.
+    """
+    import re
+    q = question.lower().strip()
+
+    # Extract year (2024, 2025, 2026)
+    year_match = re.search(r'\b(202[4-6])\b', q)
+    year = year_match.group(1) if year_match else None
+
+    # Extract quarter (Q1-Q4)
+    quarter_match = re.search(r'\bq([1-4])\b', q)
+    quarter = f"Q{quarter_match.group(1)}" if quarter_match else None
+
+    # Try to find a metric
+    detected_metric = None
+    for canonical, synonyms in SIMPLE_METRIC_PATTERNS.items():
+        for syn in synonyms:
+            if syn in q:
+                detected_metric = canonical
+                break
+        if detected_metric:
+            break
+
+    # If we found a metric, try to build a simple parsed query
+    if detected_metric:
+        # Determine period
+        if year and quarter:
+            resolved_period = f"{year}-{quarter}"
+            period_type = PeriodType.QUARTERLY
+        elif year:
+            resolved_period = year
+            period_type = PeriodType.ANNUAL
+        else:
+            # Default to 2025 (current year)
+            resolved_period = "2025"
+            period_type = PeriodType.ANNUAL
+
+        return ParsedQuery(
+            intent=QueryIntent.POINT_QUERY,
+            metric=detected_metric,
+            period_type=period_type,
+            period_reference=resolved_period,
+            resolved_period=resolved_period,
+        )
+
+    return None
+
+
+def _handle_simple_query(question: str, fact_base) -> Optional[NLQResponse]:
+    """Handle simple queries that can be parsed without LLM."""
+    parsed = _try_simple_parse(question)
+    if not parsed:
+        return None
+
+    try:
+        # Get the value from fact base
+        value = fact_base.query(parsed.metric, parsed.resolved_period)
+        if value is None:
+            return None  # Fall back to LLM
+
+        # Format the answer
+        unit = get_metric_unit(parsed.metric)
+        formatted_value = str(value)
+
+        # Create a nice answer
+        metric_display = parsed.metric.replace("_", " ").title()
+        period_display = parsed.resolved_period
+
+        if unit == "%" or "pct" in parsed.metric:
+            answer = f"{metric_display} for {period_display}: {value}%"
+        elif unit == "USD millions":
+            answer = f"{metric_display} for {period_display}: ${value}M"
+        else:
+            answer = f"{metric_display} for {period_display}: {value} {unit}"
+
+        return NLQResponse(
+            success=True,
+            answer=answer,
+            value=formatted_value,
+            unit=unit,
+            confidence=0.95,  # High confidence for rule-based parse
+            parsed_intent=parsed.intent.value,
+            resolved_metric=parsed.metric,
+            resolved_period=parsed.resolved_period,
+        )
+    except Exception as e:
+        logger.warning(f"Simple query handling failed: {e}")
+        return None  # Fall back to LLM
+
+
 def _is_dashboard_query(question: str) -> bool:
     """Detect if this is a dashboard/report request."""
     q = question.lower()
@@ -639,6 +758,7 @@ def _is_dashboard_query(question: str) -> bool:
         "quarterly report", "q1 report", "q2 report", "q3 report", "q4 report",
         "monthly report", "weekly report", "status report",
         "kpis", "key metrics", "top metrics", "main metrics",
+        "results",  # Catches "2025 results", "Q4 results", etc.
     ]
 
     return any(term in q for term in dashboard_terms)
@@ -2216,6 +2336,11 @@ async def query(request: NLQRequest) -> NLQResponse:
                     related_metrics=_nodes_to_related_metrics(dashboard_response.nodes),
                 )
 
+        # Try simple rule-based parsing first (doesn't need Claude API)
+        simple_response = _handle_simple_query(request.question, fact_base)
+        if simple_response:
+            return simple_response
+
         # Check for ambiguity first (same as Galaxy endpoint)
         ambiguity_type, candidates, clarification = detect_ambiguity(request.question)
 
@@ -2462,6 +2587,40 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
             dashboard_response = _handle_dashboard_query(request.question, fact_base)
             if dashboard_response:
                 return dashboard_response
+
+        # Try simple rule-based parsing first (doesn't need Claude API)
+        simple_response = _handle_simple_query(request.question, fact_base)
+        if simple_response:
+            # Convert NLQResponse to IntentMapResponse for Galaxy view
+            persona = detect_persona_from_metric(simple_response.resolved_metric) or "CFO"
+            return IntentMapResponse(
+                query=request.question,
+                query_type=simple_response.parsed_intent,
+                ambiguity_type=None,
+                persona=persona,
+                overall_confidence=simple_response.confidence,
+                overall_data_quality=1.0,
+                node_count=1,
+                nodes=[IntentNode(
+                    id="simple_1",
+                    metric=simple_response.resolved_metric or "",
+                    display_name=simple_response.resolved_metric.replace("_", " ").title() if simple_response.resolved_metric else "",
+                    match_type=MatchType.EXACT,
+                    domain=Domain.FINANCE,
+                    confidence=simple_response.confidence,
+                    data_quality=1.0,
+                    freshness="0h",
+                    value=float(simple_response.value) if simple_response.value else None,
+                    formatted_value=simple_response.value,
+                    period=simple_response.resolved_period or "",
+                    semantic_label=f"{simple_response.resolved_metric} for {simple_response.resolved_period}",
+                )],
+                primary_node_id="simple_1",
+                primary_answer=simple_response.answer,
+                text_response=simple_response.answer,
+                needs_clarification=False,
+                clarification_prompt=None,
+            )
 
         reference_date = request.reference_date or date.today()
         resolver = PeriodResolver(reference_date)
