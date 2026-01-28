@@ -35,7 +35,7 @@ from src.nlq.core.resolver import PeriodResolver
 from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.knowledge.schema import FINANCIAL_SCHEMA, get_metric_unit
 from src.nlq.llm.client import ClaudeClient
-from src.nlq.models.query import NLQRequest, QueryIntent, ParsedQuery, PeriodType
+from src.nlq.models.query import NLQRequest, QueryIntent, ParsedQuery, PeriodType, QueryMode
 from src.nlq.models.response import AmbiguityType, Domain, IntentMapResponse, IntentNode, MatchType, NLQResponse, RelatedMetric
 from src.nlq.core.personality import (
     generate_personality_response,
@@ -2270,7 +2270,20 @@ async def query(request: NLQRequest) -> NLQResponse:
         # CLAUDE PARSING - Fall back to LLM if no cache hit
         # =================================================================
         if not cache_hit:
-            # Initialize Claude client and parser only when needed
+            # In STATIC mode, return error if no cache hit (no LLM fallback)
+            if request.mode == QueryMode.STATIC:
+                logger.info(f"Static mode - no cache hit for: {request.question[:50]}...")
+                return NLQResponse(
+                    success=False,
+                    error_code="STATIC_MODE_CACHE_MISS",
+                    error_message="Query not found in cache. Switch to AI mode for LLM processing.",
+                    confidence=0.0,
+                    parsed_intent="UNKNOWN",
+                    resolved_metric=None,
+                    resolved_period=None,
+                )
+
+            # AI mode: Initialize Claude client and parser
             claude_client = get_claude_client()
             parser = QueryParser(claude_client)
 
@@ -2504,7 +2517,26 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         # CLAUDE PARSING - Fall back to LLM if no cache hit
         # =================================================================
         if not cache_hit:
-            # Initialize Claude client and parser only when needed
+            # In STATIC mode, return error if no cache hit (no LLM fallback)
+            if request.mode == QueryMode.STATIC:
+                logger.info(f"Galaxy static mode - no cache hit for: {request.question[:50]}...")
+                return IntentMapResponse(
+                    query=request.question,
+                    query_type="STATIC_MODE_CACHE_MISS",
+                    ambiguity_type=None,
+                    persona="CFO",
+                    overall_confidence=0.0,
+                    overall_data_quality=0.0,
+                    node_count=0,
+                    nodes=[],
+                    primary_node_id=None,
+                    primary_answer=None,
+                    text_response="Query not found in cache. Switch to AI mode for LLM processing.",
+                    needs_clarification=False,
+                    clarification_prompt=None,
+                )
+
+            # AI mode: Initialize Claude client and parser
             claude_client = get_claude_client()
             parser = QueryParser(claude_client)
 
