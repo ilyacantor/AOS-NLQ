@@ -82,7 +82,7 @@ class NLQQueryRouter:
     async def process(
         self,
         query: str,
-        mode: QueryMode = QueryMode.STATIC,
+        mode: QueryMode = QueryMode.AI,
         persona: str = "CFO",
         session_id: str = None,
     ) -> QueryResult:
