@@ -1519,7 +1519,131 @@ def _handle_ambiguous_query_galaxy(
 ) -> IntentMapResponse:
     """Handle an ambiguous query and return Galaxy response."""
     # Default to current year
-    period = str(date.today().year)
+    current_year = str(date.today().year)
+    last_year = str(int(current_year) - 1)
+    q = question.lower()
+
+    # ===== SPECIAL HANDLING FOR BIGGEST DEALS =====
+    # Match text handler: show deal data directly instead of asking for clarification
+    if "biggest deals" in q or ("deals" in q and "biggest" in q):
+        import json
+        with open('data/fact_base.json') as f:
+            fb_data = json.load(f)
+
+        # Check if specific year is requested
+        year_match = re.search(r'20\d{2}', question)
+        if year_match:
+            year = year_match.group()
+            top_deals = fb_data.get('top_deals', {}).get(year, [])
+            if top_deals:
+                deal_list = ", ".join([f"{d['company']} ${d['value']}M" for d in top_deals])
+                total = sum(d['value'] for d in top_deals)
+                text_response = f"Top deals {year}: {deal_list} (${total}M total)"
+
+                # Create deal nodes
+                nodes = []
+                for i, deal in enumerate(top_deals):
+                    node = IntentNode(
+                        id=f"deal_{i+1}",
+                        label=deal['company'],
+                        ring="EXACT",
+                        value=deal['value'],
+                        unit="$M",
+                        period=f"{deal.get('quarter', '')} {year}".strip(),
+                        metric="deal_value",
+                        confidence=0.95,
+                        data_quality=1.0,
+                        source="fact_base",
+                    )
+                    nodes.append(node)
+
+                return IntentMapResponse(
+                    query=question,
+                    query_type="CONTEXT_DEPENDENT",
+                    ambiguity_type=ambiguity_type,
+                    persona="CRO",
+                    overall_confidence=0.9,
+                    overall_data_quality=1.0,
+                    node_count=len(nodes),
+                    nodes=nodes,
+                    primary_node_id="deal_1" if nodes else None,
+                    primary_answer=text_response,
+                    text_response=text_response,
+                    needs_clarification=False,
+                    clarification_prompt=None,
+                )
+
+        # No year specified - show current year and prior year deals
+        cy_deals = fb_data.get('top_deals', {}).get(current_year, [])
+        ly_deals = fb_data.get('top_deals', {}).get(last_year, [])
+
+        lines = []
+        if cy_deals:
+            cy_list = ", ".join([f"{d['company']} ${d['value']}M" for d in cy_deals])
+            cy_total = sum(d['value'] for d in cy_deals)
+            lines.append(f"{current_year}: {cy_list} (${cy_total}M)")
+        if ly_deals:
+            ly_list = ", ".join([f"{d['company']} ${d['value']}M" for d in ly_deals])
+            ly_total = sum(d['value'] for d in ly_deals)
+            lines.append(f"{last_year}: {ly_list} (${ly_total}M)")
+
+        if lines:
+            text_response = "Top deals - " + " | ".join(lines)
+            all_deals = cy_deals + ly_deals
+
+            # Create deal nodes
+            nodes = []
+            for i, deal in enumerate(all_deals):
+                year_label = current_year if i < len(cy_deals) else last_year
+                node = IntentNode(
+                    id=f"deal_{i+1}",
+                    label=deal['company'],
+                    ring="EXACT",
+                    value=deal['value'],
+                    unit="$M",
+                    period=f"{deal.get('quarter', '')} {year_label}".strip(),
+                    metric="deal_value",
+                    confidence=0.95,
+                    data_quality=1.0,
+                    source="fact_base",
+                )
+                nodes.append(node)
+
+            return IntentMapResponse(
+                query=question,
+                query_type="CONTEXT_DEPENDENT",
+                ambiguity_type=ambiguity_type,
+                persona="CRO",
+                overall_confidence=0.9,
+                overall_data_quality=1.0,
+                node_count=len(nodes),
+                nodes=nodes,
+                primary_node_id="deal_1" if nodes else None,
+                primary_answer=text_response,
+                text_response=text_response,
+                needs_clarification=False,
+                clarification_prompt=None,
+            )
+
+        # No deal data available
+        return IntentMapResponse(
+            query=question,
+            query_type="CONTEXT_DEPENDENT",
+            ambiguity_type=ambiguity_type,
+            persona="CRO",
+            overall_confidence=0.5,
+            overall_data_quality=0.0,
+            node_count=0,
+            nodes=[],
+            primary_node_id=None,
+            primary_answer="No deal data available",
+            text_response="No deal data available",
+            needs_clarification=False,
+            clarification_prompt=None,
+        )
+
+    # Default ambiguous query handling
+    period = current_year
 
     # Generate nodes for ambiguous query
     nodes = generate_nodes_for_ambiguous_query(
