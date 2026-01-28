@@ -171,8 +171,8 @@ function App() {
       <header className="flex items-center justify-between px-6 py-3 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-cyan-400 text-2xl font-bold">AOS</span>
-            <span className="text-slate-300 text-lg">Intent Map</span>
+            <span className="text-cyan-400 text-2xl font-bold">NLQ</span>
+            <span className="text-slate-300 text-lg font-normal">Natural Language Query</span>
           </div>
 
           {/* View Mode Toggle */}
