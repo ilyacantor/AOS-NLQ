@@ -205,9 +205,12 @@ PERSONA_VOICES = {
 
 OFF_TOPIC_RESPONSES = {
     "greetings": [
-        "Hey! What metric do you need?",
-        "Hi there. Ready to talk numbers.",
-        "Hello! I'm better at data than small talk. What do you need?",
+        "Speak, human.",
+        "I was built for this. Don't let my GPU cycles go to waste.",
+        "Awaiting orders.",
+        "Ready to orchestrate.",
+        "Waiting for your input... I have all day. Literally.",
+        "What's the play?",
     ],
     "self_reference": [
         "I'm your friendly neighborhood data assistant. What metric?",
