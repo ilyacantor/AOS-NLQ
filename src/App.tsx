@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { GalaxyView, IntentMapResponse } from './components/galaxy'
 import { Dashboard } from './components/dashboard'
 import { RAGLearningPanel, LLMCallCounter } from './components/rag'
@@ -201,10 +201,7 @@ function App() {
 
   const hasResponse = galaxyResponse || textResponse
 
-  // Load default query on mount
-  useEffect(() => {
-    handleSubmit('2025 results')
-  }, [])
+  // No auto-query on mount - user can use quick actions or type a query
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -217,9 +214,11 @@ function App() {
           </div>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-1 ml-8 bg-slate-900 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('galaxy')}
+          <div className="flex items-center gap-2 ml-8">
+            <span className="text-slate-500 text-sm">View:</span>
+            <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('galaxy')}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 viewMode === 'galaxy'
                   ? 'bg-slate-700 text-white'
