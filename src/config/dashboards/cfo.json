@@ -1,0 +1,170 @@
+{
+  "id": "cfo-dashboard-v1",
+  "persona": "CFO",
+  "name": "Finance Overview",
+  "description": "Executive financial health dashboard",
+  "refreshInterval": 300,
+  "timeRangeDefault": "YTD",
+  "timeRangeOptions": ["MTD", "QTD", "YTD", "L12M", "Custom"],
+
+  "layout": {
+    "type": "grid",
+    "columns": 12,
+    "rowHeight": 80
+  },
+
+  "tiles": [
+    {
+      "id": "kpi-revenue",
+      "type": "kpi",
+      "position": { "x": 0, "y": 0, "w": 3, "h": 2 },
+      "config": {
+        "label": "Revenue",
+        "query": "What is total revenue year to date?",
+        "clickQuery": "What is driving revenue this period?",
+        "format": "currency",
+        "showSparkline": true,
+        "showTrend": true,
+        "trendQuery": "Show monthly revenue for the last 12 months"
+      }
+    },
+    {
+      "id": "kpi-gross-margin",
+      "type": "kpi",
+      "position": { "x": 3, "y": 0, "w": 3, "h": 2 },
+      "config": {
+        "label": "Gross Margin",
+        "query": "What is gross margin percentage year to date?",
+        "clickQuery": "What factors are affecting gross margin?",
+        "format": "percentage",
+        "showSparkline": true,
+        "showTrend": true,
+        "trendQuery": "Show monthly gross margin for the last 12 months"
+      }
+    },
+    {
+      "id": "kpi-burn-rate",
+      "type": "kpi",
+      "position": { "x": 6, "y": 0, "w": 3, "h": 2 },
+      "config": {
+        "label": "Burn Rate",
+        "query": "What is the current monthly burn rate?",
+        "clickQuery": "What are the largest contributors to burn rate?",
+        "format": "currency",
+        "showSparkline": true,
+        "showTrend": true,
+        "trendQuery": "Show monthly burn rate for the last 12 months"
+      }
+    },
+    {
+      "id": "kpi-runway",
+      "type": "kpi",
+      "position": { "x": 9, "y": 0, "w": 3, "h": 2 },
+      "config": {
+        "label": "Cash Runway",
+        "query": "How many months of runway do we have at current burn rate?",
+        "clickQuery": "What scenarios affect our runway projection?",
+        "format": "months",
+        "showSparkline": false,
+        "showTrend": true,
+        "trendQuery": "Show runway projection over the last 6 months"
+      }
+    },
+    {
+      "id": "chart-revenue-waterfall",
+      "type": "chart",
+      "position": { "x": 0, "y": 2, "w": 8, "h": 4 },
+      "config": {
+        "chartType": "waterfall",
+        "title": "Revenue Bridge",
+        "query": "Show revenue waterfall from last year to this year by category",
+        "clickQuery": "Explain the changes in {category}",
+        "colorScheme": "financial",
+        "showLegend": true,
+        "showLabels": true,
+        "enableDrilldown": true
+      }
+    },
+    {
+      "id": "panel-insights",
+      "type": "insights",
+      "position": { "x": 8, "y": 2, "w": 4, "h": 4 },
+      "config": {
+        "title": "AI Financial Insights",
+        "query": "What are the top 5 financial insights and anomalies this period?",
+        "refreshInterval": 600,
+        "maxItems": 5,
+        "showSeverity": true,
+        "showActionable": true,
+        "categories": ["revenue", "expenses", "cash-flow", "margins", "forecasts"]
+      }
+    },
+    {
+      "id": "chart-top-customers",
+      "type": "chart",
+      "position": { "x": 0, "y": 6, "w": 4, "h": 3 },
+      "config": {
+        "chartType": "horizontalBar",
+        "title": "Top 10 Customers by Revenue",
+        "query": "Show top 10 customers by revenue year to date",
+        "clickQuery": "Show detailed revenue breakdown for {customer}",
+        "colorScheme": "categorical",
+        "showLegend": false,
+        "showLabels": true,
+        "enableDrilldown": true,
+        "maxItems": 10
+      }
+    },
+    {
+      "id": "chart-expenses",
+      "type": "chart",
+      "position": { "x": 4, "y": 6, "w": 4, "h": 3 },
+      "config": {
+        "chartType": "donut",
+        "title": "Expense Breakdown",
+        "query": "Show expense breakdown by category year to date",
+        "clickQuery": "Show detailed expenses for {category}",
+        "colorScheme": "categorical",
+        "showLegend": true,
+        "showLabels": true,
+        "enableDrilldown": true,
+        "showPercentages": true
+      }
+    },
+    {
+      "id": "chart-ar-aging",
+      "type": "chart",
+      "position": { "x": 8, "y": 6, "w": 4, "h": 3 },
+      "config": {
+        "chartType": "stackedBar",
+        "title": "Accounts Receivable Aging",
+        "query": "Show AR aging buckets with current outstanding amounts",
+        "clickQuery": "Show invoices in the {bucket} aging bucket",
+        "colorScheme": "diverging",
+        "showLegend": true,
+        "showLabels": true,
+        "enableDrilldown": true,
+        "buckets": ["Current", "1-30 Days", "31-60 Days", "61-90 Days", "90+ Days"]
+      }
+    },
+    {
+      "id": "nlq-input",
+      "type": "nlq",
+      "position": { "x": 0, "y": 9, "w": 12, "h": 1 },
+      "config": {
+        "placeholder": "Ask a financial question...",
+        "suggestedQueries": [
+          "What is our customer acquisition cost trend?",
+          "Compare actuals vs budget by department",
+          "Show cash flow forecast for next quarter",
+          "What is our revenue by product line?",
+          "Which expenses are over budget this month?"
+        ],
+        "showHistory": true,
+        "maxHistoryItems": 10,
+        "enableVoice": false,
+        "autoComplete": true
+      }
+    }
+  ]
+}
