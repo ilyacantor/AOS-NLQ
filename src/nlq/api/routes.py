@@ -905,25 +905,47 @@ def _handle_ambiguous_query_text(
                 confidence=0.9, parsed_intent="CONTEXT_DEPENDENT", resolved_metric="revenue_growth", resolved_period=current_year,
                 related_metrics=related_metrics)
 
-        # "biggest deals" or "2025 biggest deals" -> Check for year, return deal data or ask for timeframe
+        # "biggest deals" or "2025 biggest deals" -> Show top deals for current + prior year
         if "biggest deals" in q or ("deals" in q and "biggest" in q):
-            # Check if year is specified in question
+            import json
+            with open('data/fact_base.json') as f:
+                fb_data = json.load(f)
+
+            # Check if specific year is requested
             year_match = re.search(r'20\d{2}', question)
             if year_match:
                 year = year_match.group()
-                # Get top deals from fact base
-                import json
-                with open('data/fact_base.json') as f:
-                    fb_data = json.load(f)
                 top_deals = fb_data.get('top_deals', {}).get(year, [])
                 if top_deals:
-                    deal_list = ", ".join([f"{d['company']} ${d['value']}M" for d in top_deals[:3]])
+                    deal_list = ", ".join([f"{d['company']} ${d['value']}M" for d in top_deals])
                     total = sum(d['value'] for d in top_deals)
-                    answer = f"Top deals {year}: {deal_list}... (${total}M total)"
+                    answer = f"Top deals {year}: {deal_list} (${total}M total)"
                     return NLQResponse(success=True, answer=answer, value=total, unit="$M",
                         confidence=0.9, parsed_intent="CONTEXT_DEPENDENT", resolved_metric="top_deals", resolved_period=year,
                         related_metrics=related_metrics)
-            answer = "Need timeframe - which period?"
+
+            # No year specified - show current year and prior year deals
+            cy_deals = fb_data.get('top_deals', {}).get(current_year, [])
+            ly_deals = fb_data.get('top_deals', {}).get(last_year, [])
+
+            lines = []
+            if cy_deals:
+                cy_list = ", ".join([f"{d['company']} ${d['value']}M" for d in cy_deals])
+                cy_total = sum(d['value'] for d in cy_deals)
+                lines.append(f"{current_year}: {cy_list} (${cy_total}M)")
+            if ly_deals:
+                ly_list = ", ".join([f"{d['company']} ${d['value']}M" for d in ly_deals])
+                ly_total = sum(d['value'] for d in ly_deals)
+                lines.append(f"{last_year}: {ly_list} (${ly_total}M)")
+
+            if lines:
+                answer = "Top deals - " + " | ".join(lines)
+                total = sum(d['value'] for d in cy_deals) + sum(d['value'] for d in ly_deals)
+                return NLQResponse(success=True, answer=answer, value=total, unit="$M",
+                    confidence=0.9, parsed_intent="CONTEXT_DEPENDENT", resolved_metric="top_deals", resolved_period=f"{last_year}-{current_year}",
+                    related_metrics=related_metrics)
+
+            answer = "No deal data available"
             return NLQResponse(success=True, answer=answer, value=None, unit=None,
                 confidence=0.5, parsed_intent="CONTEXT_DEPENDENT", resolved_metric=None, resolved_period=None,
                 related_metrics=related_metrics)

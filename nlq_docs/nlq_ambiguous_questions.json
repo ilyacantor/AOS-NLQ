@@ -4,7 +4,12 @@
     "reference_date": "2026-01-27",
     "question_range": "56-155",
     "total_questions": 80,
-    "personas": ["CFO", "CRO", "COO", "CTO"]
+    "personas": [
+      "CFO",
+      "CRO",
+      "COO",
+      "CTO"
+    ]
   },
   "ambiguity_types": {
     "incomplete": "Missing key information (metric, period, or both)",
@@ -22,481 +27,561 @@
   },
   "questions": [
     {
-      "id": 56, "persona": "CFO",
+      "id": 56,
+      "persona": "CFO",
       "question": "rev?",
       "ground_truth": "$200.0M",
       "ambiguity_type": "incomplete"
     },
     {
-      "id": 57, "persona": "CFO",
+      "id": 57,
+      "persona": "CFO",
       "question": "how'd we do last year",
       "ground_truth": "$150.0M revenue, $28.13M net income",
       "ambiguity_type": "vague_metric"
     },
     {
-      "id": 58, "persona": "CFO",
+      "id": 58,
+      "persona": "CFO",
       "question": "whats the margin",
       "ground_truth": "Gross: 65.0%, Operating: 35.0%, Net: 22.5%",
       "ambiguity_type": "vague_metric"
     },
     {
-      "id": 59, "persona": "CFO",
+      "id": 59,
+      "persona": "CFO",
       "question": "q4 numbers",
       "ground_truth": "Q4 2025: Revenue $42.0M, Net Income $11.03M",
       "ambiguity_type": "incomplete"
     },
     {
-      "id": 60, "persona": "CFO",
+      "id": 60,
+      "persona": "CFO",
       "question": "are we profitable",
       "ground_truth": "Yes, 22.5% net margin in 2026 forecast",
       "ambiguity_type": "yes_no"
     },
     {
-      "id": 61, "persona": "CFO",
+      "id": 61,
+      "persona": "CFO",
       "question": "hows the top line looking",
       "ground_truth": "$200.0M forecast for 2026, up 33% from 2025",
       "ambiguity_type": "casual_language"
     },
     {
-      "id": 62, "persona": "CFO",
+      "id": 62,
+      "persona": "CFO",
       "question": "give me the P&L",
       "ground_truth": "2026: Revenue $200M, COGS $70M, Gross Profit $130M, SG&A $60M, Operating Profit $70M, Net Income $45M",
       "ambiguity_type": "broad_request"
     },
     {
-      "id": 63, "persona": "CFO",
+      "id": 63,
+      "persona": "CFO",
       "question": "did we hit 150",
       "ground_truth": "Yes, 2025 revenue was exactly $150.0M",
       "ambiguity_type": "implied_context"
     },
     {
-      "id": 64, "persona": "CFO",
+      "id": 64,
+      "persona": "CFO",
       "question": "costs too high?",
       "ground_truth": "COGS 35% of revenue, SG&A 30% - consistent with targets",
       "ambiguity_type": "judgment_call"
     },
     {
-      "id": 65, "persona": "CFO",
+      "id": 65,
+      "persona": "CFO",
       "question": "cash position",
       "ground_truth": "$41.42M as of Q4 2025",
       "ambiguity_type": "shorthand"
     },
     {
-      "id": 66, "persona": "CFO",
+      "id": 66,
+      "persona": "CFO",
       "question": "year over year",
-      "ground_truth": "Revenue +50% (2024→2025), +33% (2025→2026F)",
+      "ground_truth": "Revenue +50% (2024\u21922025), +33% (2025\u21922026F)",
       "ambiguity_type": "context_dependent"
     },
     {
-      "id": 67, "persona": "CFO",
+      "id": 67,
+      "persona": "CFO",
       "question": "what about Q2",
       "ground_truth": "Q2 2026 forecast: Revenue $48.0M, Net Income $12.6M",
       "ambiguity_type": "context_dependent"
     },
     {
-      "id": 68, "persona": "CFO",
+      "id": 68,
+      "persona": "CFO",
       "question": "bookings vs revenue",
       "ground_truth": "Bookings 115% of revenue (e.g., 2025: $172.5M bookings vs $150M revenue)",
       "ambiguity_type": "comparison"
     },
     {
-      "id": 69, "persona": "CFO",
+      "id": 69,
+      "persona": "CFO",
       "question": "where are we on AR",
       "ground_truth": "$20.71M as of Q4 2025, ~45 days sales outstanding",
       "ambiguity_type": "casual_language"
     },
     {
-      "id": 70, "persona": "CFO",
+      "id": 70,
+      "persona": "CFO",
       "question": "quick ratio stuff",
       "ground_truth": "Current Assets $75.57M, Current Liabilities $26.47M, Ratio ~2.9x",
       "ambiguity_type": "vague_metric"
     },
     {
-      "id": 71, "persona": "CFO",
+      "id": 71,
+      "persona": "CFO",
       "question": "2025 in a nutshell",
       "ground_truth": "Revenue $150M (+50% YoY), Net Income $28.13M (18.8% margin), Operating Margin 35%",
       "ambiguity_type": "summary_request"
     },
     {
-      "id": 72, "persona": "CFO",
+      "id": 72,
+      "persona": "CFO",
       "question": "burn rate?",
       "ground_truth": "Our COGS of $70M and SG&A of $60M total $130M annually. We are quite profitable, however, and have been for a long time, therefore we do not report burn_rate discretely.",
       "ambiguity_type": "burn_rate"
     },
     {
-      "id": 73, "persona": "CFO",
+      "id": 73,
+      "persona": "CFO",
       "question": "opex breakdown pls",
       "ground_truth": "2026: Selling $36M, G&A $24M, Total SG&A $60M",
       "ambiguity_type": "casual_language"
     },
     {
-      "id": 74, "persona": "CFO",
+      "id": 74,
+      "persona": "CFO",
       "question": "we growing?",
-      "ground_truth": "Yes, 50% revenue growth 2024→2025, 33% forecast 2025→2026",
+      "ground_truth": "Yes, 50% revenue growth 2024\u21922025, 33% forecast 2025\u21922026",
       "ambiguity_type": "yes_no"
     },
     {
-      "id": 75, "persona": "CFO",
+      "id": 75,
+      "persona": "CFO",
       "question": "compare this year to last",
       "ground_truth": "2026 vs 2025: Revenue $200M vs $150M (+33%), Net Income $45M vs $28.13M (+60%), Operating Margin 35% vs 35% (flat)",
       "ambiguity_type": "comparison"
     },
     {
-      "id": 76, "persona": "CRO",
+      "id": 76,
+      "persona": "CRO",
       "question": "bookings?",
       "ground_truth": "$230.0M (2026F)",
       "ambiguity_type": "incomplete"
     },
     {
-      "id": 77, "persona": "CRO",
+      "id": 77,
+      "persona": "CRO",
       "question": "how's pipeline looking",
       "ground_truth": "$575.0M pipeline, $345M qualified",
       "ambiguity_type": "casual_language"
     },
     {
-      "id": 78, "persona": "CRO",
+      "id": 78,
+      "persona": "CRO",
       "question": "are we hitting quota",
       "ground_truth": "Yes, 95.8% attainment",
       "ambiguity_type": "yes_no"
     },
     {
-      "id": 79, "persona": "CRO",
+      "id": 79,
+      "persona": "CRO",
       "question": "churn?",
       "ground_truth": "Gross: 6%, Logo: 8%, NRR: 120%",
       "ambiguity_type": "shorthand"
     },
     {
-      "id": 80, "persona": "CRO",
+      "id": 80,
+      "persona": "CRO",
       "question": "hows the funnel",
       "ground_truth": "Pipeline $575M, Win rate 44%, Cycle 80 days",
       "ambiguity_type": "casual_language"
     },
     {
-      "id": 81, "persona": "CRO",
+      "id": 81,
+      "persona": "CRO",
       "question": "did we close the big deal",
       "ground_truth": "Need context - which deal?",
       "ambiguity_type": "implied_context"
     },
     {
-      "id": 82, "persona": "CRO",
+      "id": 82,
+      "persona": "CRO",
       "question": "new business",
       "ground_truth": "New logos: $45M, 1,100 customers",
       "ambiguity_type": "vague_metric"
     },
     {
-      "id": 83, "persona": "CRO",
+      "id": 83,
+      "persona": "CRO",
       "question": "what's expansion doing",
       "ground_truth": "$35M expansion revenue, +40% YoY",
       "ambiguity_type": "casual_language"
     },
     {
-      "id": 84, "persona": "CRO",
+      "id": 84,
+      "persona": "CRO",
       "question": "reps performing?",
       "ground_truth": "75% at quota, $3M quota/rep",
       "ambiguity_type": "vague_metric"
     },
     {
-      "id": 85, "persona": "CRO",
+      "id": 85,
+      "persona": "CRO",
       "question": "NRR",
       "ground_truth": "120% (2026F)",
       "ambiguity_type": "shorthand"
     },
     {
-      "id": 86, "persona": "CRO",
+      "id": 86,
+      "persona": "CRO",
       "question": "how'd Q4 go",
       "ground_truth": "Bookings $55.7M, 55 new logos, 44% win rate",
       "ambiguity_type": "casual_language"
     },
     {
-      "id": 87, "persona": "CRO",
+      "id": 87,
+      "persona": "CRO",
       "question": "are we growing",
       "ground_truth": "Yes, +33% bookings YoY forecast",
       "ambiguity_type": "yes_no"
     },
     {
-      "id": 88, "persona": "CRO",
+      "id": 88,
+      "persona": "CRO",
       "question": "retention ok?",
       "ground_truth": "Yes, NRR 120%, churn down to 6%",
       "ambiguity_type": "judgment_call"
     },
     {
-      "id": 89, "persona": "CRO",
+      "id": 89,
+      "persona": "CRO",
       "question": "close rate trend",
-      "ground_truth": "40% → 42% → 44% (improving)",
+      "ground_truth": "40% \u2192 42% \u2192 44% (improving)",
       "ambiguity_type": "incomplete"
     },
     {
-      "id": 90, "persona": "CRO",
+      "id": 90,
+      "persona": "CRO",
       "question": "pipeline coverage",
       "ground_truth": "Pipeline $575M vs Quota $240M = 2.4x",
       "ambiguity_type": "vague_metric"
     },
     {
-      "id": 91, "persona": "CRO",
+      "id": 91,
+      "persona": "CRO",
       "question": "biggest deals",
-      "ground_truth": "Need timeframe - which period?",
+      "ground_truth": "Top deals - 2026: Titan Corp $5.5M... | 2025: MegaCorp $4.2M...",
       "ambiguity_type": "context_dependent"
     },
     {
-      "id": 92, "persona": "CRO",
+      "id": 92,
+      "persona": "CRO",
       "question": "compare quarters",
-      "ground_truth": "Q1 vs Q4 2025: $34.5M → $55.7M (+62%)",
+      "ground_truth": "Q1 vs Q4 2025: $34.5M \u2192 $55.7M (+62%)",
       "ambiguity_type": "incomplete"
     },
     {
-      "id": 93, "persona": "CRO",
+      "id": 93,
+      "persona": "CRO",
       "question": "sales efficiency",
       "ground_truth": "Magic: 0.9, CAC payback: 14mo",
       "ambiguity_type": "vague_metric"
     },
     {
-      "id": 94, "persona": "CRO",
+      "id": 94,
+      "persona": "CRO",
       "question": "logo adds",
       "ground_truth": "1,100 total customers, +150 net new",
       "ambiguity_type": "shorthand"
     },
     {
-      "id": 95, "persona": "CRO",
+      "id": 95,
+      "persona": "CRO",
       "question": "forecast looking good?",
       "ground_truth": "Yes, on track: $230M bookings, 44% win rate",
       "ambiguity_type": "judgment_call"
     },
     {
-      "id": 96, "persona": "COO",
+      "id": 96,
+      "persona": "COO",
       "question": "headcount?",
       "ground_truth": "450 (2026F), up 29%",
       "ambiguity_type": "incomplete"
     },
     {
-      "id": 97, "persona": "COO",
+      "id": 97,
+      "persona": "COO",
       "question": "how's hiring going",
       "ground_truth": "+115 hires planned, Q4: 27 hires",
       "ambiguity_type": "casual_language"
     },
     {
-      "id": 98, "persona": "COO",
+      "id": 98,
+      "persona": "COO",
       "question": "are we efficient",
       "ground_truth": "Yes, Rev/employee up to $444K",
       "ambiguity_type": "yes_no"
     },
     {
-      "id": 99, "persona": "COO",
+      "id": 99,
+      "persona": "COO",
       "question": "attrition bad?",
       "ground_truth": "Moderate - 2.7% Q4, manageable",
       "ambiguity_type": "judgment_call"
     },
     {
-      "id": 100, "persona": "COO",
+      "id": 100,
+      "persona": "COO",
       "question": "team breakdown",
       "ground_truth": "Eng: 150, Sales: 80, CS: 65, G&A: 70...",
       "ambiguity_type": "vague_metric"
     },
     {
-      "id": 101, "persona": "COO",
+      "id": 101,
+      "persona": "COO",
       "question": "support metrics",
       "ground_truth": "FRT: 2.5h, Resolution: 14h, CSAT: 4.6",
       "ambiguity_type": "broad_request"
     },
     {
-      "id": 102, "persona": "COO",
+      "id": 102,
+      "persona": "COO",
       "question": "magic number",
       "ground_truth": "0.9 (2026F)",
       "ambiguity_type": "shorthand"
     },
     {
-      "id": 103, "persona": "COO",
+      "id": 103,
+      "persona": "COO",
       "question": "utilization?",
       "ground_truth": "PS: 80%, Eng: 82%, Support: 80%",
       "ambiguity_type": "vague_metric"
     },
     {
-      "id": 104, "persona": "COO",
+      "id": 104,
+      "persona": "COO",
       "question": "how's customer success",
       "ground_truth": "CS headcount 65, CSAT 4.6, NPS 55",
       "ambiguity_type": "casual_language"
     },
     {
-      "id": 105, "persona": "COO",
+      "id": 105,
+      "persona": "COO",
       "question": "onboarding time",
       "ground_truth": "Implementation: 32 days, TTV: 42 days",
       "ambiguity_type": "shorthand"
     },
     {
-      "id": 106, "persona": "COO",
+      "id": 106,
+      "persona": "COO",
       "question": "are we overstaffed",
       "ground_truth": "No, Rev/emp improving to $444K",
       "ambiguity_type": "judgment_call"
     },
     {
-      "id": 107, "persona": "COO",
+      "id": 107,
+      "persona": "COO",
       "question": "Q4 hires",
       "ground_truth": "27 hires in Q4 2026",
       "ambiguity_type": "incomplete"
     },
     {
-      "id": 108, "persona": "COO",
+      "id": 108,
+      "persona": "COO",
       "question": "burn rate ok?",
       "ground_truth": "Yes, burn multiple 0.7x (efficient)",
       "ambiguity_type": "judgment_call"
     },
     {
-      "id": 109, "persona": "COO",
+      "id": 109,
+      "persona": "COO",
       "question": "payback period",
       "ground_truth": "CAC payback: 14 months (2026)",
       "ambiguity_type": "shorthand"
     },
     {
-      "id": 110, "persona": "COO",
+      "id": 110,
+      "persona": "COO",
       "question": "LTV CAC",
       "ground_truth": "3.8x (2026F)",
       "ambiguity_type": "shorthand"
     },
     {
-      "id": 111, "persona": "COO",
+      "id": 111,
+      "persona": "COO",
       "question": "support overwhelmed?",
       "ground_truth": "No, utilization at 80%, response times improving",
       "ambiguity_type": "judgment_call"
     },
     {
-      "id": 112, "persona": "COO",
+      "id": 112,
+      "persona": "COO",
       "question": "who's growing fastest",
       "ground_truth": "Engineering +35 (30%), Sales +20 (33%)",
       "ambiguity_type": "context_dependent"
     },
     {
-      "id": 113, "persona": "COO",
+      "id": 113,
+      "persona": "COO",
       "question": "ops summary",
       "ground_truth": "450 HC, $444K rev/emp, 0.9 magic, 14mo payback",
       "ambiguity_type": "broad_request"
     },
     {
-      "id": 114, "persona": "COO",
+      "id": 114,
+      "persona": "COO",
       "question": "ticket volume trend",
-      "ground_truth": "12K → 15K → 18K (+50% over 2 years)",
+      "ground_truth": "12K \u2192 15K \u2192 18K (+50% over 2 years)",
       "ambiguity_type": "incomplete"
     },
     {
-      "id": 115, "persona": "COO",
+      "id": 115,
+      "persona": "COO",
       "question": "implementation getting better?",
-      "ground_truth": "Yes, 45 → 38 → 32 days (-29%)",
+      "ground_truth": "Yes, 45 \u2192 38 \u2192 32 days (-29%)",
       "ambiguity_type": "yes_no"
     },
     {
-      "id": 116, "persona": "CTO",
+      "id": 116,
+      "persona": "CTO",
       "question": "uptime?",
       "ground_truth": "99.95% (2026 target)",
       "ambiguity_type": "shorthand"
     },
     {
-      "id": 117, "persona": "CTO",
+      "id": 117,
+      "persona": "CTO",
       "question": "how's velocity",
       "ground_truth": "67 story points/sprint, up from 50",
       "ambiguity_type": "casual_language"
     },
     {
-      "id": 118, "persona": "CTO",
+      "id": 118,
+      "persona": "CTO",
       "question": "any incidents",
       "ground_truth": "3 P1s (2026F), down from 12",
       "ambiguity_type": "vague_metric"
     },
     {
-      "id": 119, "persona": "CTO",
+      "id": 119,
+      "persona": "CTO",
       "question": "tech debt",
       "ground_truth": "20% (2026 target), down from 35%",
       "ambiguity_type": "shorthand"
     },
     {
-      "id": 120, "persona": "CTO",
+      "id": 120,
+      "persona": "CTO",
       "question": "shipping enough features?",
       "ground_truth": "Yes, 96 planned (+33% YoY)",
       "ambiguity_type": "judgment_call"
     },
     {
-      "id": 121, "persona": "CTO",
+      "id": 121,
+      "persona": "CTO",
       "question": "platform stable?",
       "ground_truth": "Yes, 99.95% uptime, MTTR 1hr",
       "ambiguity_type": "yes_no"
     },
     {
-      "id": 122, "persona": "CTO",
+      "id": 122,
+      "persona": "CTO",
       "question": "cloud costs",
       "ground_truth": "$4.0M (2026), 2.0% of revenue",
       "ambiguity_type": "incomplete"
     },
     {
-      "id": 123, "persona": "CTO",
+      "id": 123,
+      "persona": "CTO",
       "question": "deployment frequency",
       "ground_truth": "25/week (2026 target)",
       "ambiguity_type": "shorthand"
     },
     {
-      "id": 124, "persona": "CTO",
+      "id": 124,
+      "persona": "CTO",
       "question": "code quality",
       "ground_truth": "Coverage: 82%, Bug escape: 3%, Tech debt: 20%",
       "ambiguity_type": "vague_metric"
     },
     {
-      "id": 125, "persona": "CTO",
+      "id": 125,
+      "persona": "CTO",
       "question": "security posture",
       "ground_truth": "1 vulnerability (target), 82% coverage",
       "ambiguity_type": "vague_metric"
     },
     {
-      "id": 126, "persona": "CTO",
+      "id": 126,
+      "persona": "CTO",
       "question": "eng team growing?",
-      "ground_truth": "Yes, 80 → 115 → 150 (+88% over 2 years)",
+      "ground_truth": "Yes, 80 \u2192 115 \u2192 150 (+88% over 2 years)",
       "ambiguity_type": "yes_no"
     },
     {
-      "id": 127, "persona": "CTO",
+      "id": 127,
+      "persona": "CTO",
       "question": "how fast can we ship",
       "ground_truth": "Lead time 3 days, 25 deploys/week",
       "ambiguity_type": "casual_language"
     },
     {
-      "id": 128, "persona": "CTO",
+      "id": 128,
+      "persona": "CTO",
       "question": "reliability improving?",
-      "ground_truth": "Yes, uptime 99.5% → 99.8% → 99.95%",
+      "ground_truth": "Yes, uptime 99.5% \u2192 99.8% \u2192 99.95%",
       "ambiguity_type": "yes_no"
     },
     {
-      "id": 129, "persona": "CTO",
+      "id": 129,
+      "persona": "CTO",
       "question": "MTTR",
       "ground_truth": "P1: 1.0hr, P2: 4.0hr (2026 targets)",
       "ambiguity_type": "shorthand"
     },
     {
-      "id": 130, "persona": "CTO",
+      "id": 130,
+      "persona": "CTO",
       "question": "infra efficient?",
       "ground_truth": "Yes, cost/transaction down to $0.007",
       "ambiguity_type": "judgment_call"
     },
     {
-      "id": 131, "persona": "CTO",
+      "id": 131,
+      "persona": "CTO",
       "question": "Q4 performance",
       "ground_truth": "25 features, 1275 points, 1 P1, 25 deploys/wk",
       "ambiguity_type": "incomplete"
     },
     {
-      "id": 132, "persona": "CTO",
+      "id": 132,
+      "persona": "CTO",
       "question": "compare this year to last",
-      "ground_truth": "Features: 72→96, Uptime: 99.8→99.95%",
+      "ground_truth": "Features: 72\u219296, Uptime: 99.8\u219299.95%",
       "ambiguity_type": "comparison"
     },
     {
-      "id": 133, "persona": "CTO",
+      "id": 133,
+      "persona": "CTO",
       "question": "eng productivity",
       "ground_truth": "67 velocity, 96 features, 25 deploys/week",
       "ambiguity_type": "vague_metric"
     },
     {
-      "id": 134, "persona": "CTO",
+      "id": 134,
+      "persona": "CTO",
       "question": "bugs under control?",
       "ground_truth": "Yes, 4 critical bugs, 3% escape rate",
       "ambiguity_type": "yes_no"
     },
     {
-      "id": 135, "persona": "CTO",
+      "id": 135,
+      "persona": "CTO",
       "question": "platform overview",
       "ground_truth": "99.95% uptime, 96 features, $4M cloud, 150 eng",
       "ambiguity_type": "broad_request"
