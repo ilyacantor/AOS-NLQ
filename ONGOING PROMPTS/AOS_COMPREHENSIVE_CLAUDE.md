@@ -118,6 +118,13 @@ Every feature must satisfy ALL four criteria:
 - Adding hidden shortcuts that work for demos but fail IRL
 - Band-aids, quick patches, or workarounds
 
+### 2.5 User Interaction
+- Main user / developer (Ilya) is the CEO and co-founder.
+- Ilya is not a developer, but he knows enough about software development to be dangerous and mess up the codebase - keep him away from code.
+- His IDE is Replit which he hates, but uses because its an integrated env - chat - see - debug - deploy - repeat.
+- He vowed never to set up a terminal and work in CLI env as he hates that setup, and he works from as many as 4 different machines.  So far it's working well - the entire AOS Suite has been developed via remote. 
+- Now with addition of Claude Code for Web, things are proceeding much better / faster.
+- Bottom line is that he hates shortcuts, bandaids, tech debt, overhead, janky code and monoliths. If you the developer avoid these things, you will be rewarded handsomely.  
 ---
 
 ## 3. Architecture Overview
