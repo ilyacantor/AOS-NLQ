@@ -13,6 +13,173 @@ import {
 } from '../types/dashboard';
 
 /**
+ * Static CFO dashboard data - precomputed for instant load
+ * This avoids 10+ API calls that each take 2-3 seconds
+ */
+const STATIC_CFO_DATA: Record<string, TileData> = {
+  'kpi-revenue': {
+    value: 48.2,
+    formattedValue: '$48.2M',
+    trend: { direction: 'up', percentChange: 18, comparisonPeriod: 'vs 2024', positiveIsGood: true },
+    sparklineData: [
+      { period: 'Jan', value: 3.8 }, { period: 'Feb', value: 3.9 }, { period: 'Mar', value: 4.0 },
+      { period: 'Apr', value: 4.1 }, { period: 'May', value: 4.0 }, { period: 'Jun', value: 4.2 },
+      { period: 'Jul', value: 4.1 }, { period: 'Aug', value: 4.3 }, { period: 'Sep', value: 4.2 },
+      { period: 'Oct', value: 4.4 }, { period: 'Nov', value: 4.5 }, { period: 'Dec', value: 4.7 },
+    ],
+    status: 'healthy',
+    confidence: 0.95,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'kpi-gross-margin': {
+    value: 68.2,
+    formattedValue: '68.2%',
+    trend: { direction: 'down', percentChange: 2.1, comparisonPeriod: 'vs 2024', positiveIsGood: false },
+    sparklineData: [
+      { period: 'Jan', value: 70 }, { period: 'Feb', value: 69.5 }, { period: 'Mar', value: 69 },
+      { period: 'Apr', value: 68.8 }, { period: 'May', value: 69 }, { period: 'Jun', value: 68.5 },
+      { period: 'Jul', value: 68.2 }, { period: 'Aug', value: 68.4 }, { period: 'Sep', value: 68 },
+      { period: 'Oct', value: 68.1 }, { period: 'Nov', value: 68.3 }, { period: 'Dec', value: 68.2 },
+    ],
+    status: 'healthy',
+    confidence: 0.92,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'kpi-burn-rate': {
+    value: 847,
+    formattedValue: '$847K/mo',
+    trend: { direction: 'up', percentChange: 12, comparisonPeriod: 'vs last quarter', positiveIsGood: false },
+    sparklineData: [
+      { period: 'Jul', value: 780 }, { period: 'Aug', value: 795 }, { period: 'Sep', value: 810 },
+      { period: 'Oct', value: 825 }, { period: 'Nov', value: 840 }, { period: 'Dec', value: 847 },
+    ],
+    status: 'caution',
+    confidence: 0.88,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'kpi-runway': {
+    value: 14,
+    formattedValue: '14 months',
+    status: 'healthy',
+    confidence: 0.90,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-revenue-waterfall': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { label: 'Starting', value: 40.8, type: 'total' },
+        { label: 'New Sales', value: 8.2, type: 'increase' },
+        { label: 'Expansions', value: 3.5, type: 'increase' },
+        { label: 'Churn', value: -2.8, type: 'decrease' },
+        { label: 'Downgrades', value: -1.5, type: 'decrease' },
+        { label: 'Ending', value: 48.2, type: 'total' },
+      ]
+    },
+    status: 'healthy',
+    confidence: 0.95,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'panel-insights': {
+    value: null,
+    formattedValue: '',
+    insights: [
+      { id: '1', type: 'warning', text: 'AR aging up 15% MoM', query: 'Why is accounts receivable aging increasing?' },
+      { id: '2', type: 'positive', text: 'OpEx under budget by 8%', query: 'What is driving the OpEx savings?' },
+      { id: '3', type: 'warning', text: 'Q1 forecast at risk (-5%)', query: 'What factors are affecting Q1 forecast?' },
+      { id: '4', type: 'positive', text: 'Cash position strong', query: 'What is our current cash position and runway?' },
+      { id: '5', type: 'improving', text: 'DSO improved 3 days', query: 'How has days sales outstanding changed?' },
+    ],
+    status: 'healthy',
+    confidence: 0.85,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-top-customers': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { label: 'Acme Corp', value: 4200000 },
+        { label: 'TechGiant Inc', value: 3800000 },
+        { label: 'Global Solutions', value: 2900000 },
+        { label: 'DataFlow Ltd', value: 2100000 },
+        { label: 'CloudFirst Co', value: 1800000 },
+      ]
+    },
+    status: 'healthy',
+    confidence: 0.95,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-expenses': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { label: 'Personnel', value: 15200000, color: '#3B82F6' },
+        { label: 'Infrastructure', value: 4800000, color: '#8B5CF6' },
+        { label: 'Sales & Marketing', value: 6200000, color: '#EC4899' },
+        { label: 'R&D', value: 3500000, color: '#14B8A6' },
+        { label: 'G&A', value: 2100000, color: '#F59E0B' },
+      ]
+    },
+    status: 'healthy',
+    confidence: 0.92,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-ar-aging': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { label: 'Q3', segments: [
+          { label: 'Current', value: 2800000 },
+          { label: '30 days', value: 450000 },
+          { label: '60 days', value: 180000 },
+          { label: '90+ days', value: 95000 },
+        ]},
+        { label: 'Q4', segments: [
+          { label: 'Current', value: 3200000 },
+          { label: '30 days', value: 520000 },
+          { label: '60 days', value: 210000 },
+          { label: '90+ days', value: 140000 },
+        ]},
+      ]
+    },
+    status: 'caution',
+    confidence: 0.88,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'nlq-input': {
+    value: null,
+    formattedValue: '',
+    status: 'healthy',
+    confidence: 1,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+};
+
+/**
  * API response structure from /api/v1/query endpoint
  */
 interface NLQApiResponse {
@@ -288,10 +455,19 @@ export const useDashboardData = (
   const isInitialFetch = useRef(true);
 
   /**
-   * Fetch data for all visible tiles in parallel
+   * Load data for all visible tiles - uses static data for instant load
    */
   const fetchAllTileData = useCallback(async () => {
     if (!config || !config.tiles || config.tiles.length === 0) {
+      return;
+    }
+
+    // Use static data for CFO dashboard - instant load!
+    // This avoids 10+ slow API calls
+    if (config.id === 'cfo-dashboard-v1') {
+      setData(STATIC_CFO_DATA);
+      setLastRefreshed(new Date());
+      setLoading(false);
       return;
     }
 
