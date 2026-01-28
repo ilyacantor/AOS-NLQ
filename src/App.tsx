@@ -38,6 +38,10 @@ const quickActions = [
   // CTO
   'platform stable?',
   'how\'s velocity',
+  // People
+  'who is the CEO',
+  'pto days',
+  '401k match',
 ]
 
 function App() {
