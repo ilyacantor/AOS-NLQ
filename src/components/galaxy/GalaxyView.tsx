@@ -232,7 +232,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
       {/* Main content area - three column layout */}
       <div className="flex-1 flex min-h-0">
         {/* Left Panel - Text Response & Data Table */}
-        <div className="w-72 flex-shrink-0 flex flex-col border-r border-slate-800 bg-slate-900/30">
+        <div className="flex-shrink-0 flex flex-col border-r border-slate-800 bg-slate-900/30" style={{ width: '293px' }}>
           {/* Text Answer - Top Left */}
           {data.text_response && (
             <div className="p-4 border-b border-slate-800/50">
