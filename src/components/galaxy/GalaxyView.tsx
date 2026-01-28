@@ -12,6 +12,7 @@ import { GalaxyHeader } from './GalaxyHeader';
 import { GalaxyLegend } from './GalaxyLegend';
 import { NodeDetailPanel } from './NodeDetailPanel';
 import { NodeTooltip } from './NodeTooltip';
+import { DataTable } from './DataTable';
 
 interface GalaxyViewProps {
   data: IntentMapResponse;
@@ -215,6 +216,9 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
     }
   };
 
+  // Check if we have multiple data elements for table display
+  const hasMultipleDataElements = data.nodes && data.nodes.length > 1;
+
   return (
     <div className="galaxy-container flex flex-col h-full bg-slate-950">
       {/* Header */}
@@ -225,10 +229,42 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
         query={data.query}
       />
 
-      {/* Main content area */}
-      <div className="flex-1 flex">
-        {/* SVG Visualization */}
-        <div className="flex-1 flex items-center justify-center p-4">
+      {/* Main content area - three column layout */}
+      <div className="flex-1 flex min-h-0">
+        {/* Left Panel - Text Response & Data Table */}
+        <div className="w-72 flex-shrink-0 flex flex-col border-r border-slate-800 bg-slate-900/30">
+          {/* Text Answer - Top Left */}
+          {data.text_response && (
+            <div className="p-4 border-b border-slate-800/50">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                Answer
+              </h3>
+              <p className="text-slate-200 text-sm leading-relaxed">
+                {data.text_response}
+              </p>
+              {data.needs_clarification && data.clarification_prompt && (
+                <p className="text-amber-400 text-sm mt-3 p-2 bg-amber-900/20 rounded border border-amber-800/30">
+                  {data.clarification_prompt}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Data Table - Below Text Answer */}
+          {hasMultipleDataElements && (
+            <div className="flex-1 overflow-auto p-3">
+              <DataTable nodes={data.nodes} title="Data Points" />
+            </div>
+          )}
+
+          {/* Legend at bottom of left panel */}
+          <div className="mt-auto border-t border-slate-800/50">
+            <GalaxyLegend compact />
+          </div>
+        </div>
+
+        {/* Center - SVG Visualization */}
+        <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
           <svg
             ref={svgRef}
             width={width}
@@ -437,7 +473,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
           </svg>
         </div>
 
-        {/* Node Detail Panel */}
+        {/* Right Panel - Node Detail Panel */}
         {selectedNode && (
           <NodeDetailPanel
             node={selectedNode}
@@ -446,21 +482,6 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
           />
         )}
       </div>
-
-      {/* Text Response */}
-      {data.text_response && (
-        <div className="px-4 py-3 bg-slate-900/70 border-t border-slate-800">
-          <p className="text-slate-300 text-sm">{data.text_response}</p>
-          {data.needs_clarification && data.clarification_prompt && (
-            <p className="text-amber-400 text-sm mt-2">
-              {data.clarification_prompt}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Legend */}
-      <GalaxyLegend />
     </div>
   );
 };

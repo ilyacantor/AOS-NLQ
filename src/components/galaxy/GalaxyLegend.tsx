@@ -1,7 +1,61 @@
 import React from 'react';
 import { DOMAIN_COLORS, FRESHNESS_COLORS } from './types';
 
-export const GalaxyLegend: React.FC = () => {
+interface GalaxyLegendProps {
+  compact?: boolean;
+}
+
+export const GalaxyLegend: React.FC<GalaxyLegendProps> = ({ compact = false }) => {
+  if (compact) {
+    // Compact vertical layout for sidebar
+    return (
+      <div className="p-3 bg-slate-900/30 text-xs space-y-3">
+        {/* Match Types */}
+        <div>
+          <span className="text-slate-500 text-[10px] uppercase tracking-wide">Match Type</span>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-slate-400">Exact</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              <span className="text-slate-400">Potential</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-slate-500" />
+              <span className="text-slate-400">Hypothesis</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Domains */}
+        <div>
+          <span className="text-slate-500 text-[10px] uppercase tracking-wide">Domain</span>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: DOMAIN_COLORS.finance }} />
+              <span className="text-slate-400">Finance</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: DOMAIN_COLORS.growth }} />
+              <span className="text-slate-400">Growth</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: DOMAIN_COLORS.ops }} />
+              <span className="text-slate-400">Ops</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: DOMAIN_COLORS.product }} />
+              <span className="text-slate-400">Product</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Full horizontal layout (original)
   return (
     <div className="flex items-center justify-between px-4 py-3 bg-slate-900/50 border-t border-slate-800 text-xs">
       {/* Domain Colors */}
