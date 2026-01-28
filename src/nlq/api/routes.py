@@ -37,6 +37,12 @@ from src.nlq.knowledge.schema import FINANCIAL_SCHEMA, get_metric_unit
 from src.nlq.llm.client import ClaudeClient
 from src.nlq.models.query import NLQRequest, QueryIntent
 from src.nlq.models.response import AmbiguityType, IntentMapResponse, IntentNode, MatchType, NLQResponse, RelatedMetric
+from src.nlq.core.personality import (
+    generate_personality_response,
+    handle_off_topic_or_easter_egg,
+    detect_persona_from_question,
+    detect_persona_from_metric,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1300,6 +1306,21 @@ async def query(request: NLQRequest) -> NLQResponse:
     Returns the answer with confidence score bounded [0.0, 1.0].
     """
     try:
+        # Check for off-topic queries or easter eggs first
+        off_topic_response = handle_off_topic_or_easter_egg(request.question)
+        if off_topic_response:
+            persona = detect_persona_from_question(request.question)
+            return NLQResponse(
+                success=True,
+                answer=off_topic_response,
+                value=None,
+                unit=None,
+                confidence=1.0,
+                parsed_intent="OFF_TOPIC",
+                resolved_metric=None,
+                resolved_period=None,
+            )
+
         # Get dependencies
         fact_base = get_fact_base()
         claude_client = get_claude_client()
@@ -1406,6 +1427,26 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
     - Persona and disambiguation info
     """
     try:
+        # Check for off-topic queries or easter eggs first
+        off_topic_response = handle_off_topic_or_easter_egg(request.question)
+        if off_topic_response:
+            persona = detect_persona_from_question(request.question)
+            return IntentMapResponse(
+                query=request.question,
+                query_type="OFF_TOPIC",
+                ambiguity_type=None,
+                persona=persona,
+                overall_confidence=1.0,
+                overall_data_quality=1.0,
+                node_count=0,
+                nodes=[],
+                primary_node_id=None,
+                primary_answer=off_topic_response,
+                text_response=off_topic_response,
+                needs_clarification=False,
+                clarification_prompt=None,
+            )
+
         fact_base = get_fact_base()
         claude_client = get_claude_client()
 
