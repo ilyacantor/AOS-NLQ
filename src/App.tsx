@@ -247,6 +247,7 @@ function App() {
             >
               Dashboard
             </button>
+            </div>
           </div>
         </div>
 
