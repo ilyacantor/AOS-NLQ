@@ -270,7 +270,6 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             width={width}
             height={height}
             className="galaxy-svg"
-            style={{ filter: 'drop-shadow(0 0 20px rgba(59, 130, 246, 0.15))' }}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
