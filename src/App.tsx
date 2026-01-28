@@ -433,7 +433,7 @@ function App() {
         </main>
 
         {/* Right Sidebar - History Panel */}
-        <aside className="w-72 border-l border-slate-800 flex flex-col bg-slate-900/30">
+        <aside className="w-[283px] border-l border-slate-800 flex flex-col bg-slate-900/30">
           {/* Panel Tabs */}
           <div className="flex border-b border-slate-800">
             {(['History', 'Debug'] as PanelTab[]).map((tab) => (
