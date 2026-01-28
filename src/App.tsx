@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { GalaxyView, IntentMapResponse } from './components/galaxy'
+import { Dashboard } from './components/dashboard'
 
 interface QueryHistoryItem {
   id: string
@@ -35,10 +36,17 @@ interface NLQResponse {
   related_metrics?: RelatedMetric[]
 }
 
-type ViewMode = 'text' | 'galaxy'
+type ViewMode = 'text' | 'galaxy' | 'dashboard'
+type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'People'
 type PanelTab = 'History' | 'Debug'
 
 const quickActions = [
+  // Dashboards
+  'CFO dashboard',
+  'CRO dashboard',
+  'COO dashboard',
+  'CTO dashboard',
+  '2025 KPIs',
   // CFO
   'whats the margin',
   'are we profitable',
@@ -55,13 +63,23 @@ const quickActions = [
   'who is the CEO',
   'pto days',
   '401k match',
-  // Dashboard
-  '2025 KPIs',
 ]
+
+// Helper to detect dashboard requests
+const isDashboardQuery = (q: string): Persona | null => {
+  const lower = q.toLowerCase()
+  if (lower.includes('cfo dashboard') || lower.includes('finance dashboard')) return 'CFO'
+  if (lower.includes('cro dashboard') || lower.includes('sales dashboard')) return 'CRO'
+  if (lower.includes('coo dashboard') || lower.includes('ops dashboard') || lower.includes('operations dashboard')) return 'COO'
+  if (lower.includes('cto dashboard') || lower.includes('tech dashboard') || lower.includes('engineering dashboard')) return 'CTO'
+  if (lower.includes('people dashboard') || lower.includes('hr dashboard')) return 'People'
+  return null
+}
 
 function App() {
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('galaxy')
+  const [dashboardPersona, setDashboardPersona] = useState<Persona>('CFO')
   const [panelTab, setPanelTab] = useState<PanelTab>('History')
   const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -75,6 +93,27 @@ function App() {
     const textToSubmit = queryText ?? query
     if (!textToSubmit.trim()) return
 
+    // Check for dashboard query first
+    const persona = isDashboardQuery(textToSubmit)
+    if (persona) {
+      setDashboardPersona(persona)
+      setViewMode('dashboard')
+      setQuery('')
+      setLastQuery(textToSubmit)
+      // Add to history
+      const now = new Date()
+      const timestamp = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+      const newItem: QueryHistoryItem = {
+        id: Date.now().toString(),
+        query: textToSubmit,
+        timestamp: timestamp,
+        duration: '0ms',
+        tag: `${persona} Dashboard`,
+      }
+      setQueryHistory(prev => [newItem, ...prev])
+      return
+    }
+
     setIsLoading(true)
     setQuery(textToSubmit)
     setTextResponse(null)
@@ -85,7 +124,7 @@ function App() {
 
     try {
       // Fetch from intent-map endpoint for Galaxy view
-      const endpoint = viewMode === 'galaxy' ? '/api/v1/intent-map' : '/api/v1/query'
+      const endpoint = viewMode === 'galaxy' || viewMode === 'dashboard' ? '/api/v1/intent-map' : '/api/v1/query'
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -197,6 +236,16 @@ function App() {
             >
               Text View
             </button>
+            <button
+              onClick={() => setViewMode('dashboard')}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'dashboard'
+                  ? 'bg-slate-700 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Dashboard
+            </button>
           </div>
         </div>
 
@@ -249,6 +298,20 @@ function App() {
 
           {/* Results Area */}
           <div className="flex-1 overflow-hidden">
+            {/* Dashboard View */}
+            {viewMode === 'dashboard' && (
+              <div className="h-full overflow-hidden">
+                <Dashboard
+                  persona={dashboardPersona}
+                  onNLQQuery={(q) => {
+                    // Switch to galaxy view for drill-down queries
+                    setViewMode('galaxy')
+                    handleSubmit(q)
+                  }}
+                />
+              </div>
+            )}
+
             {/* Galaxy View */}
             {viewMode === 'galaxy' && galaxyResponse && (
               <div className="h-full overflow-hidden">
