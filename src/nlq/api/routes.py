@@ -558,6 +558,230 @@ def _handle_people_query(question: str, fact_base) -> Optional[NLQResponse]:
 
     return None  # Not a People query we can handle
 
+
+def _is_dashboard_query(question: str) -> bool:
+    """Detect if this is a dashboard/report request."""
+    q = question.lower()
+
+    dashboard_terms = [
+        "dashboard", "report", "summary", "overview", "scorecard",
+        "give me a dashboard", "show me a dashboard", "get me a dashboard",
+        "executive summary", "board deck", "board report",
+        "how are we doing", "how's the business", "business review",
+        "quarterly report", "q1 report", "q2 report", "q3 report", "q4 report",
+        "monthly report", "weekly report", "status report",
+        "kpis", "key metrics", "top metrics", "main metrics",
+    ]
+
+    return any(term in q for term in dashboard_terms)
+
+
+def _extract_period_from_dashboard_query(question: str) -> str:
+    """Extract period from dashboard query, default to latest quarter."""
+    q = question.lower()
+
+    # Check for specific quarter mentions
+    import re
+    quarter_match = re.search(r'q([1-4])\s*(?:20)?(\d{2})?', q)
+    if quarter_match:
+        quarter = f"Q{quarter_match.group(1)}"
+        year = quarter_match.group(2)
+        if year:
+            year = f"20{year}" if len(year) == 2 else year
+        else:
+            year = "2025"  # Default year
+        return f"{year}-{quarter}"
+
+    # Check for year mentions
+    year_match = re.search(r'20(2[4-6])', q)
+    if year_match:
+        return f"20{year_match.group(1)}"
+
+    # Default to Q4 2025 (latest full quarter)
+    return "2025-Q4"
+
+
+def _handle_dashboard_query(question: str, fact_base) -> Optional[IntentMapResponse]:
+    """Generate persona-specific dashboard with key metrics."""
+    import json
+
+    with open('data/fact_base.json') as f:
+        data = json.load(f)
+
+    q = question.lower()
+    period = _extract_period_from_dashboard_query(question)
+
+    # Find the right data period
+    quarterly_data = data.get('quarterly', [])
+
+    # Try exact match first, then fall back to latest
+    period_data = None
+    for qd in quarterly_data:
+        if qd.get('period') == period:
+            period_data = qd
+            break
+
+    if not period_data:
+        # Default to most recent quarter (Q4 2025)
+        period_data = next((qd for qd in quarterly_data if qd.get('period') == '2025-Q4'), quarterly_data[-1])
+        period = period_data.get('period', '2025-Q4')
+
+    # Detect persona from question or default based on keywords
+    persona = _detect_dashboard_persona(question)
+
+    # Build dashboard based on persona
+    nodes = []
+    text_lines = []
+
+    if persona == "CFO":
+        metrics = [
+            ("revenue", "Revenue", period_data.get('revenue'), "M", Domain.FINANCE),
+            ("gross_margin_pct", "Gross Margin", period_data.get('gross_margin_pct'), "%", Domain.FINANCE),
+            ("operating_margin_pct", "Operating Margin", period_data.get('operating_margin_pct'), "%", Domain.FINANCE),
+            ("net_income", "Net Income", period_data.get('net_income'), "M", Domain.FINANCE),
+            ("cash", "Cash", period_data.get('cash'), "M", Domain.FINANCE),
+            ("arr", "ARR", period_data.get('arr'), "M", Domain.FINANCE),
+            ("burn_multiple", "Burn Multiple", period_data.get('burn_multiple'), "x", Domain.FINANCE),
+        ]
+        text_lines.append(f"**CFO Dashboard ({period})**")
+        text_lines.append(f"Revenue: ${period_data.get('revenue')}M | Gross Margin: {period_data.get('gross_margin_pct')}%")
+        text_lines.append(f"Operating Margin: {period_data.get('operating_margin_pct')}% | Net Income: ${period_data.get('net_income')}M")
+        text_lines.append(f"Cash: ${period_data.get('cash')}M | ARR: ${period_data.get('arr')}M | Burn: {period_data.get('burn_multiple')}x")
+
+    elif persona == "CRO":
+        metrics = [
+            ("pipeline", "Pipeline", period_data.get('pipeline'), "M", Domain.GROWTH),
+            ("win_rate", "Win Rate", period_data.get('win_rate'), "%", Domain.GROWTH),
+            ("gross_churn_pct", "Churn", period_data.get('gross_churn_pct'), "%", Domain.GROWTH),
+            ("nrr", "NRR", period_data.get('nrr'), "%", Domain.GROWTH),
+            ("sales_cycle_days", "Sales Cycle", period_data.get('sales_cycle_days'), "days", Domain.GROWTH),
+            ("quota_attainment", "Quota Attainment", period_data.get('quota_attainment'), "%", Domain.GROWTH),
+            ("new_logo_revenue", "New Logo Revenue", period_data.get('new_logo_revenue'), "M", Domain.GROWTH),
+        ]
+        text_lines.append(f"**CRO Dashboard ({period})**")
+        text_lines.append(f"Pipeline: ${period_data.get('pipeline')}M | Win Rate: {period_data.get('win_rate')}%")
+        text_lines.append(f"Churn: {period_data.get('gross_churn_pct')}% | NRR: {period_data.get('nrr')}%")
+        text_lines.append(f"Sales Cycle: {period_data.get('sales_cycle_days')} days | Quota: {period_data.get('quota_attainment')}%")
+
+    elif persona == "COO":
+        metrics = [
+            ("headcount", "Headcount", period_data.get('headcount'), "", Domain.OPS),
+            ("revenue_per_employee", "Rev/Employee", period_data.get('revenue_per_employee'), "M", Domain.OPS),
+            ("magic_number", "Magic Number", period_data.get('magic_number'), "", Domain.OPS),
+            ("cac_payback_months", "CAC Payback", period_data.get('cac_payback_months'), "mo", Domain.OPS),
+            ("ltv_cac", "LTV/CAC", period_data.get('ltv_cac'), "x", Domain.OPS),
+            ("attrition_rate", "Attrition Rate", period_data.get('attrition_rate'), "%", Domain.OPS),
+            ("implementation_days", "Impl. Days", period_data.get('implementation_days'), "days", Domain.OPS),
+        ]
+        text_lines.append(f"**COO Dashboard ({period})**")
+        text_lines.append(f"Headcount: {period_data.get('headcount')} | Rev/Employee: ${period_data.get('revenue_per_employee')}M")
+        text_lines.append(f"Magic Number: {period_data.get('magic_number')} | CAC Payback: {period_data.get('cac_payback_months')} months")
+        text_lines.append(f"LTV/CAC: {period_data.get('ltv_cac')}x | Attrition: {period_data.get('attrition_rate')}%")
+
+    elif persona == "CTO":
+        metrics = [
+            ("uptime_pct", "Uptime", period_data.get('uptime_pct'), "%", Domain.PRODUCT),
+            ("deploys_per_week", "Deploys/Week", period_data.get('deploys_per_week'), "", Domain.PRODUCT),
+            ("mttr_p1_hours", "MTTR (P1)", period_data.get('mttr_p1_hours'), "hrs", Domain.PRODUCT),
+            ("sprint_velocity", "Velocity", period_data.get('sprint_velocity'), "pts", Domain.PRODUCT),
+            ("tech_debt_pct", "Tech Debt", period_data.get('tech_debt_pct'), "%", Domain.PRODUCT),
+            ("code_coverage_pct", "Code Coverage", period_data.get('code_coverage_pct'), "%", Domain.PRODUCT),
+            ("features_shipped", "Features Shipped", period_data.get('features_shipped'), "", Domain.PRODUCT),
+        ]
+        text_lines.append(f"**CTO Dashboard ({period})**")
+        text_lines.append(f"Uptime: {period_data.get('uptime_pct')}% | Deploys: {period_data.get('deploys_per_week')}/week")
+        text_lines.append(f"MTTR: {period_data.get('mttr_p1_hours')}hrs | Velocity: {period_data.get('sprint_velocity')} pts")
+        text_lines.append(f"Tech Debt: {period_data.get('tech_debt_pct')}% | Coverage: {period_data.get('code_coverage_pct')}%")
+
+    elif persona == "People":
+        metrics = [
+            ("headcount", "Headcount", period_data.get('headcount'), "", Domain.PEOPLE),
+            ("hires", "New Hires", period_data.get('hires'), "", Domain.PEOPLE),
+            ("attrition_rate", "Attrition", period_data.get('attrition_rate'), "%", Domain.PEOPLE),
+            ("engineering_headcount", "Engineering", period_data.get('engineering_headcount'), "", Domain.PEOPLE),
+            ("sales_headcount", "Sales", period_data.get('sales_headcount'), "", Domain.PEOPLE),
+            ("cs_headcount", "Customer Success", period_data.get('cs_headcount'), "", Domain.PEOPLE),
+            ("csat", "CSAT", period_data.get('csat'), "/5", Domain.PEOPLE),
+        ]
+        text_lines.append(f"**People Dashboard ({period})**")
+        text_lines.append(f"Headcount: {period_data.get('headcount')} | Hires: {period_data.get('hires')} | Attrition: {period_data.get('attrition_rate')}%")
+        text_lines.append(f"Engineering: {period_data.get('engineering_headcount')} | Sales: {period_data.get('sales_headcount')} | CS: {period_data.get('cs_headcount')}")
+
+    else:
+        # Executive/General dashboard - mix of all
+        metrics = [
+            ("revenue", "Revenue", period_data.get('revenue'), "M", Domain.FINANCE),
+            ("gross_margin_pct", "Gross Margin", period_data.get('gross_margin_pct'), "%", Domain.FINANCE),
+            ("pipeline", "Pipeline", period_data.get('pipeline'), "M", Domain.GROWTH),
+            ("nrr", "NRR", period_data.get('nrr'), "%", Domain.GROWTH),
+            ("headcount", "Headcount", period_data.get('headcount'), "", Domain.OPS),
+            ("uptime_pct", "Uptime", period_data.get('uptime_pct'), "%", Domain.PRODUCT),
+            ("cash", "Cash", period_data.get('cash'), "M", Domain.FINANCE),
+        ]
+        persona = "Executive"
+        text_lines.append(f"**Executive Dashboard ({period})**")
+        text_lines.append(f"Revenue: ${period_data.get('revenue')}M | Margin: {period_data.get('gross_margin_pct')}% | Cash: ${period_data.get('cash')}M")
+        text_lines.append(f"Pipeline: ${period_data.get('pipeline')}M | NRR: {period_data.get('nrr')}%")
+        text_lines.append(f"Headcount: {period_data.get('headcount')} | Uptime: {period_data.get('uptime_pct')}%")
+
+    # Build nodes
+    for i, (metric, display, value, unit, domain) in enumerate(metrics):
+        if value is not None:
+            formatted = f"{value}{unit}" if unit else str(value)
+            if unit == "M":
+                formatted = f"${value}M"
+            nodes.append(IntentNode(
+                id=f"dash_{i}",
+                metric=metric,
+                display_name=display,
+                match_type=MatchType.EXACT,
+                domain=domain,
+                confidence=0.95,
+                data_quality=1.0,
+                freshness="0h",
+                value=value,
+                formatted_value=formatted,
+                period=period,
+                semantic_label="Dashboard Metric",
+            ))
+
+    text_response = "\n".join(text_lines)
+
+    return IntentMapResponse(
+        query=question,
+        query_type="DASHBOARD",
+        ambiguity_type=None,
+        persona=persona,
+        overall_confidence=0.95,
+        overall_data_quality=1.0,
+        node_count=len(nodes),
+        nodes=nodes,
+        primary_node_id="dash_0" if nodes else None,
+        primary_answer=text_response,
+        text_response=text_response,
+        needs_clarification=False,
+        clarification_prompt=None,
+    )
+
+
+def _detect_dashboard_persona(question: str) -> str:
+    """Detect which persona's dashboard to show."""
+    q = question.lower()
+
+    if any(term in q for term in ["cfo", "finance", "financial", "revenue", "margin", "cash"]):
+        return "CFO"
+    elif any(term in q for term in ["cro", "sales", "pipeline", "churn", "nrr", "quota"]):
+        return "CRO"
+    elif any(term in q for term in ["coo", "operations", "ops", "efficiency", "headcount", "magic number"]):
+        return "COO"
+    elif any(term in q for term in ["cto", "engineering", "tech", "product", "uptime", "velocity"]):
+        return "CTO"
+    elif any(term in q for term in ["people", "hr", "hiring", "attrition", "team"]):
+        return "People"
+    else:
+        return "Executive"  # Default to executive overview
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -1844,6 +2068,23 @@ async def query(request: NLQRequest) -> NLQResponse:
             if people_response:
                 return people_response
 
+        # Check for dashboard/report queries (doesn't need Claude API)
+        if _is_dashboard_query(request.question):
+            dashboard_response = _handle_dashboard_query(request.question, fact_base)
+            if dashboard_response:
+                # Convert IntentMapResponse to NLQResponse for text endpoint
+                return NLQResponse(
+                    success=True,
+                    answer=dashboard_response.text_response,
+                    value=None,
+                    unit=None,
+                    confidence=dashboard_response.overall_confidence,
+                    parsed_intent="DASHBOARD",
+                    resolved_metric="dashboard",
+                    resolved_period=dashboard_response.nodes[0].period if dashboard_response.nodes else None,
+                    related_metrics=_nodes_to_related_metrics(dashboard_response.nodes),
+                )
+
         # Check for ambiguity first (same as Galaxy endpoint)
         ambiguity_type, candidates, clarification = detect_ambiguity(request.question)
 
@@ -2002,6 +2243,12 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                     needs_clarification=False,
                     clarification_prompt=None,
                 )
+
+        # Check for dashboard/report queries (doesn't need Claude API)
+        if _is_dashboard_query(request.question):
+            dashboard_response = _handle_dashboard_query(request.question, fact_base)
+            if dashboard_response:
+                return dashboard_response
 
         claude_client = get_claude_client()
         parser = QueryParser(claude_client)
