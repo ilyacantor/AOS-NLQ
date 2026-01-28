@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { GalaxyView, IntentMapResponse } from './components/galaxy'
 
 interface QueryHistoryItem {
@@ -158,6 +158,11 @@ function App() {
   }
 
   const hasResponse = galaxyResponse || textResponse
+
+  // Load default query on mount
+  useEffect(() => {
+    handleSubmit('2025 results')
+  }, [])
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
