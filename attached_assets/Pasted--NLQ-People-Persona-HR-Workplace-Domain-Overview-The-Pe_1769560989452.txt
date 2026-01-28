@@ -1,0 +1,528 @@
+# NLQ People Persona - HR & Workplace Domain
+
+## Overview
+
+The **People** persona handles HR, benefits, workplace policies, and employee directory queries. This is the "digital phonebook + HR portal" persona.
+
+**Domain:** HR & Workplace
+**Color:** Orange (#F97316)
+**Personality:** Helpful, warm, knows where everything is, the person everyone asks for help
+
+---
+
+## PART 1: FACT BASE
+
+### Company Directory (Sample Employees)
+
+| Name | Title | Department | Manager | Location | Email | Phone | Start Date |
+|------|-------|------------|---------|----------|-------|-------|------------|
+| Sarah Chen | CEO | Executive | - | SF HQ | sarah.chen@company.com | x1001 | 2018-03-15 |
+| Michael Torres | CFO | Finance | Sarah Chen | SF HQ | michael.torres@company.com | x1002 | 2019-06-01 |
+| Jennifer Park | CRO | Sales | Sarah Chen | NYC | jennifer.park@company.com | x1003 | 2020-01-15 |
+| David Kim | COO | Operations | Sarah Chen | SF HQ | david.kim@company.com | x1004 | 2019-09-01 |
+| Rachel Martinez | CTO | Engineering | Sarah Chen | SF HQ | rachel.martinez@company.com | x1005 | 2018-06-01 |
+| James Wilson | VP Engineering | Engineering | Rachel Martinez | SF HQ | james.wilson@company.com | x2001 | 2020-03-15 |
+| Emily Thompson | VP Sales | Sales | Jennifer Park | NYC | emily.thompson@company.com | x2002 | 2021-01-10 |
+| Alex Johnson | VP Product | Product | Rachel Martinez | SF HQ | alex.johnson@company.com | x2003 | 2020-08-01 |
+| Maria Garcia | VP People | People | David Kim | SF HQ | maria.garcia@company.com | x2004 | 2021-04-01 |
+| Robert Brown | VP Finance | Finance | Michael Torres | SF HQ | robert.brown@company.com | x2005 | 2020-11-15 |
+| Lisa Wang | VP Marketing | Marketing | Jennifer Park | NYC | lisa.wang@company.com | x2006 | 2021-06-01 |
+| Chris Lee | VP Customer Success | Customer Success | David Kim | Austin | chris.lee@company.com | x2007 | 2021-03-01 |
+| Amanda Foster | Director of Recruiting | People | Maria Garcia | SF HQ | amanda.foster@company.com | x3001 | 2022-01-15 |
+| Kevin Patel | Director of IT | Engineering | Rachel Martinez | SF HQ | kevin.patel@company.com | x3002 | 2021-08-01 |
+| Nicole Adams | HR Business Partner | People | Maria Garcia | NYC | nicole.adams@company.com | x3003 | 2022-04-01 |
+
+### Org Structure
+
+```
+CEO (Sarah Chen)
+├── CFO (Michael Torres)
+│   └── VP Finance (Robert Brown)
+├── CRO (Jennifer Park)
+│   ├── VP Sales (Emily Thompson)
+│   └── VP Marketing (Lisa Wang)
+├── COO (David Kim)
+│   ├── VP People (Maria Garcia)
+│   │   ├── Director of Recruiting (Amanda Foster)
+│   │   └── HR Business Partner (Nicole Adams)
+│   └── VP Customer Success (Chris Lee)
+└── CTO (Rachel Martinez)
+    ├── VP Engineering (James Wilson)
+    ├── VP Product (Alex Johnson)
+    └── Director of IT (Kevin Patel)
+```
+
+### Department Headcount
+
+| Department | 2024 | 2025 | 2026F |
+|------------|------|------|-------|
+| Engineering | 80 | 115 | 150 |
+| Sales | 45 | 60 | 80 |
+| Marketing | 25 | 35 | 45 |
+| Product | 20 | 30 | 40 |
+| Customer Success | 35 | 50 | 65 |
+| People/HR | 15 | 20 | 25 |
+| Finance | 15 | 20 | 25 |
+| G&A/Admin | 15 | 20 | 20 |
+| **Total** | **250** | **350** | **450** |
+
+### Office Locations
+
+| Location | Address | Headcount | Time Zone |
+|----------|---------|-----------|-----------|
+| SF HQ | 123 Market St, San Francisco, CA 94105 | 200 | PST |
+| NYC | 456 Broadway, New York, NY 10013 | 100 | EST |
+| Austin | 789 Congress Ave, Austin, TX 78701 | 50 | CST |
+| Remote | - | Variable | Various |
+
+### PTO & Leave Policies
+
+| Policy | Details |
+|--------|---------|
+| PTO Days | 20 days/year (unlimited for L6+) |
+| Sick Days | Unlimited (no tracking) |
+| Holidays | 11 company holidays |
+| Parental Leave | 16 weeks paid (all parents) |
+| Bereavement | 5 days immediate family, 3 days extended |
+| Jury Duty | Full pay during service |
+| Sabbatical | 4 weeks after 5 years |
+| Volunteer Days | 2 days/year |
+
+### 2026 Holiday Calendar
+
+| Holiday | Date | Day |
+|---------|------|-----|
+| New Year's Day | Jan 1 | Thursday |
+| MLK Jr. Day | Jan 19 | Monday |
+| Presidents Day | Feb 16 | Monday |
+| Memorial Day | May 25 | Monday |
+| Independence Day | Jul 3 | Friday (observed) |
+| Labor Day | Sep 7 | Monday |
+| Thanksgiving | Nov 26 | Thursday |
+| Day After Thanksgiving | Nov 27 | Friday |
+| Christmas Eve | Dec 24 | Thursday |
+| Christmas Day | Dec 25 | Friday |
+| New Year's Eve | Dec 31 | Thursday |
+
+### Benefits Summary
+
+| Benefit | Details |
+|---------|---------|
+| Health Insurance | Anthem Blue Cross (3 plans: Bronze, Silver, Gold) |
+| Dental | Delta Dental |
+| Vision | VSP |
+| 401(k) | 4% company match, immediate vesting |
+| HSA | Company contributes $1,000/year |
+| Life Insurance | 2x salary (up to $500K) |
+| Disability | Short-term (60%) + Long-term (60%) |
+| Commuter | $300/month pre-tax |
+| Wellness | $100/month stipend |
+| Learning | $2,000/year education budget |
+| WFH Stipend | $500 one-time setup |
+
+### Internal Tools & Systems
+
+| System | Purpose | URL/Access |
+|--------|---------|------------|
+| Workday | HR, payroll, time off | workday.company.com |
+| Okta | SSO, app launcher | okta.company.com |
+| Slack | Messaging | company.slack.com |
+| Zoom | Video meetings | zoom.us |
+| Google Workspace | Email, docs, calendar | mail.company.com |
+| Salesforce | CRM | salesforce.company.com |
+| Jira | Engineering tickets | jira.company.com |
+| Confluence | Wiki/documentation | confluence.company.com |
+| Concur | Expenses | concur.company.com |
+| Greenhouse | Recruiting | greenhouse.company.com |
+| Lattice | Performance reviews | lattice.company.com |
+| Deel | International payroll | deel.company.com |
+
+### Key Policies & Documents
+
+| Document | Location |
+|----------|----------|
+| Employee Handbook | confluence.company.com/handbook |
+| Travel Policy | confluence.company.com/travel |
+| Expense Policy | confluence.company.com/expenses |
+| Remote Work Policy | confluence.company.com/remote |
+| Code of Conduct | confluence.company.com/conduct |
+| Security Policy | confluence.company.com/security |
+| Brand Guidelines | confluence.company.com/brand |
+| Logo & Assets | drive.company.com/brand-assets |
+| Org Chart | workday.company.com/orgchart |
+| Benefits Guide | confluence.company.com/benefits |
+
+### Key Contacts
+
+| Need | Contact | Email |
+|------|---------|-------|
+| HR Questions | Maria Garcia | maria.garcia@company.com |
+| Benefits | Nicole Adams | nicole.adams@company.com |
+| Recruiting | Amanda Foster | amanda.foster@company.com |
+| IT Support | Kevin Patel | kevin.patel@company.com |
+| IT Help Desk | - | it-help@company.com |
+| Payroll | Robert Brown | payroll@company.com |
+| Facilities | - | facilities@company.com |
+| Security | - | security@company.com |
+
+---
+
+## PART 2: DIRECT QUESTIONS (P1-P55)
+
+### People Lookup Questions
+
+| ID | Question | Ground Truth |
+|----|----------|--------------|
+| P1 | Who is the CEO? | Sarah Chen |
+| P2 | Who is the CFO? | Michael Torres |
+| P3 | Who is the CTO? | Rachel Martinez |
+| P4 | Who runs Sales? | Jennifer Park (CRO) |
+| P5 | Who is the VP of Engineering? | James Wilson |
+| P6 | Who does James Wilson report to? | Rachel Martinez (CTO) |
+| P7 | Who reports to the COO? | Maria Garcia (VP People), Chris Lee (VP CS) |
+| P8 | Who is in charge of HR? | Maria Garcia (VP People) |
+| P9 | Who handles recruiting? | Amanda Foster (Director of Recruiting) |
+| P10 | Who is the IT contact? | Kevin Patel (Director of IT) |
+
+### Contact Information Questions
+
+| ID | Question | Ground Truth |
+|----|----------|--------------|
+| P11 | What is Sarah Chen's email? | sarah.chen@company.com |
+| P12 | What's the phone extension for the CFO? | x1002 |
+| P13 | Where is Jennifer Park located? | NYC |
+| P14 | When did Rachel Martinez start? | June 1, 2018 |
+| P15 | What department is Kevin Patel in? | Engineering |
+
+### Org Structure Questions
+
+| ID | Question | Ground Truth |
+|----|----------|--------------|
+| P16 | Show me the org chart | [Org structure with CEO and direct reports] |
+| P17 | How many people report to the CTO? | 3 direct reports (James, Alex, Kevin) |
+| P18 | What's the reporting structure for Engineering? | CTO → VP Eng → Engineering teams |
+| P19 | Who are the VPs? | James Wilson, Emily Thompson, Alex Johnson, Maria Garcia, Robert Brown, Lisa Wang, Chris Lee |
+| P20 | How many executives are there? | 5 (CEO, CFO, CRO, COO, CTO) |
+
+### Headcount Questions
+
+| ID | Question | Ground Truth |
+|----|----------|--------------|
+| P21 | How many people are in Engineering? | 115 (2025), 150 (2026F) |
+| P22 | How big is the Sales team? | 60 (2025), 80 (2026F) |
+| P23 | What's the total company headcount? | 350 (2025), 450 (2026F) |
+| P24 | How many people are in HR? | 20 (2025) |
+| P25 | What's the headcount in NYC? | 100 |
+
+### Office & Location Questions
+
+| ID | Question | Ground Truth |
+|----|----------|--------------|
+| P26 | Where is the headquarters? | 123 Market St, San Francisco, CA 94105 |
+| P27 | What's the NYC office address? | 456 Broadway, New York, NY 10013 |
+| P28 | How many offices do we have? | 3 (SF, NYC, Austin) |
+| P29 | How many people are in Austin? | 50 |
+| P30 | What time zone is HQ in? | PST |
+
+### PTO & Leave Questions
+
+| ID | Question | Ground Truth |
+|----|----------|--------------|
+| P31 | How many PTO days do I get? | 20 days/year (unlimited for L6+) |
+| P32 | What's the parental leave policy? | 16 weeks paid for all parents |
+| P33 | How many holidays are there? | 11 company holidays |
+| P34 | What's the bereavement policy? | 5 days immediate family, 3 days extended |
+| P35 | Is there a sabbatical policy? | Yes, 4 weeks after 5 years |
+
+### Holiday Questions
+
+| ID | Question | Ground Truth |
+|----|----------|--------------|
+| P36 | When is the next holiday? | [Context-dependent - next upcoming] |
+| P37 | Is the office closed for Thanksgiving? | Yes, Nov 26-27, 2026 |
+| P38 | Do we get Christmas Eve off? | Yes, Dec 24 |
+| P39 | When is Memorial Day? | May 25, 2026 |
+| P40 | What are the year-end holidays? | Dec 24, 25, 31 (Christmas Eve, Christmas, NYE) |
+
+### Benefits Questions
+
+| ID | Question | Ground Truth |
+|----|----------|--------------|
+| P41 | What health insurance do we have? | Anthem Blue Cross (Bronze, Silver, Gold plans) |
+| P42 | What's the 401k match? | 4% company match, immediate vesting |
+| P43 | Is there an HSA? | Yes, company contributes $1,000/year |
+| P44 | What's the learning budget? | $2,000/year |
+| P45 | Is there a wellness stipend? | Yes, $100/month |
+
+### Systems & Tools Questions
+
+| ID | Question | Ground Truth |
+|----|----------|--------------|
+| P46 | How do I access Workday? | workday.company.com |
+| P47 | Where do I submit expenses? | Concur - concur.company.com |
+| P48 | How do I request time off? | Workday - workday.company.com |
+| P49 | Where is the employee handbook? | confluence.company.com/handbook |
+| P50 | How do I get IT help? | it-help@company.com or Kevin Patel |
+
+### Policy Questions
+
+| ID | Question | Ground Truth |
+|----|----------|--------------|
+| P51 | What's the travel policy? | confluence.company.com/travel |
+| P52 | Where's the expense policy? | confluence.company.com/expenses |
+| P53 | What's the remote work policy? | confluence.company.com/remote |
+| P54 | Where are the brand guidelines? | confluence.company.com/brand |
+| P55 | Where can I find the logo? | drive.company.com/brand-assets |
+
+---
+
+## PART 3: AMBIGUOUS QUESTIONS (PA1-PA20)
+
+| ID | Question | Type | Expected Response |
+|----|----------|------|-------------------|
+| PA1 | org chart | shorthand | [Display org structure starting with CEO] |
+| PA2 | who's in charge | vague | Sarah Chen is CEO. Need a specific department? |
+| PA3 | PTO | shorthand | 20 days/year. Request via Workday. |
+| PA4 | benefits | broad | Health (Anthem), 401k (4% match), HSA ($1K), plus more. What specifically? |
+| PA5 | holidays | shorthand | 11 holidays in 2026. Next up: [next holiday] |
+| PA6 | help desk | shorthand | IT Help: it-help@company.com or Kevin Patel (x3002) |
+| PA7 | who handles X | vague | [Route based on X - HR, IT, Finance, etc.] |
+| PA8 | directory | shorthand | Employee directory in Workday. Looking for someone specific? |
+| PA9 | where's the office | vague | SF HQ: 123 Market St. Also NYC and Austin. Which one? |
+| PA10 | expenses | shorthand | Submit via Concur. Policy at confluence.company.com/expenses |
+| PA11 | payroll | shorthand | Managed in Workday. Questions? payroll@company.com |
+| PA12 | VPN | shorthand | IT handles VPN. Contact it-help@company.com or Kevin Patel |
+| PA13 | new hire stuff | casual | Onboarding info at confluence.company.com/onboarding |
+| PA14 | who do I talk to about | incomplete | About what? HR, IT, Benefits, Recruiting? |
+| PA15 | parental leave | shorthand | 16 weeks paid for all parents |
+| PA16 | templates | vague | Brand templates at drive.company.com/brand-assets. What kind? |
+| PA17 | training | shorthand | Learning budget: $2K/year. LMS at learning.company.com |
+| PA18 | 401k | shorthand | 4% match, immediate vesting. Managed in Workday |
+| PA19 | logo | shorthand | drive.company.com/brand-assets |
+| PA20 | how do I | incomplete | How do you what? Time off, expenses, IT help? |
+
+---
+
+## PART 4: PEOPLE PERSONA VOICE
+
+```python
+PEOPLE_VOICE = {
+    "greeting": [
+        "Hi! How can I help?",
+        "What do you need to know?",
+        "I'm here to help. What's up?",
+    ],
+    "found_person": [
+        "{name} - {title}. Email: {email}",
+        "That's {name}, our {title}. {email}",
+        "{name} ({title}) - reach them at {email}",
+    ],
+    "found_policy": [
+        "Here's what I know: {info}",
+        "{info}. Need more details?",
+        "Got it: {info}",
+    ],
+    "found_system": [
+        "You can access that at {url}",
+        "Head to {url} for that.",
+        "{system} is at {url}. Need help with it?",
+    ],
+    "multiple_results": [
+        "Found a few options: {results}. Which one?",
+        "There are several: {results}",
+        "A few matches: {results}. Can you narrow it down?",
+    ],
+    "not_found": [
+        "Hmm, not finding that. Can you be more specific?",
+        "I don't have that info. Try checking {suggestion}.",
+        "Not sure about that one. Maybe ask {contact}?",
+    ],
+    "clarification": [
+        "About what specifically?",
+        "Can you tell me more? There are a few options.",
+        "Which one - {options}?",
+    ],
+    "redirect_to_hr": [
+        "That's an HR question. Reach out to Maria Garcia or Nicole Adams.",
+        "Best to check with HR directly: maria.garcia@company.com",
+        "HR handles that - try the People team.",
+    ],
+    "redirect_to_it": [
+        "That's an IT thing. Contact it-help@company.com or Kevin Patel.",
+        "IT Support can help: it-help@company.com",
+        "Kevin Patel (IT) is your person for that: kevin.patel@company.com",
+    ],
+    "off_topic_to_metrics": [
+        "I do people & HR stuff. For metrics, try the CFO view.",
+        "That's more of a numbers question. Switch to CFO or CRO persona.",
+        "I'm the people person, not the numbers person. Try another persona for that.",
+    ],
+}
+```
+
+---
+
+## PART 5: ROUTING LOGIC
+
+```python
+def detect_people_query(question: str) -> bool:
+    """Detect if this is a People/HR query."""
+    
+    q = question.lower()
+    
+    people_terms = [
+        # People lookup
+        "who is", "who's", "who runs", "who handles", "who manages",
+        "reports to", "org chart", "directory", "team",
+        
+        # HR/Benefits
+        "pto", "vacation", "time off", "leave", "parental", "maternity",
+        "paternity", "sabbatical", "holiday", "holidays", "benefits",
+        "health insurance", "dental", "vision", "401k", "hsa",
+        "payroll", "pay stub", "w2", "w-2",
+        
+        # Policies
+        "policy", "handbook", "travel policy", "expense policy",
+        "remote work", "work from home", "wfh",
+        
+        # Systems (HR-related)
+        "workday", "lattice", "greenhouse", "concur", "expenses",
+        
+        # Office/Location
+        "office", "address", "headquarters", "hq", "location",
+        
+        # General HR
+        "hr", "human resources", "people team", "recruiting",
+        "onboarding", "new hire", "training",
+        
+        # Assets
+        "logo", "brand", "templates", "letterhead",
+    ]
+    
+    return any(term in q for term in people_terms)
+
+
+def route_people_query(question: str) -> str:
+    """Route People query to appropriate handler."""
+    
+    q = question.lower()
+    
+    # People lookup
+    if any(term in q for term in ["who is", "who's", "who runs", "reports to"]):
+        return "PERSON_LOOKUP"
+    
+    # Org structure
+    if any(term in q for term in ["org chart", "reporting structure", "team structure"]):
+        return "ORG_STRUCTURE"
+    
+    # PTO/Leave
+    if any(term in q for term in ["pto", "vacation", "time off", "leave", "holiday"]):
+        return "PTO_LEAVE"
+    
+    # Benefits
+    if any(term in q for term in ["benefits", "insurance", "401k", "hsa", "dental"]):
+        return "BENEFITS"
+    
+    # Policies
+    if any(term in q for term in ["policy", "handbook", "guidelines"]):
+        return "POLICY"
+    
+    # Systems
+    if any(term in q for term in ["workday", "concur", "how do i", "where do i"]):
+        return "SYSTEM_ACCESS"
+    
+    # Office/Location
+    if any(term in q for term in ["office", "address", "location", "hq"]):
+        return "LOCATION"
+    
+    # Assets
+    if any(term in q for term in ["logo", "brand", "template"]):
+        return "ASSETS"
+    
+    # Contact
+    if any(term in q for term in ["help desk", "it support", "contact", "email"]):
+        return "CONTACT"
+    
+    return "GENERAL_HR"
+```
+
+---
+
+## PART 6: INTEGRATION WITH OTHER PERSONAS
+
+### Cross-Persona Routing
+
+| User Asks | In People Persona | Route To |
+|-----------|-------------------|----------|
+| "What's our revenue?" | "That's a finance question. Switch to CFO." | CFO |
+| "How's pipeline?" | "Sales metrics are in the CRO view." | CRO |
+| "VPN not working" | "IT handles that: it-help@company.com" | CTO (IT) |
+| "What's uptime?" | "That's a tech question. Try CTO." | CTO |
+| "How many engineers?" | Answer directly (headcount is People domain) | - |
+| "Engineering velocity" | "That's a CTO question." | CTO |
+
+### IT Queries → CTO
+
+Since IT reports to CTO, technical questions route there:
+
+```python
+IT_TERMS = [
+    "vpn", "password", "laptop", "computer", "software",
+    "system down", "not working", "broken", "access",
+    "login", "authentication", "okta", "sso"
+]
+
+def is_it_query(question: str) -> bool:
+    return any(term in question.lower() for term in IT_TERMS)
+
+# In People persona:
+if is_it_query(question):
+    return "For IT issues, contact it-help@company.com or Kevin Patel. For system metrics, try CTO persona."
+```
+
+---
+
+## PART 7: DOMAIN COLORS
+
+Updated domain colors with People:
+
+```python
+DOMAIN_COLORS = {
+    "finance": "#3B82F6",   # Blue - CFO
+    "growth": "#EC4899",    # Pink - CRO
+    "ops": "#10B981",       # Green - COO
+    "product": "#8B5CF6",   # Purple - CTO
+    "people": "#F97316",    # Orange - People
+}
+```
+
+---
+
+## PART 8: SUMMARY
+
+### 5 Personas
+
+| Persona | Domain | Focus | Color |
+|---------|--------|-------|-------|
+| CFO | Finance | P&L, Cash, Margins | Blue |
+| CRO | Growth | Revenue, Pipeline, Churn | Pink |
+| COO | Operations | Efficiency, Utilization | Green |
+| CTO | Product/Tech | Engineering, Uptime, Deploys | Purple |
+| **People** | **HR/Workplace** | **Directory, Benefits, Policies** | **Orange** |
+
+### Total Test Questions: 375
+
+| Persona | Direct | Ambiguous | Total |
+|---------|--------|-----------|-------|
+| CFO | 55 | 20 | 75 |
+| CRO | 55 | 20 | 75 |
+| COO | 55 | 20 | 75 |
+| CTO | 55 | 20 | 75 |
+| People | 55 | 20 | 75 |
+| **Total** | **275** | **100** | **375** |
+
+---
+
+*People Persona Spec v1.0*
+*"I'm the person everyone asks for help"*
+*January 2026*
