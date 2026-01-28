@@ -488,3 +488,50 @@ class QueryCacheService:
         if parsed.get("metric"):
             metrics.append(parsed["metric"])
         return metrics
+
+
+# =============================================================================
+# SINGLETON INSTANCE
+# =============================================================================
+
+_cache_service: Optional["QueryCacheService"] = None
+
+
+def get_cache_service() -> Optional["QueryCacheService"]:
+    """Get the global cache service instance."""
+    global _cache_service
+    return _cache_service
+
+
+def init_cache_service_from_env() -> Optional["QueryCacheService"]:
+    """Initialize the RAG cache service from environment variables."""
+    import os
+    global _cache_service
+
+    pinecone_key = os.getenv("PINECONE_API_KEY", "")
+    openai_key = os.getenv("OPENAI_API_KEY", "")
+
+    if not pinecone_key or not openai_key:
+        logger.warning("RAG cache disabled: PINECONE_API_KEY or OPENAI_API_KEY not set")
+        return None
+
+    config = CacheConfig(
+        pinecone_api_key=pinecone_key,
+        pinecone_index=os.getenv("PINECONE_INDEX", "aos-nlq"),
+        openai_api_key=openai_key,
+        namespace=os.getenv("PINECONE_NAMESPACE", "nlq-query-cache"),
+        threshold_exact=float(os.getenv("CACHE_THRESHOLD_EXACT", "0.95")),
+        threshold_high=float(os.getenv("CACHE_THRESHOLD_HIGH", "0.92")),
+        threshold_partial=float(os.getenv("CACHE_THRESHOLD_PARTIAL", "0.85")),
+        enabled=os.getenv("RAG_CACHE_ENABLED", "true").lower() == "true",
+    )
+
+    _cache_service = QueryCacheService(config)
+
+    if _cache_service.is_available:
+        stats = _cache_service.get_stats()
+        logger.info(f"RAG cache initialized: {stats.get('namespace_vectors', 0)} vectors in cache")
+    else:
+        logger.warning("RAG cache service initialized but not available (check API keys)")
+
+    return _cache_service

@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from ..services.llm_call_counter import get_call_counter
 from ..services.rag_learning_log import get_learning_log
+from ..services.query_cache_service import get_cache_service
 
 logger = logging.getLogger(__name__)
 
@@ -204,9 +205,6 @@ async def get_cache_stats():
 
     Returns the number of cached queries and other metadata.
     """
-    # Import here to avoid circular dependency
-    from ..main import get_cache_service
-
     cache = get_cache_service()
     if cache:
         return cache.get_stats()
@@ -228,8 +226,6 @@ async def seed_cache(
             status_code=400,
             detail="Must pass confirm=true to seed cache"
         )
-
-    from ..main import get_cache_service
 
     cache = get_cache_service()
     if not cache or not cache.is_available:
@@ -270,8 +266,6 @@ async def clear_cache(
             status_code=400,
             detail="Must pass confirm=true to clear cache"
         )
-
-    from ..main import get_cache_service
 
     cache = get_cache_service()
     if not cache or not cache.is_available:
@@ -316,7 +310,6 @@ async def get_rag_status(
     # Get cache stats
     cache_stats = {"available": False}
     try:
-        from ..main import get_cache_service
         cache = get_cache_service()
         if cache:
             cache_stats = cache.get_stats()

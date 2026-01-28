@@ -35,7 +35,7 @@ from src.nlq.core.resolver import PeriodResolver
 from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.knowledge.schema import FINANCIAL_SCHEMA, get_metric_unit
 from src.nlq.llm.client import ClaudeClient
-from src.nlq.models.query import NLQRequest, QueryIntent
+from src.nlq.models.query import NLQRequest, QueryIntent, ParsedQuery, PeriodType
 from src.nlq.models.response import AmbiguityType, Domain, IntentMapResponse, IntentNode, MatchType, NLQResponse, RelatedMetric
 from src.nlq.core.personality import (
     generate_personality_response,
@@ -43,6 +43,74 @@ from src.nlq.core.personality import (
     detect_persona_from_question,
     detect_persona_from_metric,
 )
+from src.nlq.services.llm_call_counter import get_call_counter
+from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
+from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
+
+# =============================================================================
+# RAG CACHE HELPERS
+# =============================================================================
+
+def _cached_to_parsed_query(cached: dict) -> ParsedQuery:
+    """
+    Convert a cached dict from RAG cache back to a ParsedQuery object.
+
+    Args:
+        cached: Dict with intent, metric, period_type, period_reference, etc.
+
+    Returns:
+        ParsedQuery object ready for execution
+    """
+    # Map string intent back to QueryIntent enum
+    intent_str = cached.get("intent", "POINT_QUERY")
+    try:
+        intent = QueryIntent(intent_str)
+    except ValueError:
+        intent = QueryIntent.POINT_QUERY
+
+    # Map string period_type back to PeriodType enum
+    period_type_str = cached.get("period_type", "FULL_YEAR")
+    try:
+        period_type = PeriodType(period_type_str)
+    except ValueError:
+        period_type = PeriodType.FULL_YEAR
+
+    return ParsedQuery(
+        intent=intent,
+        metric=cached.get("metric", "revenue"),
+        period_type=period_type,
+        period_reference=cached.get("period_reference", "2025"),
+        is_relative=False,  # Cached queries have resolved periods
+        comparison_period=cached.get("comparison_period"),
+        aggregation_type=cached.get("aggregation_type"),
+        aggregation_periods=cached.get("aggregation_periods"),
+        breakdown_metrics=cached.get("breakdown_metrics"),
+        raw_metric=cached.get("metric"),
+    )
+
+
+def _parsed_query_to_cache_dict(parsed: ParsedQuery) -> dict:
+    """
+    Convert a ParsedQuery to a dict for storing in RAG cache.
+
+    Args:
+        parsed: ParsedQuery object from Claude parser
+
+    Returns:
+        Dict ready for cache storage
+    """
+    return {
+        "intent": parsed.intent.value,
+        "metric": parsed.metric,
+        "period_type": parsed.period_type.value,
+        "period_reference": parsed.period_reference,
+        "comparison_type": getattr(parsed, 'comparison_type', None),
+        "comparison_period": parsed.comparison_period,
+        "aggregation_type": parsed.aggregation_type,
+        "aggregation_periods": parsed.aggregation_periods,
+        "breakdown_metrics": parsed.breakdown_metrics,
+    }
+
 
 # =============================================================================
 # PEOPLE PERSONA QUERY HANDLING
@@ -2161,16 +2229,85 @@ async def query(request: NLQRequest) -> NLQResponse:
                 fact_base,
             )
 
-        # Set up components (only need Claude API for non-People queries)
-        claude_client = get_claude_client()
-        parser = QueryParser(claude_client)
+        # Set up components
         reference_date = request.reference_date or date.today()
         resolver = PeriodResolver(reference_date)
         executor = QueryExecutor(fact_base)
 
-        # Parse the query
-        parsed = parser.parse(request.question)
-        logger.info(f"Parsed query: {parsed}")
+        # Get session ID from request headers (if available)
+        session_id = getattr(request, 'session_id', None) or "default"
+
+        # =================================================================
+        # RAG CACHE LOOKUP - Check cache before calling Claude
+        # =================================================================
+        cache_service = get_cache_service()
+        parsed = None
+        cache_hit = False
+        cache_result = None
+
+        if cache_service and cache_service.is_available:
+            cache_result = cache_service.lookup(request.question)
+
+            if cache_result.high_confidence and cache_result.parsed:
+                # Use cached parsed structure - no Claude call needed
+                parsed = _cached_to_parsed_query(cache_result.parsed)
+                cache_hit = True
+                logger.info(f"RAG cache hit ({cache_result.hit_type.value}, {cache_result.similarity:.3f}): {request.question[:50]}...")
+
+                # Log to learning log
+                learning_log = get_learning_log()
+                learning_log.log(LearningLogEntry(
+                    query=request.question,
+                    success=True,
+                    cache_hit=True,
+                    similarity=cache_result.similarity,
+                    hit_type=cache_result.hit_type.value,
+                    metric_learned=cache_result.parsed.get("metric"),
+                    session_id=session_id,
+                ))
+
+        # =================================================================
+        # CLAUDE PARSING - Fall back to LLM if no cache hit
+        # =================================================================
+        if not cache_hit:
+            # Initialize Claude client and parser only when needed
+            claude_client = get_claude_client()
+            parser = QueryParser(claude_client)
+
+            # Parse the query with Claude
+            parsed = parser.parse(request.question)
+
+            # Increment LLM call counter
+            call_counter = get_call_counter()
+            call_counter.increment(session_id)
+
+            logger.info(f"Claude parsed query: {parsed}")
+
+            # Store new parse in cache for future use
+            if cache_service and cache_service.is_available:
+                persona = detect_persona_from_metric(parsed.metric) or "CFO"
+                cache_dict = _parsed_query_to_cache_dict(parsed)
+                cache_service.store(
+                    query=request.question,
+                    parsed=cache_dict,
+                    persona=persona,
+                    confidence=0.95,  # Claude parses are high confidence
+                    source="llm",
+                )
+
+            # Log to learning log
+            learning_log = get_learning_log()
+            learning_log.log(LearningLogEntry(
+                query=request.question,
+                success=True,
+                cache_hit=False,
+                similarity=cache_result.similarity if cache_result else 0.0,
+                hit_type=cache_result.hit_type.value if cache_result else "miss",
+                metric_learned=parsed.metric,
+                session_id=session_id,
+            ))
+
+        logger.info(f"Parsed query (cache_hit={cache_hit}): {parsed}")
 
         # Resolve the primary period
         resolved = resolver.resolve(parsed.period_reference)
@@ -2313,8 +2450,6 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
             if dashboard_response:
                 return dashboard_response
 
-        claude_client = get_claude_client()
-        parser = QueryParser(claude_client)
         reference_date = request.reference_date or date.today()
         resolver = PeriodResolver(reference_date)
         executor = QueryExecutor(fact_base)
@@ -2333,9 +2468,78 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 resolver,
             )
 
-        # Parse the query
-        parsed = parser.parse(request.question)
-        logger.info(f"Parsed query for galaxy: {parsed}")
+        # Get session ID from request headers (if available)
+        session_id = getattr(request, 'session_id', None) or "default"
+
+        # =================================================================
+        # RAG CACHE LOOKUP - Check cache before calling Claude
+        # =================================================================
+        cache_service = get_cache_service()
+        parsed = None
+        cache_hit = False
+        cache_result = None
+
+        if cache_service and cache_service.is_available:
+            cache_result = cache_service.lookup(request.question)
+
+            if cache_result.high_confidence and cache_result.parsed:
+                # Use cached parsed structure - no Claude call needed
+                parsed = _cached_to_parsed_query(cache_result.parsed)
+                cache_hit = True
+                logger.info(f"Galaxy RAG cache hit ({cache_result.hit_type.value}, {cache_result.similarity:.3f}): {request.question[:50]}...")
+
+                # Log to learning log
+                learning_log = get_learning_log()
+                learning_log.log(LearningLogEntry(
+                    query=request.question,
+                    success=True,
+                    cache_hit=True,
+                    similarity=cache_result.similarity,
+                    hit_type=cache_result.hit_type.value,
+                    metric_learned=cache_result.parsed.get("metric"),
+                    session_id=session_id,
+                ))
+
+        # =================================================================
+        # CLAUDE PARSING - Fall back to LLM if no cache hit
+        # =================================================================
+        if not cache_hit:
+            # Initialize Claude client and parser only when needed
+            claude_client = get_claude_client()
+            parser = QueryParser(claude_client)
+
+            # Parse the query with Claude
+            parsed = parser.parse(request.question)
+
+            # Increment LLM call counter
+            call_counter = get_call_counter()
+            call_counter.increment(session_id)
+
+            # Store new parse in cache for future use
+            if cache_service and cache_service.is_available:
+                persona = detect_persona_from_metric(parsed.metric) or "CFO"
+                cache_dict = _parsed_query_to_cache_dict(parsed)
+                cache_service.store(
+                    query=request.question,
+                    parsed=cache_dict,
+                    persona=persona,
+                    confidence=0.95,  # Claude parses are high confidence
+                    source="llm",
+                )
+
+            # Log to learning log
+            learning_log = get_learning_log()
+            learning_log.log(LearningLogEntry(
+                query=request.question,
+                success=True,
+                cache_hit=False,
+                similarity=cache_result.similarity if cache_result else 0.0,
+                hit_type=cache_result.hit_type.value if cache_result else "miss",
+                metric_learned=parsed.metric,
+                session_id=session_id,
+            ))
+
+        logger.info(f"Parsed query for galaxy (cache_hit={cache_hit}): {parsed}")
 
         # Resolve periods
         resolved = resolver.resolve(parsed.period_reference)
