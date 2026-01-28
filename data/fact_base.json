@@ -7,7 +7,8 @@
       "CFO",
       "CRO",
       "COO",
-      "CTO"
+      "CTO",
+      "People"
     ],
     "years": [
       2024,
@@ -1482,5 +1483,104 @@
         "quarter": "Q2"
       }
     ]
+  },
+  "people": {
+    "employees": [
+      {"id": "E001", "name": "Sarah Chen", "title": "CEO", "department": "Executive", "manager": null, "location": "SF HQ", "email": "sarah.chen@company.com", "phone": "x1001", "start_date": "2018-03-15"},
+      {"id": "E002", "name": "Michael Torres", "title": "CFO", "department": "Finance", "manager": "Sarah Chen", "location": "SF HQ", "email": "michael.torres@company.com", "phone": "x1002", "start_date": "2019-06-01"},
+      {"id": "E003", "name": "Jennifer Park", "title": "CRO", "department": "Sales", "manager": "Sarah Chen", "location": "NYC", "email": "jennifer.park@company.com", "phone": "x1003", "start_date": "2020-01-15"},
+      {"id": "E004", "name": "David Kim", "title": "COO", "department": "Operations", "manager": "Sarah Chen", "location": "SF HQ", "email": "david.kim@company.com", "phone": "x1004", "start_date": "2019-09-01"},
+      {"id": "E005", "name": "Rachel Martinez", "title": "CTO", "department": "Engineering", "manager": "Sarah Chen", "location": "SF HQ", "email": "rachel.martinez@company.com", "phone": "x1005", "start_date": "2018-06-01"},
+      {"id": "E006", "name": "James Wilson", "title": "VP Engineering", "department": "Engineering", "manager": "Rachel Martinez", "location": "SF HQ", "email": "james.wilson@company.com", "phone": "x2001", "start_date": "2020-03-15"},
+      {"id": "E007", "name": "Emily Thompson", "title": "VP Sales", "department": "Sales", "manager": "Jennifer Park", "location": "NYC", "email": "emily.thompson@company.com", "phone": "x2002", "start_date": "2021-01-10"},
+      {"id": "E008", "name": "Alex Johnson", "title": "VP Product", "department": "Product", "manager": "Rachel Martinez", "location": "SF HQ", "email": "alex.johnson@company.com", "phone": "x2003", "start_date": "2020-08-01"},
+      {"id": "E009", "name": "Maria Garcia", "title": "VP People", "department": "People", "manager": "David Kim", "location": "SF HQ", "email": "maria.garcia@company.com", "phone": "x2004", "start_date": "2021-04-01"},
+      {"id": "E010", "name": "Robert Brown", "title": "VP Finance", "department": "Finance", "manager": "Michael Torres", "location": "SF HQ", "email": "robert.brown@company.com", "phone": "x2005", "start_date": "2020-11-15"},
+      {"id": "E011", "name": "Lisa Wang", "title": "VP Marketing", "department": "Marketing", "manager": "Jennifer Park", "location": "NYC", "email": "lisa.wang@company.com", "phone": "x2006", "start_date": "2021-06-01"},
+      {"id": "E012", "name": "Chris Lee", "title": "VP Customer Success", "department": "Customer Success", "manager": "David Kim", "location": "Austin", "email": "chris.lee@company.com", "phone": "x2007", "start_date": "2021-03-01"},
+      {"id": "E013", "name": "Amanda Foster", "title": "Director of Recruiting", "department": "People", "manager": "Maria Garcia", "location": "SF HQ", "email": "amanda.foster@company.com", "phone": "x3001", "start_date": "2022-01-15"},
+      {"id": "E014", "name": "Kevin Patel", "title": "Director of IT", "department": "Engineering", "manager": "Rachel Martinez", "location": "SF HQ", "email": "kevin.patel@company.com", "phone": "x3002", "start_date": "2021-08-01"},
+      {"id": "E015", "name": "Nicole Adams", "title": "HR Business Partner", "department": "People", "manager": "Maria Garcia", "location": "NYC", "email": "nicole.adams@company.com", "phone": "x3003", "start_date": "2022-04-01"}
+    ],
+    "offices": [
+      {"name": "SF HQ", "address": "123 Market St, San Francisco, CA 94105", "headcount": 200, "timezone": "PST"},
+      {"name": "NYC", "address": "456 Broadway, New York, NY 10013", "headcount": 100, "timezone": "EST"},
+      {"name": "Austin", "address": "789 Congress Ave, Austin, TX 78701", "headcount": 50, "timezone": "CST"}
+    ],
+    "department_headcount": {
+      "2024": {"Engineering": 80, "Sales": 45, "Marketing": 25, "Product": 20, "Customer Success": 35, "People": 15, "Finance": 15, "G&A": 15, "Total": 250},
+      "2025": {"Engineering": 115, "Sales": 60, "Marketing": 35, "Product": 30, "Customer Success": 50, "People": 20, "Finance": 20, "G&A": 20, "Total": 350},
+      "2026": {"Engineering": 150, "Sales": 80, "Marketing": 45, "Product": 40, "Customer Success": 65, "People": 25, "Finance": 25, "G&A": 20, "Total": 450}
+    },
+    "pto_policies": {
+      "pto_days": "20 days/year (unlimited for L6+)",
+      "sick_days": "Unlimited (no tracking)",
+      "holidays": 11,
+      "parental_leave": "16 weeks paid (all parents)",
+      "bereavement": "5 days immediate family, 3 days extended",
+      "jury_duty": "Full pay during service",
+      "sabbatical": "4 weeks after 5 years",
+      "volunteer_days": "2 days/year"
+    },
+    "holidays_2026": [
+      {"name": "New Year's Day", "date": "2026-01-01", "day": "Thursday"},
+      {"name": "MLK Jr. Day", "date": "2026-01-19", "day": "Monday"},
+      {"name": "Presidents Day", "date": "2026-02-16", "day": "Monday"},
+      {"name": "Memorial Day", "date": "2026-05-25", "day": "Monday"},
+      {"name": "Independence Day (observed)", "date": "2026-07-03", "day": "Friday"},
+      {"name": "Labor Day", "date": "2026-09-07", "day": "Monday"},
+      {"name": "Thanksgiving", "date": "2026-11-26", "day": "Thursday"},
+      {"name": "Day After Thanksgiving", "date": "2026-11-27", "day": "Friday"},
+      {"name": "Christmas Eve", "date": "2026-12-24", "day": "Thursday"},
+      {"name": "Christmas Day", "date": "2026-12-25", "day": "Friday"},
+      {"name": "New Year's Eve", "date": "2026-12-31", "day": "Thursday"}
+    ],
+    "benefits": {
+      "health_insurance": "Anthem Blue Cross (Bronze, Silver, Gold plans)",
+      "dental": "Delta Dental",
+      "vision": "VSP",
+      "401k": "4% company match, immediate vesting",
+      "hsa": "Company contributes $1,000/year",
+      "life_insurance": "2x salary (up to $500K)",
+      "disability": "Short-term (60%) + Long-term (60%)",
+      "commuter": "$300/month pre-tax",
+      "wellness_stipend": "$100/month",
+      "learning_budget": "$2,000/year",
+      "wfh_stipend": "$500 one-time setup"
+    },
+    "systems": [
+      {"name": "Workday", "purpose": "HR, payroll, time off", "url": "workday.company.com"},
+      {"name": "Okta", "purpose": "SSO, app launcher", "url": "okta.company.com"},
+      {"name": "Slack", "purpose": "Messaging", "url": "company.slack.com"},
+      {"name": "Zoom", "purpose": "Video meetings", "url": "zoom.us"},
+      {"name": "Google Workspace", "purpose": "Email, docs, calendar", "url": "mail.company.com"},
+      {"name": "Salesforce", "purpose": "CRM", "url": "salesforce.company.com"},
+      {"name": "Jira", "purpose": "Engineering tickets", "url": "jira.company.com"},
+      {"name": "Confluence", "purpose": "Wiki/documentation", "url": "confluence.company.com"},
+      {"name": "Concur", "purpose": "Expenses", "url": "concur.company.com"},
+      {"name": "Greenhouse", "purpose": "Recruiting", "url": "greenhouse.company.com"},
+      {"name": "Lattice", "purpose": "Performance reviews", "url": "lattice.company.com"},
+      {"name": "Deel", "purpose": "International payroll", "url": "deel.company.com"}
+    ],
+    "policies": [
+      {"name": "Employee Handbook", "url": "confluence.company.com/handbook"},
+      {"name": "Travel Policy", "url": "confluence.company.com/travel"},
+      {"name": "Expense Policy", "url": "confluence.company.com/expenses"},
+      {"name": "Remote Work Policy", "url": "confluence.company.com/remote"},
+      {"name": "Code of Conduct", "url": "confluence.company.com/conduct"},
+      {"name": "Security Policy", "url": "confluence.company.com/security"},
+      {"name": "Brand Guidelines", "url": "confluence.company.com/brand"},
+      {"name": "Logo & Assets", "url": "drive.company.com/brand-assets"}
+    ],
+    "contacts": {
+      "hr_questions": {"name": "Maria Garcia", "email": "maria.garcia@company.com"},
+      "benefits": {"name": "Nicole Adams", "email": "nicole.adams@company.com"},
+      "recruiting": {"name": "Amanda Foster", "email": "amanda.foster@company.com"},
+      "it_support": {"name": "Kevin Patel", "email": "kevin.patel@company.com"},
+      "it_help_desk": {"email": "it-help@company.com"},
+      "payroll": {"email": "payroll@company.com"},
+      "facilities": {"email": "facilities@company.com"},
+      "security": {"email": "security@company.com"}
+    }
   }
 }

@@ -44,6 +44,520 @@ from src.nlq.core.personality import (
     detect_persona_from_metric,
 )
 
+# =============================================================================
+# PEOPLE PERSONA QUERY HANDLING
+# =============================================================================
+
+def _is_people_query(question: str) -> bool:
+    """Detect if this is a People/HR query."""
+    q = question.lower()
+
+    people_terms = [
+        # People lookup
+        "who is", "who's", "who runs", "who handles", "who manages",
+        "reports to", "org chart", "directory", "team lead",
+
+        # HR/Benefits
+        "pto", "vacation", "time off", "leave", "parental", "maternity",
+        "paternity", "sabbatical", "holiday", "holidays", "benefits",
+        "health insurance", "dental", "vision", "401k", "hsa",
+        "payroll", "pay stub", "w2", "w-2",
+
+        # Policies
+        "policy", "handbook", "travel policy", "expense policy",
+        "remote work", "work from home", "wfh",
+
+        # Systems (HR-related)
+        "workday", "lattice", "greenhouse", "concur", "expenses",
+        "how do i access", "where do i submit",
+
+        # Office/Location
+        "office address", "headquarters", "hq address", "where is the office",
+        "nyc office", "austin office", "sf office",
+
+        # General HR
+        "hr question", "human resources", "people team", "recruiting",
+        "onboarding", "new hire", "training budget", "learning budget",
+
+        # Assets
+        "logo", "brand guidelines", "templates", "letterhead",
+
+        # Contact info
+        "email", "phone extension", "contact for", "it help", "help desk",
+    ]
+
+    return any(term in q for term in people_terms)
+
+
+def _handle_people_query(question: str, fact_base) -> Optional[NLQResponse]:
+    """Handle People/HR queries by looking up from fact base."""
+    import json
+
+    with open('data/fact_base.json') as f:
+        data = json.load(f)
+
+    people = data.get('people', {})
+    employees = people.get('employees', [])
+    offices = people.get('offices', [])
+    policies = people.get('policies', [])
+    systems = people.get('systems', [])
+    benefits = people.get('benefits', {})
+    pto_policies = people.get('pto_policies', {})
+    holidays = people.get('holidays_2026', [])
+    contacts = people.get('contacts', {})
+    dept_headcount = people.get('department_headcount', {})
+
+    q = question.lower()
+
+    # ===== PERSON LOOKUP =====
+    # "Who is the CEO?"
+    if "who is" in q or "who's" in q:
+        title_map = {
+            "ceo": "CEO",
+            "cfo": "CFO",
+            "cro": "CRO",
+            "coo": "COO",
+            "cto": "CTO",
+            "vp of engineering": "VP Engineering",
+            "vp engineering": "VP Engineering",
+            "vp of sales": "VP Sales",
+            "vp sales": "VP Sales",
+            "vp of product": "VP Product",
+            "vp product": "VP Product",
+            "vp of people": "VP People",
+            "vp people": "VP People",
+            "vp of finance": "VP Finance",
+            "vp finance": "VP Finance",
+            "vp of marketing": "VP Marketing",
+            "vp marketing": "VP Marketing",
+            "vp of customer success": "VP Customer Success",
+            "vp customer success": "VP Customer Success",
+            "director of recruiting": "Director of Recruiting",
+            "director of it": "Director of IT",
+            "hr business partner": "HR Business Partner",
+            "it contact": "Director of IT",
+            "hr": "VP People",
+            "recruiting": "Director of Recruiting",
+            "sales": "CRO",
+            "engineering": "CTO",
+        }
+
+        for term, title in title_map.items():
+            if term in q:
+                emp = next((e for e in employees if e['title'] == title), None)
+                if emp:
+                    answer = f"{emp['name']} ({emp['title']})"
+                    return NLQResponse(
+                        success=True, answer=answer, value=None, unit=None,
+                        confidence=0.95, parsed_intent="PEOPLE_LOOKUP",
+                        resolved_metric="employee", resolved_period=None
+                    )
+
+    # "Who reports to X?"
+    if "reports to" in q or "report to" in q:
+        for emp in employees:
+            if emp['name'].lower() in q or emp['title'].lower() in q:
+                reports = [e for e in employees if e.get('manager') == emp['name']]
+                if reports:
+                    names = ", ".join([f"{r['name']} ({r['title']})" for r in reports])
+                    answer = f"Reports to {emp['name']}: {names}"
+                    return NLQResponse(
+                        success=True, answer=answer, value=len(reports), unit="people",
+                        confidence=0.95, parsed_intent="PEOPLE_LOOKUP",
+                        resolved_metric="reports", resolved_period=None
+                    )
+
+    # "Who does X report to?"
+    if "who does" in q and "report to" in q:
+        for emp in employees:
+            if emp['name'].lower() in q:
+                manager = emp.get('manager')
+                if manager:
+                    answer = f"{emp['name']} reports to {manager}"
+                else:
+                    answer = f"{emp['name']} is the CEO (no manager)"
+                return NLQResponse(
+                    success=True, answer=answer, value=None, unit=None,
+                    confidence=0.95, parsed_intent="PEOPLE_LOOKUP",
+                    resolved_metric="manager", resolved_period=None
+                )
+
+    # "Who handles X?" / "Who is in charge of X?"
+    if "who handles" in q or "who's in charge" in q or "in charge of" in q:
+        domain_map = {
+            "hr": ("Maria Garcia", "VP People", "maria.garcia@company.com"),
+            "recruiting": ("Amanda Foster", "Director of Recruiting", "amanda.foster@company.com"),
+            "it": ("Kevin Patel", "Director of IT", "kevin.patel@company.com"),
+            "benefits": ("Nicole Adams", "HR Business Partner", "nicole.adams@company.com"),
+            "finance": ("Michael Torres", "CFO", "michael.torres@company.com"),
+            "sales": ("Jennifer Park", "CRO", "jennifer.park@company.com"),
+            "engineering": ("Rachel Martinez", "CTO", "rachel.martinez@company.com"),
+            "operations": ("David Kim", "COO", "david.kim@company.com"),
+        }
+        for domain, (name, title, email) in domain_map.items():
+            if domain in q:
+                answer = f"{name} ({title}) - {email}"
+                return NLQResponse(
+                    success=True, answer=answer, value=None, unit=None,
+                    confidence=0.95, parsed_intent="PEOPLE_LOOKUP",
+                    resolved_metric="contact", resolved_period=None
+                )
+
+    # ===== CONTACT INFO =====
+    # "What is X's email?"
+    if "email" in q:
+        for emp in employees:
+            if emp['name'].lower().split()[0] in q or emp['name'].lower().split()[-1] in q:
+                answer = emp['email']
+                return NLQResponse(
+                    success=True, answer=answer, value=None, unit=None,
+                    confidence=0.95, parsed_intent="PEOPLE_CONTACT",
+                    resolved_metric="email", resolved_period=None
+                )
+
+    # "Phone extension for X"
+    if "phone" in q or "extension" in q:
+        for emp in employees:
+            if emp['title'].lower() in q or emp['name'].lower().split()[-1] in q:
+                answer = f"{emp['name']}: {emp['phone']}"
+                return NLQResponse(
+                    success=True, answer=answer, value=None, unit=None,
+                    confidence=0.95, parsed_intent="PEOPLE_CONTACT",
+                    resolved_metric="phone", resolved_period=None
+                )
+
+    # "Where is X located?"
+    if "where is" in q and "located" in q:
+        for emp in employees:
+            if emp['name'].lower().split()[-1] in q:
+                answer = f"{emp['name']} is located in {emp['location']}"
+                return NLQResponse(
+                    success=True, answer=answer, value=None, unit=None,
+                    confidence=0.95, parsed_intent="PEOPLE_LOCATION",
+                    resolved_metric="location", resolved_period=None
+                )
+
+    # ===== ORG STRUCTURE =====
+    if "org chart" in q:
+        execs = [e for e in employees if e.get('manager') == 'Sarah Chen' or e['title'] == 'CEO']
+        lines = ["Sarah Chen (CEO)"]
+        for e in employees:
+            if e.get('manager') == 'Sarah Chen':
+                lines.append(f"  └── {e['name']} ({e['title']})")
+        answer = "\n".join(lines[:6])  # Top of org
+        return NLQResponse(
+            success=True, answer=answer, value=5, unit="executives",
+            confidence=0.95, parsed_intent="PEOPLE_ORG",
+            resolved_metric="org_chart", resolved_period=None
+        )
+
+    # "How many VPs?" / "Who are the VPs?"
+    if "vps" in q or "vp" in q:
+        vps = [e for e in employees if "VP" in e['title']]
+        names = ", ".join([f"{e['name']} ({e['title']})" for e in vps])
+        answer = f"VPs: {names}"
+        return NLQResponse(
+            success=True, answer=answer, value=len(vps), unit="VPs",
+            confidence=0.95, parsed_intent="PEOPLE_ORG",
+            resolved_metric="vps", resolved_period=None
+        )
+
+    # ===== HEADCOUNT =====
+    if "how many" in q and ("engineering" in q or "engineers" in q):
+        hc = dept_headcount.get('2025', {}).get('Engineering', 115)
+        hc_26 = dept_headcount.get('2026', {}).get('Engineering', 150)
+        answer = f"Engineering: {hc} (2025), {hc_26} (2026F)"
+        return NLQResponse(
+            success=True, answer=answer, value=hc, unit="people",
+            confidence=0.95, parsed_intent="PEOPLE_HEADCOUNT",
+            resolved_metric="engineering_headcount", resolved_period="2025"
+        )
+
+    if "how many" in q and "sales" in q:
+        hc = dept_headcount.get('2025', {}).get('Sales', 60)
+        hc_26 = dept_headcount.get('2026', {}).get('Sales', 80)
+        answer = f"Sales: {hc} (2025), {hc_26} (2026F)"
+        return NLQResponse(
+            success=True, answer=answer, value=hc, unit="people",
+            confidence=0.95, parsed_intent="PEOPLE_HEADCOUNT",
+            resolved_metric="sales_headcount", resolved_period="2025"
+        )
+
+    if "how many" in q and ("hr" in q or "people team" in q):
+        hc = dept_headcount.get('2025', {}).get('People', 20)
+        answer = f"People/HR: {hc} (2025)"
+        return NLQResponse(
+            success=True, answer=answer, value=hc, unit="people",
+            confidence=0.95, parsed_intent="PEOPLE_HEADCOUNT",
+            resolved_metric="hr_headcount", resolved_period="2025"
+        )
+
+    if "total" in q and ("headcount" in q or "company" in q):
+        hc = dept_headcount.get('2025', {}).get('Total', 350)
+        hc_26 = dept_headcount.get('2026', {}).get('Total', 450)
+        answer = f"Total headcount: {hc} (2025), {hc_26} (2026F)"
+        return NLQResponse(
+            success=True, answer=answer, value=hc, unit="people",
+            confidence=0.95, parsed_intent="PEOPLE_HEADCOUNT",
+            resolved_metric="total_headcount", resolved_period="2025"
+        )
+
+    # ===== OFFICE / LOCATION =====
+    if "headquarters" in q or "hq" in q or ("where is" in q and "office" in q):
+        office = offices[0] if offices else None
+        if office:
+            answer = f"HQ: {office['address']}"
+            return NLQResponse(
+                success=True, answer=answer, value=None, unit=None,
+                confidence=0.95, parsed_intent="PEOPLE_OFFICE",
+                resolved_metric="hq_address", resolved_period=None
+            )
+
+    if "nyc" in q and ("office" in q or "address" in q):
+        office = next((o for o in offices if o['name'] == 'NYC'), None)
+        if office:
+            answer = f"NYC: {office['address']}"
+            return NLQResponse(
+                success=True, answer=answer, value=None, unit=None,
+                confidence=0.95, parsed_intent="PEOPLE_OFFICE",
+                resolved_metric="nyc_address", resolved_period=None
+            )
+
+    if "austin" in q and ("office" in q or "address" in q):
+        office = next((o for o in offices if o['name'] == 'Austin'), None)
+        if office:
+            answer = f"Austin: {office['address']}"
+            return NLQResponse(
+                success=True, answer=answer, value=None, unit=None,
+                confidence=0.95, parsed_intent="PEOPLE_OFFICE",
+                resolved_metric="austin_address", resolved_period=None
+            )
+
+    if "how many offices" in q:
+        answer = f"{len(offices)} offices (SF, NYC, Austin)"
+        return NLQResponse(
+            success=True, answer=answer, value=len(offices), unit="offices",
+            confidence=0.95, parsed_intent="PEOPLE_OFFICE",
+            resolved_metric="office_count", resolved_period=None
+        )
+
+    # ===== PTO / LEAVE =====
+    if "pto" in q or ("how many" in q and ("vacation" in q or "days" in q)):
+        answer = pto_policies.get('pto_days', '20 days/year (unlimited for L6+)')
+        return NLQResponse(
+            success=True, answer=answer, value=20, unit="days",
+            confidence=0.95, parsed_intent="PEOPLE_PTO",
+            resolved_metric="pto_days", resolved_period=None
+        )
+
+    if "parental" in q or "maternity" in q or "paternity" in q:
+        answer = pto_policies.get('parental_leave', '16 weeks paid (all parents)')
+        return NLQResponse(
+            success=True, answer=answer, value=16, unit="weeks",
+            confidence=0.95, parsed_intent="PEOPLE_PTO",
+            resolved_metric="parental_leave", resolved_period=None
+        )
+
+    if "bereavement" in q:
+        answer = pto_policies.get('bereavement', '5 days immediate family, 3 days extended')
+        return NLQResponse(
+            success=True, answer=answer, value=5, unit="days",
+            confidence=0.95, parsed_intent="PEOPLE_PTO",
+            resolved_metric="bereavement", resolved_period=None
+        )
+
+    if "sabbatical" in q:
+        answer = pto_policies.get('sabbatical', '4 weeks after 5 years')
+        return NLQResponse(
+            success=True, answer=answer, value=4, unit="weeks",
+            confidence=0.95, parsed_intent="PEOPLE_PTO",
+            resolved_metric="sabbatical", resolved_period=None
+        )
+
+    if "how many holidays" in q:
+        answer = f"{pto_policies.get('holidays', 11)} company holidays"
+        return NLQResponse(
+            success=True, answer=answer, value=11, unit="holidays",
+            confidence=0.95, parsed_intent="PEOPLE_HOLIDAY",
+            resolved_metric="holidays", resolved_period=None
+        )
+
+    # ===== HOLIDAYS =====
+    if "thanksgiving" in q:
+        answer = "Thanksgiving: Nov 26-27, 2026 (Thursday-Friday)"
+        return NLQResponse(
+            success=True, answer=answer, value=None, unit=None,
+            confidence=0.95, parsed_intent="PEOPLE_HOLIDAY",
+            resolved_metric="thanksgiving", resolved_period="2026"
+        )
+
+    if "christmas" in q:
+        answer = "Christmas: Dec 24-25, 2026 (Christmas Eve & Christmas Day)"
+        return NLQResponse(
+            success=True, answer=answer, value=None, unit=None,
+            confidence=0.95, parsed_intent="PEOPLE_HOLIDAY",
+            resolved_metric="christmas", resolved_period="2026"
+        )
+
+    if "memorial day" in q:
+        answer = "Memorial Day: May 25, 2026 (Monday)"
+        return NLQResponse(
+            success=True, answer=answer, value=None, unit=None,
+            confidence=0.95, parsed_intent="PEOPLE_HOLIDAY",
+            resolved_metric="memorial_day", resolved_period="2026"
+        )
+
+    if ("year end" in q or "year-end" in q) and "holiday" in q:
+        answer = "Year-end holidays: Dec 24 (Christmas Eve), Dec 25 (Christmas), Dec 31 (New Year's Eve)"
+        return NLQResponse(
+            success=True, answer=answer, value=3, unit="days",
+            confidence=0.95, parsed_intent="PEOPLE_HOLIDAY",
+            resolved_metric="year_end_holidays", resolved_period="2026"
+        )
+
+    # ===== BENEFITS =====
+    if "health insurance" in q or ("what" in q and "insurance" in q):
+        answer = benefits.get('health_insurance', 'Anthem Blue Cross (Bronze, Silver, Gold plans)')
+        return NLQResponse(
+            success=True, answer=answer, value=None, unit=None,
+            confidence=0.95, parsed_intent="PEOPLE_BENEFITS",
+            resolved_metric="health_insurance", resolved_period=None
+        )
+
+    if "401k" in q or "401(k)" in q:
+        answer = benefits.get('401k', '4% company match, immediate vesting')
+        return NLQResponse(
+            success=True, answer=answer, value=4, unit="%",
+            confidence=0.95, parsed_intent="PEOPLE_BENEFITS",
+            resolved_metric="401k", resolved_period=None
+        )
+
+    if "hsa" in q:
+        answer = benefits.get('hsa', 'Company contributes $1,000/year')
+        return NLQResponse(
+            success=True, answer=answer, value=1000, unit="$",
+            confidence=0.95, parsed_intent="PEOPLE_BENEFITS",
+            resolved_metric="hsa", resolved_period=None
+        )
+
+    if "learning" in q or "education" in q or "training" in q:
+        answer = benefits.get('learning_budget', '$2,000/year')
+        return NLQResponse(
+            success=True, answer=answer, value=2000, unit="$",
+            confidence=0.95, parsed_intent="PEOPLE_BENEFITS",
+            resolved_metric="learning_budget", resolved_period=None
+        )
+
+    if "wellness" in q:
+        answer = benefits.get('wellness_stipend', '$100/month')
+        return NLQResponse(
+            success=True, answer=answer, value=100, unit="$/month",
+            confidence=0.95, parsed_intent="PEOPLE_BENEFITS",
+            resolved_metric="wellness", resolved_period=None
+        )
+
+    # Broad "benefits" question
+    if "benefits" in q and "what" in q:
+        answer = f"Health ({benefits.get('health_insurance', 'Anthem')}), 401k ({benefits.get('401k', '4% match')}), HSA ({benefits.get('hsa', '$1K/yr')}), Learning ({benefits.get('learning_budget', '$2K/yr')})"
+        return NLQResponse(
+            success=True, answer=answer, value=None, unit=None,
+            confidence=0.9, parsed_intent="PEOPLE_BENEFITS",
+            resolved_metric="benefits_summary", resolved_period=None
+        )
+
+    # ===== SYSTEMS =====
+    if "workday" in q or ("time off" in q and "request" in q):
+        system = next((s for s in systems if s['name'] == 'Workday'), None)
+        if system:
+            answer = f"Workday: {system['url']} ({system['purpose']})"
+            return NLQResponse(
+                success=True, answer=answer, value=None, unit=None,
+                confidence=0.95, parsed_intent="PEOPLE_SYSTEM",
+                resolved_metric="workday", resolved_period=None
+            )
+
+    if "expenses" in q or "concur" in q:
+        system = next((s for s in systems if s['name'] == 'Concur'), None)
+        if system:
+            answer = f"Concur: {system['url']} ({system['purpose']})"
+            return NLQResponse(
+                success=True, answer=answer, value=None, unit=None,
+                confidence=0.95, parsed_intent="PEOPLE_SYSTEM",
+                resolved_metric="concur", resolved_period=None
+            )
+
+    if "handbook" in q:
+        policy = next((p for p in policies if p['name'] == 'Employee Handbook'), None)
+        if policy:
+            answer = f"Employee Handbook: {policy['url']}"
+            return NLQResponse(
+                success=True, answer=answer, value=None, unit=None,
+                confidence=0.95, parsed_intent="PEOPLE_POLICY",
+                resolved_metric="handbook", resolved_period=None
+            )
+
+    # ===== POLICIES =====
+    if "travel policy" in q:
+        policy = next((p for p in policies if p['name'] == 'Travel Policy'), None)
+        if policy:
+            answer = f"Travel Policy: {policy['url']}"
+            return NLQResponse(
+                success=True, answer=answer, value=None, unit=None,
+                confidence=0.95, parsed_intent="PEOPLE_POLICY",
+                resolved_metric="travel_policy", resolved_period=None
+            )
+
+    if "expense policy" in q:
+        policy = next((p for p in policies if p['name'] == 'Expense Policy'), None)
+        if policy:
+            answer = f"Expense Policy: {policy['url']}"
+            return NLQResponse(
+                success=True, answer=answer, value=None, unit=None,
+                confidence=0.95, parsed_intent="PEOPLE_POLICY",
+                resolved_metric="expense_policy", resolved_period=None
+            )
+
+    if "remote" in q and ("work" in q or "policy" in q):
+        policy = next((p for p in policies if p['name'] == 'Remote Work Policy'), None)
+        if policy:
+            answer = f"Remote Work Policy: {policy['url']}"
+            return NLQResponse(
+                success=True, answer=answer, value=None, unit=None,
+                confidence=0.95, parsed_intent="PEOPLE_POLICY",
+                resolved_metric="remote_policy", resolved_period=None
+            )
+
+    if "brand" in q and ("guidelines" in q or "guide" in q):
+        policy = next((p for p in policies if p['name'] == 'Brand Guidelines'), None)
+        if policy:
+            answer = f"Brand Guidelines: {policy['url']}"
+            return NLQResponse(
+                success=True, answer=answer, value=None, unit=None,
+                confidence=0.95, parsed_intent="PEOPLE_POLICY",
+                resolved_metric="brand_guidelines", resolved_period=None
+            )
+
+    if "logo" in q:
+        policy = next((p for p in policies if p['name'] == 'Logo & Assets'), None)
+        if policy:
+            answer = f"Logo & Assets: {policy['url']}"
+            return NLQResponse(
+                success=True, answer=answer, value=None, unit=None,
+                confidence=0.95, parsed_intent="PEOPLE_ASSETS",
+                resolved_metric="logo", resolved_period=None
+            )
+
+    # ===== IT / HELP DESK =====
+    if "it help" in q or "help desk" in q or "it support" in q:
+        answer = f"IT Help: {contacts['it_help_desk']['email']} or Kevin Patel ({contacts['it_support']['email']})"
+        return NLQResponse(
+            success=True, answer=answer, value=None, unit=None,
+            confidence=0.95, parsed_intent="PEOPLE_CONTACT",
+            resolved_metric="it_help", resolved_period=None
+        )
+
+    return None  # Not a People query we can handle
+
 logger = logging.getLogger(__name__)
 
 
@@ -1325,6 +1839,12 @@ async def query(request: NLQRequest) -> NLQResponse:
         fact_base = get_fact_base()
         claude_client = get_claude_client()
 
+        # Check for People/HR queries
+        if _is_people_query(request.question):
+            people_response = _handle_people_query(request.question, fact_base)
+            if people_response:
+                return people_response
+
         # Check for ambiguity first (same as Galaxy endpoint)
         ambiguity_type, candidates, clarification = detect_ambiguity(request.question)
 
@@ -1449,6 +1969,39 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
 
         fact_base = get_fact_base()
         claude_client = get_claude_client()
+
+        # Check for People/HR queries
+        if _is_people_query(request.question):
+            people_response = _handle_people_query(request.question, fact_base)
+            if people_response:
+                # Convert NLQResponse to IntentMapResponse for Galaxy view
+                return IntentMapResponse(
+                    query=request.question,
+                    query_type="PEOPLE",
+                    ambiguity_type=None,
+                    persona="People",
+                    overall_confidence=people_response.confidence,
+                    overall_data_quality=1.0,
+                    node_count=1 if people_response.value else 0,
+                    nodes=[IntentNode(
+                        id="people_1",
+                        label=people_response.resolved_metric or "People",
+                        ring="EXACT",
+                        value=people_response.value,
+                        unit=people_response.unit or "",
+                        period="",
+                        metric=people_response.resolved_metric or "people",
+                        confidence=people_response.confidence,
+                        data_quality=1.0,
+                        source="fact_base",
+                        domain="people",
+                    )] if people_response.value is not None else [],
+                    primary_node_id="people_1" if people_response.value else None,
+                    primary_answer=people_response.answer,
+                    text_response=people_response.answer,
+                    needs_clarification=False,
+                    clarification_prompt=None,
+                )
 
         parser = QueryParser(claude_client)
         reference_date = request.reference_date or date.today()

@@ -49,6 +49,10 @@ export const GalaxyLegend: React.FC<GalaxyLegendProps> = ({ compact = false }) =
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: DOMAIN_COLORS.product }} />
               <span className="text-slate-400">Product</span>
             </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: DOMAIN_COLORS.people }} />
+              <span className="text-slate-400">People</span>
+            </span>
           </div>
         </div>
       </div>
@@ -88,6 +92,13 @@ export const GalaxyLegend: React.FC<GalaxyLegendProps> = ({ compact = false }) =
             style={{ backgroundColor: DOMAIN_COLORS.product }}
           />
           <span className="text-slate-400">Product</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: DOMAIN_COLORS.people }}
+          />
+          <span className="text-slate-400">People</span>
         </span>
       </div>
 

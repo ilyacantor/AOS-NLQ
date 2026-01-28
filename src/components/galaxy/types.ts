@@ -4,7 +4,7 @@
  */
 
 export type MatchType = 'exact' | 'potential' | 'hypothesis';
-export type Domain = 'finance' | 'growth' | 'ops' | 'product';
+export type Domain = 'finance' | 'growth' | 'ops' | 'product' | 'people';
 
 export type AmbiguityType =
   | 'none'
@@ -84,10 +84,11 @@ export const RING_CONFIG: Record<'inner' | 'middle' | 'outer', RingConfig> = {
 
 // Domain colors for circle fill
 export const DOMAIN_COLORS: Record<Domain, string> = {
-  finance: '#3B82F6',   // Blue
-  growth: '#EC4899',    // Pink
-  ops: '#10B981',       // Green
-  product: '#8B5CF6'    // Purple
+  finance: '#3B82F6',   // Blue - CFO
+  growth: '#EC4899',    // Pink - CRO
+  ops: '#10B981',       // Green - COO
+  product: '#8B5CF6',   // Purple - CTO
+  people: '#F97316'     // Orange - People
 };
 
 // Freshness colors for indicator dot

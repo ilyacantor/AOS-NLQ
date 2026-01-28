@@ -191,11 +191,80 @@ CTO_VOICE = {
     ],
 }
 
+PEOPLE_VOICE = {
+    "greeting": [
+        "Hi! How can I help?",
+        "What do you need to know?",
+        "I'm here to help. What's up?",
+    ],
+    "found_person": [
+        "{value}",
+        "That's {value}",
+        "{value} - reach out anytime.",
+    ],
+    "found_policy": [
+        "Here's what I know: {value}",
+        "{value} Need more details?",
+        "Got it: {value}",
+    ],
+    "found_system": [
+        "You can access that at {value}",
+        "Head to {value} for that.",
+        "{value} - need help with it?",
+    ],
+    "good_news": [
+        "{value}",
+        "Good news: {value}",
+        "{value} Happy to help!",
+    ],
+    "bad_news": [
+        "{value} Let me know if you need more info.",
+        "{value} - reach out to HR if you have questions.",
+        "{value}",
+    ],
+    "neutral": [
+        "{value}",
+        "Here's what I found: {value}",
+        "{value} Anything else?",
+    ],
+    "uncertain": [
+        "{value} - best to check with HR directly.",
+        "{value}, but verify with the People team.",
+        "I think {value} - confirm with Maria Garcia.",
+    ],
+    "clarification": [
+        "About what specifically?",
+        "Can you tell me more? There are a few options.",
+        "Which one are you looking for?",
+    ],
+    "not_applicable": [
+        "That's a finance/metrics question. I do people & HR stuff.",
+        "Try the CFO or CRO view for business metrics.",
+        "I'm the people person, not the numbers person. Try another persona.",
+    ],
+    "off_topic": [
+        "I do people & HR stuff. For metrics, try the CFO view.",
+        "That's more of a numbers question. Switch to CFO or CRO persona.",
+        "I'm the people person, not the numbers person. Try another persona for that.",
+    ],
+    "redirect_to_hr": [
+        "That's an HR question. Reach out to Maria Garcia or Nicole Adams.",
+        "Best to check with HR directly: maria.garcia@company.com",
+        "HR handles that - try the People team.",
+    ],
+    "redirect_to_it": [
+        "That's an IT thing. Contact it-help@company.com or Kevin Patel.",
+        "IT Support can help: it-help@company.com",
+        "Kevin Patel (IT) is your person for that: kevin.patel@company.com",
+    ],
+}
+
 PERSONA_VOICES = {
     "CFO": CFO_VOICE,
     "CRO": CRO_VOICE,
     "COO": COO_VOICE,
     "CTO": CTO_VOICE,
+    "People": PEOPLE_VOICE,
 }
 
 
