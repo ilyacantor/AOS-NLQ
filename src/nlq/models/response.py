@@ -28,6 +28,7 @@ class Domain(str, Enum):
     GROWTH = "growth"         # Pink
     OPS = "ops"               # Green
     PRODUCT = "product"       # Purple
+    PEOPLE = "people"         # Orange
 
 
 class AmbiguityType(str, Enum):

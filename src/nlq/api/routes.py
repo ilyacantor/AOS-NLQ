@@ -36,7 +36,7 @@ from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.knowledge.schema import FINANCIAL_SCHEMA, get_metric_unit
 from src.nlq.llm.client import ClaudeClient
 from src.nlq.models.query import NLQRequest, QueryIntent
-from src.nlq.models.response import AmbiguityType, IntentMapResponse, IntentNode, MatchType, NLQResponse, RelatedMetric
+from src.nlq.models.response import AmbiguityType, Domain, IntentMapResponse, IntentNode, MatchType, NLQResponse, RelatedMetric
 from src.nlq.core.personality import (
     generate_personality_response,
     handle_off_topic_or_easter_egg,
@@ -1837,9 +1837,8 @@ async def query(request: NLQRequest) -> NLQResponse:
 
         # Get dependencies
         fact_base = get_fact_base()
-        claude_client = get_claude_client()
 
-        # Check for People/HR queries
+        # Check for People/HR queries first (doesn't need Claude API)
         if _is_people_query(request.question):
             people_response = _handle_people_query(request.question, fact_base)
             if people_response:
@@ -1858,7 +1857,8 @@ async def query(request: NLQRequest) -> NLQResponse:
                 fact_base,
             )
 
-        # Set up components
+        # Set up components (only need Claude API for non-People queries)
+        claude_client = get_claude_client()
         parser = QueryParser(claude_client)
         reference_date = request.reference_date or date.today()
         resolver = PeriodResolver(reference_date)
@@ -1968,9 +1968,8 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
             )
 
         fact_base = get_fact_base()
-        claude_client = get_claude_client()
 
-        # Check for People/HR queries
+        # Check for People/HR queries first (doesn't need Claude API)
         if _is_people_query(request.question):
             people_response = _handle_people_query(request.question, fact_base)
             if people_response:
@@ -1985,16 +1984,17 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                     node_count=1 if people_response.value else 0,
                     nodes=[IntentNode(
                         id="people_1",
-                        label=people_response.resolved_metric or "People",
-                        ring="EXACT",
-                        value=people_response.value,
-                        unit=people_response.unit or "",
-                        period="",
                         metric=people_response.resolved_metric or "people",
+                        display_name=people_response.resolved_metric or "People",
+                        match_type=MatchType.EXACT,
+                        domain=Domain.PEOPLE,
                         confidence=people_response.confidence,
                         data_quality=1.0,
-                        source="fact_base",
-                        domain="people",
+                        freshness="0h",
+                        value=people_response.value,
+                        formatted_value=f"{people_response.value} {people_response.unit}" if people_response.value else None,
+                        period=people_response.resolved_period or "",
+                        semantic_label="People/HR",
                     )] if people_response.value is not None else [],
                     primary_node_id="people_1" if people_response.value else None,
                     primary_answer=people_response.answer,
@@ -2003,6 +2003,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                     clarification_prompt=None,
                 )
 
+        claude_client = get_claude_client()
         parser = QueryParser(claude_client)
         reference_date = request.reference_date or date.today()
         resolver = PeriodResolver(reference_date)
