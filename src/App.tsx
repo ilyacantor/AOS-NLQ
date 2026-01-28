@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { GalaxyView, IntentMapResponse } from './components/galaxy'
 import { Dashboard } from './components/dashboard'
+import { RAGLearningPanel, LLMCallCounter } from './components/rag'
 
 interface QueryHistoryItem {
   id: string
@@ -38,7 +39,7 @@ interface NLQResponse {
 
 type ViewMode = 'text' | 'galaxy' | 'dashboard'
 type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'People'
-type PanelTab = 'History' | 'Debug'
+type PanelTab = 'History' | 'Learning' | 'Debug'
 
 const quickActions = [
   // Dashboards
@@ -249,7 +250,8 @@ function App() {
           </div>
         </div>
 
-        <div className="text-slate-500 text-sm">
+        <div className="flex items-center gap-4 text-slate-500 text-sm">
+          <LLMCallCounter />
           {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
         </div>
       </header>
@@ -515,7 +517,7 @@ function App() {
         <aside className={`${sidebarOpen ? 'w-[283px]' : 'w-0 overflow-hidden'} border-l border-slate-800 flex flex-col bg-slate-900/30 transition-all duration-300`}>
           {/* Panel Tabs */}
           <div className="flex border-b border-slate-800">
-            {(['History', 'Debug'] as PanelTab[]).map((tab) => (
+            {(['History', 'Learning', 'Debug'] as PanelTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setPanelTab(tab)}
@@ -557,6 +559,13 @@ function App() {
                   </div>
                 )}
               </div>
+            )}
+
+            {panelTab === 'Learning' && (
+              <RAGLearningPanel
+                refreshInterval={5000}
+                maxEntries={50}
+              />
             )}
 
             {panelTab === 'Debug' && (
