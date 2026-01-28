@@ -90,7 +90,7 @@ function App() {
   const [lastDuration, setLastDuration] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const handleSubmit = async (queryText?: string) => {
+  const handleSubmit = async (queryText?: string, forceTextView?: boolean) => {
     const textToSubmit = queryText ?? query
     if (!textToSubmit.trim()) return
 
@@ -123,10 +123,13 @@ function App() {
     const timestamp = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
     const startTime = performance.now()
 
+    // Determine the effective view mode (text view if forced from dashboard drill-down)
+    const effectiveViewMode = forceTextView ? 'text' : viewMode
+
     try {
       // Fetch from appropriate endpoint based on view mode
       // Galaxy uses intent-map endpoint, Text uses query endpoint
-      const endpoint = viewMode === 'galaxy' ? '/api/v1/intent-map' : '/api/v1/query'
+      const endpoint = effectiveViewMode === 'galaxy' ? '/api/v1/intent-map' : '/api/v1/query'
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -139,9 +142,10 @@ function App() {
       const data = await res.json()
       const duration = Math.round(performance.now() - startTime)
 
-      if (viewMode === 'galaxy') {
+      if (effectiveViewMode === 'galaxy') {
         setGalaxyResponse(data as IntentMapResponse)
-      } else if (viewMode === 'text') {
+      } else {
+        // Text view or drill-down from dashboard
         setTextResponse(data as NLQResponse)
       }
 
@@ -153,7 +157,7 @@ function App() {
         query: textToSubmit,
         timestamp: timestamp,
         duration: `${duration}ms`,
-        tag: viewMode === 'galaxy'
+        tag: effectiveViewMode === 'galaxy'
           ? (data as IntentMapResponse).query_type || 'intent-map'
           : (data as NLQResponse).resolved_metric || 'nlq.query',
       }
@@ -309,9 +313,12 @@ function App() {
                 <Dashboard
                   persona={dashboardPersona}
                   onNLQQuery={(q) => {
-                    // Switch to galaxy view for drill-down queries
-                    setViewMode('galaxy')
-                    handleSubmit(q)
+                    // Switch to text view for drill-down queries (more reliable than galaxy)
+                    setViewMode('text')
+                    // Set the query to show loading state immediately
+                    setLastQuery(q)
+                    // Submit the query with forceTextView=true to ensure text endpoint is used
+                    handleSubmit(q, true)
                   }}
                 />
               </div>

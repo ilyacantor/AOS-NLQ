@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChartType } from '../../../types/dashboard';
+import ExternalStackedBarChart from '../charts/StackedBarChart';
 
 /**
  * Props for the ChartTile component
@@ -83,15 +84,15 @@ const HorizontalBarChart: React.FC<{
   const maxValue = Math.max(...data.map((d) => d.value), 1);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1 overflow-y-auto h-full" style={{ maxHeight: 'calc(100% - 8px)' }}>
       {data.map((item, index) => (
         <div
           key={item.label}
-          className="flex items-center gap-3 cursor-pointer hover:bg-slate-700/30 rounded p-1 -mx-1 transition-colors"
+          className="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 rounded px-1 py-0.5 -mx-1 transition-colors"
           onClick={() => onClick?.(item.label)}
         >
-          <span className="text-slate-400 text-xs w-24 truncate">{item.label}</span>
-          <div className="flex-1 h-4 bg-slate-700 rounded overflow-hidden">
+          <span className="text-slate-400 text-xs w-28 truncate flex-shrink-0">{item.label}</span>
+          <div className="flex-1 h-3 bg-slate-700 rounded overflow-hidden min-w-0">
             <div
               className="h-full rounded transition-all duration-300"
               style={{
@@ -100,7 +101,7 @@ const HorizontalBarChart: React.FC<{
               }}
             />
           </div>
-          <span className="text-slate-300 text-xs font-mono w-16 text-right">
+          <span className="text-slate-300 text-xs font-mono w-14 text-right flex-shrink-0">
             {formatNumber(item.value)}
           </span>
         </div>
@@ -296,13 +297,13 @@ const WaterfallChart: React.FC<{
   const minValue = Math.min(...allValues, 0);
   const range = maxValue - minValue || 1;
 
-  // SVG dimensions
-  const padding = { top: 20, right: 10, bottom: 40, left: 10 };
+  // SVG dimensions - increased bottom padding for labels
+  const padding = { top: 25, right: 15, bottom: 55, left: 15 };
   const chartWidth = 100;
-  const chartHeight = 80;
+  const chartHeight = 100;
   const barCount = chartData.length;
   const barWidth = (chartWidth - padding.left - padding.right) / barCount;
-  const barPadding = barWidth * 0.15;
+  const barPadding = barWidth * 0.2;
 
   const scaleY = (value: number): number => {
     return padding.top + ((maxValue - value) / range) * (chartHeight - padding.top - padding.bottom);
@@ -316,18 +317,19 @@ const WaterfallChart: React.FC<{
   };
 
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="w-full h-full flex flex-col" style={{ minHeight: '200px' }}>
       <svg
         viewBox={`0 0 ${chartWidth} ${chartHeight}`}
         className="w-full flex-1"
         preserveAspectRatio="xMidYMid meet"
+        style={{ minHeight: '180px' }}
       >
         {/* Bars and connectors */}
         {chartData.map((bar, i) => {
           const x = padding.left + i * barWidth + barPadding / 2;
           const width = barWidth - barPadding;
           const y = scaleY(bar.end);
-          const height = Math.abs(scaleY(bar.start) - scaleY(bar.end)) || 1;
+          const height = Math.abs(scaleY(bar.start) - scaleY(bar.end)) || 2;
 
           return (
             <g key={i}>
@@ -359,23 +361,24 @@ const WaterfallChart: React.FC<{
               {/* Value label above bar */}
               <text
                 x={x + width / 2}
-                y={y - 2}
+                y={y - 3}
                 textAnchor="middle"
                 className="fill-slate-300 font-medium"
-                style={{ fontSize: '3px' }}
+                style={{ fontSize: '4px' }}
               >
                 {bar.type === 'decrease' ? '-' : ''}{formatValue(Math.abs(bar.value))}
               </text>
 
-              {/* X-axis label */}
+              {/* X-axis label - full text, rotated for readability */}
               <text
                 x={x + width / 2}
-                y={chartHeight - padding.bottom + 6}
-                textAnchor="middle"
-                className="fill-slate-400"
-                style={{ fontSize: '2.5px' }}
+                y={chartHeight - padding.bottom + 8}
+                textAnchor="end"
+                className="fill-slate-300"
+                style={{ fontSize: '4px' }}
+                transform={`rotate(-35, ${x + width / 2}, ${chartHeight - padding.bottom + 8})`}
               >
-                {bar.label.length > 8 ? bar.label.substring(0, 8) : bar.label}
+                {bar.label}
               </text>
             </g>
           );
@@ -383,18 +386,18 @@ const WaterfallChart: React.FC<{
       </svg>
 
       {/* Legend */}
-      <div className="flex justify-center gap-4 mt-1">
+      <div className="flex justify-center gap-4 mt-2 flex-shrink-0">
         <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded" style={{ backgroundColor: WATERFALL_COLORS.increase }} />
-          <span className="text-[10px] text-slate-400">Increase</span>
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: WATERFALL_COLORS.increase }} />
+          <span className="text-xs text-slate-400">Increase</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded" style={{ backgroundColor: WATERFALL_COLORS.decrease }} />
-          <span className="text-[10px] text-slate-400">Decrease</span>
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: WATERFALL_COLORS.decrease }} />
+          <span className="text-xs text-slate-400">Decrease</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded" style={{ backgroundColor: WATERFALL_COLORS.total }} />
-          <span className="text-[10px] text-slate-400">Total</span>
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: WATERFALL_COLORS.total }} />
+          <span className="text-xs text-slate-400">Total</span>
         </div>
       </div>
     </div>
@@ -588,28 +591,19 @@ export const ChartTile: React.FC<ChartTileProps> = ({
         );
 
       case 'stacked-bar':
-        // For stacked bar, check if data has segments format (from static data)
+        // For stacked bar, use the full-featured external component
+        // which supports segments format and has proper tooltips/legend
         if (isStackedBarData(rawChartData)) {
-          const stackedData = normalizeStackedBarData(rawChartData);
           return (
-            <StackedBarChart
-              data={stackedData}
-              onClick={onClick}
-              colors={colorPalette}
-            />
+            <div className="h-full" style={{ minHeight: '200px' }}>
+              <ExternalStackedBarChart
+                data={rawChartData}
+                onClick={onClick}
+              />
+            </div>
           );
         }
-        // Check if already in values format
-        if (normalizedData[0] && 'values' in normalizedData[0]) {
-          return (
-            <StackedBarChart
-              data={normalizedData as any}
-              onClick={onClick}
-              colors={colorPalette}
-            />
-          );
-        }
-        // Fall back to regular bar
+        // Fall back to regular bar if data doesn't have segments
         return (
           <BarChart
             data={normalizedData}
