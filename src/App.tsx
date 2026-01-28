@@ -211,11 +211,6 @@ function App() {
         <main className="flex-1 flex flex-col overflow-hidden">
           {/* Query Input Section - Always at top middle */}
           <div className="flex flex-col items-center pt-6 pb-4 px-8">
-            <div className="text-slate-500 text-sm mb-4">
-              Using dataset: <span className="text-slate-300">nlq_test</span>{' '}
-              <span className="text-slate-600">(reference: 2026-01-27)</span>
-            </div>
-
             {/* Query Input */}
             <div className="w-full max-w-2xl">
               <div className="relative">
