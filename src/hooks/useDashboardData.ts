@@ -306,10 +306,10 @@ const STATIC_CRO_DATA: Record<string, TileData> = {
     formattedValue: '',
     rawData: {
       chartData: [
-        { label: 'Enterprise', value: 42 },
-        { label: 'Mid-Market', value: 35 },
-        { label: 'SMB', value: 28 },
-        { label: 'Startup', value: 22 },
+        { label: 'Enterprise', value: 42, size: 28.5 },
+        { label: 'Mid-Market', value: 35, size: 15.2 },
+        { label: 'SMB', value: 28, size: 9.8 },
+        { label: 'Startup', value: 22, size: 4.0 },
       ]
     },
     status: 'healthy',
