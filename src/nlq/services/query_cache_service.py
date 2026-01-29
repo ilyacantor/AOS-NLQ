@@ -101,11 +101,25 @@ class QueryCacheService:
             return
 
         try:
-            from pinecone import Pinecone
+            from pinecone import Pinecone, ServerlessSpec
             from openai import OpenAI
 
             self._pc = Pinecone(api_key=self.config.pinecone_api_key)
-            self._index = self._pc.Index(self.config.pinecone_index)
+            
+            index_name = self.config.pinecone_index
+            existing_indexes = [idx.name for idx in self._pc.list_indexes()]
+            
+            if index_name not in existing_indexes:
+                logger.info(f"Creating Pinecone index: {index_name}")
+                self._pc.create_index(
+                    name=index_name,
+                    dimension=self.config.embedding_dimensions,
+                    metric="cosine",
+                    spec=ServerlessSpec(cloud="aws", region="us-east-1")
+                )
+                logger.info(f"Pinecone index '{index_name}' created successfully")
+            
+            self._index = self._pc.Index(index_name)
             self._openai = OpenAI(api_key=self.config.openai_api_key)
             self._initialized = True
             logger.info(f"QueryCacheService initialized with namespace: {self.config.namespace}")
@@ -236,17 +250,17 @@ class QueryCacheService:
             now = datetime.utcnow().isoformat() + "Z"
             metadata = {
                 # Parsed structure
-                "intent": parsed.get("intent"),
-                "metric": parsed.get("metric"),
-                "period_type": parsed.get("period_type"),
-                "period_reference": parsed.get("period_reference"),
-                "period_year": parsed.get("period_year"),
-                "comparison_type": parsed.get("comparison_type"),
-                "comparison_period": parsed.get("comparison_period"),
-                "group_by": parsed.get("group_by"),
+                "intent": parsed.get("intent") or "",
+                "metric": parsed.get("metric") or "",
+                "period_type": parsed.get("period_type") or "",
+                "period_reference": parsed.get("period_reference") or "",
+                "period_year": parsed.get("period_year") or "",
+                "comparison_type": parsed.get("comparison_type") or "",
+                "comparison_period": parsed.get("comparison_period") or "",
+                "group_by": parsed.get("group_by") or "",
                 "filters": json.dumps(parsed.get("filters", {})),
-                "limit": parsed.get("limit"),
-                "sort_order": parsed.get("sort_order"),
+                "limit": parsed.get("limit") if parsed.get("limit") is not None else 0,
+                "sort_order": parsed.get("sort_order") or "",
 
                 # Query text
                 "original_query": query,
@@ -315,17 +329,17 @@ class QueryCacheService:
 
                 now = datetime.utcnow().isoformat() + "Z"
                 metadata = {
-                    "intent": parsed.get("intent"),
-                    "metric": parsed.get("metric"),
-                    "period_type": parsed.get("period_type"),
-                    "period_reference": parsed.get("period_reference"),
-                    "period_year": parsed.get("period_year"),
-                    "comparison_type": parsed.get("comparison_type"),
-                    "comparison_period": parsed.get("comparison_period"),
-                    "group_by": parsed.get("group_by"),
+                    "intent": parsed.get("intent") or "",
+                    "metric": parsed.get("metric") or "",
+                    "period_type": parsed.get("period_type") or "",
+                    "period_reference": parsed.get("period_reference") or "",
+                    "period_year": parsed.get("period_year") or "",
+                    "comparison_type": parsed.get("comparison_type") or "",
+                    "comparison_period": parsed.get("comparison_period") or "",
+                    "group_by": parsed.get("group_by") or "",
                     "filters": json.dumps(parsed.get("filters", {})),
-                    "limit": parsed.get("limit"),
-                    "sort_order": parsed.get("sort_order"),
+                    "limit": parsed.get("limit") if parsed.get("limit") is not None else 0,
+                    "sort_order": parsed.get("sort_order") or "",
                     "original_query": query,
                     "normalized_query": self._normalize_query(query),
                     "created_at": now,
@@ -509,7 +523,7 @@ def init_cache_service_from_env() -> Optional["QueryCacheService"]:
     global _cache_service
 
     pinecone_key = os.getenv("PINECONE_API_KEY", "")
-    openai_key = os.getenv("OPENAI_API_KEY", "")
+    openai_key = os.getenv("OPENAI_API_KEY") or os.getenv("AI_INTEGRATIONS_OPENAI_API_KEY", "")
 
     if not pinecone_key or not openai_key:
         logger.warning("RAG cache disabled: PINECONE_API_KEY or OPENAI_API_KEY not set")
