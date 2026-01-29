@@ -324,31 +324,75 @@ export function DashboardRenderer({
       const data: DashboardRefinementResponse = await response.json();
 
       if (data.success && data.dashboard) {
-        // Preserve custom layout for widgets that still exist
-        if (customLayout) {
-          const existingWidgetIds = new Set(data.dashboard.widgets.map(w => w.id));
-          const preservedLayout = customLayout.filter(l => existingWidgetIds.has(l.i));
+        // Preserve positions from current schema and customLayout for widgets that still exist
+        const newDashboard = { ...data.dashboard };
+        if (schema) {
+          // Build position maps from customLayout (most accurate) and schema
+          const oldLayoutById = new Map<string, LayoutItem>();
+          const oldLayoutByTitle = new Map<string, LayoutItem>();
           
-          // Add layout entries for new widgets from the schema
-          const preservedIds = new Set(preservedLayout.map(l => l.i));
-          const newWidgetLayouts = data.dashboard.widgets
-            .filter(w => !preservedIds.has(w.id))
-            .map(widget => ({
-              i: widget.id,
-              x: widget.position.column - 1,
-              y: widget.position.row - 1,
-              w: widget.position.col_span,
-              h: widget.position.row_span,
+          // First, get positions from schema
+          schema.widgets.forEach(w => {
+            const layoutItem = {
+              i: w.id,
+              x: w.position.column - 1,
+              y: w.position.row - 1,
+              w: w.position.col_span,
+              h: w.position.row_span,
               minW: 2,
               minH: 2,
-            }));
+            };
+            oldLayoutById.set(w.id, layoutItem);
+            oldLayoutByTitle.set(w.title.toLowerCase(), layoutItem);
+          });
           
-          setCustomLayout([...preservedLayout, ...newWidgetLayouts]);
+          // Override with customLayout positions (these reflect actual user resizes)
+          if (customLayout) {
+            customLayout.forEach(item => {
+              const widget = schema.widgets.find(w => w.id === item.i);
+              if (widget) {
+                const updatedItem = { ...item };
+                oldLayoutById.set(item.i, updatedItem);
+                oldLayoutByTitle.set(widget.title.toLowerCase(), updatedItem);
+              }
+            });
+          }
+          
+          // Update new widgets with preserved positions (match by ID first, then by title)
+          newDashboard.widgets = newDashboard.widgets.map(widget => {
+            const oldLayout = oldLayoutById.get(widget.id) || 
+                              oldLayoutByTitle.get(widget.title.toLowerCase());
+            if (oldLayout) {
+              return {
+                ...widget,
+                position: {
+                  ...widget.position,
+                  column: oldLayout.x + 1,
+                  row: oldLayout.y + 1,
+                  col_span: oldLayout.w,
+                  row_span: oldLayout.h,
+                },
+              };
+            }
+            return widget;
+          });
+          
+          // Build new customLayout from updated positions
+          const newLayout = newDashboard.widgets.map(widget => ({
+            i: widget.id,
+            x: widget.position.column - 1,
+            y: widget.position.row - 1,
+            w: widget.position.col_span,
+            h: widget.position.row_span,
+            minW: 2,
+            minH: 2,
+          }));
+          setCustomLayout(newLayout);
         }
         
-        setSchema(data.dashboard);
-        onRefinement?.(data.dashboard);
-        fetchWidgetData(data.dashboard);
+        setSchema(newDashboard);
+        onRefinement?.(newDashboard);
+        fetchWidgetData(newDashboard);
       } else {
         setError(data.error || 'Failed to refine dashboard');
       }
