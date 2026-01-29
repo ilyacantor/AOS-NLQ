@@ -324,28 +324,60 @@ export function DashboardRenderer({
       const data: DashboardRefinementResponse = await response.json();
 
       if (data.success && data.dashboard) {
-        // Preserve positions from current schema for widgets that still exist
+        // Preserve positions from current schema and customLayout for widgets that still exist
         const newDashboard = { ...data.dashboard };
         if (schema) {
-          // Create maps for matching by ID and by title
-          const oldPositionsById = new Map(
-            schema.widgets.map(w => [w.id, w.position])
-          );
-          const oldPositionsByTitle = new Map(
-            schema.widgets.map(w => [w.title.toLowerCase(), w.position])
-          );
+          // Build position maps from customLayout (most accurate) and schema
+          const oldLayoutById = new Map<string, LayoutItem>();
+          const oldLayoutByTitle = new Map<string, LayoutItem>();
+          
+          // First, get positions from schema
+          schema.widgets.forEach(w => {
+            const layoutItem = {
+              i: w.id,
+              x: w.position.column - 1,
+              y: w.position.row - 1,
+              w: w.position.col_span,
+              h: w.position.row_span,
+              minW: 2,
+              minH: 2,
+            };
+            oldLayoutById.set(w.id, layoutItem);
+            oldLayoutByTitle.set(w.title.toLowerCase(), layoutItem);
+          });
+          
+          // Override with customLayout positions (these reflect actual user resizes)
+          if (customLayout) {
+            customLayout.forEach(item => {
+              const widget = schema.widgets.find(w => w.id === item.i);
+              if (widget) {
+                const updatedItem = { ...item };
+                oldLayoutById.set(item.i, updatedItem);
+                oldLayoutByTitle.set(widget.title.toLowerCase(), updatedItem);
+              }
+            });
+          }
           
           // Update new widgets with preserved positions (match by ID first, then by title)
           newDashboard.widgets = newDashboard.widgets.map(widget => {
-            const oldPos = oldPositionsById.get(widget.id) || 
-                          oldPositionsByTitle.get(widget.title.toLowerCase());
-            if (oldPos) {
-              return { ...widget, position: oldPos };
+            const oldLayout = oldLayoutById.get(widget.id) || 
+                              oldLayoutByTitle.get(widget.title.toLowerCase());
+            if (oldLayout) {
+              return {
+                ...widget,
+                position: {
+                  ...widget.position,
+                  column: oldLayout.x + 1,
+                  row: oldLayout.y + 1,
+                  col_span: oldLayout.w,
+                  row_span: oldLayout.h,
+                },
+              };
             }
             return widget;
           });
           
-          // Also preserve customLayout if it exists - build new layout from preserved positions
+          // Build new customLayout from updated positions
           const newLayout = newDashboard.widgets.map(widget => ({
             i: widget.id,
             x: widget.position.column - 1,
