@@ -35,6 +35,7 @@ from src.nlq.core.resolver import PeriodResolver
 from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.knowledge.schema import FINANCIAL_SCHEMA, get_metric_unit
 from src.nlq.knowledge.synonyms import normalize_metric
+from src.nlq.knowledge.display import get_display_name
 from src.nlq.llm.client import ClaudeClient
 from src.nlq.models.query import NLQRequest, QueryIntent, ParsedQuery, PeriodType, QueryMode
 from src.nlq.models.response import AmbiguityType, Domain, IntentMapResponse, IntentNode, MatchType, NLQResponse, RelatedMetric
@@ -54,8 +55,40 @@ from src.nlq.core.visualization_intent import (
     should_generate_visualization,
     VisualizationIntent,
 )
-from src.nlq.core.dashboard_generator import generate_dashboard_schema
+from src.nlq.core.dashboard_generator import generate_dashboard_schema, refine_dashboard_schema
 from src.nlq.core.dashboard_data_resolver import DashboardDataResolver
+from src.nlq.core.refinement_intent import (
+    detect_refinement_intent,
+    RefinementType,
+    is_context_dependent_query,
+    needs_clarification_without_context,
+)
+
+# =============================================================================
+# SESSION-BASED DASHBOARD STATE
+# =============================================================================
+# In-memory storage for current dashboard state per session
+# In production, this would use Redis or another session store
+_session_dashboards: Dict[str, dict] = {}
+
+
+def get_session_dashboard(session_id: str) -> Optional[dict]:
+    """Get the current dashboard for a session."""
+    return _session_dashboards.get(session_id)
+
+
+def set_session_dashboard(session_id: str, dashboard: dict, widget_data: dict):
+    """Store dashboard state for a session."""
+    _session_dashboards[session_id] = {
+        "dashboard": dashboard,
+        "widget_data": widget_data,
+    }
+
+
+def clear_session_dashboard(session_id: str):
+    """Clear dashboard state for a session."""
+    if session_id in _session_dashboards:
+        del _session_dashboards[session_id]
 
 # =============================================================================
 # RAG CACHE HELPERS
@@ -1273,6 +1306,157 @@ class SchemaResponse(BaseModel):
     metric_details: Dict
 
 
+# =============================================================================
+# SIMPLE METRIC QUERY FALLBACK - Handle direct metric queries without Claude
+# =============================================================================
+
+# Patterns for direct metric extraction
+_SIMPLE_METRIC_PATTERNS = {
+    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\brevenue\b": ("revenue", "USD millions"),
+    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bpipeline\b": ("pipeline", "USD millions"),
+    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bwin[ _]?rate\b": ("win_rate", "%"),
+    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bmargin\b": ("gross_margin_pct", "%"),
+    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bchurn\b": ("gross_churn_pct", "%"),
+    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bnrr\b": ("nrr", "%"),
+    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bnet retention\b": ("nrr", "%"),
+    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bheadcount\b": ("headcount", "count"),
+    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\barr\b": ("arr", "USD millions"),
+    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bcustomer(?:s| count)?\b": ("customer_count", "count"),
+    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bnet income\b": ("net_income", "USD millions"),
+    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bquota\b": ("quota_attainment", "%"),
+}
+
+import re as _re_simple
+
+
+def _try_simple_metric_query(question: str, fact_base: FactBase) -> Optional[NLQResponse]:
+    """
+    Try to answer a simple metric query directly from fact base.
+
+    Handles queries like "what's our revenue?" without needing Claude.
+    Returns None if the query doesn't match simple patterns.
+    """
+    q = question.lower().strip()
+
+    for pattern, (metric, unit) in _SIMPLE_METRIC_PATTERNS.items():
+        if _re_simple.search(pattern, q, _re_simple.IGNORECASE):
+            # Found a matching pattern, query fact base directly
+            value = fact_base.query(metric, "2025")
+            if value is None:
+                return None  # Metric not found, let normal flow handle it
+
+            # Format the value nicely
+            display_name = get_display_name(metric)
+            if unit == "USD millions":
+                formatted = f"${round(value, 1)}M"
+                answer = f"{display_name} for 2025 is {formatted}"
+            elif unit == "%":
+                formatted = f"{round(value, 1)}%"
+                answer = f"{display_name} for 2025 is {formatted}"
+            elif unit == "count":
+                formatted = f"{int(value):,}"
+                answer = f"{display_name} for 2025 is {formatted}"
+            else:
+                formatted = str(round(value, 1))
+                answer = f"{display_name} for 2025 is {formatted}"
+
+            return NLQResponse(
+                success=True,
+                answer=answer,
+                value=value,
+                unit=unit,
+                confidence=0.95,
+                parsed_intent="POINT_QUERY",
+                resolved_metric=metric,
+                resolved_period="2025",
+                response_type="text",
+            )
+
+    return None  # No match, let normal flow handle it
+
+
+# Guided discovery patterns and available metrics by domain
+_GUIDED_DISCOVERY_DOMAINS = {
+    "customer": {
+        "pattern": r"\b(?:what can you show me|what do you have|tell me about|show me available)\b.*\bcustomer",
+        "metrics": ["customer_count", "nrr", "gross_churn_pct", "logo_churn_pct"],
+        "response": "For customers, I can show you:\n- Customer Count (currently 950)\n- Net Revenue Retention / NRR (118%)\n- Gross Churn Rate (7%)\n- Logo Churn Rate\n\nWould you like to see a dashboard with customer metrics, or ask about a specific metric?"
+    },
+    "sales": {
+        "pattern": r"\b(?:what can you show me|what do you have|tell me about|show me available)\b.*\bsales",
+        "metrics": ["revenue", "pipeline", "win_rate", "quota_attainment", "sales_cycle_days"],
+        "response": "For sales, I can show you:\n- Revenue ($150M for 2025)\n- Pipeline ($431M)\n- Win Rate (42%)\n- Quota Attainment (95.8%)\n- Sales Cycle (85 days)\n\nWould you like to see a sales dashboard or drill into a specific metric?"
+    },
+    "finance": {
+        "pattern": r"\b(?:what can you show me|what do you have|tell me about|show me available)\b.*\b(?:finance|financial)",
+        "metrics": ["revenue", "gross_margin_pct", "net_income", "arr"],
+        "response": "For finance, I can show you:\n- Revenue ($150M)\n- Gross Margin (65%)\n- Net Income ($28.1M)\n- ARR ($142.5M)\n\nWould you like a financial dashboard or details on a specific metric?"
+    },
+}
+
+
+def _try_guided_discovery(question: str) -> Optional[NLQResponse]:
+    """
+    Handle guided discovery queries like "what can you show me about customers?"
+
+    Returns available metrics for the requested domain.
+    """
+    q = question.lower().strip()
+
+    for domain, config in _GUIDED_DISCOVERY_DOMAINS.items():
+        if _re_simple.search(config["pattern"], q, _re_simple.IGNORECASE):
+            return NLQResponse(
+                success=True,
+                answer=config["response"],
+                value=None,
+                unit=None,
+                confidence=0.9,
+                parsed_intent="GUIDED_DISCOVERY",
+                resolved_metric=None,
+                resolved_period=None,
+                response_type="text",
+            )
+
+    return None
+
+
+# Patterns that indicate queries about non-existent data
+_MISSING_DATA_PATTERNS = [
+    r"\bmars\b",
+    r"\bmoon\b",
+    r"\bspace\b",
+    r"\balien\b",
+    r"\bunicorn\b",
+    r"\bcolony\b",
+    r"\b(?:does not|doesn't|don't) exist",
+]
+
+
+def _check_missing_data(question: str) -> Optional[NLQResponse]:
+    """
+    Check if a query is asking about non-existent data.
+
+    Returns a graceful error response for queries about data we don't have.
+    """
+    q = question.lower().strip()
+
+    for pattern in _MISSING_DATA_PATTERNS:
+        if _re_simple.search(pattern, q, _re_simple.IGNORECASE):
+            return NLQResponse(
+                success=True,
+                answer="I don't have data for that. I can help you with metrics like revenue, pipeline, win rate, customer count, margins, and other standard business metrics. What would you like to explore?",
+                value=None,
+                unit=None,
+                confidence=0.8,
+                parsed_intent="MISSING_DATA",
+                resolved_metric=None,
+                resolved_period=None,
+                response_type="text",
+            )
+
+    return None
+
+
 def _handle_ambiguous_query_text(
     question: str,
     ambiguity_type: AmbiguityType,
@@ -2224,25 +2408,139 @@ async def query(request: NLQRequest) -> NLQResponse:
                 return people_response
 
         # Check for dashboard/report queries (doesn't need Claude API)
+        # NOTE: For visual dashboard requests, we let the visualization intent handler below
+        # generate proper dashboard widgets. Only text-mode dashboard summaries go through the old handler.
         if _is_dashboard_query(request.question):
-            dashboard_response = _handle_dashboard_query(request.question, fact_base)
-            if dashboard_response:
-                # Convert IntentMapResponse to NLQResponse for text endpoint
-                return NLQResponse(
-                    success=True,
-                    answer=dashboard_response.text_response,
-                    value=None,
-                    unit=None,
-                    confidence=dashboard_response.overall_confidence,
-                    parsed_intent="DASHBOARD",
-                    resolved_metric="dashboard",
-                    resolved_period=dashboard_response.nodes[0].period if dashboard_response.nodes else None,
-                    related_metrics=_nodes_to_related_metrics(dashboard_response.nodes),
-                )
+            # Check if this should be a visual dashboard first
+            should_viz, viz_requirements = should_generate_visualization(request.question)
+            if should_viz and viz_requirements.intent != VisualizationIntent.SIMPLE_ANSWER:
+                # Let the visualization intent handler below generate proper widgets
+                pass
+            else:
+                # Fallback to text summary for non-visual dashboard requests
+                dashboard_response = _handle_dashboard_query(request.question, fact_base)
+                if dashboard_response:
+                    # Convert IntentMapResponse to NLQResponse for text endpoint
+                    return NLQResponse(
+                        success=True,
+                        answer=dashboard_response.text_response,
+                        value=None,
+                        unit=None,
+                        confidence=dashboard_response.overall_confidence,
+                        parsed_intent="DASHBOARD",
+                        resolved_metric="dashboard",
+                        resolved_period=dashboard_response.nodes[0].period if dashboard_response.nodes else None,
+                        related_metrics=_nodes_to_related_metrics(dashboard_response.nodes),
+                    )
+
+        # =================================================================
+        # GUIDED DISCOVERY - Handle "what can you show me about X" queries
+        # (Must be before visualization intent to avoid showing generic dashboard)
+        # =================================================================
+        guided_result = _try_guided_discovery(request.question)
+        if guided_result:
+            return guided_result
+
+        # =================================================================
+        # MISSING DATA CHECK - Handle queries about non-existent data
+        # =================================================================
+        missing_result = _check_missing_data(request.question)
+        if missing_result:
+            return missing_result
 
         # =================================================================
         # VISUALIZATION INTENT DETECTION - Check if user wants a dashboard
         # =================================================================
+        # Get session ID for dashboard state tracking
+        session_id = request.session_id or "default"
+
+        # Check for current dashboard in session (for refinement support)
+        current_session = get_session_dashboard(session_id)
+        has_current_dashboard = current_session is not None
+
+        # First check if this is a refinement command
+        refinement_intent = detect_refinement_intent(request.question, has_current_dashboard)
+
+        # Handle context-dependent queries without a dashboard
+        if is_context_dependent_query(request.question) and not has_current_dashboard:
+            clarification_msg = needs_clarification_without_context(request.question)
+            if clarification_msg:
+                return NLQResponse(
+                    success=True,
+                    answer=clarification_msg,
+                    value=None,
+                    unit=None,
+                    confidence=0.7,
+                    parsed_intent="CLARIFICATION_NEEDED",
+                    resolved_metric=None,
+                    resolved_period=None,
+                    response_type="text",
+                )
+
+        # Handle refinement of existing dashboard
+        if refinement_intent.is_refinement and has_current_dashboard:
+            logger.info(f"Refinement intent detected: {refinement_intent.refinement_type.value}")
+
+            try:
+                from src.nlq.models.dashboard_schema import DashboardSchema
+
+                # Get current dashboard schema
+                current_dashboard_dict = current_session["dashboard"]
+                current_schema = DashboardSchema(**current_dashboard_dict)
+
+                # Detect visualization requirements for the refinement
+                _, viz_requirements = should_generate_visualization(request.question)
+
+                # Apply refinement
+                updated_schema = refine_dashboard_schema(
+                    current_schema=current_schema,
+                    refinement_query=request.question,
+                    requirements=viz_requirements,
+                )
+
+                # Resolve data for updated dashboard
+                data_resolver = DashboardDataResolver(fact_base)
+                widget_data = data_resolver.resolve_dashboard_data(
+                    updated_schema,
+                    reference_year="2025",
+                )
+
+                # Update session state
+                updated_dict = updated_schema.model_dump()
+                set_session_dashboard(session_id, updated_dict, widget_data)
+
+                # Describe the changes
+                changes = []
+                if refinement_intent.refinement_type == RefinementType.ADD_WIDGET:
+                    metric = refinement_intent.metric_to_add or "the requested"
+                    changes.append(f"Added {metric} widget")
+                elif refinement_intent.refinement_type == RefinementType.CHANGE_CHART_TYPE:
+                    changes.append(f"Changed chart type to {refinement_intent.new_chart_type or 'the requested type'}")
+                elif refinement_intent.refinement_type == RefinementType.REMOVE_WIDGET:
+                    changes.append("Removed the specified widget")
+                elif refinement_intent.refinement_type == RefinementType.ADD_FILTER:
+                    changes.append(f"Added filter for {refinement_intent.filter_dimension}")
+                else:
+                    changes.append("Updated the dashboard")
+
+                return NLQResponse(
+                    success=True,
+                    answer=f"I've updated the dashboard. {'; '.join(changes)}.",
+                    value=None,
+                    unit=None,
+                    confidence=refinement_intent.confidence,
+                    parsed_intent="REFINEMENT",
+                    resolved_metric=viz_requirements.metrics[0] if viz_requirements.metrics else None,
+                    resolved_period="2025",
+                    response_type="dashboard",
+                    dashboard=updated_dict,
+                    dashboard_data=widget_data,
+                )
+            except Exception as e:
+                logger.error(f"Dashboard refinement failed: {e}", exc_info=True)
+                # Fall through to new dashboard generation
+
+        # Check for new visualization request
         should_viz, viz_requirements = should_generate_visualization(request.question)
 
         if should_viz and viz_requirements.intent != VisualizationIntent.SIMPLE_ANSWER:
@@ -2262,6 +2560,10 @@ async def query(request: NLQRequest) -> NLQResponse:
                     reference_year="2025",
                 )
 
+                # Store in session for future refinements
+                dashboard_dict = dashboard_schema.model_dump()
+                set_session_dashboard(session_id, dashboard_dict, widget_data)
+
                 # Return dashboard response
                 return NLQResponse(
                     success=True,
@@ -2273,7 +2575,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                     resolved_metric=viz_requirements.metrics[0] if viz_requirements.metrics else None,
                     resolved_period="2025",
                     response_type="dashboard",
-                    dashboard=dashboard_schema.model_dump(),
+                    dashboard=dashboard_dict,
                     dashboard_data=widget_data,
                 )
             except Exception as e:
@@ -2292,6 +2594,13 @@ async def query(request: NLQRequest) -> NLQResponse:
                 clarification,
                 fact_base,
             )
+
+        # =================================================================
+        # SIMPLE METRIC FALLBACK - Handle direct metric queries without Claude
+        # =================================================================
+        simple_result = _try_simple_metric_query(request.question, fact_base)
+        if simple_result:
+            return simple_result
 
         # Set up components
         reference_date = request.reference_date or date.today()

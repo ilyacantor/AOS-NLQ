@@ -193,6 +193,83 @@ async def get_dashboard(dashboard_id: str) -> DashboardSchema:
     return dashboard
 
 
+class DashboardFilterRequest(BaseModel):
+    """Request model for cross-widget filtering."""
+    dashboard_id: str = Field(..., description="Dashboard ID to filter")
+    filters: dict = Field(..., description="Filters to apply (dimension -> value)")
+    session_id: str = Field(default="default", description="Session ID for state tracking")
+
+
+class DashboardFilterResponse(BaseModel):
+    """Response model for filtered dashboard data."""
+    success: bool = Field(..., description="Whether filtering was successful")
+    widget_data: dict = Field(..., description="Updated widget data with filters applied")
+    active_filters: dict = Field(..., description="Currently active filters")
+    error: str = Field(default=None, description="Error message if any")
+
+
+@router.post("/dashboard/filter", response_model=DashboardFilterResponse)
+async def filter_dashboard(request: DashboardFilterRequest) -> DashboardFilterResponse:
+    """
+    Apply cross-widget filters to a dashboard.
+
+    When a user clicks on a chart element (e.g., a region bar), this endpoint
+    recomputes all widget data with the filter applied.
+
+    Example:
+    - Click "AMER" bar -> All widgets filter to AMER region
+    - Click again to clear filter
+    """
+    try:
+        from src.nlq.core.dashboard_data_resolver import DashboardDataResolver
+        from src.nlq.knowledge.fact_base import FactBase
+        import os
+        from pathlib import Path
+
+        logger.info(f"Filter request for {request.dashboard_id}: {request.filters}")
+
+        # Get dashboard from cache
+        dashboard = _dashboard_cache.get(request.dashboard_id)
+        if not dashboard:
+            return DashboardFilterResponse(
+                success=False,
+                widget_data={},
+                active_filters={},
+                error=f"Dashboard {request.dashboard_id} not found",
+            )
+
+        # Load fact base
+        project_root = Path(__file__).parent.parent.parent.parent
+        fact_base_path = project_root / "data" / "fact_base.json"
+        fact_base = FactBase(fact_base_path)
+
+        # Resolve data with filters
+        resolver = DashboardDataResolver(fact_base)
+        widget_data = resolver.resolve_dashboard_data(
+            dashboard,
+            reference_year="2025",
+            active_filters=request.filters,
+        )
+
+        logger.info(f"Applied filters: {request.filters}, resolved {len(widget_data)} widgets")
+
+        return DashboardFilterResponse(
+            success=True,
+            widget_data=widget_data,
+            active_filters=request.filters,
+            error=None,
+        )
+
+    except Exception as e:
+        logger.error(f"Filter failed: {e}", exc_info=True)
+        return DashboardFilterResponse(
+            success=False,
+            widget_data={},
+            active_filters={},
+            error=str(e),
+        )
+
+
 @router.get("/dashboard/intent/check")
 async def check_intent(question: str) -> dict:
     """

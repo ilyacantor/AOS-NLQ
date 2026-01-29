@@ -326,6 +326,11 @@ class NLQResponse(BaseModel):
         description="Response type: 'text' for simple answer, 'dashboard' for visualization"
     )
 
+    active_filters: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Active cross-widget filters (dimension -> value)"
+    )
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
