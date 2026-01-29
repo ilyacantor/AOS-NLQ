@@ -275,7 +275,7 @@ def _extract_metrics_from_query(query: str) -> List[str]:
         "gross_margin_pct": ["gross margin", "margin", "gm"],
         "net_income": ["net income", "profit", "bottom line"],
         "pipeline": ["pipeline"],
-        "churn": ["churn", "churn rate"],
+        "gross_churn_pct": ["churn", "churn rate", "gross churn"],
         "nrr": ["nrr", "net retention", "net revenue retention"],
         "headcount": ["headcount", "employees", "staff", "team size"],
         "win_rate": ["win rate", "close rate"],
