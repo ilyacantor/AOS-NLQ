@@ -93,6 +93,14 @@ class QueryExecutor:
 
     def _execute_point_query(self, parsed_query: ParsedQuery) -> QueryResult:
         """Execute a single metric, single period query."""
+        if not parsed_query.resolved_period:
+            return QueryResult(
+                success=False,
+                error="UNRESOLVED_PERIOD",
+                message="Period could not be resolved",
+                confidence=0.0
+            )
+
         result = self.fact_base.query(
             parsed_query.metric,
             parsed_query.resolved_period
@@ -122,6 +130,14 @@ class QueryExecutor:
 
     def _execute_comparison_query(self, parsed_query: ParsedQuery) -> QueryResult:
         """Execute a comparison between two periods."""
+        if not parsed_query.resolved_period:
+            return QueryResult(
+                success=False,
+                error="UNRESOLVED_PERIOD",
+                message="Period could not be resolved for comparison",
+                confidence=0.0
+            )
+
         # Get values for both periods
         value1 = self.fact_base.query(
             parsed_query.metric,
@@ -223,7 +239,13 @@ class QueryExecutor:
 
     def _execute_breakdown_query(self, parsed_query: ParsedQuery) -> QueryResult:
         """Execute a breakdown query (multiple metrics for one period)."""
-        if not parsed_query.breakdown_metrics:
+        breakdown_metrics = parsed_query.breakdown_metrics
+
+        # Fallback: If no breakdown_metrics provided, derive from the primary metric
+        if not breakdown_metrics:
+            breakdown_metrics = self._derive_breakdown_metrics(parsed_query.metric)
+
+        if not breakdown_metrics:
             return QueryResult(
                 success=False,
                 error="MISSING_BREAKDOWN_METRICS",
@@ -242,7 +264,7 @@ class QueryExecutor:
 
         # Get values for all metrics
         breakdown = {}
-        for metric in parsed_query.breakdown_metrics:
+        for metric in breakdown_metrics:
             value = self.fact_base.query(metric, period)
             if value is not None:
                 breakdown[metric] = value
@@ -263,3 +285,54 @@ class QueryExecutor:
             },
             confidence=bounded_confidence(0.95)
         )
+
+    def _derive_breakdown_metrics(self, metric: str) -> list[str]:
+        """
+        Derive breakdown metrics from a primary metric when LLM doesn't provide them.
+
+        Maps high-level metrics to their component parts for driver analysis.
+        Uses actual metrics that exist in the fact base.
+        """
+        BREAKDOWN_MAPPINGS = {
+            # Revenue drivers (using actual fact base metrics)
+            "revenue": ["new_logo_revenue", "expansion_revenue", "renewal_revenue", "gross_profit"],
+            "total_revenue": ["new_logo_revenue", "expansion_revenue", "renewal_revenue"],
+            "sales": ["new_logo_revenue", "expansion_revenue", "renewal_revenue"],
+            # Bookings drivers
+            "bookings": ["arr", "pipeline", "qualified_pipeline", "win_rate"],
+            "arr": ["new_logo_revenue", "expansion_revenue", "renewal_revenue", "gross_churn_pct"],
+            # Expense drivers
+            "operating_expenses": ["selling_expenses", "g_and_a_expenses", "sga"],
+            "opex": ["selling_expenses", "g_and_a_expenses", "sga"],
+            "sga": ["selling_expenses", "g_and_a_expenses"],
+            # Margin drivers
+            "gross_margin": ["revenue", "cogs", "gross_profit"],
+            "gross_margin_pct": ["revenue", "cogs", "gross_profit"],
+            "operating_margin": ["revenue", "operating_profit", "sga"],
+            "operating_margin_pct": ["revenue", "operating_profit", "sga"],
+            # Pipeline drivers
+            "pipeline": ["qualified_pipeline", "win_rate", "sales_cycle_days", "avg_deal_size"],
+            # Churn drivers
+            "churn": ["gross_churn_pct", "logo_churn_pct", "nrr"],
+            "gross_churn_pct": ["logo_churn_pct", "nrr", "customer_count"],
+            # Magic number components
+            "magic_number": ["bookings", "revenue", "sga", "sales_headcount"],
+            # LTV/CAC components
+            "ltv_cac": ["revenue", "cac_payback_months", "gross_churn_pct", "nrr"],
+            # Cash and burn
+            "cash": ["revenue", "cogs", "sga", "operating_profit"],
+            "burn_rate": ["revenue", "operating_profit", "sga", "headcount"],
+            "burn_multiple": ["revenue", "operating_profit", "net_income"],
+            # Operational metrics
+            "headcount": ["engineering_headcount", "product_headcount", "sales_headcount", "marketing_headcount", "cs_headcount", "ga_headcount"],
+            "nps": ["csat", "support_tickets", "resolution_hours"],
+            # Tech metrics
+            "uptime_pct": ["downtime_hours", "p1_incidents", "p2_incidents", "mttr_p1_hours"],
+            "velocity": ["sprint_velocity", "story_points", "features_shipped", "deploys_per_week"],
+            "tech_debt_pct": ["code_coverage_pct", "bug_escape_rate", "critical_bugs"],
+        }
+
+        # Normalize metric name for lookup
+        metric_lower = metric.lower().replace("-", "_").replace(" ", "_")
+
+        return BREAKDOWN_MAPPINGS.get(metric_lower, [])

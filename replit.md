@@ -140,6 +140,9 @@ The production build serves:
 - Added ScenarioModelingPanel for CFO dashboard with interactive sliders and live KPI impact preview
 - Fixed all LSP/TypeScript errors in ChartTile (removed unused functions, fixed type issues)
 - Integrated all new components into the dashboard rendering pipeline
+- **Fixed BREAKDOWN_QUERY issues**: Added fallback metric derivation in executor for "What is driving..." style questions
+- Updated LLM prompts with driver-style breakdown query examples
+- Added BREAKDOWN_MAPPINGS for revenue, bookings, expenses, margins, pipeline, churn, and other key metrics
 
 ## Recent Changes (2026-01-28)
 - Added collapsible sidebar with toggle button
