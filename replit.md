@@ -133,6 +133,12 @@ The production build serves:
 ---
 
 ## Recent Changes (2026-01-29)
+- **Session Persistence via Pinecone**: RAG session statistics now persist across server restarts using Pinecone (no additional database needed)
+  - Sessions stored in "nlq-sessions" namespace with buffered writes (5-second flush interval)
+  - Persists: call_count, queries_cached, queries_learned, timestamps
+  - Requires PINECONE_API_KEY environment variable
+- **CTO Dashboard bar charts**: Added size property for proportional heights (Code Quality, Cloud Cost)
+- **CRO Win Rate by Segment**: Fixed bar heights to reflect segment sizes
 - Added persona-specific dashboards: CRO (Revenue), COO (Operations), CTO (Technology)
 - Created PredictiveLineChart component with Recharts for shadow forecasts
 - Added InsightCard component for anomaly storytelling with AI-generated explanations
