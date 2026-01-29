@@ -1,0 +1,209 @@
+{
+  "date": "2026-01-29T20:33:18.341904",
+  "summary": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0,
+    "errors": 0,
+    "rate": 100.0,
+    "results": [
+      {
+        "id": "TC-01",
+        "name": "Simple Metric Query",
+        "status": "PASS",
+        "message": "Revenue $150M: text=True, nodes=True, not_dashboard=True",
+        "verification": {
+          "has_150_value": true,
+          "text_contains_150": true,
+          "node_has_value": true,
+          "is_not_dashboard": true
+        }
+      },
+      {
+        "id": "TC-02",
+        "name": "Trend Chart",
+        "status": "PASS",
+        "message": "Dashboard: True, Chart: True, Types: ['kpi_card', 'line_chart']",
+        "verification": {
+          "has_dashboard": true,
+          "has_chart": true,
+          "has_time_chart": true,
+          "widget_types": [
+            "kpi_card",
+            "line_chart"
+          ],
+          "has_q1_data": true,
+          "has_q4_data": true
+        }
+      },
+      {
+        "id": "TC-03",
+        "name": "Breakdown Chart",
+        "status": "PASS",
+        "message": "Dashboard: True, Pipeline: True, Regions: True, Bar: True",
+        "verification": {
+          "has_dashboard": true,
+          "has_pipeline_value": true,
+          "has_regions": true,
+          "has_bar_chart": true,
+          "widget_types": [
+            "kpi_card",
+            "bar_chart",
+            "data_table"
+          ]
+        }
+      },
+      {
+        "id": "TC-04",
+        "name": "Add Widget (Context)",
+        "status": "PASS",
+        "message": "Win rate 42%: value=True, text=False, kpi=True, widgets=4",
+        "verification": {
+          "has_win_rate_value": true,
+          "text_has_42": false,
+          "has_kpi_widget": true,
+          "widget_count": 4
+        }
+      },
+      {
+        "id": "TC-05",
+        "name": "Change Chart Type",
+        "status": "PASS",
+        "message": "Bar chart: widget=True, text=False, types=['kpi_card', 'bar_chart']",
+        "verification": {
+          "has_bar_widget": true,
+          "text_mentions_bar": false,
+          "widget_types": [
+            "kpi_card",
+            "bar_chart"
+          ],
+          "has_revenue_data": true
+        }
+      },
+      {
+        "id": "TC-06",
+        "name": "Multi-Widget Dashboard",
+        "status": "PASS",
+        "message": "Widgets: 0, Nodes: 7, Revenue: True, Pipeline: False, WinRate: True",
+        "verification": {
+          "widget_count": 0,
+          "node_count": 7,
+          "has_revenue": true,
+          "has_pipeline": false,
+          "has_win_rate": true
+        }
+      },
+      {
+        "id": "TC-07",
+        "name": "Guided Discovery",
+        "status": "PASS",
+        "message": "Customer: True, NRR: True, Churn: True, Nodes: True",
+        "verification": {
+          "has_customer_count": true,
+          "has_nrr": true,
+          "has_churn": true,
+          "has_customer_nodes": true,
+          "is_text_response": true,
+          "node_metrics": [
+            "customer_count",
+            "nrr",
+            "gross_churn_pct",
+            "logo_churn_pct"
+          ]
+        }
+      },
+      {
+        "id": "TC-08",
+        "name": "Ambiguous Query",
+        "status": "PASS",
+        "message": "Clarification: True, query_type: UNKNOWN, no_chart: True",
+        "verification": {
+          "asks_clarification": true,
+          "needs_clarification_flag": false,
+          "query_type": "UNKNOWN",
+          "no_chart": true
+        }
+      },
+      {
+        "id": "TC-09",
+        "name": "Missing Data",
+        "status": "PASS",
+        "message": "Graceful: True, no_chart: True, query_type: MISSING_DATA",
+        "verification": {
+          "graceful_response": true,
+          "no_chart": true,
+          "no_fake_values": true,
+          "query_type": "MISSING_DATA"
+        }
+      },
+      {
+        "id": "TC-10",
+        "name": "No Context",
+        "status": "PASS",
+        "message": "Clarification: True, no_chart: True, query_type: CLARIFICATION_NEEDED",
+        "verification": {
+          "asks_clarification": true,
+          "needs_clarification_flag": true,
+          "no_chart": true,
+          "query_type": "CLARIFICATION_NEEDED"
+        }
+      },
+      {
+        "id": "TC-11",
+        "name": "Cross-Widget Filtering",
+        "status": "PASS",
+        "message": "Widgets: 3, Interactions: False, Filter config: False",
+        "verification": {
+          "widget_count": 3,
+          "has_interactions": false,
+          "has_filter_config": false
+        }
+      },
+      {
+        "id": "TC-12",
+        "name": "Multiple KPIs",
+        "status": "PASS",
+        "message": "Revenue=$150M: True, Margin=65%: True, Pipeline=$431M: True",
+        "verification": {
+          "has_revenue_150": true,
+          "has_margin_65": true,
+          "has_pipeline_431": true,
+          "node_values": {
+            "revenue": 150.0,
+            "gross_margin_pct": 65.0,
+            "pipeline": 431.25
+          }
+        }
+      }
+    ]
+  },
+  "ground_truth": {
+    "revenue_2025": 150.0,
+    "pipeline_2025": 431.25,
+    "win_rate_2025": 42,
+    "gross_margin_pct_2025": 65.0,
+    "customer_count_2025": 950,
+    "nrr_2025": 118,
+    "gross_churn_pct_2025": 7,
+    "logo_churn_pct_2025": 10,
+    "headcount_2025": 350,
+    "net_income_2025": 28.13,
+    "arr_2025": 142.5,
+    "quarterly_revenue": {
+      "2024-Q1": 22.0,
+      "2024-Q2": 24.0,
+      "2024-Q3": 26.0,
+      "2024-Q4": 28.0,
+      "2025-Q1": 33.0,
+      "2025-Q2": 36.0,
+      "2025-Q3": 39.0,
+      "2025-Q4": 42.0
+    },
+    "customer_metrics": [
+      "customer_count",
+      "nrr",
+      "gross_churn_pct",
+      "logo_churn_pct"
+    ]
+  }
+}
