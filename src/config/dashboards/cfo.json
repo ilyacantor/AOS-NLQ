@@ -73,22 +73,23 @@
     {
       "id": "chart-revenue-waterfall",
       "type": "chart",
-      "position": { "x": 0, "y": 2, "w": 8, "h": 4 },
+      "position": { "x": 0, "y": 2, "w": 6, "h": 2 },
       "config": {
         "chartType": "waterfall",
         "title": "Revenue Bridge",
         "query": "Show revenue waterfall from last year to this year by category",
         "clickQuery": "Explain the changes in {category}",
         "colorScheme": "financial",
-        "showLegend": true,
+        "showLegend": false,
         "showLabels": true,
-        "enableDrilldown": true
+        "enableDrilldown": true,
+        "compact": true
       }
     },
     {
       "id": "panel-insights",
       "type": "insights",
-      "position": { "x": 8, "y": 2, "w": 4, "h": 4 },
+      "position": { "x": 6, "y": 2, "w": 6, "h": 2 },
       "config": {
         "title": "AI Financial Insights",
         "query": "What are the top 5 financial insights and anomalies this period?",
@@ -102,7 +103,7 @@
     {
       "id": "chart-top-customers",
       "type": "chart",
-      "position": { "x": 0, "y": 6, "w": 4, "h": 3 },
+      "position": { "x": 0, "y": 4, "w": 4, "h": 3 },
       "config": {
         "chartType": "horizontalBar",
         "title": "Top 10 Customers by Revenue",
@@ -118,7 +119,7 @@
     {
       "id": "chart-expenses",
       "type": "chart",
-      "position": { "x": 4, "y": 6, "w": 4, "h": 3 },
+      "position": { "x": 4, "y": 4, "w": 4, "h": 3 },
       "config": {
         "chartType": "horizontalBar",
         "title": "Expense Breakdown",
@@ -133,7 +134,7 @@
     {
       "id": "chart-ar-aging",
       "type": "chart",
-      "position": { "x": 8, "y": 6, "w": 4, "h": 3 },
+      "position": { "x": 8, "y": 4, "w": 4, "h": 3 },
       "config": {
         "chartType": "stackedBar",
         "title": "Accounts Receivable Aging",
@@ -149,7 +150,7 @@
     {
       "id": "nlq-input",
       "type": "nlq",
-      "position": { "x": 0, "y": 9, "w": 12, "h": 1 },
+      "position": { "x": 0, "y": 7, "w": 12, "h": 1 },
       "config": {
         "placeholder": "Ask a financial question...",
         "suggestedQueries": [

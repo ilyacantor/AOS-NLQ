@@ -143,6 +143,8 @@ The production build serves:
 - **Fixed BREAKDOWN_QUERY issues**: Added fallback metric derivation in executor for "What is driving..." style questions
 - Updated LLM prompts with driver-style breakdown query examples
 - Added BREAKDOWN_MAPPINGS for revenue, bookings, expenses, margins, pipeline, churn, and other key metrics
+- **Improved KPI sparklines**: Replaced squiggly line charts with clean quarterly bar charts (last 4 quarters, current quarter highlighted)
+- **Compacted Revenue Bridge**: Reduced from 8x4 to 6x2 grid position, moved insights panel alongside for better space utilization
 
 ## Recent Changes (2026-01-28)
 - Added collapsible sidebar with toggle button
