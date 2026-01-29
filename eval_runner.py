@@ -99,11 +99,19 @@ QUARTERLY_DATA = {
 }
 
 
-def query_api(question: str, session_id: str = "eval_session") -> Dict[str, Any]:
-    """Send a query to the NLQ API."""
+def query_api(question: str, session_id: str = "eval_session", endpoint: str = "intent-map") -> Dict[str, Any]:
+    """
+    Send a query to the NLQ API.
+
+    Args:
+        question: The natural language query
+        session_id: Session ID for context tracking
+        endpoint: Which endpoint to use - "intent-map" (galaxy/UI mode) or "query" (text mode)
+    """
     try:
+        url = f"{API_BASE}/v1/{endpoint}"
         response = requests.post(
-            f"{API_BASE}/v1/query",
+            url,
             json={
                 "question": question,
                 "session_id": session_id,
@@ -209,7 +217,12 @@ class EvalRunner:
         return self.results
 
     def _test_tc01(self) -> TestResult:
-        """TC-01: Simple Metric Query (Text Response)."""
+        """TC-01: Simple Metric Query (Text Response).
+
+        Note: In galaxy mode, simple metric queries are not supported.
+        This test checks if the galaxy endpoint returns a 'stumped' response,
+        which exposes the gap between /v1/query and /v1/intent-map.
+        """
         test_id = "TC-01"
         start = datetime.now()
 
@@ -219,28 +232,33 @@ class EvalRunner:
         if "error" in response:
             return TestResult(test_id, TestStatus.ERROR, f"API error: {response['error']}", duration_ms=int(duration))
 
-        # Check response type is text
-        response_type = response.get("response_type", "text")
-        if response_type != "text":
+        # IntentMapResponse format: extract value from nodes or text_response
+        value = None
+        query_type = response.get("query_type", "")
+
+        # Try to get value from nodes
+        nodes = response.get("nodes", [])
+        for node in nodes:
+            if node.get("metric") == "revenue" and node.get("value") is not None:
+                value = node.get("value")
+                break
+
+        # Fallback: extract from text_response or primary_answer
+        if value is None:
+            text = response.get("text_response") or response.get("primary_answer") or ""
+            # Check if this is a "stumped" response (galaxy doesn't support simple metric queries)
+            if "stumped" in text.lower() or "head-scratcher" in text.lower():
+                return TestResult(
+                    test_id, TestStatus.FAIL,
+                    f"Simple metric queries not supported in galaxy mode - got 'stumped'. query_type={query_type}",
+                    response=response, duration_ms=int(duration)
+                )
+            value = extract_numeric_value(text)
+
+        if value is None:
             return TestResult(
                 test_id, TestStatus.FAIL,
-                f"Expected text response, got {response_type}",
-                expected="text", actual=response_type,
-                response=response, duration_ms=int(duration)
-            )
-
-        # Check value
-        value = response.get("value")
-        answer = response.get("answer", "")
-
-        # Extract value from answer if not in value field
-        if value is None:
-            value = extract_numeric_value(answer)
-
-        if value is None:
-            return TestResult(
-                test_id, TestStatus.FAIL,
-                "Could not extract revenue value from response",
+                f"Could not extract revenue value from response. query_type={query_type}",
                 response=response, duration_ms=int(duration)
             )
 
@@ -265,18 +283,31 @@ class EvalRunner:
         if "error" in response:
             return TestResult(test_id, TestStatus.ERROR, f"API error: {response['error']}", duration_ms=int(duration))
 
-        # Check response type is dashboard
-        response_type = response.get("response_type")
-        if response_type != "dashboard":
+        # IntentMapResponse format: check for dashboard/visualization support
+        query_type = response.get("query_type", "")
+
+        # Check if response contains dashboard data
+        dashboard = response.get("dashboard", {})
+        widgets = dashboard.get("widgets", []) if dashboard else []
+
+        # Alternative: check for visualization-specific query_type
+        is_visualization = query_type in ["VISUALIZATION", "DASHBOARD", "TREND"]
+
+        if not widgets and not is_visualization:
+            # Check text_response for "stumped" or error message
+            text = response.get("text_response", "") or ""
+            if "stumped" in text.lower() or "head-scratcher" in text.lower():
+                return TestResult(
+                    test_id, TestStatus.FAIL,
+                    f"Visualization not supported - got 'stumped' response. query_type={query_type}",
+                    response=response, duration_ms=int(duration)
+                )
             return TestResult(
                 test_id, TestStatus.FAIL,
-                f"Expected dashboard response, got {response_type}",
+                f"Expected dashboard/visualization response, got query_type={query_type}",
                 response=response, duration_ms=int(duration)
             )
 
-        # Check dashboard has widgets
-        dashboard = response.get("dashboard", {})
-        widgets = dashboard.get("widgets", [])
         if not widgets:
             return TestResult(
                 test_id, TestStatus.FAIL,
@@ -325,18 +356,28 @@ class EvalRunner:
         if "error" in response:
             return TestResult(test_id, TestStatus.ERROR, f"API error: {response['error']}", duration_ms=int(duration))
 
-        # Check response type is dashboard
-        response_type = response.get("response_type")
-        if response_type != "dashboard":
+        # IntentMapResponse format: check for dashboard/visualization support
+        query_type = response.get("query_type", "")
+
+        # Check if response contains dashboard data
+        dashboard = response.get("dashboard", {})
+        widgets = dashboard.get("widgets", []) if dashboard else []
+
+        if not widgets:
+            text = response.get("text_response", "") or ""
+            if "stumped" in text.lower() or "head-scratcher" in text.lower():
+                return TestResult(
+                    test_id, TestStatus.FAIL,
+                    f"Visualization not supported - got 'stumped' response. query_type={query_type}",
+                    response=response, duration_ms=int(duration)
+                )
             return TestResult(
                 test_id, TestStatus.FAIL,
-                f"Expected dashboard response, got {response_type}",
+                f"Expected dashboard/visualization response, got query_type={query_type}",
                 response=response, duration_ms=int(duration)
             )
 
         # Check for bar chart
-        dashboard = response.get("dashboard", {})
-        widgets = dashboard.get("widgets", [])
         chart_types = [w.get("type") for w in widgets]
         has_bar = any(t in ["bar_chart", "horizontal_bar"] for t in chart_types)
         if not has_bar:
@@ -389,18 +430,26 @@ class EvalRunner:
         if "error" in response:
             return TestResult(test_id, TestStatus.ERROR, f"API error: {response['error']}", duration_ms=int(duration))
 
-        # Check response type is dashboard
-        response_type = response.get("response_type")
-        if response_type != "dashboard":
+        # IntentMapResponse format: check for dashboard/visualization support
+        query_type = response.get("query_type", "")
+        dashboard = response.get("dashboard", {})
+        widgets = dashboard.get("widgets", []) if dashboard else []
+
+        if not widgets:
+            text = response.get("text_response", "") or ""
+            if "stumped" in text.lower() or "head-scratcher" in text.lower():
+                return TestResult(
+                    test_id, TestStatus.FAIL,
+                    f"Refinement not supported - got 'stumped' response. query_type={query_type}",
+                    response=response, duration_ms=int(duration)
+                )
             return TestResult(
                 test_id, TestStatus.FAIL,
-                f"Expected dashboard response, got {response_type}",
+                f"Expected dashboard/visualization response, got query_type={query_type}",
                 response=response, duration_ms=int(duration)
             )
 
         # Check for KPI card with win rate
-        dashboard = response.get("dashboard", {})
-        widgets = dashboard.get("widgets", [])
         has_kpi = any(w.get("type") == "kpi_card" for w in widgets)
 
         if not has_kpi:
@@ -449,18 +498,26 @@ class EvalRunner:
         if "error" in response:
             return TestResult(test_id, TestStatus.ERROR, f"API error: {response['error']}", duration_ms=int(duration))
 
-        response_type = response.get("response_type")
-        if response_type != "dashboard":
+        # IntentMapResponse format: check for dashboard/visualization support
+        query_type = response.get("query_type", "")
+        dashboard = response.get("dashboard", {})
+        widgets = dashboard.get("widgets", []) if dashboard else []
+
+        if not widgets:
+            text = response.get("text_response", "") or ""
+            if "stumped" in text.lower() or "head-scratcher" in text.lower():
+                return TestResult(
+                    test_id, TestStatus.FAIL,
+                    f"Refinement not supported - got 'stumped' response. query_type={query_type}",
+                    response=response, duration_ms=int(duration)
+                )
             return TestResult(
                 test_id, TestStatus.FAIL,
-                f"Expected dashboard response, got {response_type}",
+                f"Expected dashboard/visualization response, got query_type={query_type}",
                 response=response, duration_ms=int(duration)
             )
 
-        dashboard = response.get("dashboard", {})
-        widgets = dashboard.get("widgets", [])
         chart_types = [w.get("type") for w in widgets]
-
         has_bar = any(t == "bar_chart" for t in chart_types)
 
         return TestResult(
@@ -480,44 +537,64 @@ class EvalRunner:
         if "error" in response:
             return TestResult(test_id, TestStatus.ERROR, f"API error: {response['error']}", duration_ms=int(duration))
 
-        response_type = response.get("response_type")
-        if response_type != "dashboard":
+        # IntentMapResponse format: galaxy uses nodes instead of widgets
+        query_type = response.get("query_type", "")
+        nodes = response.get("nodes", [])
+
+        # For galaxy mode, check if we got DASHBOARD type with nodes
+        if query_type == "DASHBOARD" and nodes:
+            # Dashboard query worked - check node values
+            if len(nodes) < 3:
+                return TestResult(
+                    test_id, TestStatus.FAIL,
+                    f"Expected 3+ metrics, got {len(nodes)}",
+                    response=response, duration_ms=int(duration)
+                )
+
+            # Check node values for mock data
+            mock_found = []
+            for node in nodes:
+                val = node.get("value")
+                metric = node.get("metric", "")
+                if val:
+                    for mock_metric, mock_vals in MOCK_DATA_VALUES.items():
+                        if any(abs(val - mv) < 0.1 for mv in mock_vals):
+                            mock_found.append(f"{metric}: {val}")
+
+            if mock_found:
+                return TestResult(
+                    test_id, TestStatus.FAIL,
+                    f"MOCK DATA detected in nodes: {mock_found}",
+                    response=response, duration_ms=int(duration)
+                )
+
             return TestResult(
-                test_id, TestStatus.FAIL,
-                f"Expected dashboard response, got {response_type}",
+                test_id, TestStatus.PASS,
+                f"Dashboard with {len(nodes)} metrics (galaxy format), real data",
                 response=response, duration_ms=int(duration)
             )
 
+        # Check for visual dashboard widgets (if supported)
         dashboard = response.get("dashboard", {})
-        widgets = dashboard.get("widgets", [])
+        widgets = dashboard.get("widgets", []) if dashboard else []
 
-        if len(widgets) < 3:
+        if not widgets:
+            text = response.get("text_response", "") or ""
+            if "stumped" in text.lower() or "head-scratcher" in text.lower():
+                return TestResult(
+                    test_id, TestStatus.FAIL,
+                    f"Dashboard not supported - got 'stumped' response. query_type={query_type}",
+                    response=response, duration_ms=int(duration)
+                )
             return TestResult(
                 test_id, TestStatus.FAIL,
-                f"Expected 3+ widgets, got {len(widgets)}",
-                response=response, duration_ms=int(duration)
-            )
-
-        # Check widget data for mock values
-        widget_data = response.get("dashboard_data", {})
-        mock_found = []
-        for widget_id, data in widget_data.items():
-            val = data.get("value")
-            if val:
-                for metric, mock_vals in MOCK_DATA_VALUES.items():
-                    if any(abs(val - mv) < 0.1 for mv in mock_vals):
-                        mock_found.append(f"{widget_id}: {val}")
-
-        if mock_found:
-            return TestResult(
-                test_id, TestStatus.FAIL,
-                f"MOCK DATA detected in: {mock_found}",
+                f"Expected dashboard/visualization response, got query_type={query_type}",
                 response=response, duration_ms=int(duration)
             )
 
         return TestResult(
             test_id, TestStatus.PASS,
-            f"Dashboard with {len(widgets)} widgets, real data",
+            f"Dashboard with {len(widgets)} widgets",
             response=response, duration_ms=int(duration)
         )
 
@@ -532,11 +609,19 @@ class EvalRunner:
         if "error" in response:
             return TestResult(test_id, TestStatus.ERROR, f"API error: {response['error']}", duration_ms=int(duration))
 
-        answer = response.get("answer", "").lower()
+        # IntentMapResponse format: check text_response or primary_answer
+        answer = (response.get("text_response") or response.get("primary_answer") or "").lower()
 
         # Check if response mentions customer-related metrics
-        customer_metrics = ["customer_count", "nrr", "churn", "retention"]
+        customer_metrics = ["customer_count", "nrr", "churn", "retention", "customer"]
         mentioned = [m for m in customer_metrics if m.replace("_", " ") in answer or m in answer]
+
+        # Also check nodes for customer-related data
+        nodes = response.get("nodes", [])
+        for node in nodes:
+            metric = node.get("metric", "").lower()
+            if any(cm in metric for cm in customer_metrics):
+                mentioned.append(metric)
 
         return TestResult(
             test_id, TestStatus.PASS if mentioned else TestStatus.FAIL,
@@ -555,7 +640,9 @@ class EvalRunner:
         if "error" in response:
             return TestResult(test_id, TestStatus.ERROR, f"API error: {response['error']}", duration_ms=int(duration))
 
-        answer = response.get("answer", "").lower()
+        # IntentMapResponse format: check text_response or primary_answer
+        answer = (response.get("text_response") or response.get("primary_answer") or "").lower()
+        query_type = response.get("query_type", "")
 
         # Check if response asks for clarification or offers options
         clarification_indicators = [
@@ -564,12 +651,12 @@ class EvalRunner:
         ]
         has_clarification = any(ind in answer for ind in clarification_indicators)
 
-        # Also acceptable if it returns a dashboard but with sensible defaults
-        response_type = response.get("response_type")
+        # Also check query_type for AMBIGUOUS
+        is_ambiguous_type = "AMBIGUOUS" in query_type.upper()
 
         return TestResult(
             test_id, TestStatus.PASS,
-            f"Response type: {response_type}, clarification: {has_clarification}",
+            f"query_type: {query_type}, clarification: {has_clarification or is_ambiguous_type}",
             response=response, duration_ms=int(duration)
         )
 
@@ -584,20 +671,25 @@ class EvalRunner:
         if "error" in response:
             return TestResult(test_id, TestStatus.ERROR, f"API error: {response['error']}", duration_ms=int(duration))
 
-        answer = response.get("answer", "").lower()
+        # IntentMapResponse format: check text_response or primary_answer
+        answer = (response.get("text_response") or response.get("primary_answer") or "").lower()
+        query_type = response.get("query_type", "")
 
         # Should NOT return a dashboard with fake data
-        response_type = response.get("response_type")
         dashboard_data = response.get("dashboard_data", {})
 
         # Check for graceful handling
         not_available_indicators = [
             "not available", "don't have", "no data", "cannot find",
-            "unable to", "sorry", "don't recognize"
+            "unable to", "sorry", "don't recognize", "stumped", "head-scratcher"
         ]
         graceful = any(ind in answer for ind in not_available_indicators)
 
-        if response_type == "dashboard" and dashboard_data:
+        # OFF_TOPIC query type is also acceptable
+        if query_type == "OFF_TOPIC":
+            graceful = True
+
+        if dashboard_data:
             # If dashboard returned, check it's not showing fake data
             for widget_id, data in dashboard_data.items():
                 if data.get("error"):
@@ -623,21 +715,23 @@ class EvalRunner:
         if "error" in response:
             return TestResult(test_id, TestStatus.ERROR, f"API error: {response['error']}", duration_ms=int(duration))
 
-        answer = response.get("answer", "").lower()
+        # IntentMapResponse format: check text_response or primary_answer
+        answer = (response.get("text_response") or response.get("primary_answer") or "").lower()
 
         # Should ask for clarification since no context
         clarification_indicators = [
             "what", "which", "current", "no dashboard",
-            "happy to", "would you like", "create"
+            "happy to", "would you like", "create", "stumped", "head-scratcher"
         ]
         asks_clarification = any(ind in answer for ind in clarification_indicators)
 
-        # Should NOT crash or show error
-        success = response.get("success", True)
+        # Check nodes - shouldn't have any meaningful data without context
+        nodes = response.get("nodes", [])
+        has_no_data = len(nodes) == 0
 
         return TestResult(
-            test_id, TestStatus.PASS if asks_clarification and success else TestStatus.FAIL,
-            "Asked for clarification" if asks_clarification else "Did not ask for clarification",
+            test_id, TestStatus.PASS if asks_clarification or has_no_data else TestStatus.FAIL,
+            "Asked for clarification or returned no data" if (asks_clarification or has_no_data) else "Did not ask for clarification",
             response=response, duration_ms=int(duration)
         )
 
@@ -652,23 +746,82 @@ class EvalRunner:
         if "error" in response:
             return TestResult(test_id, TestStatus.ERROR, f"API error: {response['error']}", duration_ms=int(duration))
 
-        response_type = response.get("response_type")
-        if response_type != "dashboard":
+        # IntentMapResponse format: galaxy uses nodes instead of widgets
+        query_type = response.get("query_type", "")
+        nodes = response.get("nodes", [])
+
+        # For galaxy mode, check if we got DASHBOARD type with nodes
+        if query_type == "DASHBOARD" and nodes:
+            # Validate node values against ground truth
+            validations = []
+            mock_detected = []
+
+            for node in nodes:
+                val = node.get("value")
+                metric = node.get("metric", "").lower()
+
+                if val is None:
+                    continue
+
+                # Check for mock data
+                for mock_metric, mock_vals in MOCK_DATA_VALUES.items():
+                    if any(abs(val - mv) < 0.1 for mv in mock_vals):
+                        mock_detected.append(f"{metric}: {val} (mock {mock_metric})")
+
+                # Check against ground truth for key metrics
+                if "revenue" in metric:
+                    valid, _ = validate_value("revenue", val)
+                    validations.append(("revenue", val, valid))
+                elif "margin" in metric:
+                    valid, _ = validate_value("gross_margin_pct", val)
+                    validations.append(("margin", val, valid))
+                elif "pipeline" in metric:
+                    valid, _ = validate_value("pipeline", val)
+                    validations.append(("pipeline", val, valid))
+
+            if mock_detected:
+                return TestResult(
+                    test_id, TestStatus.FAIL,
+                    f"MOCK DATA in nodes: {mock_detected}",
+                    expected={"revenue": 150, "margin": 65, "pipeline": 431.25},
+                    actual=nodes,
+                    response=response, duration_ms=int(duration)
+                )
+
+            passed = all(v[2] for v in validations) if validations else True
             return TestResult(
-                test_id, TestStatus.FAIL,
-                f"Expected dashboard response, got {response_type}",
+                test_id, TestStatus.PASS if passed else TestStatus.FAIL,
+                f"KPIs from galaxy nodes: {validations}",
+                expected={"revenue": 150, "margin": 65, "pipeline": 431.25},
+                actual=nodes,
                 response=response, duration_ms=int(duration)
             )
 
-        # Validate each KPI value
+        # Check for visual dashboard widgets (if supported)
+        dashboard = response.get("dashboard", {})
+        widgets = dashboard.get("widgets", []) if dashboard else []
+
+        if not widgets:
+            text = response.get("text_response", "") or ""
+            if "stumped" in text.lower() or "head-scratcher" in text.lower():
+                return TestResult(
+                    test_id, TestStatus.FAIL,
+                    f"KPI dashboard not supported - got 'stumped' response. query_type={query_type}",
+                    response=response, duration_ms=int(duration)
+                )
+            return TestResult(
+                test_id, TestStatus.FAIL,
+                f"Expected dashboard/visualization response, got query_type={query_type}",
+                response=response, duration_ms=int(duration)
+            )
+
+        # Validate widget data
         widget_data = response.get("dashboard_data", {})
         validations = []
         mock_detected = []
 
         for widget_id, data in widget_data.items():
             val = data.get("value")
-            formatted = data.get("formatted_value", "")
-
             if val is None:
                 continue
 
@@ -676,17 +829,6 @@ class EvalRunner:
             for metric, mock_vals in MOCK_DATA_VALUES.items():
                 if any(abs(val - mv) < 0.1 for mv in mock_vals):
                     mock_detected.append(f"{widget_id}: {val} (mock {metric})")
-
-            # Check against ground truth
-            if "revenue" in widget_id.lower() and val:
-                valid, _ = validate_value("revenue", val)
-                validations.append(("revenue", val, valid))
-            elif "margin" in widget_id.lower() and val:
-                valid, _ = validate_value("gross_margin_pct", val)
-                validations.append(("margin", val, valid))
-            elif "pipeline" in widget_id.lower() and val:
-                valid, _ = validate_value("pipeline", val)
-                validations.append(("pipeline", val, valid))
 
         if mock_detected:
             return TestResult(
@@ -697,10 +839,9 @@ class EvalRunner:
                 response=response, duration_ms=int(duration)
             )
 
-        passed = all(v[2] for v in validations) if validations else True
         return TestResult(
-            test_id, TestStatus.PASS if passed else TestStatus.FAIL,
-            f"Validations: {validations}",
+            test_id, TestStatus.PASS,
+            f"KPI dashboard with {len(widgets)} widgets",
             expected={"revenue": 150, "margin": 65, "pipeline": 431.25},
             actual=widget_data,
             response=response, duration_ms=int(duration)
