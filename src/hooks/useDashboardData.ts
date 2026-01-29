@@ -618,10 +618,10 @@ const STATIC_CTO_DATA: Record<string, TileData> = {
     formattedValue: '',
     rawData: {
       chartData: [
-        { label: 'Test Coverage', value: 82 },
-        { label: 'Code Review', value: 95 },
-        { label: 'Lint Pass', value: 98 },
-        { label: 'Build Success', value: 96 },
+        { label: 'Test Coverage', value: 82, size: 40 },
+        { label: 'Code Review', value: 95, size: 25 },
+        { label: 'Lint Pass', value: 98, size: 15 },
+        { label: 'Build Success', value: 96, size: 20 },
       ]
     },
     status: 'healthy',
@@ -660,11 +660,11 @@ const STATIC_CTO_DATA: Record<string, TileData> = {
     formattedValue: '',
     rawData: {
       chartData: [
-        { label: 'Compute', value: 42000 },
-        { label: 'Storage', value: 18000 },
-        { label: 'Network', value: 12000 },
-        { label: 'Database', value: 15000 },
-        { label: 'Other', value: 8000 },
+        { label: 'Compute', value: 42000, size: 42 },
+        { label: 'Storage', value: 18000, size: 18 },
+        { label: 'Network', value: 12000, size: 12 },
+        { label: 'Database', value: 15000, size: 15 },
+        { label: 'Other', value: 8000, size: 8 },
       ]
     },
     status: 'healthy',
