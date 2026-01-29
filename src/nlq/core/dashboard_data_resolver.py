@@ -232,7 +232,19 @@ class DashboardDataResolver:
             return {"loading": False, "error": f"Metric '{metric}' not found"}
 
         # Generate breakdown based on dimension type
-        if dimension in ["region", "geo"]:
+        # First check if we have pre-defined dimensional data in fact base
+        dimensional_data = self._get_dimensional_data(metric, dimension, reference_year)
+        if dimensional_data is not None:
+            breakdown = []
+            total = sum(dimensional_data.values())
+            for label, value in dimensional_data.items():
+                ratio = value / total if total > 0 else 0
+                breakdown.append({"label": label, "value": round(value, 1), "ratio": round(ratio, 2)})
+            # Apply filters
+            if dimension in filters:
+                filtered_value = filters[dimension]
+                breakdown = [b for b in breakdown if b["label"].lower() == filtered_value.lower() or b["label"].upper() == filtered_value.upper()]
+        elif dimension in ["region", "geo"]:
             # Typical enterprise SaaS regional distribution
             breakdown = [
                 {"label": "AMER", "value": round(total_value * 0.50, 1), "ratio": 0.50},
@@ -243,6 +255,18 @@ class DashboardDataResolver:
             if "region" in filters:
                 filtered_region = filters["region"].upper()
                 breakdown = [b for b in breakdown if b["label"] == filtered_region]
+        elif dimension in ["stage", "pipeline_stage", "deal_stage"]:
+            # Standard pipeline stages
+            breakdown = [
+                {"label": "Lead", "value": round(total_value * 0.20, 1), "ratio": 0.20},
+                {"label": "Qualified", "value": round(total_value * 0.30, 1), "ratio": 0.30},
+                {"label": "Proposal", "value": round(total_value * 0.20, 1), "ratio": 0.20},
+                {"label": "Negotiation", "value": round(total_value * 0.15, 1), "ratio": 0.15},
+                {"label": "Closed-Won", "value": round(total_value * 0.15, 1), "ratio": 0.15},
+            ]
+            if "stage" in filters:
+                filtered_stage = filters["stage"]
+                breakdown = [b for b in breakdown if b["label"].lower() == filtered_stage.lower()]
         elif dimension == "product":
             breakdown = [
                 {"label": "Enterprise", "value": round(total_value * 0.45, 1), "ratio": 0.45},
@@ -419,6 +443,36 @@ class DashboardDataResolver:
                     values.append(val)
 
         return values if values else None
+
+    def _get_dimensional_data(
+        self,
+        metric: str,
+        dimension: str,
+        reference_year: str,
+    ) -> Optional[Dict[str, float]]:
+        """
+        Get pre-defined dimensional breakdown data from fact base.
+
+        Looks for keys like 'pipeline_by_stage', 'revenue_by_region', etc.
+        Returns None if no pre-defined breakdown exists.
+        """
+        # Map dimension names to fact base keys
+        breakdown_key = f"{metric}_by_{dimension}"
+
+        # Try to get from fact base raw data
+        try:
+            raw_data = self.fact_base._raw_data
+            if breakdown_key in raw_data:
+                yearly_data = raw_data[breakdown_key]
+                if reference_year in yearly_data:
+                    return yearly_data[reference_year]
+                # Try without year for non-time-series breakdowns
+                if isinstance(yearly_data, dict) and not any(k.isdigit() for k in yearly_data.keys()):
+                    return yearly_data
+        except AttributeError:
+            pass
+
+        return None
 
     def _apply_filter_ratio(
         self,

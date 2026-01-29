@@ -579,6 +579,49 @@ def refine_dashboard_schema(
             if widget.data.time:
                 widget.data.time.comparison = "prior_period"
 
+    # Handle "break down by" dimension changes
+    if "break" in q and "down" in q and "by" in q:
+        # Extract new dimension from requirements or query
+        new_dimension = None
+        if requirements.dimensions:
+            new_dimension = requirements.dimensions[0]
+        else:
+            # Try to extract from query pattern "by <dimension>"
+            import re
+            dim_match = re.search(r"\bby\s+(region|rep|product|segment|stage|quarter)\b", q)
+            if dim_match:
+                new_dimension = dim_match.group(1)
+
+        if new_dimension:
+            # Update chart widgets with the new dimension
+            for widget in updated_schema.widgets:
+                if widget.type in [WidgetType.BAR_CHART, WidgetType.LINE_CHART,
+                                   WidgetType.STACKED_BAR, WidgetType.DONUT_CHART]:
+                    # Replace existing dimensions with new one
+                    widget.data.dimensions = [
+                        DimensionBinding(dimension=new_dimension, sort_by="value", sort_order="desc")
+                    ]
+                    # Update widget title
+                    if widget.data.metrics:
+                        metric = widget.data.metrics[0].metric
+                        widget.title = f"{get_display_name(metric)} by {new_dimension.title()}"
+                        widget.id = f"breakdown_{metric}_by_{new_dimension}"
+                elif widget.type == WidgetType.DATA_TABLE:
+                    widget.data.dimensions = [
+                        DimensionBinding(dimension=new_dimension, sort_by="value", sort_order="desc")
+                    ]
+                    widget.id = f"table_{new_dimension}"
+
+            # Update schema title
+            if updated_schema.widgets:
+                first_chart = next(
+                    (w for w in updated_schema.widgets if w.type in [WidgetType.BAR_CHART, WidgetType.LINE_CHART]),
+                    None
+                )
+                if first_chart and first_chart.data.metrics:
+                    metric = first_chart.data.metrics[0].metric
+                    updated_schema.title = f"{get_display_name(metric)} by {new_dimension.title()}"
+
     # Update version and history
     updated_schema.version += 1
     updated_schema.refinement_history.append(refinement_query)

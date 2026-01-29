@@ -83,9 +83,10 @@ REFINEMENT_PATTERNS = {
     r"\bshow\s+(?:me\s+)?(?:last|this)\s+(?:year|quarter|month)\b": (RefinementType.CHANGE_TIME_RANGE, 0.75),
 
     # Change dimension patterns
-    r"\bby\s+(?:region|rep|product|segment)\s+instead\b": (RefinementType.CHANGE_DIMENSION, 0.90),
+    r"\bby\s+(?:region|rep|product|segment|stage)\s+instead\b": (RefinementType.CHANGE_DIMENSION, 0.90),
     r"\bchange\s+(?:it\s+)?to\s+by\s+\b": (RefinementType.CHANGE_DIMENSION, 0.85),
     r"\bbreak\s+(?:it\s+)?down\s+by\b": (RefinementType.CHANGE_DIMENSION, 0.85),
+    r"\bbreak\s+(?:that|this)\s+down\s+by\b": (RefinementType.CHANGE_DIMENSION, 0.90),
 }
 
 # Pronoun patterns that indicate referencing existing dashboard
@@ -254,6 +255,14 @@ def is_context_dependent_query(query: str) -> bool:
     if re.search(r"\b(?:make|change|convert)\s+(?:that|it|this)\b", q):
         return True
 
+    # "break that/it down by" patterns - references previous context
+    if re.search(r"\bbreak\s+(?:that|it|this)\s+down\b", q):
+        return True
+
+    # "drill into that" or "dig into that" patterns
+    if re.search(r"\b(?:drill|dig)\s+(?:into|down)\s+(?:that|it|this)\b", q):
+        return True
+
     # "the chart" without specifying which
     if re.search(r"\bthe\s+(?:chart|graph|dashboard)\b", q) and "show" not in q:
         return True
@@ -281,5 +290,14 @@ def needs_clarification_without_context(query: str) -> Optional[str]:
 
     if re.search(r"\bmake\s+(?:that|it)\b", q):
         return "What would you like me to change? Please describe what visualization you'd like to create or modify."
+
+    # Handle "break that down by" without context
+    if re.search(r"\bbreak\s+(?:that|it|this)\s+down\b", q):
+        # Extract the dimension if present
+        dim_match = re.search(r"\bby\s+(region|rep|product|segment|stage)\b", q)
+        if dim_match:
+            dim = dim_match.group(1)
+            return f"I don't have a current visualization to break down by {dim}. What would you like to see? For example, 'Show me pipeline by {dim}' or 'Show me revenue by {dim}'."
+        return "I don't have a current visualization to break down. What would you like to see? For example, 'Show me pipeline by stage' or 'Show me revenue by region'."
 
     return "I don't have a current dashboard to modify. What would you like to visualize? For example, 'Show me revenue over time' or 'Build me a sales dashboard'."
