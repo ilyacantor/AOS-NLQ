@@ -206,6 +206,173 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "total equity",
         "book value",
     ],
+
+    # ARR (Annual Recurring Revenue)
+    "arr": [
+        "annual recurring revenue",
+        "recurring revenue",
+        "mrr",  # Often used interchangeably
+    ],
+
+    # Quota & Sales Performance
+    "quota_attainment": [
+        "quota",
+        "quota attainment",
+        "quota performance",
+        "sales attainment",
+        "attainment",
+    ],
+    "sales_quota": [
+        "sales target",
+        "target",
+        "sales goal",
+    ],
+    "reps_at_quota_pct": [
+        "reps at quota",
+        "reps hitting quota",
+        "quota reps",
+    ],
+
+    # Pipeline
+    "pipeline": [
+        "sales pipeline",
+        "pipe",
+        "opportunities",
+        "deals",
+    ],
+    "qualified_pipeline": [
+        "qualified pipe",
+        "qualified deals",
+        "qualified opportunities",
+    ],
+
+    # Win Rate
+    "win_rate": [
+        "win rate",
+        "close rate",
+        "conversion rate",
+        "win pct",
+    ],
+
+    # Sales Cycle
+    "sales_cycle_days": [
+        "sales cycle",
+        "sales_cycle",
+        "cycle time",
+        "deal cycle",
+        "time to close",
+    ],
+
+    # Churn
+    "gross_churn_pct": [
+        "churn",
+        "churn rate",
+        "customer churn",
+        "revenue churn",
+        "gross churn",
+    ],
+    "logo_churn_pct": [
+        "logo churn",
+        "customer logo churn",
+        "account churn",
+    ],
+
+    # NRR (Net Revenue Retention)
+    "nrr": [
+        "net revenue retention",
+        "net retention",
+        "dollar retention",
+        "ndr",
+        "net dollar retention",
+    ],
+
+    # Customer metrics
+    "customer_count": [
+        "customers",
+        "customer base",
+        "total customers",
+        "client count",
+        "clients",
+    ],
+    "new_logos": [
+        "new customers",
+        "new clients",
+        "new accounts",
+        "logos",
+    ],
+
+    # Customer Satisfaction
+    "csat": [
+        "customer satisfaction",
+        "satisfaction",
+        "satisfaction score",
+    ],
+    "nps": [
+        "net promoter score",
+        "promoter score",
+    ],
+
+    # Headcount
+    "headcount": [
+        "employees",
+        "employee count",
+        "head count",
+        "hc",
+        "fte",
+        "full time employees",
+    ],
+    "attrition_rate": [
+        "attrition",
+        "turnover",
+        "turnover rate",
+        "employee turnover",
+    ],
+
+    # LTV/CAC
+    "ltv_cac": [
+        "ltv cac",
+        "ltv/cac",
+        "ltv to cac",
+        "lifetime value to cac",
+    ],
+    "cac_payback_months": [
+        "cac payback",
+        "payback period",
+        "cac payback period",
+    ],
+
+    # Magic Number
+    "magic_number": [
+        "magic number",
+        "sales efficiency",
+    ],
+
+    # Burn Multiple
+    "burn_multiple": [
+        "burn multiple",
+        "cash efficiency",
+    ],
+
+    # Tech/Engineering
+    "uptime_pct": [
+        "uptime",
+        "availability",
+        "system uptime",
+    ],
+    "tech_debt_pct": [
+        "tech debt",
+        "technical debt",
+    ],
+    "deploys_per_week": [
+        "deploys",
+        "deployments",
+        "releases",
+    ],
+    "sprint_velocity": [
+        "velocity",
+        "sprint velocity",
+        "team velocity",
+    ],
 }
 
 # Build reverse lookup for faster normalization

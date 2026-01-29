@@ -34,6 +34,7 @@ from src.nlq.core.parser import QueryParser
 from src.nlq.core.resolver import PeriodResolver
 from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.knowledge.schema import FINANCIAL_SCHEMA, get_metric_unit
+from src.nlq.knowledge.synonyms import normalize_metric
 from src.nlq.llm.client import ClaudeClient
 from src.nlq.models.query import NLQRequest, QueryIntent, ParsedQuery, PeriodType, QueryMode
 from src.nlq.models.response import AmbiguityType, Domain, IntentMapResponse, IntentNode, MatchType, NLQResponse, RelatedMetric
@@ -75,9 +76,13 @@ def _cached_to_parsed_query(cached: dict) -> ParsedQuery:
     except ValueError:
         period_type = PeriodType.FULL_YEAR
 
+    # Normalize metric using synonym system
+    raw_metric = cached.get("metric", "revenue")
+    normalized_metric = normalize_metric(raw_metric)
+
     return ParsedQuery(
         intent=intent,
-        metric=cached.get("metric", "revenue"),
+        metric=normalized_metric,
         period_type=period_type,
         period_reference=cached.get("period_reference", "2025"),
         is_relative=False,  # Cached queries have resolved periods
@@ -85,7 +90,7 @@ def _cached_to_parsed_query(cached: dict) -> ParsedQuery:
         aggregation_type=cached.get("aggregation_type"),
         aggregation_periods=cached.get("aggregation_periods"),
         breakdown_metrics=cached.get("breakdown_metrics"),
-        raw_metric=cached.get("metric"),
+        raw_metric=raw_metric,
     )
 
 
