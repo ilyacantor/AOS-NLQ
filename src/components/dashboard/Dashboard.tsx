@@ -202,15 +202,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Scenario panel visibility state
   const [scenarioOpen, setScenarioOpen] = useState(false);
 
-  // Base metrics for scenario modeling (placeholder values for CFO)
+  // Base metrics for scenario modeling (profitable company metrics for CFO)
   const baseMetrics = {
-    runway: 18,
-    burnRate: 2500000,
-    ruleOf40: 35,
-    ltvCac: 3.5,
-    headcount: 350,
     revenue: 150000000,
-    smSpend: 45000000,
+    revenueGrowthPct: 18,
+    grossMarginPct: 65,
+    operatingMarginPct: 30,
+    netIncomePct: 22,
+    headcount: 350,
+    opex: 45000000,
   };
 
   // Fetch dashboard data using the hook

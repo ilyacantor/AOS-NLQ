@@ -25,7 +25,7 @@
         "format": "currency",
         "showSparkline": true,
         "showTrend": true,
-        "trendQuery": "Show monthly revenue for the last 12 months"
+        "trendQuery": "Show quarterly revenue for the last 4 quarters"
       }
     },
     {
@@ -36,38 +36,38 @@
         "label": "Gross Margin",
         "query": "What is gross margin percentage year to date?",
         "clickQuery": "What factors are affecting gross margin?",
-        "format": "percentage",
+        "format": "percent",
         "showSparkline": true,
         "showTrend": true,
-        "trendQuery": "Show monthly gross margin for the last 12 months"
+        "trendQuery": "Show quarterly gross margin for the last 4 quarters"
       }
     },
     {
-      "id": "kpi-burn-rate",
+      "id": "kpi-operating-margin",
       "type": "kpi",
       "position": { "x": 6, "y": 0, "w": 3, "h": 2 },
       "config": {
-        "label": "Burn Rate",
-        "query": "What is the current monthly burn rate?",
-        "clickQuery": "What are the largest contributors to burn rate?",
-        "format": "currency",
+        "label": "Operating Profit",
+        "query": "What is operating margin percentage year to date?",
+        "clickQuery": "What is driving operating margin this period?",
+        "format": "percent",
         "showSparkline": true,
         "showTrend": true,
-        "trendQuery": "Show monthly burn rate for the last 12 months"
+        "trendQuery": "Show quarterly operating margin for the last 4 quarters"
       }
     },
     {
-      "id": "kpi-runway",
+      "id": "kpi-net-income",
       "type": "kpi",
       "position": { "x": 9, "y": 0, "w": 3, "h": 2 },
       "config": {
-        "label": "Cash Runway",
-        "query": "How many months of runway do we have at current burn rate?",
-        "clickQuery": "What scenarios affect our runway projection?",
-        "format": "months",
-        "showSparkline": false,
+        "label": "Net Income",
+        "query": "What is net income percentage year to date?",
+        "clickQuery": "What is driving net income this period?",
+        "format": "percent",
+        "showSparkline": true,
         "showTrend": true,
-        "trendQuery": "Show runway projection over the last 6 months"
+        "trendQuery": "Show quarterly net income margin for the last 4 quarters"
       }
     },
     {

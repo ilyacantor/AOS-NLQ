@@ -11,13 +11,13 @@ export interface ScenarioModelingPanelProps {
   isOpen: boolean;
   onToggle: () => void;
   baseMetrics: {
-    runway: number;
-    burnRate: number;
-    ruleOf40: number;
-    ltvCac: number;
-    headcount: number;
     revenue: number;
-    smSpend: number;
+    revenueGrowthPct: number;
+    grossMarginPct: number;
+    operatingMarginPct: number;
+    netIncomePct: number;
+    headcount: number;
+    opex: number;
   };
   onApply?: (adjustments: ScenarioAdjustments) => void;
 }
@@ -32,10 +32,10 @@ interface SliderConfig {
 }
 
 const SLIDER_CONFIGS: SliderConfig[] = [
-  { id: 'headcountChange', label: 'Headcount Change', min: -20, max: 50, defaultValue: 0, step: 1 },
-  { id: 'revenueGrowth', label: 'Revenue Growth', min: -10, max: 30, defaultValue: 15, step: 1 },
-  { id: 'pricingChange', label: 'Pricing Change', min: -20, max: 20, defaultValue: 0, step: 1 },
-  { id: 'smSpendChange', label: 'S&M Spend', min: -30, max: 50, defaultValue: 0, step: 1 },
+  { id: 'revenueGrowth', label: 'Revenue Growth', min: -10, max: 40, defaultValue: 15, step: 1 },
+  { id: 'pricingChange', label: 'Pricing / Mix', min: -10, max: 15, defaultValue: 0, step: 1 },
+  { id: 'headcountChange', label: 'Headcount', min: -10, max: 30, defaultValue: 0, step: 1 },
+  { id: 'smSpendChange', label: 'OpEx Change', min: -20, max: 30, defaultValue: 0, step: 1 },
 ];
 
 const DEFAULT_ADJUSTMENTS: ScenarioAdjustments = {
@@ -68,7 +68,7 @@ interface ImpactMetric {
   label: string;
   baseValue: number;
   projectedValue: number;
-  format: 'months' | 'currency' | 'score' | 'ratio';
+  format: 'currency' | 'percent' | 'number';
   invertImpact?: boolean;
 }
 
@@ -93,77 +93,66 @@ export const ScenarioModelingPanel: React.FC<ScenarioModelingPanelProps> = ({
   }, [adjustments, onApply]);
 
   const projectedMetrics = useMemo(() => {
-    const headcountMultiplier = 1 + adjustments.headcountChange / 100;
     const revenueMultiplier = 1 + adjustments.revenueGrowth / 100;
     const pricingMultiplier = 1 + adjustments.pricingChange / 100;
-    const smSpendMultiplier = 1 + adjustments.smSpendChange / 100;
 
-    const headcountCostChange = baseMetrics.headcount * (headcountMultiplier - 1) * 80000;
-    const smSpendChange = baseMetrics.smSpend * (smSpendMultiplier - 1);
-    const revenueImpact = baseMetrics.revenue * (revenueMultiplier * pricingMultiplier - 1);
-    const additionalBurn = headcountCostChange + smSpendChange;
-    const netBurnChange = additionalBurn - (revenueImpact / 12);
-    
-    const projectedBurnRate = baseMetrics.burnRate + netBurnChange;
-    
-    const projectedRunway = projectedBurnRate > 0 
-      ? baseMetrics.runway * (baseMetrics.burnRate / projectedBurnRate)
-      : baseMetrics.runway * 2;
+    const projectedRevenue = baseMetrics.revenue * revenueMultiplier * pricingMultiplier;
+    const projectedRevenueGrowth = baseMetrics.revenueGrowthPct + adjustments.revenueGrowth;
 
-    const growthRate = adjustments.revenueGrowth;
-    const profitMargin = Math.max(-50, 40 - (adjustments.headcountChange * 0.5) - (adjustments.smSpendChange * 0.3) + (adjustments.pricingChange * 0.4));
-    const projectedRuleOf40 = growthRate + profitMargin;
+    const cogsImpact = adjustments.pricingChange * -0.1;
+    const projectedGrossMargin = baseMetrics.grossMarginPct + cogsImpact;
 
-    const cacImpact = 1 + (adjustments.smSpendChange / 100) * 0.5;
-    const ltvImpact = 1 + (adjustments.pricingChange / 100) * 0.8 + (adjustments.revenueGrowth / 100) * 0.3;
-    const projectedLtvCac = baseMetrics.ltvCac * (ltvImpact / cacImpact);
+    const headcountCostImpact = adjustments.headcountChange * 0.3;
+    const opexImpact = adjustments.smSpendChange * 0.4;
+    const revenueEfficiency = adjustments.revenueGrowth * 0.2;
+    const projectedOperatingMargin = baseMetrics.operatingMarginPct - headcountCostImpact - opexImpact + revenueEfficiency;
+
+    const projectedNetIncome = projectedOperatingMargin * 0.75;
 
     return {
-      runway: Math.max(0, projectedRunway),
-      burnRate: Math.max(0, projectedBurnRate),
-      ruleOf40: projectedRuleOf40,
-      ltvCac: Math.max(0, projectedLtvCac),
+      revenue: projectedRevenue,
+      revenueGrowthPct: projectedRevenueGrowth,
+      grossMarginPct: Math.max(0, projectedGrossMargin),
+      operatingMarginPct: projectedOperatingMargin,
+      netIncomePct: projectedNetIncome,
     };
   }, [adjustments, baseMetrics]);
 
   const impactMetrics: ImpactMetric[] = useMemo(() => [
     {
-      label: 'Runway',
-      baseValue: baseMetrics.runway,
-      projectedValue: projectedMetrics.runway,
-      format: 'months',
-    },
-    {
-      label: 'Burn Rate',
-      baseValue: baseMetrics.burnRate,
-      projectedValue: projectedMetrics.burnRate,
+      label: 'Revenue',
+      baseValue: baseMetrics.revenue,
+      projectedValue: projectedMetrics.revenue,
       format: 'currency',
-      invertImpact: true,
     },
     {
-      label: 'Rule of 40',
-      baseValue: baseMetrics.ruleOf40,
-      projectedValue: projectedMetrics.ruleOf40,
-      format: 'score',
+      label: 'Growth',
+      baseValue: baseMetrics.revenueGrowthPct,
+      projectedValue: projectedMetrics.revenueGrowthPct,
+      format: 'percent',
     },
     {
-      label: 'LTV/CAC',
-      baseValue: baseMetrics.ltvCac,
-      projectedValue: projectedMetrics.ltvCac,
-      format: 'ratio',
+      label: 'Gross Margin',
+      baseValue: baseMetrics.grossMarginPct,
+      projectedValue: projectedMetrics.grossMarginPct,
+      format: 'percent',
+    },
+    {
+      label: 'Op. Margin',
+      baseValue: baseMetrics.operatingMarginPct,
+      projectedValue: projectedMetrics.operatingMarginPct,
+      format: 'percent',
     },
   ], [baseMetrics, projectedMetrics]);
 
   const formatMetricValue = (value: number, format: ImpactMetric['format']): string => {
     switch (format) {
-      case 'months':
-        return `${formatNumber(value, 1)} mo`;
       case 'currency':
         return formatCurrency(value);
-      case 'score':
+      case 'percent':
+        return `${formatNumber(value, 1)}%`;
+      case 'number':
         return formatNumber(value, 1);
-      case 'ratio':
-        return `${formatNumber(value, 2)}x`;
       default:
         return formatNumber(value, 1);
     }
