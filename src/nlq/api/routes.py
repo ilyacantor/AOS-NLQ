@@ -2251,8 +2251,8 @@ async def query(request: NLQRequest) -> NLQResponse:
         claude_client = get_claude_client()
         executor = QueryExecutor(fact_base, claude_client)
 
-        # Get session ID from request headers (if available)
-        session_id = getattr(request, 'session_id', None) or "default"
+        # Get session ID from request body
+        session_id = request.session_id or "default"
 
         # =================================================================
         # RAG CACHE LOOKUP - Check cache before calling Claude
@@ -2270,6 +2270,10 @@ async def query(request: NLQRequest) -> NLQResponse:
                 parsed = _cached_to_parsed_query(cache_result.parsed)
                 cache_hit = True
                 logger.info(f"RAG cache hit ({cache_result.hit_type.value}, {cache_result.similarity:.3f}): {request.question[:50]}...")
+
+                # Track cache hit in session stats
+                call_counter = get_call_counter()
+                call_counter.increment_cached(session_id)
 
                 # Log to learning log
                 learning_log = get_learning_log()
@@ -2501,8 +2505,8 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 resolver,
             )
 
-        # Get session ID from request headers (if available)
-        session_id = getattr(request, 'session_id', None) or "default"
+        # Get session ID from request body
+        session_id = request.session_id or "default"
 
         # =================================================================
         # RAG CACHE LOOKUP - Check cache before calling Claude
@@ -2520,6 +2524,10 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 parsed = _cached_to_parsed_query(cache_result.parsed)
                 cache_hit = True
                 logger.info(f"Galaxy RAG cache hit ({cache_result.hit_type.value}, {cache_result.similarity:.3f}): {request.question[:50]}...")
+
+                # Track cache hit in session stats
+                call_counter = get_call_counter()
+                call_counter.increment_cached(session_id)
 
                 # Log to learning log
                 learning_log = get_learning_log()

@@ -56,12 +56,18 @@ class NLQRequest(BaseModel):
         description="Query mode: 'static' for cache-only, 'ai' for cache + LLM fallback"
     )
 
+    session_id: Optional[str] = Field(
+        default=None,
+        description="Browser session ID for LLM call tracking"
+    )
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "question": "What was revenue last year?",
                 "reference_date": "2026-01-27",
-                "mode": "ai"
+                "mode": "ai",
+                "session_id": "ses_1234567890_abc123"
             }
         }
     )

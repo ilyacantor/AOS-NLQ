@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { GalaxyView, IntentMapResponse } from './components/galaxy'
 import { Dashboard } from './components/dashboard'
-import { RAGLearningPanel, LLMCallCounter } from './components/rag'
+import { RAGLearningPanel, LLMCallCounter, useSessionId } from './components/rag'
 import { DashboardRenderer, DashboardSchema } from './components/generated-dashboard'
 
 interface QueryHistoryItem {
@@ -106,6 +106,7 @@ function App() {
   const [dashboardDropdownOpen, setDashboardDropdownOpen] = useState(false)
   const [generatedDashboard, setGeneratedDashboard] = useState<DashboardSchema | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const sessionId = useSessionId()  // For LLM call tracking
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -189,7 +190,8 @@ function App() {
         body: JSON.stringify({
           question: textToSubmit,
           reference_date: '2026-01-27',
-          mode: queryMode  // Pass static/ai mode to backend
+          mode: queryMode,  // Pass static/ai mode to backend
+          session_id: sessionId  // For LLM call tracking
         })
       })
 
