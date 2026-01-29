@@ -96,6 +96,16 @@ ANSWER_TRIGGERS = {
     "who's": 0.9,
 }
 
+# Ambiguous terms that require clarification when used alone
+AMBIGUOUS_TERMS = {
+    "performance": ["sales performance", "system performance", "team performance", "financial performance"],
+    "metrics": ["sales metrics", "financial metrics", "product metrics", "customer metrics"],
+    "data": ["sales data", "financial data", "customer data", "product data"],
+    "numbers": ["revenue numbers", "sales numbers", "headcount numbers"],
+    "stats": ["sales stats", "performance stats", "customer stats"],
+    "overview": ["sales overview", "financial overview", "ops overview"],
+}
+
 # Chart type hints
 CHART_TYPE_HINTS = {
     "line chart": ChartTypeHint.LINE,
@@ -299,6 +309,35 @@ def _extract_metrics_from_query(query: str) -> List[str]:
         metrics = ["revenue"]
 
     return metrics
+
+
+def is_ambiguous_visualization_query(query: str) -> Tuple[bool, Optional[str], List[str]]:
+    """
+    Check if a visualization query contains ambiguous terms that need clarification.
+
+    Args:
+        query: The user's query
+
+    Returns:
+        Tuple of (is_ambiguous, ambiguous_term, suggested_options)
+    """
+    q = query.lower().strip()
+
+    # Check if query has visualization triggers
+    has_viz_trigger = any(trigger in q for trigger in VISUALIZATION_TRIGGERS.keys())
+    if not has_viz_trigger:
+        return False, None, []
+
+    # Check for ambiguous terms
+    for term, options in AMBIGUOUS_TERMS.items():
+        if term in q:
+            # Check if any specific variant is mentioned
+            term_is_qualified = any(opt.lower() in q for opt in options)
+            if not term_is_qualified:
+                # The term is used alone without qualification
+                return True, term, options
+
+    return False, None, []
 
 
 def should_generate_visualization(query: str) -> Tuple[bool, VisualizationRequirements]:

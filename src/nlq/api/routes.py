@@ -54,6 +54,7 @@ from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
 from src.nlq.core.visualization_intent import (
     should_generate_visualization,
     VisualizationIntent,
+    is_ambiguous_visualization_query,
 )
 from src.nlq.core.dashboard_generator import generate_dashboard_schema, refine_dashboard_schema
 from src.nlq.core.dashboard_data_resolver import DashboardDataResolver
@@ -3169,6 +3170,31 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
             except Exception as e:
                 logger.error(f"Error applying refinement: {e}", exc_info=True)
                 # Fall through to visualization/normal processing
+
+        # =================================================================
+        # AMBIGUOUS QUERY DETECTION - Ask for clarification if needed
+        # =================================================================
+        is_ambiguous, ambiguous_term, options = is_ambiguous_visualization_query(request.question)
+        if is_ambiguous and ambiguous_term:
+            # Format options for display
+            options_list = "\n".join(f"• {opt}" for opt in options[:4])
+            clarification_msg = f"I can show you a few types of {ambiguous_term}:\n{options_list}\n\nWhich would you like?"
+
+            return IntentMapResponse(
+                query=request.question,
+                query_type="AMBIGUOUS",
+                ambiguity_type="TERM_AMBIGUITY",
+                persona="CFO",
+                overall_confidence=0.6,
+                overall_data_quality=1.0,
+                node_count=0,
+                nodes=[],
+                primary_node_id=None,
+                primary_answer=clarification_msg,
+                text_response=clarification_msg,
+                needs_clarification=True,
+                clarification_prompt=clarification_msg,
+            )
 
         # =================================================================
         # VISUALIZATION INTENT DETECTION - Handle visualization queries
