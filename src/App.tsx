@@ -36,6 +36,10 @@ interface NLQResponse {
   error_code?: string
   error_message?: string
   related_metrics?: RelatedMetric[]
+  // Dashboard response fields
+  response_type?: 'text' | 'dashboard'
+  dashboard?: DashboardSchema
+  dashboard_data?: Record<string, any>
 }
 
 type ViewMode = 'text' | 'galaxy' | 'dashboard' | 'builder'
@@ -105,6 +109,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [dashboardDropdownOpen, setDashboardDropdownOpen] = useState(false)
   const [generatedDashboard, setGeneratedDashboard] = useState<DashboardSchema | null>(null)
+  const [dashboardWidgetData, setDashboardWidgetData] = useState<Record<string, any>>({})
   const dropdownRef = useRef<HTMLDivElement>(null)
   const sessionId = useSessionId()  // For LLM call tracking
 
@@ -201,8 +206,18 @@ function App() {
       if (effectiveViewMode === 'galaxy') {
         setGalaxyResponse(data as IntentMapResponse)
       } else {
-        // Text view or drill-down from dashboard
-        setTextResponse(data as NLQResponse)
+        // Check if this is a dashboard response
+        const nlqResponse = data as NLQResponse
+        if (nlqResponse.response_type === 'dashboard' && nlqResponse.dashboard) {
+          // Dashboard visualization response - switch to builder view
+          setGeneratedDashboard(nlqResponse.dashboard as DashboardSchema)
+          setDashboardWidgetData(nlqResponse.dashboard_data || {})
+          setViewMode('builder')
+          setTextResponse(null) // Clear text response
+        } else {
+          // Text view or drill-down from dashboard
+          setTextResponse(nlqResponse)
+        }
       }
 
       setLastQuery(textToSubmit)
@@ -454,6 +469,7 @@ function App() {
               <div className="h-full overflow-hidden">
                 <DashboardRenderer
                   initialSchema={generatedDashboard || undefined}
+                  initialWidgetData={dashboardWidgetData}
                   onDrillDown={(q) => {
                     // Switch to text view for drill-down queries
                     setViewMode('text')
@@ -462,6 +478,7 @@ function App() {
                   }}
                   onRefinement={(newSchema) => {
                     setGeneratedDashboard(newSchema)
+                    setDashboardWidgetData({}) // Clear pre-resolved data, let refinement fetch new
                   }}
                   showRefinementInput={true}
                 />

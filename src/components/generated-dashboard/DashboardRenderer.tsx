@@ -51,6 +51,8 @@ interface SavedTemplate {
 interface DashboardRendererProps {
   /** Initial schema to render (optional - can start empty) */
   initialSchema?: DashboardSchema;
+  /** Pre-resolved widget data from backend (uses real fact base data) */
+  initialWidgetData?: Record<string, WidgetData>;
   /** Query that generated the dashboard */
   sourceQuery?: string;
   /** Callback when a drill-down is triggered */
@@ -116,13 +118,15 @@ function deleteSavedTemplate(id: string): void {
 
 export function DashboardRenderer({
   initialSchema,
+  initialWidgetData,
   sourceQuery,
   onDrillDown,
   onRefinement,
   showRefinementInput = true,
 }: DashboardRendererProps) {
   const [schema, setSchema] = useState<DashboardSchema | null>(initialSchema || null);
-  const [widgetData, setWidgetData] = useState<Record<string, WidgetData>>({});
+  // Use pre-resolved data from backend if available, otherwise empty (will fetch mock)
+  const [widgetData, setWidgetData] = useState<Record<string, WidgetData>>(initialWidgetData || {});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refinementQuery, setRefinementQuery] = useState('');
@@ -156,6 +160,15 @@ export function DashboardRenderer({
     window.addEventListener('resize', updateWidth);
     return () => window.removeEventListener('resize', updateWidth);
   }, []);
+
+  // Initialize with pre-resolved data if provided (from /v1/query endpoint)
+  useEffect(() => {
+    if (initialSchema && initialWidgetData && Object.keys(initialWidgetData).length > 0) {
+      // We have pre-resolved data from the backend - use it directly
+      setSchema(initialSchema);
+      setWidgetData(initialWidgetData);
+    }
+  }, [initialSchema, initialWidgetData]);
 
   // Convert widget positions to react-grid-layout format
   const gridLayout = useMemo((): LayoutItem[] => {
@@ -404,11 +417,20 @@ export function DashboardRenderer({
     }
   }, [schema, customLayout, onRefinement]);
 
-  // Fetch data for all widgets
-  const fetchWidgetData = useCallback(async (dashboard: DashboardSchema) => {
+  // Fetch data for all widgets (uses pre-resolved data if available, otherwise mock)
+  const fetchWidgetData = useCallback(async (
+    dashboard: DashboardSchema,
+    preResolvedData?: Record<string, WidgetData>
+  ) => {
     const newData: Record<string, WidgetData> = {};
     for (const widget of dashboard.widgets) {
-      newData[widget.id] = await generateMockWidgetData(widget);
+      // Use pre-resolved data from backend if available
+      if (preResolvedData && preResolvedData[widget.id]) {
+        newData[widget.id] = preResolvedData[widget.id];
+      } else {
+        // Fall back to mock data generation
+        newData[widget.id] = await generateMockWidgetData(widget);
+      }
     }
     setWidgetData(newData);
   }, []);

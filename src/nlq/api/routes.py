@@ -49,6 +49,14 @@ from src.nlq.services.llm_call_counter import get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
 from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
 
+# Dashboard generation imports
+from src.nlq.core.visualization_intent import (
+    should_generate_visualization,
+    VisualizationIntent,
+)
+from src.nlq.core.dashboard_generator import generate_dashboard_schema
+from src.nlq.core.dashboard_data_resolver import DashboardDataResolver
+
 # =============================================================================
 # RAG CACHE HELPERS
 # =============================================================================
@@ -2231,6 +2239,46 @@ async def query(request: NLQRequest) -> NLQResponse:
                     resolved_period=dashboard_response.nodes[0].period if dashboard_response.nodes else None,
                     related_metrics=_nodes_to_related_metrics(dashboard_response.nodes),
                 )
+
+        # =================================================================
+        # VISUALIZATION INTENT DETECTION - Check if user wants a dashboard
+        # =================================================================
+        should_viz, viz_requirements = should_generate_visualization(request.question)
+
+        if should_viz and viz_requirements.intent != VisualizationIntent.SIMPLE_ANSWER:
+            logger.info(f"Visualization intent detected: {viz_requirements.intent.value}")
+
+            try:
+                # Generate dashboard schema
+                dashboard_schema = generate_dashboard_schema(
+                    query=request.question,
+                    requirements=viz_requirements,
+                )
+
+                # Resolve real data from fact base
+                data_resolver = DashboardDataResolver(fact_base)
+                widget_data = data_resolver.resolve_dashboard_data(
+                    dashboard_schema,
+                    reference_year="2025",
+                )
+
+                # Return dashboard response
+                return NLQResponse(
+                    success=True,
+                    answer=f"Here's a dashboard showing {dashboard_schema.title}",
+                    value=None,
+                    unit=None,
+                    confidence=viz_requirements.confidence,
+                    parsed_intent="VISUALIZATION",
+                    resolved_metric=viz_requirements.metrics[0] if viz_requirements.metrics else None,
+                    resolved_period="2025",
+                    response_type="dashboard",
+                    dashboard=dashboard_schema.model_dump(),
+                    dashboard_data=widget_data,
+                )
+            except Exception as e:
+                logger.error(f"Dashboard generation failed: {e}", exc_info=True)
+                # Fall through to normal query processing if dashboard fails
 
         # Check for ambiguity first (same as Galaxy endpoint)
         ambiguity_type, candidates, clarification = detect_ambiguity(request.question)
