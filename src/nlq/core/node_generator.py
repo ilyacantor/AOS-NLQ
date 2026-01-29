@@ -26,15 +26,56 @@ from src.nlq.models.response import (
 
 
 def format_value(metric: str, value: Any) -> str:
-    """Format a metric value for display."""
+    """Format a metric value for display based on its unit type."""
     if value is None:
         return "N/A"
 
     unit = get_metric_unit(metric)
+
+    # Percentage
     if unit == "%":
         return f"{round(value, 1)}%"
-    else:
+    # Currency
+    elif unit == "USD millions":
         return f"${round(value, 1)}M"
+    elif unit == "USD":
+        return f"${round(value, 2):,.2f}"
+    elif unit == "millions/month":
+        return f"${round(value, 2)}M/mo"
+    # Time
+    elif unit == "days":
+        return f"{round(value, 1)} days"
+    elif unit == "hours":
+        return f"{round(value, 1)} hours"
+    elif unit == "months":
+        return f"{round(value, 1)} months"
+    # Counts
+    elif unit == "people":
+        return f"{int(value):,} people"
+    elif unit == "customers":
+        return f"{int(value):,} customers"
+    elif unit == "tickets":
+        return f"{int(value):,} tickets"
+    elif unit == "bugs":
+        return f"{int(value):,} bugs"
+    elif unit == "vulnerabilities":
+        return f"{int(value):,} vulnerabilities"
+    elif unit == "incidents":
+        return f"{int(value):,} incidents"
+    elif unit == "deploys":
+        return f"{int(value):,} deploys"
+    elif unit == "features":
+        return f"{int(value):,} features"
+    elif unit == "points":
+        return f"{int(value):,} points"
+    # Scores and ratios
+    elif unit == "score":
+        return f"{round(value, 2)}"
+    elif unit == "x":
+        return f"{round(value, 2)}x"
+    # Default: just show the number
+    else:
+        return f"{round(value, 2)}"
 
 
 def generate_nodes_for_point_query(

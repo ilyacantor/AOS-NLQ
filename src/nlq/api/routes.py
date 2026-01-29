@@ -2903,16 +2903,44 @@ def _create_error_galaxy_response(
     )
 
 
+def _format_value_with_unit(value: float, unit: str) -> str:
+    """Format a value with its unit for answer text."""
+    if unit == "%":
+        return f"{round(value, 1)}%"
+    elif unit == "USD millions":
+        return f"${round(value, 1)}M"
+    elif unit == "USD":
+        return f"${round(value, 2):,.2f}"
+    elif unit == "millions/month":
+        return f"${round(value, 2)}M/mo"
+    elif unit == "days":
+        return f"{round(value, 1)} days"
+    elif unit == "hours":
+        return f"{round(value, 1)} hours"
+    elif unit == "months":
+        return f"{round(value, 1)} months"
+    elif unit == "people":
+        return f"{int(value):,}"
+    elif unit == "customers":
+        return f"{int(value):,}"
+    elif unit in ("tickets", "bugs", "vulnerabilities", "incidents", "deploys", "features", "points"):
+        return f"{int(value):,}"
+    elif unit == "score":
+        return f"{round(value, 2)}"
+    elif unit == "x":
+        return f"{round(value, 2)}x"
+    else:
+        return f"{round(value, 2)}"
+
+
 def _format_answer(parsed, result, unit: str) -> tuple:
     """Format the answer based on intent type."""
     metric_display = parsed.metric.replace('_', ' ').title()
 
     if parsed.intent == QueryIntent.POINT_QUERY:
         formatted_value = round(result.value, 1)
-        if unit == "%":
-            answer = f"{metric_display} for {parsed.resolved_period} was {formatted_value}%"
-        else:
-            answer = f"{metric_display} for {parsed.resolved_period} was ${formatted_value} million"
+        formatted_str = _format_value_with_unit(result.value, unit)
+        answer = f"{metric_display} for {parsed.resolved_period} was {formatted_str}"
         return answer, formatted_value
 
     elif parsed.intent == QueryIntent.COMPARISON_QUERY:
@@ -2923,19 +2951,12 @@ def _format_answer(parsed, result, unit: str) -> tuple:
         pct = round(data["pct_change"], 1) if data["pct_change"] else 0
 
         period1, period2 = data["period1"], data["period2"]
+        val1_str = _format_value_with_unit(val1, unit)
+        val2_str = _format_value_with_unit(val2, unit)
+        diff_str = _format_value_with_unit(abs(diff), unit)
 
-        if unit == "%":
-            # For percentage metrics, show the values and whether it improved
-            if diff > 0:
-                answer = f"{metric_display} improved from {val2}% in {period2} to {val1}% in {period1}"
-            elif diff < 0:
-                answer = f"{metric_display} declined from {val2}% in {period2} to {val1}% in {period1}"
-            else:
-                answer = f"{metric_display} remained at {val1}% from {period2} to {period1}"
-        else:
-            # For dollar metrics, show the change
-            direction = "increased" if diff > 0 else "decreased" if diff < 0 else "remained unchanged"
-            answer = f"{metric_display} {direction} from ${val2} million in {period2} to ${val1} million in {period1} (${abs(diff)} million, {abs(pct)}%)"
+        direction = "increased" if diff > 0 else "decreased" if diff < 0 else "remained unchanged"
+        answer = f"{metric_display} {direction} from {val2_str} in {period2} to {val1_str} in {period1} ({diff_str}, {abs(pct)}%)"
 
         return answer, {"period1": period1, "value1": val1, "period2": period2, "value2": val2, "change": diff, "pct_change": pct}
 
@@ -2943,17 +2964,12 @@ def _format_answer(parsed, result, unit: str) -> tuple:
         data = result.value
         agg_result = round(data["result"], 1)
         agg_type = data["aggregation_type"]
+        formatted_str = _format_value_with_unit(agg_result, unit)
 
         if agg_type == "average":
-            if unit == "%":
-                answer = f"Average {metric_display.lower()} was {agg_result}%"
-            else:
-                answer = f"Average {metric_display.lower()} was ${agg_result} million"
+            answer = f"Average {metric_display.lower()} was {formatted_str}"
         else:  # sum
-            if unit == "%":
-                answer = f"Total {metric_display.lower()} was {agg_result}%"
-            else:
-                answer = f"Total {metric_display.lower()} was ${agg_result} million"
+            answer = f"Total {metric_display.lower()} was {formatted_str}"
 
         return answer, agg_result
 
@@ -2966,12 +2982,9 @@ def _format_answer(parsed, result, unit: str) -> tuple:
         parts = []
         for metric, value in breakdown.items():
             metric_unit = get_metric_unit(metric)
-            formatted = round(value, 1)
             display = metric.replace('_', ' ').title()
-            if metric_unit == "%":
-                parts.append(f"{display}: {formatted}%")
-            else:
-                parts.append(f"{display}: ${formatted}M")
+            formatted_str = _format_value_with_unit(value, metric_unit)
+            parts.append(f"{display}: {formatted_str}")
 
         answer = f"Breakdown for {period}: {', '.join(parts)}"
         return answer, breakdown
@@ -2979,10 +2992,8 @@ def _format_answer(parsed, result, unit: str) -> tuple:
     else:
         # Fallback for unknown intent
         formatted_value = round(result.value, 1) if isinstance(result.value, (int, float)) else result.value
-        if unit == "%":
-            answer = f"{metric_display} for {parsed.resolved_period} was {formatted_value}%"
-        else:
-            answer = f"{metric_display} for {parsed.resolved_period} was ${formatted_value} million"
+        formatted_str = _format_value_with_unit(formatted_value, unit) if isinstance(formatted_value, (int, float)) else str(formatted_value)
+        answer = f"{metric_display} for {parsed.resolved_period} was {formatted_str}"
         return answer, formatted_value
 
 
