@@ -124,19 +124,25 @@ const BarChart: React.FC<{
   onClick?: (label: string) => void;
   colors: string[];
 }> = ({ data, onClick, colors }) => {
-  const hasSize = data.some((d) => d.size !== undefined);
-  const maxSize = hasSize ? Math.max(...data.map((d) => d.size || 0), 1) : Math.max(...data.map((d) => d.value), 1);
+  // Check if any item has a 'size' property for proportional height rendering
+  const hasSize = data.length > 0 && data.some((d) => typeof d.size === 'number' && d.size > 0);
+  const maxSize = hasSize 
+    ? Math.max(...data.map((d) => (typeof d.size === 'number' ? d.size : 0)), 1) 
+    : Math.max(...data.map((d) => d.value), 1);
+
+  // Calculate the max bar height in pixels (container is 128px minus labels)
+  const maxBarHeight = 100; // pixels
 
   return (
     <div className="flex items-end justify-around h-32 gap-1">
       {data.map((item, index) => {
-        const heightValue = hasSize ? (item.size || 0) : item.value;
-        const heightPercent = (heightValue / maxSize) * 100;
+        const heightValue = hasSize ? (typeof item.size === 'number' ? item.size : 0) : item.value;
+        const barHeight = Math.max((heightValue / maxSize) * maxBarHeight, 4); // Min 4px
         
         return (
           <div
             key={item.label}
-            className="flex flex-col items-center flex-1 cursor-pointer group"
+            className="flex flex-col items-center justify-end flex-1 cursor-pointer group h-full"
             onClick={() => onClick?.(item.label)}
           >
             <span className="text-slate-400 text-xs mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -145,9 +151,8 @@ const BarChart: React.FC<{
             <div
               className="w-full rounded-t transition-all duration-300 group-hover:opacity-80"
               style={{
-                height: `${heightPercent}%`,
+                height: `${barHeight}px`,
                 backgroundColor: colors[index % colors.length],
-                minHeight: '4px',
               }}
             />
             <span className="text-slate-500 text-xs mt-1 truncate max-w-full">
