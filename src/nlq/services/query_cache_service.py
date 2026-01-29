@@ -64,10 +64,10 @@ class CacheConfig:
     openai_api_key: str = ""
     namespace: str = "nlq-query-cache"
 
-    # Similarity thresholds
-    threshold_exact: float = 0.95    # Use directly, no question
-    threshold_high: float = 0.92     # Use in static mode
-    threshold_partial: float = 0.85  # Use as context in AI mode
+    # Similarity thresholds (lowered for better semantic matching)
+    threshold_exact: float = 0.92    # Use directly, no question
+    threshold_high: float = 0.85     # Use cached result (semantic match)
+    threshold_partial: float = 0.75  # Use as context in AI mode
 
     # Embedding settings
     embedding_model: str = "text-embedding-3-small"
@@ -151,9 +151,11 @@ class QueryCacheService:
             CacheLookupResult with hit type, similarity, and parsed structure
         """
         if not self.is_available:
+            print(f"[CACHE] Lookup skipped - cache not available")
             return self._miss_result()
 
         try:
+            print(f"[CACHE] Looking up: '{query[:50]}...'")
             # Generate embedding
             embedding = self._embed_query(query)
 
@@ -179,6 +181,7 @@ class QueryCacheService:
             match = results.matches[0]
             similarity = match.score
             metadata = match.metadata
+            print(f"[CACHE] Found match: similarity={similarity:.3f}, original='{metadata.get('original_query', '')[:40]}...'")
 
             # Classify hit type
             hit_type = self._classify_hit(similarity)
@@ -527,7 +530,10 @@ def init_cache_service_from_env() -> Optional["QueryCacheService"]:
 
     if not pinecone_key or not openai_key:
         logger.warning("RAG cache disabled: PINECONE_API_KEY or OPENAI_API_KEY not set")
+        print(f"[CACHE] RAG cache disabled: pinecone_key={bool(pinecone_key)}, openai_key={bool(openai_key)}")
         return None
+    
+    print(f"[CACHE] Initializing RAG cache with Pinecone and OpenAI")
 
     config = CacheConfig(
         pinecone_api_key=pinecone_key,
@@ -544,8 +550,10 @@ def init_cache_service_from_env() -> Optional["QueryCacheService"]:
 
     if _cache_service.is_available:
         stats = _cache_service.get_stats()
+        print(f"[CACHE] RAG cache initialized: {stats.get('namespace_vectors', 0)} vectors")
         logger.info(f"RAG cache initialized: {stats.get('namespace_vectors', 0)} vectors in cache")
     else:
+        print("[CACHE] RAG cache not available")
         logger.warning("RAG cache service initialized but not available (check API keys)")
 
     return _cache_service

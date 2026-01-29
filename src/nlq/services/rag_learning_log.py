@@ -16,6 +16,8 @@ import json
 logger = logging.getLogger(__name__)
 
 
+DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001"
+
 @dataclass
 class LearningLogEntry:
     """A single entry in the RAG learning log."""
@@ -29,6 +31,8 @@ class LearningLogEntry:
     llm_confidence: float = 0.0  # LLM confidence if applicable
     timestamp: datetime = field(default_factory=datetime.utcnow)
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    tenant_id: str = DEFAULT_TENANT_ID
+    session_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -141,6 +145,8 @@ class RAGLearningLog:
             try:
                 data = {
                     "id": entry.id,
+                    "tenant_id": entry.tenant_id or DEFAULT_TENANT_ID,
+                    "session_id": entry.session_id,
                     "query": entry.query[:500],  # Limit query length
                     "success": entry.success,
                     "source": entry.source,
