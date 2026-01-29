@@ -64,10 +64,10 @@ class CacheConfig:
     openai_api_key: str = ""
     namespace: str = "nlq-query-cache"
 
-    # Similarity thresholds (lowered for better semantic matching)
-    threshold_exact: float = 0.88    # Use directly, no question
-    threshold_high: float = 0.80     # Use cached result (semantic match)
-    threshold_partial: float = 0.70  # Use as context in AI mode
+    # Similarity thresholds (balanced to avoid false matches)
+    threshold_exact: float = 0.92    # Use directly, no question  
+    threshold_high: float = 0.88     # Use cached result (must be very similar)
+    threshold_partial: float = 0.75  # Use as context in AI mode
 
     # Embedding settings
     embedding_model: str = "text-embedding-3-small"
