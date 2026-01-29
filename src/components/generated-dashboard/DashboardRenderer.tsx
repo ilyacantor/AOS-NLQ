@@ -324,8 +324,29 @@ export function DashboardRenderer({
       const data: DashboardRefinementResponse = await response.json();
 
       if (data.success && data.dashboard) {
+        // Preserve custom layout for widgets that still exist
+        if (customLayout) {
+          const existingWidgetIds = new Set(data.dashboard.widgets.map(w => w.id));
+          const preservedLayout = customLayout.filter(l => existingWidgetIds.has(l.i));
+          
+          // Add layout entries for new widgets from the schema
+          const preservedIds = new Set(preservedLayout.map(l => l.i));
+          const newWidgetLayouts = data.dashboard.widgets
+            .filter(w => !preservedIds.has(w.id))
+            .map(widget => ({
+              i: widget.id,
+              x: widget.position.column - 1,
+              y: widget.position.row - 1,
+              w: widget.position.col_span,
+              h: widget.position.row_span,
+              minW: 2,
+              minH: 2,
+            }));
+          
+          setCustomLayout([...preservedLayout, ...newWidgetLayouts]);
+        }
+        
         setSchema(data.dashboard);
-        setCustomLayout(null);
         onRefinement?.(data.dashboard);
         fetchWidgetData(data.dashboard);
       } else {
@@ -337,7 +358,7 @@ export function DashboardRenderer({
       setIsRefining(false);
       setRefinementQuery('');
     }
-  }, [schema, onRefinement]);
+  }, [schema, customLayout, onRefinement]);
 
   // Fetch data for all widgets
   const fetchWidgetData = useCallback(async (dashboard: DashboardSchema) => {
