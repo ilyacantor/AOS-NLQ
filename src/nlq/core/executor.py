@@ -310,22 +310,46 @@ class QueryExecutor:
         Uses actual metrics that exist in the fact base.
         """
         BREAKDOWN_MAPPINGS = {
+            # Revenue & Sales
             "revenue": ["new_logo_revenue", "expansion_revenue", "renewal_revenue"],
             "arr": ["new_logo_revenue", "expansion_revenue", "renewal_revenue"],
             "bookings": ["new_logo_revenue", "expansion_revenue", "pipeline", "win_rate"],
+            # Profitability
+            "gross_profit": ["revenue", "cogs"],
             "gross_margin_pct": ["revenue", "cogs", "gross_profit"],
+            "operating_profit": ["revenue", "cogs", "sga", "gross_profit"],
             "operating_margin_pct": ["revenue", "operating_profit", "sga"],
+            "net_income": ["revenue", "gross_profit", "operating_profit", "sga"],
+            "net_income_pct": ["revenue", "gross_profit", "operating_profit", "sga"],
+            "cogs": ["revenue", "gross_margin_pct"],
+            # Expenses
             "sga": ["selling_expenses", "g_and_a_expenses"],
+            "cloud_spend": ["cloud_spend_pct_revenue", "revenue"],
+            # Pipeline & Sales
             "pipeline": ["qualified_pipeline", "win_rate", "sales_cycle_days", "avg_deal_size"],
+            "win_rate": ["pipeline", "qualified_pipeline", "avg_deal_size", "sales_cycle_days"],
+            "quota_attainment": ["reps_at_quota_pct", "sales_headcount", "pipeline", "win_rate"],
+            # Retention & Churn
             "gross_churn_pct": ["logo_churn_pct", "nrr", "customer_count"],
+            "nrr": ["gross_churn_pct", "expansion_revenue", "renewal_revenue"],
+            "customer_count": ["new_logos", "logo_churn_pct", "nrr"],
+            # Efficiency Metrics
             "magic_number": ["arr", "sga", "sales_headcount"],
             "ltv_cac": ["cac_payback_months", "gross_churn_pct", "nrr"],
             "burn_multiple": ["revenue", "operating_profit", "net_income"],
+            # People
             "headcount": ["engineering_headcount", "product_headcount", "sales_headcount", "marketing_headcount", "cs_headcount", "ga_headcount"],
+            "attrition_rate": ["headcount", "hires", "attrition"],
+            "attrition": ["headcount", "hires", "attrition_rate"],
+            # Customer Success
             "nps": ["csat", "support_tickets", "resolution_hours"],
+            "csat": ["nps", "support_tickets", "resolution_hours", "first_response_hours"],
+            # Tech & Engineering
             "uptime_pct": ["downtime_hours", "deploys_per_week", "security_vulns"],
             "tech_debt_pct": ["code_coverage_pct", "bug_escape_rate", "critical_bugs"],
+            # Balance Sheet
             "ar": ["revenue", "deferred_revenue", "unbilled_revenue"],
+            "ap": ["revenue", "cogs", "current_liabilities"],
             "cash": ["revenue", "cogs", "sga", "operating_profit"],
         }
 
