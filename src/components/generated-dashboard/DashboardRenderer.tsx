@@ -56,6 +56,12 @@ export function DashboardRenderer({
         body: JSON.stringify({ question: query }),
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        setError(`API error (${response.status}): ${errorText.slice(0, 200)}`);
+        return;
+      }
+
       const data: DashboardGenerationResponse = await response.json();
 
       if (data.success && data.dashboard) {
@@ -70,11 +76,13 @@ export function DashboardRenderer({
         // Fetch actual data for widgets
         fetchWidgetData(data.dashboard);
       } else {
-        setError(data.error || 'Failed to generate dashboard');
+        setError(data.error || 'Dashboard generation returned no data');
         setSuggestions(data.suggestions || []);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate dashboard');
+      const message = err instanceof Error ? err.message : String(err);
+      setError(`Request failed: ${message}`);
+      console.error('Dashboard generation error:', err);
     } finally {
       setLoading(false);
     }
