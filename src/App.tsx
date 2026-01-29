@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { GalaxyView, IntentMapResponse } from './components/galaxy'
 import { Dashboard } from './components/dashboard'
 import { RAGLearningPanel, LLMCallCounter } from './components/rag'
@@ -42,26 +42,23 @@ type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'People'
 type PanelTab = 'History' | 'Learning' | 'Debug'
 type QueryMode = 'static' | 'ai'
 
+const dashboardOptions: { label: string; persona: Persona; query: string }[] = [
+  { label: 'CFO Dashboard', persona: 'CFO', query: 'CFO dashboard' },
+  { label: 'CRO Dashboard', persona: 'CRO', query: 'CRO dashboard' },
+  { label: 'COO Dashboard', persona: 'COO', query: 'COO dashboard' },
+  { label: 'CTO Dashboard', persona: 'CTO', query: 'CTO dashboard' },
+]
+
 const quickActions = [
-  // Dashboards
-  'CFO dashboard',
-  'CRO dashboard',
-  'COO dashboard',
-  'CTO dashboard',
   '2025 KPIs',
-  // CFO
   'whats the margin',
   'are we profitable',
-  // CRO
   'how\'s pipeline looking',
   'churn?',
-  // COO
   'are we efficient',
   'magic number',
-  // CTO
   'platform stable?',
   'how\'s velocity',
-  // People
   'who is the CEO',
   'pto days',
   '401k match',
@@ -91,6 +88,21 @@ function App() {
   const [lastQuery, setLastQuery] = useState('')
   const [lastDuration, setLastDuration] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [dashboardDropdownOpen, setDashboardDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDashboardDropdownOpen(false)
+      }
+    }
+    if (dashboardDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [dashboardDropdownOpen])
 
   const handleSubmit = async (queryText?: string, forceTextView?: boolean) => {
     const textToSubmit = queryText ?? query
@@ -320,7 +332,40 @@ function App() {
               </div>
 
               {/* Quick Action Buttons */}
-              <div className="flex flex-wrap justify-center gap-2 mt-4 max-w-3xl">
+              <div className="flex flex-wrap justify-center items-center gap-2 mt-4 max-w-3xl">
+                {/* Dashboard Dropdown */}
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setDashboardDropdownOpen(!dashboardDropdownOpen)}
+                    className="px-3 py-1.5 bg-purple-900/50 border border-purple-700 rounded-full text-purple-300 text-xs hover:bg-purple-800/50 hover:border-purple-600 transition-colors flex items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                    Dashboards
+                    <svg className={`w-3 h-3 transition-transform ${dashboardDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {dashboardDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 min-w-[140px] py-1">
+                      {dashboardOptions.map((option) => (
+                        <button
+                          key={option.persona}
+                          onClick={() => {
+                            handleQuickAction(option.query)
+                            setDashboardDropdownOpen(false)
+                          }}
+                          className="w-full px-3 py-2 text-left text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Query Presets */}
                 {quickActions.map((action) => (
                   <button
                     key={action}
