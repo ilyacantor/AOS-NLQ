@@ -311,12 +311,18 @@ export function DashboardRenderer({
         setSchema(data.dashboard);
         setSuggestions(data.suggestions || []);
         setLayoutMap({});
-        const initialData: Record<string, WidgetData> = {};
-        data.dashboard.widgets.forEach(widget => {
-          initialData[widget.id] = { loading: true };
-        });
-        setWidgetData(initialData);
-        fetchWidgetData(data.dashboard);
+        // Use pre-resolved widget data from backend if available
+        if (data.widget_data && Object.keys(data.widget_data).length > 0) {
+          setWidgetData(data.widget_data);
+        } else {
+          // Fallback to loading + mock data if backend didn't provide data
+          const initialData: Record<string, WidgetData> = {};
+          data.dashboard.widgets.forEach(widget => {
+            initialData[widget.id] = { loading: true };
+          });
+          setWidgetData(initialData);
+          fetchWidgetData(data.dashboard);
+        }
       } else {
         setError(data.error || 'Dashboard generation returned no data');
         setSuggestions(data.suggestions || []);
@@ -354,10 +360,15 @@ export function DashboardRenderer({
         // - layoutMap already has preserved positions for existing widgets (keyed by ID)
         // - New widgets will automatically use server positions via gridLayout memo
         // - The layoutMap is NOT modified here, preserving user customizations
-        
+
         setSchema(data.dashboard);
         onRefinement?.(data.dashboard);
-        fetchWidgetData(data.dashboard);
+        // Use pre-resolved widget data from backend if available
+        if (data.widget_data && Object.keys(data.widget_data).length > 0) {
+          setWidgetData(data.widget_data);
+        } else {
+          fetchWidgetData(data.dashboard);
+        }
       } else {
         setError(data.error || 'Failed to refine dashboard');
       }

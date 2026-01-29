@@ -1,5 +1,5 @@
 {
-  "date": "2026-01-29T20:53:04.369084",
+  "date": "2026-01-29T21:16:32.903266",
   "summary": {
     "total": 12,
     "passed": 12,
@@ -116,11 +116,11 @@
         "id": "TC-08",
         "name": "Ambiguous Query",
         "status": "PASS",
-        "message": "Clarification: True, query_type: UNKNOWN, no_chart: True",
+        "message": "Clarification: True, query_type: AMBIGUOUS, no_chart: True",
         "verification": {
           "asks_clarification": true,
-          "needs_clarification_flag": false,
-          "query_type": "UNKNOWN",
+          "needs_clarification_flag": true,
+          "query_type": "AMBIGUOUS",
           "no_chart": true
         }
       },

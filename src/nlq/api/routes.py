@@ -3183,7 +3183,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
             return IntentMapResponse(
                 query=request.question,
                 query_type="AMBIGUOUS",
-                ambiguity_type="TERM_AMBIGUITY",
+                ambiguity_type="vague_metric",
                 persona="CFO",
                 overall_confidence=0.6,
                 overall_data_quality=1.0,

@@ -8,7 +8,8 @@ Endpoints:
 """
 
 import logging
-from typing import Dict, Optional
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -17,11 +18,13 @@ from src.nlq.core.dashboard_generator import (
     generate_dashboard_schema,
     refine_dashboard_schema,
 )
+from src.nlq.core.dashboard_data_resolver import DashboardDataResolver
 from src.nlq.core.visualization_intent import (
     VisualizationIntent,
     detect_visualization_intent,
     should_generate_visualization,
 )
+from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.models.dashboard_schema import (
     DashboardGenerationResponse,
     DashboardRefinementRequest,
@@ -35,6 +38,35 @@ router = APIRouter()
 
 # In-memory cache for generated dashboards (in production, use Redis or DB)
 _dashboard_cache: Dict[str, DashboardSchema] = {}
+
+# Lazy-loaded fact base instance
+_fact_base: Optional[FactBase] = None
+
+
+def _get_fact_base() -> FactBase:
+    """Get or create the fact base instance."""
+    global _fact_base
+    if _fact_base is None:
+        _fact_base = FactBase()
+        # Try multiple paths for fact base
+        possible_paths = [
+            Path("data/fact_base.json"),
+            Path("/home/user/AOS-NLQ/data/fact_base.json"),
+            Path("./data/fact_base.json"),
+        ]
+        for path in possible_paths:
+            if path.exists():
+                _fact_base.load(path)
+                logger.info(f"Dashboard routes: Loaded fact base from {path}")
+                break
+    return _fact_base
+
+
+def _resolve_widget_data(dashboard: DashboardSchema) -> Dict[str, Any]:
+    """Resolve widget data from fact base for a dashboard."""
+    fact_base = _get_fact_base()
+    resolver = DashboardDataResolver(fact_base)
+    return resolver.resolve_dashboard_data(dashboard, reference_year="2025")
 
 
 class DashboardQueryRequest(BaseModel):
@@ -91,6 +123,9 @@ async def generate_dashboard(request: DashboardQueryRequest) -> DashboardGenerat
         # Cache the dashboard for potential refinement
         _dashboard_cache[dashboard.id] = dashboard
 
+        # Resolve widget data from fact base
+        widget_data = _resolve_widget_data(dashboard)
+
         # Generate suggestions for refinement
         suggestions = _generate_refinement_suggestions(dashboard, requirements)
 
@@ -99,6 +134,7 @@ async def generate_dashboard(request: DashboardQueryRequest) -> DashboardGenerat
         return DashboardGenerationResponse(
             success=True,
             dashboard=dashboard,
+            widget_data=widget_data,
             error=None,
             query=request.question,
             intent_detected=requirements.intent.value,
@@ -158,6 +194,9 @@ async def refine_dashboard(request: DashboardRefinementRequest) -> DashboardRefi
         # Update cache
         _dashboard_cache[updated_dashboard.id] = updated_dashboard
 
+        # Resolve widget data from fact base
+        widget_data = _resolve_widget_data(updated_dashboard)
+
         # Determine what changed
         changes_made = _detect_changes(current_dashboard, updated_dashboard, request.refinement_query)
 
@@ -166,6 +205,7 @@ async def refine_dashboard(request: DashboardRefinementRequest) -> DashboardRefi
         return DashboardRefinementResponse(
             success=True,
             dashboard=updated_dashboard,
+            widget_data=widget_data,
             error=None,
             changes_made=changes_made,
             confidence=requirements.confidence,

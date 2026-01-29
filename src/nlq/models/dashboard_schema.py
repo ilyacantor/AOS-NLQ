@@ -349,6 +349,7 @@ class DashboardGenerationResponse(BaseModel):
 
     success: bool = Field(..., description="Whether generation succeeded")
     dashboard: Optional[DashboardSchema] = Field(default=None, description="Generated dashboard schema")
+    widget_data: Optional[Dict[str, Any]] = Field(default=None, description="Pre-resolved widget data from fact base")
     error: Optional[str] = Field(default=None, description="Error message if failed")
 
     # Generation metadata
@@ -373,6 +374,7 @@ class DashboardRefinementResponse(BaseModel):
 
     success: bool = Field(..., description="Whether refinement succeeded")
     dashboard: Optional[DashboardSchema] = Field(default=None, description="Updated dashboard schema")
+    widget_data: Optional[Dict[str, Any]] = Field(default=None, description="Pre-resolved widget data from fact base")
     error: Optional[str] = Field(default=None, description="Error message if failed")
 
     # Change summary

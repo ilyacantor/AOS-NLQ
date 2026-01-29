@@ -29,6 +29,7 @@ class FactBase:
     def __init__(self):
         """Initialize empty fact base."""
         self._data: Dict[str, Any] = {}
+        self._raw_data: Dict[str, Any] = {}  # Store raw data for dimensional breakdowns
         self._periods: Set[str] = set()
         self._metrics: Set[str] = set()
         self._loaded = False
@@ -51,6 +52,7 @@ class FactBase:
         with open(filepath, "r") as f:
             raw_data = json.load(f)
 
+        self._raw_data = raw_data  # Store raw data for dimensional breakdowns
         self._process_data(raw_data)
         self._loaded = True
         logger.info(f"Loaded fact base with {len(self._periods)} periods and {len(self._metrics)} metrics")

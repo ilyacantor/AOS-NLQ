@@ -185,6 +185,7 @@ export interface DashboardSchema {
 export interface DashboardGenerationResponse {
   success: boolean;
   dashboard?: DashboardSchema;
+  widget_data?: Record<string, WidgetData>;
   error?: string;
   query: string;
   intent_detected: string;
@@ -201,6 +202,7 @@ export interface DashboardRefinementRequest {
 export interface DashboardRefinementResponse {
   success: boolean;
   dashboard?: DashboardSchema;
+  widget_data?: Record<string, WidgetData>;
   error?: string;
   changes_made: string[];
   confidence: number;
