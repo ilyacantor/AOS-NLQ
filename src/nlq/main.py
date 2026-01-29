@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from src.nlq.api.routes import router
 from src.nlq.api.rag_routes import router as rag_router
+from src.nlq.api.dashboard_routes import router as dashboard_router
 from src.nlq.services.query_cache_service import init_cache_service_from_env, get_cache_service
 from src.nlq.services.llm_call_counter import init_call_counter, get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log
@@ -52,6 +53,10 @@ app.include_router(router, prefix="/api/v1")
 # Include RAG routes
 app.include_router(rag_router, prefix="/v1")
 app.include_router(rag_router, prefix="/api/v1")
+
+# Include Dashboard routes (self-developing dashboards)
+app.include_router(dashboard_router, prefix="/v1")
+app.include_router(dashboard_router, prefix="/api/v1")
 
 # Note: RAG cache service singleton is managed in query_cache_service.py
 # Use get_cache_service() and init_cache_service_from_env() from there
