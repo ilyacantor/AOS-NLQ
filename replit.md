@@ -69,8 +69,12 @@ src/
     ├── main.py             # FastAPI application entry point
     ├── api/
     │   └── routes.py       # API endpoints (/v1/query, /v1/intent-map)
+    ├── db/
+    │   ├── schema.sql      # Supabase table definitions with RLS
+    │   └── supabase_persistence.py  # Tenant-aware persistence service
     └── services/
-        └── intent_mapper.py # Claude-powered intent mapping logic
+        ├── intent_mapper.py    # Claude-powered intent mapping logic
+        └── llm_call_counter.py # Session statistics with persistence
 ```
 
 ### API Endpoints
@@ -115,6 +119,35 @@ The production build serves:
 ### Environment Variables
 - `SESSION_SECRET` - Session encryption key
 - `AI_INTEGRATIONS_OPENAI_API_KEY` - OpenAI/Anthropic API access (managed by Replit)
+- `SUPABASE_URL` - Supabase project URL (optional, for persistence)
+- `SUPABASE_KEY` - Supabase service role key (optional, for persistence)
+
+---
+
+## Multi-Tenant Persistence
+
+### Overview
+AOS-NLQ includes optional Supabase PostgreSQL persistence for RAG session management. When configured, sessions persist across server restarts and support multi-tenant deployments.
+
+### Tables (src/nlq/db/schema.sql)
+| Table | Purpose |
+|-------|---------|
+| `rag_sessions` | Browser session statistics (LLM calls, cached queries) |
+| `rag_cache_entries` | Query-to-intent cache with embeddings |
+| `rag_learning_log` | Query execution history for ML training |
+| `rag_feedback` | User feedback (thumbs up/down) |
+
+### Tenant Isolation
+- Default tenant: `00000000-0000-0000-0000-000000000001` (single-tenant mode)
+- All queries include explicit `tenant_id` filtering
+- RLS policies defined for future JWT-based multi-tenant auth
+- Service role key bypasses RLS (server-side ops)
+
+### Graceful Fallback
+When Supabase credentials are not configured:
+- System logs warning and continues with in-memory storage
+- All functionality works, but sessions don't persist across restarts
+- No errors shown to users (graceful degradation)
 
 ### Key Files
 - `vite.config.ts` - Vite dev server with proxy to backend

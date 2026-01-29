@@ -78,11 +78,10 @@ async def startup_event():
     # Initialize RAG cache service
     init_cache_service_from_env()
 
-    # Initialize call counter with persistence and load active sessions
+    # Initialize call counter with persistence (sessions loaded automatically via init_call_counter)
     counter = init_call_counter(persist=persistence is not None and persistence.is_available)
-    if persistence and persistence.is_available:
-        loaded = counter.load_active_sessions(since_hours=168)  # 7 days
-        logger.info(f"Loaded {loaded} active sessions from database")
+    stats = counter.get_global_stats()
+    logger.info(f"Call counter initialized: {stats.get('active_sessions', 0)} sessions loaded")
 
     # Initialize learning log (singleton)
     get_learning_log()

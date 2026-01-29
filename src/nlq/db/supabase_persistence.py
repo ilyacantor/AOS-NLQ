@@ -76,8 +76,17 @@ class SupabasePersistenceService:
     """
     Multi-tenant persistence service using Supabase PostgreSQL.
     
-    Handles all RAG-related database operations with tenant isolation
-    via Row-Level Security (RLS) policies.
+    Handles all RAG-related database operations with tenant isolation.
+    
+    TENANT ISOLATION:
+    - Application-level filtering: All queries include tenant_id filter
+    - Database-level RLS: Policies exist for future JWT-based auth
+    
+    NOTE: When using service-role key (required for server-side ops),
+    RLS is bypassed. Tenant isolation is enforced via application logic
+    with explicit tenant_id filtering on every query. For production
+    multi-tenant deployments with untrusted clients, use JWT-based auth
+    with proper RLS configuration.
     """
     
     def __init__(
