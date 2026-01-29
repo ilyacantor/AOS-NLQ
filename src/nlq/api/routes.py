@@ -2518,7 +2518,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                     success=True,
                     source="cache",
                     learned=False,
-                    message=f'"{request.question}" from cache ({cache_result.similarity:.0%} match)',
+                    message=f'Retrieved "{request.question}" ({cache_result.similarity:.0%} match)',
                     persona=detect_persona_from_metric(cache_result.parsed.get("metric")) or "CFO",
                     similarity=cache_result.similarity,
                 ))
