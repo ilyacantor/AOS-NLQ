@@ -211,6 +211,29 @@ async def get_cache_stats():
     return {"available": False, "error": "Cache service not initialized"}
 
 
+@router.delete("/cache/entry")
+async def delete_cache_entry(
+    query: str = Query(..., description="The query to delete from cache")
+):
+    """
+    Delete a specific cache entry by query text.
+    
+    Use this to remove corrupted or incorrect cache entries.
+    """
+    cache = get_cache_service()
+    if not cache or not cache.is_available:
+        raise HTTPException(
+            status_code=503,
+            detail="Cache service not available"
+        )
+    
+    deleted = cache.delete_by_query(query)
+    if deleted:
+        return {"success": True, "message": f"Deleted cache entry for: {query}"}
+    else:
+        return {"success": False, "message": f"No exact match found for: {query}"}
+
+
 @router.post("/cache/seed")
 async def seed_cache(
     confirm: bool = Query(default=False, description="Must be true to proceed")

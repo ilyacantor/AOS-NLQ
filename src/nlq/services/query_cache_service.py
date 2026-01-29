@@ -151,11 +151,11 @@ class QueryCacheService:
             CacheLookupResult with hit type, similarity, and parsed structure
         """
         if not self.is_available:
-            print(f"[CACHE] Lookup skipped - cache not available")
+            logger.debug(f"Lookup skipped - cache not available")
             return self._miss_result()
 
         try:
-            print(f"[CACHE] Looking up: '{query[:50]}...'")
+            logger.debug(f"Looking up: '{query[:50]}...'")
             # Generate embedding
             embedding = self._embed_query(query)
 
@@ -181,7 +181,7 @@ class QueryCacheService:
             match = results.matches[0]
             similarity = match.score
             metadata = match.metadata
-            print(f"[CACHE] Found match: similarity={similarity:.3f}, original='{metadata.get('original_query', '')[:40]}...'")
+            logger.debug(f"Found match: similarity={similarity:.3f}, original='{metadata.get('original_query', '')[:40]}...'")
 
             # Classify hit type
             hit_type = self._classify_hit(similarity)
@@ -399,6 +399,42 @@ class QueryCacheService:
         except Exception as e:
             logger.error(f"Failed to get stats: {e}")
             return {"available": False, "error": str(e)}
+
+    def delete_by_query(self, query: str) -> bool:
+        """
+        Delete a specific cache entry by finding and removing it.
+
+        Args:
+            query: The query to find and delete
+
+        Returns:
+            True if found and deleted
+        """
+        if not self.is_available:
+            return False
+
+        try:
+            # Find the entry
+            embedding = self._embed_query(query)
+            results = self._index.query(
+                vector=embedding,
+                top_k=1,
+                include_metadata=True,
+                namespace=self.config.namespace
+            )
+
+            if results.matches and results.matches[0].score > 0.95:
+                # Found exact match, delete it
+                vector_id = results.matches[0].id
+                self._index.delete(ids=[vector_id], namespace=self.config.namespace)
+                logger.info(f"Deleted cache entry: {query[:50]}... (id={vector_id})")
+                return True
+            else:
+                logger.warning(f"No exact match found to delete: {query[:50]}...")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to delete entry: {e}")
+            return False
 
     def delete_all(self, confirm: bool = False) -> bool:
         """
