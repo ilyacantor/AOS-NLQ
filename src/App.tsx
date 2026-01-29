@@ -104,6 +104,29 @@ function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [dashboardDropdownOpen])
 
+  // Load query history from database on mount
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const response = await fetch('/api/v1/rag/learning/log/db?limit=50')
+        if (response.ok) {
+          const data = await response.json()
+          const historyItems: QueryHistoryItem[] = (data.entries || []).map((entry: any) => ({
+            id: entry.id,
+            query: entry.query,
+            timestamp: new Date(entry.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+            duration: entry.execution_time_ms ? `${entry.execution_time_ms}ms` : '',
+            tag: entry.learned ? 'LEARNED' : (entry.source === 'cache' ? 'CACHED' : 'AI'),
+          }))
+          setQueryHistory(historyItems)
+        }
+      } catch (error) {
+        console.error('Failed to load history:', error)
+      }
+    }
+    loadHistory()
+  }, [])
+
   const handleSubmit = async (queryText?: string, forceTextView?: boolean) => {
     const textToSubmit = queryText ?? query
     if (!textToSubmit.trim()) return
