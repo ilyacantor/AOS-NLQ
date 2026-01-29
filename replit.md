@@ -132,6 +132,15 @@ The production build serves:
 
 ---
 
+## Recent Changes (2026-01-29)
+- Added persona-specific dashboards: CRO (Revenue), COO (Operations), CTO (Technology)
+- Created PredictiveLineChart component with Recharts for shadow forecasts
+- Added InsightCard component for anomaly storytelling with AI-generated explanations
+- Implemented "Chat with this Chart" buttons on KPITile and ChartTile for conversational drill-down
+- Added ScenarioModelingPanel for CFO dashboard with interactive sliders and live KPI impact preview
+- Fixed all LSP/TypeScript errors in ChartTile (removed unused functions, fixed type issues)
+- Integrated all new components into the dashboard rendering pipeline
+
 ## Recent Changes (2026-01-28)
 - Added collapsible sidebar with toggle button
 - Set sidebar to collapse by default on load
@@ -145,3 +154,22 @@ The production build serves:
 - Implemented single server architecture (FastAPI serves React build)
 - Added Galaxy view visualization
 - Configured production deployment
+
+---
+
+## Dashboard Personas
+
+| Persona | Focus Area | Key KPIs |
+|---------|------------|----------|
+| CFO | Finance Overview | Revenue, Gross Margin, Burn Rate, Cash Runway, Rule of 40, LTV/CAC |
+| CRO | Revenue Overview | Bookings, Pipeline, Win Rate, Net Revenue Retention |
+| COO | Operations Overview | Headcount, Magic Number, LTV/CAC, NPS |
+| CTO | Technology Overview | Uptime, Velocity, Deploys/Week, Tech Debt |
+
+### Dashboard Components
+
+- **KPITile**: Key metric cards with sparklines, trend indicators, and chat drill-down
+- **ChartTile**: Visualization tiles supporting bar, line, pie, area, stacked-bar, waterfall, and predictive-line charts
+- **InsightsTile**: AI-generated insights with anomaly storytelling (enhanced mode uses InsightCard)
+- **PredictiveLineChart**: Recharts-based chart with historical (cyan) and forecast (purple dashed) data
+- **ScenarioModelingPanel**: CFO-only collapsible panel with sliders for scenario modeling
