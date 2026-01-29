@@ -88,6 +88,7 @@ AMBIGUITY_PATTERNS = {
         r"^churn\??$",                  # CRO - churn metrics
         r"^nrr$",                       # CRO - net revenue retention
         r"^logo adds",                  # CRO - logo additions
+        r"^(sales )?pipeline\??$",      # CRO - sales pipeline (handles "pipeline" and "sales pipeline")
         r"^magic number$",              # COO - sales efficiency
         r"^payback period",             # COO - CAC payback
         r"^ltv cac",                    # COO - LTV/CAC ratio
@@ -217,6 +218,8 @@ AMBIGUITY_CANDIDATES = {
         "churn": ["gross_churn_pct", "logo_churn_pct", "nrr"],
         "nrr": ["nrr"],
         "logo adds": ["customer_count", "new_logos"],
+        "pipeline": ["pipeline", "qualified_pipeline", "win_rate"],
+        "sales pipeline": ["pipeline", "qualified_pipeline", "win_rate"],
         "magic number": ["magic_number"],
         "payback": ["cac_payback_months"],
         "ltv": ["ltv_cac"],

@@ -44,6 +44,7 @@ BREAKDOWN_QUERY examples:
 For "driving" or "what caused" questions, always use BREAKDOWN_QUERY intent and include relevant sub-metrics or contributing factors as breakdown_metrics.
 
 Canonical metric names:
+CFO/Finance:
 - revenue, bookings, cogs, gross_profit, gross_margin_pct
 - selling_expenses, g_and_a_expenses, sga
 - operating_profit, operating_margin_pct
@@ -52,6 +53,17 @@ Canonical metric names:
 - deferred_revenue, unbilled_revenue
 - total_current_assets, current_liabilities
 - retained_earnings, stockholders_equity
+
+CRO/Sales (use these for sales-related queries):
+- pipeline, qualified_pipeline, sales_pipeline (all map to "pipeline")
+- win_rate, close_rate, conversion_rate
+- sales_cycle_days, avg_deal_size
+- new_logos, customer_count
+- quota_attainment, reps_at_quota_pct
+- nrr, gross_churn_pct, logo_churn_pct
+- expansion_revenue, new_logo_revenue, renewal_revenue
+
+IMPORTANT: For "sales pipeline" or "pipeline", always return metric="pipeline", NOT "sales" or "revenue".
 
 Relative period keywords (map to these canonical forms):
 - last_year: "last year", "prior year", "previous year"

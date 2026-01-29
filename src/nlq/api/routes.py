@@ -1705,6 +1705,16 @@ def _handle_ambiguous_query_text(
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="customer_count", resolved_period=current_year,
                 related_metrics=related_metrics)
 
+        # "pipeline" or "sales pipeline" -> "$575M pipeline, $345M qualified, 44% win rate"
+        if "pipeline" in q:
+            pipeline = get_val("pipeline", current_year)
+            qualified = get_val("qualified_pipeline", current_year)
+            win_rate = get_val("win_rate", current_year)
+            answer = f"${round(pipeline, 0) if pipeline else 0}M pipeline, ${round(qualified, 0) if qualified else 0}M qualified, {round(win_rate, 0) if win_rate else 0}% win rate"
+            return NLQResponse(success=True, answer=answer, value=pipeline, unit="$M",
+                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="pipeline", resolved_period=current_year,
+                related_metrics=related_metrics)
+
         # "magic number" -> "0.9 (2026F)"
         if "magic" in q:
             magic = get_val("magic_number", current_year)
