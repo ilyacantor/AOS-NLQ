@@ -1,13 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   IntentMapResponse,
   IntentNode,
   RING_CONFIG,
   DOMAIN_COLORS,
   getCircleRadius,
-  getQualityRingRadius,
-  getInnerHighlightRadius,
-  getTypeStyle,
   getArcPath,
   getFreshnessColor,
 } from './types';
@@ -29,9 +26,8 @@ interface NodeState {
   y: number;
   vx: number;
   vy: number;
-  targetRadius: number;  // Orbital radius this node should be on
-  fx: number | null;     // Fixed x position (for dragging)
-  fy: number | null;     // Fixed y position (for dragging)
+  targetX: number;
+  targetY: number;
 }
 
 export const GalaxyView: React.FC<GalaxyViewProps> = ({
@@ -62,156 +58,90 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const centerX = width / 2;
   const centerY = height / 2;
 
-  // Simulation alpha (heat) - controls how active the simulation is
-  const alphaRef = useRef(1.0);
-  const alphaTargetRef = useRef(0);
+  // Calculate target positions for nodes on their rings
+  const targetPositions = useMemo(() => {
+    const positions = new Map<string, { x: number; y: number }>();
 
-  // Get orbital radius for a node based on match type
-  const getOrbitalRadius = useCallback((matchType: string) => {
-    switch (matchType) {
-      case 'exact': return RING_CONFIG.inner.radius;
-      case 'potential': return RING_CONFIG.middle.radius;
-      case 'hypothesis': return RING_CONFIG.outer.radius;
-      default: return RING_CONFIG.middle.radius;
-    }
-  }, []);
+    const placeNodesOnRing = (nodes: IntentNode[], radius: number) => {
+      if (nodes.length === 0) return;
+      const angleStep = (2 * Math.PI) / nodes.length;
+      const startAngle = -Math.PI / 2;
 
-  // Get collision radius for a node (per spec: 20 + confidence * 40)
-  const getCollisionRadius = useCallback((confidence: number) => {
-    return 20 + confidence * 40;
-  }, []);
+      nodes.forEach((node, i) => {
+        const angle = startAngle + angleStep * i;
+        positions.set(node.id, {
+          x: centerX + radius * Math.cos(angle),
+          y: centerY + radius * Math.sin(angle),
+        });
+      });
+    };
 
-  // Initialize node states when data changes (with random jitter per spec)
+    const inner = data.nodes.filter(n => n.match_type === 'exact');
+    const middle = data.nodes.filter(n => n.match_type === 'potential');
+    const outer = data.nodes.filter(n => n.match_type === 'hypothesis');
+
+    placeNodesOnRing(inner, RING_CONFIG.inner.radius);
+    placeNodesOnRing(middle, RING_CONFIG.middle.radius);
+    placeNodesOnRing(outer, RING_CONFIG.outer.radius);
+
+    return positions;
+  }, [data.nodes, centerX, centerY]);
+
+  // Initialize node states when data changes
   useEffect(() => {
     const newStates = new Map<string, NodeState>();
-    const totalNodes = data.nodes.length;
-    
-    data.nodes.forEach((node, index) => {
+    data.nodes.forEach(node => {
+      const target = targetPositions.get(node.id) || { x: centerX, y: centerY };
       const existing = nodeStates.get(node.id);
-      const orbitalRadius = getOrbitalRadius(node.match_type);
-      
-      if (existing) {
-        // Keep existing position but update target radius
-        newStates.set(node.id, {
-          ...existing,
-          targetRadius: orbitalRadius,
-        });
-      } else {
-        // Initial position with jitter (per spec)
-        const angle = (index / totalNodes) * 2 * Math.PI - Math.PI / 2;
-        const jitter = (Math.random() - 0.5) * 40;
-        newStates.set(node.id, {
-          x: centerX + Math.cos(angle) * (orbitalRadius + jitter),
-          y: centerY + Math.sin(angle) * (orbitalRadius + jitter),
-          vx: (Math.random() - 0.5) * 2,  // Small initial velocity for organic feel
-          vy: (Math.random() - 0.5) * 2,
-          targetRadius: orbitalRadius,
-          fx: null,
-          fy: null,
-        });
-      }
+      newStates.set(node.id, {
+        x: existing?.x ?? target.x,
+        y: existing?.y ?? target.y,
+        vx: 0,
+        vy: 0,
+        targetX: target.x,
+        targetY: target.y,
+      });
     });
-    
     setNodeStates(newStates);
-    alphaRef.current = 1.0;  // Restart simulation on data change
-  }, [data.nodes, centerX, centerY, getOrbitalRadius]);
+  }, [data.nodes, targetPositions]);
 
-  // Physics simulation loop with D3-style forces (per spec)
+  // Physics simulation loop - nodes smoothly return to their orbital positions
   useEffect(() => {
-    const CHARGE_STRENGTH = -200;      // Repulsion between nodes
-    const CENTER_STRENGTH = 0.01;      // Weak attraction to center
-    const RADIAL_STRENGTH = 0.6;       // Pull toward orbital ring
-    const ALPHA_DECAY = 0.015;         // Slow decay for organic settling
-    const VELOCITY_DECAY = 0.4;        // Friction
-
     const simulate = () => {
-      // Alpha decay (per spec)
-      alphaRef.current += (alphaTargetRef.current - alphaRef.current) * ALPHA_DECAY;
-      
-      if (alphaRef.current < 0.001) {
-        alphaRef.current = 0;
-      }
-
       setNodeStates(prev => {
         const next = new Map(prev);
-        const nodes = Array.from(next.entries());
+        let needsUpdate = false;
 
-        // Apply forces to each node
-        nodes.forEach(([nodeId, state]) => {
-          // Skip fixed nodes (being dragged)
-          if (state.fx !== null && state.fy !== null) {
-            state.x = state.fx;
-            state.y = state.fy;
-            return;
+        next.forEach((state, nodeId) => {
+          // Skip dragged node
+          if (nodeId === draggedNodeId) return;
+
+          // Spring force toward target position
+          const dx = state.targetX - state.x;
+          const dy = state.targetY - state.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance > 0.5) {
+            needsUpdate = true;
+            // Spring constant
+            const springStrength = 0.08;
+            // Damping
+            const damping = 0.85;
+
+            // Apply spring force
+            state.vx = (state.vx + dx * springStrength) * damping;
+            state.vy = (state.vy + dy * springStrength) * damping;
+
+            // Update position
+            state.x += state.vx;
+            state.y += state.vy;
+          } else {
+            // Snap to target when close enough
+            state.x = state.targetX;
+            state.y = state.targetY;
+            state.vx = 0;
+            state.vy = 0;
           }
-
-          let forceX = 0;
-          let forceY = 0;
-
-          // 1. Charge force - repulsion from other nodes (per spec)
-          nodes.forEach(([otherId, otherState]) => {
-            if (nodeId === otherId) return;
-            const dx = state.x - otherState.x;
-            const dy = state.y - otherState.y;
-            const distSq = dx * dx + dy * dy;
-            const dist = Math.sqrt(distSq);
-            if (dist > 0 && dist < 200) {
-              const force = (CHARGE_STRENGTH * alphaRef.current) / distSq;
-              forceX -= force * dx;
-              forceY -= force * dy;
-            }
-          });
-
-          // 2. Center force - weak attraction to center (per spec)
-          const toCenterX = centerX - state.x;
-          const toCenterY = centerY - state.y;
-          forceX += toCenterX * CENTER_STRENGTH * alphaRef.current;
-          forceY += toCenterY * CENTER_STRENGTH * alphaRef.current;
-
-          // 3. Radial force - pull toward orbital ring (per spec)
-          const distFromCenter = Math.sqrt(
-            (state.x - centerX) ** 2 + (state.y - centerY) ** 2
-          );
-          if (distFromCenter > 0) {
-            const radialDiff = state.targetRadius - distFromCenter;
-            const radialForce = radialDiff * RADIAL_STRENGTH * alphaRef.current;
-            const angle = Math.atan2(state.y - centerY, state.x - centerX);
-            forceX += Math.cos(angle) * radialForce;
-            forceY += Math.sin(angle) * radialForce;
-          }
-
-          // 4. Collision force - prevent overlap (per spec)
-          const node = data.nodes.find(n => n.id === nodeId);
-          const myRadius = node ? getCollisionRadius(node.confidence) : 30;
-          
-          nodes.forEach(([otherId, otherState]) => {
-            if (nodeId === otherId) return;
-            const otherNode = data.nodes.find(n => n.id === otherId);
-            const otherRadius = otherNode ? getCollisionRadius(otherNode.confidence) : 30;
-            const minDist = myRadius + otherRadius;
-            
-            const dx = state.x - otherState.x;
-            const dy = state.y - otherState.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            if (dist < minDist && dist > 0) {
-              const overlap = (minDist - dist) / dist * 0.5;
-              forceX += dx * overlap * alphaRef.current;
-              forceY += dy * overlap * alphaRef.current;
-            }
-          });
-
-          // Apply forces to velocity
-          state.vx += forceX;
-          state.vy += forceY;
-
-          // Velocity decay (friction)
-          state.vx *= (1 - VELOCITY_DECAY);
-          state.vy *= (1 - VELOCITY_DECAY);
-
-          // Update position
-          state.x += state.vx;
-          state.y += state.vy;
         });
 
         return next;
@@ -227,7 +157,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [data.nodes, centerX, centerY, getCollisionRadius]);
+  }, [draggedNodeId]);
 
   // Get current position for a node
   const getNodePosition = useCallback((nodeId: string) => {
@@ -235,31 +165,16 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
     if (state) {
       return { x: state.x, y: state.y };
     }
-    return { x: centerX, y: centerY };
-  }, [nodeStates, centerX, centerY]);
+    return targetPositions.get(nodeId) || { x: centerX, y: centerY };
+  }, [nodeStates, targetPositions, centerX, centerY]);
 
-  // Drag handlers (per spec)
+  // Drag handlers
   const handleMouseDown = useCallback((e: React.MouseEvent, node: IntentNode) => {
     e.preventDefault();
     e.stopPropagation();
     setDraggedNodeId(node.id);
     setHoveredNode(null);
     setHoveredPosition(null);
-    
-    // Reheat simulation on drag start (per spec)
-    alphaTargetRef.current = 0.3;
-    alphaRef.current = Math.max(alphaRef.current, 0.3);
-    
-    // Fix node position
-    setNodeStates(prev => {
-      const next = new Map(prev);
-      const state = next.get(node.id);
-      if (state) {
-        state.fx = state.x;
-        state.fy = state.y;
-      }
-      return next;
-    });
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -269,13 +184,10 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
     const mouseX = e.clientX - svgRect.left;
     const mouseY = e.clientY - svgRect.top;
 
-    // Update fixed position during drag
     setNodeStates(prev => {
       const next = new Map(prev);
       const state = next.get(draggedNodeId);
       if (state) {
-        state.fx = mouseX;
-        state.fy = mouseY;
         state.x = mouseX;
         state.y = mouseY;
         state.vx = 0;
@@ -286,42 +198,14 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   }, [draggedNodeId]);
 
   const handleMouseUp = useCallback(() => {
-    if (draggedNodeId) {
-      // Release fixed position and cool down simulation (per spec)
-      setNodeStates(prev => {
-        const next = new Map(prev);
-        const state = next.get(draggedNodeId);
-        if (state) {
-          state.fx = null;
-          state.fy = null;
-        }
-        return next;
-      });
-      
-      // Cool down simulation
-      alphaTargetRef.current = 0;
-    }
     setDraggedNodeId(null);
-  }, [draggedNodeId]);
+  }, []);
 
   const handleMouseLeave = useCallback(() => {
-    if (draggedNodeId) {
-      // Release fixed position
-      setNodeStates(prev => {
-        const next = new Map(prev);
-        const state = next.get(draggedNodeId);
-        if (state) {
-          state.fx = null;
-          state.fy = null;
-        }
-        return next;
-      });
-      alphaTargetRef.current = 0;
-    }
     setDraggedNodeId(null);
     setHoveredNode(null);
     setHoveredPosition(null);
-  }, [draggedNodeId]);
+  }, []);
 
   const handleNodeClick = (node: IntentNode) => {
     if (!draggedNodeId) {
@@ -402,88 +286,16 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
           >
-            {/* Gradient and filter definitions */}
+            {/* Gradient definitions */}
             <defs>
-              {/* Background nebula gradient per spec */}
-              <radialGradient id="nebulaGradient" cx="50%" cy="50%" r="60%">
-                <stop offset="0%" stopColor="#1a1f3c" stopOpacity="0.8" />
-                <stop offset="40%" stopColor="#0f1424" stopOpacity="0.5" />
-                <stop offset="100%" stopColor="#080b12" stopOpacity="1" />
+              <radialGradient id="bgGradient" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#0f172a" />
+                <stop offset="100%" stopColor="#020617" />
               </radialGradient>
-              
-              {/* Ring glow effect */}
-              <filter id="ringGlow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="4" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-              
-              {/* Node glow filters for each domain */}
-              <filter id="glowFinance" x="-100%" y="-100%" width="300%" height="300%">
-                <feGaussianBlur stdDeviation="6" result="blur" />
-                <feFlood floodColor="#4facfe" floodOpacity="0.4" />
-                <feComposite in2="blur" operator="in" />
-                <feMerge>
-                  <feMergeNode />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-              <filter id="glowGrowth" x="-100%" y="-100%" width="300%" height="300%">
-                <feGaussianBlur stdDeviation="6" result="blur" />
-                <feFlood floodColor="#f093fb" floodOpacity="0.4" />
-                <feComposite in2="blur" operator="in" />
-                <feMerge>
-                  <feMergeNode />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-              <filter id="glowOps" x="-100%" y="-100%" width="300%" height="300%">
-                <feGaussianBlur stdDeviation="6" result="blur" />
-                <feFlood floodColor="#43e97b" floodOpacity="0.4" />
-                <feComposite in2="blur" operator="in" />
-                <feMerge>
-                  <feMergeNode />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-              <filter id="glowProduct" x="-100%" y="-100%" width="300%" height="300%">
-                <feGaussianBlur stdDeviation="6" result="blur" />
-                <feFlood floodColor="#fa709a" floodOpacity="0.4" />
-                <feComposite in2="blur" operator="in" />
-                <feMerge>
-                  <feMergeNode />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-              <filter id="glowPeople" x="-100%" y="-100%" width="300%" height="300%">
-                <feGaussianBlur stdDeviation="6" result="blur" />
-                <feFlood floodColor="#fee140" floodOpacity="0.4" />
-                <feComposite in2="blur" operator="in" />
-                <feMerge>
-                  <feMergeNode />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
             </defs>
-            
-            {/* Background */}
-            <rect width={width} height={height} fill="#080b12" />
-            <rect width={width} height={height} fill="url(#nebulaGradient)" />
+            <rect width={width} height={height} fill="url(#bgGradient)" />
 
-            {/* Orbital Rings with glow (per spec) */}
-            {/* Outer ring glow */}
-            <circle
-              cx={centerX}
-              cy={centerY}
-              r={RING_CONFIG.outer.radius}
-              fill="none"
-              stroke="rgba(79, 172, 254, 0.1)"
-              strokeWidth="8"
-              filter="url(#ringGlow)"
-            />
-            {/* Outer ring */}
+            {/* Orbital Rings */}
             <circle
               cx={centerX}
               cy={centerY}
@@ -491,19 +303,8 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               fill="none"
               stroke={RING_CONFIG.outer.strokeColor}
               strokeWidth="1"
-              strokeDasharray="8 4"
+              strokeDasharray="4 4"
             />
-            {/* Middle ring glow */}
-            <circle
-              cx={centerX}
-              cy={centerY}
-              r={RING_CONFIG.middle.radius}
-              fill="none"
-              stroke="rgba(79, 172, 254, 0.1)"
-              strokeWidth="8"
-              filter="url(#ringGlow)"
-            />
-            {/* Middle ring */}
             <circle
               cx={centerX}
               cy={centerY}
@@ -511,16 +312,15 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               fill="none"
               stroke={RING_CONFIG.middle.strokeColor}
               strokeWidth="1"
-              strokeDasharray="8 4"
+              strokeDasharray="4 4"
             />
-            {/* Core ring (solid) */}
             <circle
               cx={centerX}
               cy={centerY}
               r={RING_CONFIG.inner.radius}
               fill="none"
               stroke={RING_CONFIG.inner.strokeColor}
-              strokeWidth="1"
+              strokeWidth="2"
             />
 
             {/* Ring Labels */}
@@ -528,116 +328,58 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               x={centerX}
               y={centerY - RING_CONFIG.inner.radius - 8}
               textAnchor="middle"
-              fill="rgba(79, 172, 254, 0.6)"
-              fontSize="9"
-              fontFamily="monospace"
+              fill="#64748b"
+              fontSize="10"
             >
-              CORE
+              Inner
             </text>
             <text
-              x={centerX}
-              y={centerY - RING_CONFIG.middle.radius - 8}
-              textAnchor="middle"
-              fill="rgba(79, 172, 254, 0.5)"
-              fontSize="9"
-              fontFamily="monospace"
+              x={centerX + RING_CONFIG.middle.radius + 15}
+              y={centerY}
+              textAnchor="start"
+              fill="#475569"
+              fontSize="10"
             >
-              INNER
-            </text>
-            <text
-              x={centerX}
-              y={centerY - RING_CONFIG.outer.radius - 8}
-              textAnchor="middle"
-              fill="rgba(79, 172, 254, 0.4)"
-              fontSize="9"
-              fontFamily="monospace"
-            >
-              OUTER
+              Outer
             </text>
 
-            {/* Connection lines from center to nodes */}
-            {data.nodes.map((node) => {
-              const pos = getNodePosition(node.id);
-              const color = DOMAIN_COLORS[node.domain] || DOMAIN_COLORS.finance;
-              const typeStyle = getTypeStyle(node.match_type, node.id === data.primary_node_id);
-              const lineOpacity = 0.1 + (node.confidence * 0.15);
-              
-              return (
-                <line
-                  key={`line-${node.id}`}
-                  x1={centerX}
-                  y1={centerY}
-                  x2={pos.x}
-                  y2={pos.y}
-                  stroke={color}
-                  strokeWidth={typeStyle.strokeWidth * 0.5}
-                  strokeOpacity={lineOpacity}
-                  strokeDasharray={typeStyle.dashArray === 'none' ? undefined : typeStyle.dashArray}
-                />
-              );
-            })}
-
-            {/* Center - Persona Indicator (per spec) */}
+            {/* Center - Persona */}
             <g transform={`translate(${centerX}, ${centerY})`}>
-              {/* Outer glow circle */}
               <circle
-                r={45}
-                fill="rgba(79, 172, 254, 0.08)"
-                stroke="rgba(79, 172, 254, 0.4)"
-                strokeWidth="1"
-              />
-              {/* Inner circle */}
-              <circle
-                r={30}
-                fill="rgba(15, 20, 36, 0.9)"
-                stroke="#4facfe"
+                r={50}
+                fill="rgba(59, 130, 246, 0.15)"
+                stroke="#3B82F6"
                 strokeWidth="2"
               />
-              {/* Persona name */}
               <text
                 textAnchor="middle"
-                dy="-0.1em"
-                fill="#4facfe"
-                fontSize="11"
+                dy="-0.2em"
+                fill="#fff"
+                fontSize="14"
                 fontWeight="bold"
               >
-                {data.persona || data.nodes[0]?.domain?.toUpperCase() || 'NLQ'}
+                {data.persona || 'CFO'}
               </text>
-              {/* PERSONA label */}
               <text
                 textAnchor="middle"
-                dy="1.3em"
-                fill="rgba(79, 172, 254, 0.6)"
-                fontSize="8"
-                fontFamily="monospace"
+                dy="1.2em"
+                fill="#64748b"
+                fontSize="10"
               >
                 PERSONA
               </text>
             </g>
 
-            {/* Nodes - clean simple circles like source model */}
+            {/* Nodes */}
             {data.nodes.map((node) => {
               const pos = getNodePosition(node.id);
               const isPrimary = node.id === data.primary_node_id;
               const isSelected = selectedNode?.id === node.id;
               const isHovered = hoveredNode?.id === node.id;
               const isDragging = draggedNodeId === node.id;
-              const baseRadius = getCircleRadius(node.confidence, isPrimary);
-              // Hover pulse: +4px
-              const radius = isHovered ? baseRadius + 4 : baseRadius;
+              const radius = getCircleRadius(node.confidence, isPrimary);
               const color = DOMAIN_COLORS[node.domain] || DOMAIN_COLORS.finance;
-              
-              // Get glow filter based on domain
-              const glowFilter = {
-                finance: 'url(#glowFinance)',
-                growth: 'url(#glowGrowth)',
-                ops: 'url(#glowOps)',
-                product: 'url(#glowProduct)',
-                people: 'url(#glowPeople)',
-              }[node.domain] || 'url(#glowFinance)';
-              
-              // Match type label
-              const matchLabel = node.confidence > 0.9 ? 'Exact Match' : node.confidence > 0.7 ? 'Likely' : 'Potential';
+              const arcRadius = radius + 6;
 
               return (
                 <g
@@ -650,81 +392,76 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                   style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
                   className="galaxy-node"
                 >
-                  {/* Selection ring */}
-                  {isSelected && (
+                  {/* Selection/hover ring */}
+                  {(isSelected || isHovered) && (
                     <circle
-                      r={radius + 8}
+                      r={radius + 12}
                       fill="none"
-                      stroke="#fff"
-                      strokeWidth={2}
-                      opacity={0.6}
+                      stroke={isSelected ? '#fff' : '#64748b'}
+                      strokeWidth={isSelected ? 2 : 1}
+                      opacity={isSelected ? 0.8 : 0.5}
                     />
                   )}
 
-                  {/* Outer decorative rings (like source model) */}
-                  <circle
-                    r={radius + 12}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth="1"
-                    opacity={0.15}
-                  />
-                  <circle
-                    r={radius + 6}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth="1"
-                    opacity={0.25}
-                  />
-
-                  {/* Main circle - simple filled with glow */}
+                  {/* Main circle */}
                   <circle
                     r={radius}
                     fill={color}
-                    filter={glowFilter}
-                    style={{ transition: 'all 150ms ease-out' }}
+                    opacity={isSelected || isHovered ? 1 : 0.85}
+                    stroke={isPrimary ? '#fff' : 'none'}
+                    strokeWidth={isPrimary ? 2 : 0}
                   />
 
-                  {/* Freshness dot (small, top-right) */}
+                  {/* Data quality arc */}
+                  <path
+                    d={getArcPath(0, 0, arcRadius, node.data_quality)}
+                    fill="none"
+                    stroke="#4ade80"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    opacity="0.9"
+                  />
+
+                  {/* Freshness dot */}
                   <circle
-                    cx={radius * 0.65}
-                    cy={-radius * 0.65}
-                    r={4}
+                    cx={radius * 0.7}
+                    cy={-radius * 0.7}
+                    r={5}
                     fill={getFreshnessColor(node.freshness)}
-                    stroke="#0a0f1a"
-                    strokeWidth="1.5"
+                    stroke="#0f172a"
+                    strokeWidth="1"
                   />
 
-                  {/* Confidence percentage - clean white text */}
+                  {/* Confidence percentage */}
                   <text
                     textAnchor="middle"
                     dy="0.35em"
                     fill="#fff"
-                    fontSize={radius > 30 ? 14 : 11}
+                    fontSize={isPrimary ? 14 : 11}
                     fontWeight="bold"
                     style={{ pointerEvents: 'none' }}
                   >
                     {Math.round(node.confidence * 100)}%
                   </text>
 
-                  {/* Label below: Match type + display name */}
+                  {/* Label below node */}
                   <text
                     y={radius + 16}
                     textAnchor="middle"
+                    fill="#94a3b8"
                     fontSize="10"
+                    fontWeight="500"
                     style={{ pointerEvents: 'none' }}
                   >
-                    <tspan fill={node.confidence > 0.7 ? '#4facfe' : '#94a3b8'}>{matchLabel}: </tspan>
-                    <tspan fill="#cbd5e1">{node.display_name}{node.confidence <= 0.7 ? '?' : ''}</tspan>
+                    {node.semantic_label}: {node.display_name}
                   </text>
 
-                  {/* Type badge */}
+                  {/* Secondary label */}
                   <text
                     y={radius + 28}
                     textAnchor="middle"
                     fill="#64748b"
-                    fontSize="8"
-                    fontFamily="monospace"
+                    fontSize="9"
                     style={{ pointerEvents: 'none' }}
                   >
                     {isPrimary ? 'PRIMARY' : node.match_type.toUpperCase()}

@@ -65,30 +65,30 @@ export const RING_CONFIG: Record<'inner' | 'middle' | 'outer', RingConfig> = {
   inner: {
     radius: 120,
     matchType: 'exact',
-    label: 'Core',
-    strokeColor: 'rgba(79, 172, 254, 0.25)'
+    label: 'Exact Match',
+    strokeColor: 'rgba(59, 130, 246, 0.3)'
   },
   middle: {
     radius: 220,
     matchType: 'potential',
-    label: 'Inner',
-    strokeColor: 'rgba(79, 172, 254, 0.25)'
+    label: 'Potential',
+    strokeColor: 'rgba(156, 163, 175, 0.2)'
   },
   outer: {
-    radius: 340,
+    radius: 320,
     matchType: 'hypothesis',
-    label: 'Outer',
-    strokeColor: 'rgba(79, 172, 254, 0.25)'
+    label: 'Hypothesis',
+    strokeColor: 'rgba(156, 163, 175, 0.1)'
   }
 };
 
-// Domain colors for circle fill (per spec cluster colors)
+// Domain colors for circle fill
 export const DOMAIN_COLORS: Record<Domain, string> = {
-  finance: '#4facfe',   // Blue - CFO
-  growth: '#f093fb',    // Pink - CRO
-  ops: '#43e97b',       // Green - COO
-  product: '#fa709a',   // Pink/Red - CTO
-  people: '#fee140'     // Yellow - People
+  finance: '#3B82F6',   // Blue - CFO
+  growth: '#EC4899',    // Pink - CRO
+  ops: '#10B981',       // Green - COO
+  product: '#8B5CF6',   // Purple - CTO
+  people: '#F97316'     // Orange - People
 };
 
 // Freshness colors for indicator dot
@@ -110,47 +110,15 @@ export function getFreshnessColor(freshness: string): string {
 }
 
 /**
- * Calculate circle radius based on confidence (per spec).
- * Formula: 14 + (confidence * 32) pixels
+ * Calculate circle radius based on confidence.
+ * Higher confidence = larger circle.
  */
 export function getCircleRadius(confidence: number, isPrimary: boolean): number {
-  const baseRadius = 14 + (confidence * 32);
-  return isPrimary ? baseRadius * 1.15 : baseRadius;
-}
-
-/**
- * Get data quality ring radius (per spec).
- * Formula: 18 + (confidence * 38) pixels
- */
-export function getQualityRingRadius(confidence: number): number {
-  return 18 + (confidence * 38);
-}
-
-/**
- * Get inner highlight radius (per spec).
- * Formula: 7 + (confidence * 16) pixels
- */
-export function getInnerHighlightRadius(confidence: number): number {
-  return 7 + (confidence * 16);
-}
-
-/**
- * Get node type styling (per spec).
- */
-export function getTypeStyle(matchType: MatchType, isPrimary: boolean): { strokeWidth: number; dashArray: string; opacity: number } {
-  if (isPrimary) {
-    return { strokeWidth: 3, dashArray: 'none', opacity: 1.0 };
-  }
-  switch (matchType) {
-    case 'exact':
-      return { strokeWidth: 2, dashArray: 'none', opacity: 0.9 };
-    case 'potential':
-      return { strokeWidth: 2, dashArray: '4,2', opacity: 0.85 };
-    case 'hypothesis':
-      return { strokeWidth: 1, dashArray: '2,2', opacity: 0.70 };
-    default:
-      return { strokeWidth: 1, dashArray: 'none', opacity: 0.7 };
-  }
+  const baseRadius = isPrimary ? 45 : 32;
+  const minScale = 0.5;
+  // confidence 1.0 -> 100% of base, confidence 0.0 -> 50% of base
+  const scale = minScale + (confidence * (1 - minScale));
+  return baseRadius * scale;
 }
 
 /**
