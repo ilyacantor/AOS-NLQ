@@ -242,7 +242,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
       />
 
       {/* Main content area - three column layout */}
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Left Panel - Text Response & Data Table */}
         <div className="flex-shrink-0 flex flex-col border-r border-slate-800 bg-slate-900/30" style={{ width: '293px' }}>
           {/* Text Answer - Top Left */}
@@ -276,12 +276,13 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
         </div>
 
         {/* Center - SVG Visualization */}
-        <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
+        <div className="flex-1 flex items-center justify-center p-4 overflow-hidden min-h-0">
           <svg
             ref={svgRef}
             width={width}
             height={height}
-            className="galaxy-svg"
+            viewBox={`0 0 ${width} ${height}`}
+            className="galaxy-svg max-w-full max-h-full"
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
