@@ -40,6 +40,7 @@ export function DashboardRenderer({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refinementQuery, setRefinementQuery] = useState('');
+  const [initialQuery, setInitialQuery] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isRefining, setIsRefining] = useState(false);
 
@@ -300,20 +301,69 @@ export function DashboardRenderer({
         </div>
       )}
 
-      {/* Empty State */}
+      {/* Empty State - Initial Query Input */}
       {!schema && !loading && !error && (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center max-w-md">
-            <h3 className="text-lg font-medium text-white mb-2">
-              Create a Dashboard with Natural Language
-            </h3>
-            <p className="text-slate-400 mb-4">
-              Describe what you want to see, and I'll build it for you.
-            </p>
-            <div className="space-y-2 text-sm text-slate-500">
-              <p>"Show me revenue by region over time"</p>
-              <p>"Create a dashboard with revenue, margin, and pipeline KPIs"</p>
-              <p>"Visualize sales trends with ability to drill into reps"</p>
+          <div className="w-full max-w-2xl px-8">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-semibold text-white mb-2">
+                Create a Dashboard with Natural Language
+              </h2>
+              <p className="text-slate-400">
+                Describe what you want to see, and I'll build it for you.
+              </p>
+            </div>
+
+            {/* Query Input */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (initialQuery.trim()) {
+                  generateDashboard(initialQuery.trim());
+                }
+              }}
+              className="mb-6"
+            >
+              <div className="relative">
+                <input
+                  type="text"
+                  value={initialQuery}
+                  onChange={(e) => setInitialQuery(e.target.value)}
+                  placeholder="e.g., Show me revenue by region over time"
+                  className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-lg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
+                />
+                <button
+                  type="submit"
+                  disabled={!initialQuery.trim()}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Create
+                </button>
+              </div>
+            </form>
+
+            {/* Example Queries */}
+            <div className="text-center">
+              <p className="text-slate-500 text-sm mb-3">Try one of these:</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {[
+                  'Show me revenue by region over time',
+                  'Create a dashboard with revenue, margin, and pipeline KPIs',
+                  'Visualize quarterly revenue trend',
+                  'Revenue breakdown by product',
+                ].map((example) => (
+                  <button
+                    key={example}
+                    onClick={() => {
+                      setInitialQuery(example);
+                      generateDashboard(example);
+                    }}
+                    className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-xs hover:bg-slate-700 hover:border-slate-600 transition-colors"
+                  >
+                    {example}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
