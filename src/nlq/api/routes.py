@@ -639,6 +639,7 @@ def _is_dashboard_query(question: str) -> bool:
         "quarterly report", "q1 report", "q2 report", "q3 report", "q4 report",
         "monthly report", "weekly report", "status report",
         "kpis", "key metrics", "top metrics", "main metrics",
+        "results", "2025 results", "2024 results", "2026 results",
     ]
 
     return any(term in q for term in dashboard_terms)
