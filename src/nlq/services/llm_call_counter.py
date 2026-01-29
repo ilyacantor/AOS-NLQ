@@ -61,7 +61,7 @@ class LLMCallCounter:
     def _init_persistence(self):
         """Initialize persistence service connection."""
         try:
-            from nlq.db.supabase_persistence import get_persistence_service
+            from src.nlq.db.supabase_persistence import get_persistence_service
             self._persistence = get_persistence_service()
             if self._persistence and self._persistence.is_available:
                 logger.info("LLMCallCounter connected to persistence service")
@@ -98,7 +98,7 @@ class LLMCallCounter:
             return
         
         try:
-            from nlq.db.supabase_persistence import SessionRecord
+            from src.nlq.db.supabase_persistence import SessionRecord
             record = SessionRecord(
                 tenant_id=self._tenant_id,
                 session_id=stats.session_id,

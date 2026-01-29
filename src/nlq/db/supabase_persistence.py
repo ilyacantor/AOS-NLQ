@@ -103,7 +103,19 @@ class SupabasePersistenceService:
             supabase_key: Supabase service role key (for RLS bypass)
             default_tenant_id: Default tenant UUID for single-tenant mode
         """
-        self.supabase_url = supabase_url or os.getenv("SUPABASE_API_URL") or os.getenv("SUPABASE_URL", "")
+        # Prefer SUPABASE_API_URL (REST API URL) over SUPABASE_URL (which may be PostgreSQL connection string)
+        api_url = os.getenv("SUPABASE_API_URL", "").strip()
+        fallback_url = os.getenv("SUPABASE_URL", "").strip()
+        
+        if api_url.startswith("https://"):
+            self.supabase_url = supabase_url or api_url
+            logger.info(f"Using SUPABASE_API_URL: {api_url[:40]}...")
+        elif fallback_url.startswith("https://"):
+            self.supabase_url = supabase_url or fallback_url
+            logger.info(f"Using SUPABASE_URL: {fallback_url[:40]}...")
+        else:
+            self.supabase_url = supabase_url or ""
+            logger.warning(f"No valid https:// Supabase URL found")
         self.supabase_key = supabase_key or os.getenv("SUPABASE_KEY", "")
         self.default_tenant_id = default_tenant_id
         
@@ -118,12 +130,21 @@ class SupabasePersistenceService:
         try:
             from supabase import create_client, Client
             
+            # Validate URL format
+            if not self.supabase_url or not self.supabase_url.startswith("https://"):
+                api_url_val = os.getenv("SUPABASE_API_URL", "")[:30]
+                supa_url_val = os.getenv("SUPABASE_URL", "")[:30]
+                logger.error(f"No valid Supabase API URL found. SUPABASE_API_URL='{api_url_val}...', SUPABASE_URL='{supa_url_val}...'")
+                logger.error("Expected format: https://yourproject.supabase.co")
+                self._initialized = False
+                return
+            
             self._client: Client = create_client(
                 self.supabase_url,
                 self.supabase_key
             )
             self._initialized = True
-            logger.info("Supabase persistence service initialized")
+            logger.info(f"Supabase persistence service initialized with URL: {self.supabase_url[:30]}...")
         except ImportError:
             logger.warning("supabase-py not installed, persistence disabled")
             self._initialized = False
@@ -709,7 +730,10 @@ def init_persistence_service(
     """
     global _persistence_service
     
-    url = supabase_url or os.getenv("SUPABASE_URL", "")
+    # Prefer SUPABASE_API_URL over SUPABASE_URL (which may be PostgreSQL connection string)
+    api_url = os.getenv("SUPABASE_API_URL", "").strip()
+    fallback_url = os.getenv("SUPABASE_URL", "").strip()
+    url = supabase_url or (api_url if api_url.startswith("https://") else None) or (fallback_url if fallback_url.startswith("https://") else "")
     key = supabase_key or os.getenv("SUPABASE_KEY", "")
     
     if not url or not key:

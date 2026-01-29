@@ -91,7 +91,10 @@ class RAGLearningLog:
             table_name: Name of the table to store logs
             max_memory_entries: Maximum entries to keep in memory
         """
-        self.supabase_url = supabase_url or os.getenv("SUPABASE_URL", "")
+        # Prefer SUPABASE_API_URL over SUPABASE_URL (which may be PostgreSQL connection string)
+        api_url = os.getenv("SUPABASE_API_URL", "").strip()
+        fallback_url = os.getenv("SUPABASE_URL", "").strip()
+        self.supabase_url = supabase_url or (api_url if api_url.startswith("https://") else None) or (fallback_url if fallback_url.startswith("https://") else "")
         self.supabase_key = supabase_key or os.getenv("SUPABASE_KEY", "")
         self.table_name = table_name
         self.max_memory_entries = max_memory_entries

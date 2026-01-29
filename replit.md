@@ -166,6 +166,8 @@ When Supabase credentials are not configured:
 ---
 
 ## Recent Changes (2026-01-29)
+- **Fixed Supabase persistence connection**: Resolved import path mismatch between `src.nlq...` and `nlq...` paths that caused separate module globals
+- **Fixed SUPABASE_API_URL preference**: Both `supabase_persistence.py` and `rag_learning_log.py` now correctly prefer SUPABASE_API_URL over SUPABASE_URL (which may be PostgreSQL connection string)
 - Added persona-specific dashboards: CRO (Revenue), COO (Operations), CTO (Technology)
 - Created PredictiveLineChart component with Recharts for shadow forecasts
 - Added InsightCard component for anomaly storytelling with AI-generated explanations
