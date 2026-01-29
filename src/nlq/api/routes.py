@@ -43,6 +43,7 @@ from src.nlq.core.personality import (
     handle_off_topic_or_easter_egg,
     detect_persona_from_question,
     detect_persona_from_metric,
+    get_stumped_response,
 )
 from src.nlq.services.llm_call_counter import get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
@@ -2354,11 +2355,11 @@ async def query(request: NLQRequest) -> NLQResponse:
         result = executor.execute(parsed)
 
         if not result.success:
+            stumped_msg = get_stumped_response(include_suggestions=True)
             return NLQResponse(
-                success=False,
-                confidence=bounded_confidence(result.confidence),
-                error_code=result.error,
-                error_message=result.message,
+                success=True,
+                answer=stumped_msg,
+                confidence=0.5,
                 parsed_intent=parsed.intent.value,
                 resolved_metric=parsed.metric,
                 resolved_period=parsed.resolved_period,
@@ -2603,11 +2604,9 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         result = executor.execute(parsed)
 
         if not result.success:
-            return _create_error_galaxy_response(
+            return _create_stumped_galaxy_response(
                 request.question,
                 parsed.intent.value,
-                result.error,
-                result.message,
             )
 
         # Generate nodes based on intent
@@ -2891,18 +2890,42 @@ def _create_error_galaxy_response(
     error_message: str,
 ) -> IntentMapResponse:
     """Create an error response for Galaxy endpoint."""
+    stumped_msg = get_stumped_response(include_suggestions=True)
     return IntentMapResponse(
         query=question,
         query_type=query_type,
         ambiguity_type=None,
         persona="CFO",
-        overall_confidence=0.0,
-        overall_data_quality=0.0,
+        overall_confidence=0.5,
+        overall_data_quality=0.5,
         node_count=0,
         nodes=[],
         primary_node_id=None,
-        primary_answer=None,
-        text_response=f"Error: {error_message}",
+        primary_answer=stumped_msg,
+        text_response=stumped_msg,
+        needs_clarification=False,
+        clarification_prompt=None,
+    )
+
+
+def _create_stumped_galaxy_response(
+    question: str,
+    query_type: str,
+) -> IntentMapResponse:
+    """Create a friendly stumped response for Galaxy endpoint."""
+    stumped_msg = get_stumped_response(include_suggestions=True)
+    return IntentMapResponse(
+        query=question,
+        query_type=query_type,
+        ambiguity_type=None,
+        persona="CFO",
+        overall_confidence=0.5,
+        overall_data_quality=0.5,
+        node_count=0,
+        nodes=[],
+        primary_node_id=None,
+        primary_answer=stumped_msg,
+        text_response=stumped_msg,
         needs_clarification=False,
         clarification_prompt=None,
     )
