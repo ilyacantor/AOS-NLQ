@@ -3,9 +3,13 @@ import { Persona, DashboardConfig, TimeRange } from '../../types/dashboard';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { DashboardGrid } from './DashboardGrid';
 import { TimeRangeSelector } from './shared/TimeRangeSelector';
+import { ScenarioModelingPanel } from './shared/ScenarioModelingPanel';
 
 // Import dashboard configurations
 import cfoConfigJson from '../../config/dashboards/cfo.json';
+import croConfigJson from '../../config/dashboards/cro.json';
+import cooConfigJson from '../../config/dashboards/coo.json';
+import ctoConfigJson from '../../config/dashboards/cto.json';
 
 /**
  * Props for the Dashboard component
@@ -26,9 +30,9 @@ export interface DashboardProps {
  */
 const PERSONA_CONFIGS: Record<Persona, DashboardConfig | null> = {
   CFO: transformJsonConfig(cfoConfigJson),
-  CRO: null, // TODO: Add CRO config
-  COO: null, // TODO: Add COO config
-  CTO: null, // TODO: Add CTO config
+  CRO: transformJsonConfig(croConfigJson),
+  COO: transformJsonConfig(cooConfigJson),
+  CTO: transformJsonConfig(ctoConfigJson),
   People: null, // TODO: Add People config
 };
 
@@ -195,6 +199,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
     initialTimeRange || config?.defaultFilters.timeRange || 'YTD'
   );
 
+  // Scenario panel visibility state
+  const [scenarioOpen, setScenarioOpen] = useState(false);
+
+  // Base metrics for scenario modeling (placeholder values for CFO)
+  const baseMetrics = {
+    runway: 18,
+    burnRate: 2500000,
+    ruleOf40: 35,
+    ltvCac: 3.5,
+    headcount: 350,
+    revenue: 150000000,
+    smSpend: 45000000,
+  };
+
   // Fetch dashboard data using the hook
   const { data, loading, error, refresh, lastRefreshed } = useDashboardData(
     config,
@@ -225,6 +243,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const handleRefresh = useCallback(() => {
     refresh();
   }, [refresh]);
+
+  // Handle scenario panel toggle
+  const handleToggleScenario = useCallback(() => {
+    setScenarioOpen(prev => !prev);
+  }, []);
+
+  // Handle scenario apply
+  const handleScenarioApply = useCallback((adjustments: { headcountChange: number; revenueGrowth: number; pricingChange: number; smSpendChange: number }) => {
+    console.log('Scenario adjustments applied:', adjustments);
+  }, []);
 
   // Get persona info
   const personaInfo = PERSONA_INFO[persona];
@@ -317,6 +345,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
               />
               <span className="hidden sm:inline">Refresh</span>
             </button>
+
+            {/* Scenario Button - CFO only */}
+            {persona === 'CFO' && (
+              <button
+                onClick={handleToggleScenario}
+                className={`
+                  flex items-center gap-2 px-3 py-1.5
+                  rounded-md text-sm font-medium
+                  transition-colors
+                  ${scenarioOpen 
+                    ? 'bg-[#0bcad9] text-slate-900 hover:bg-[#0ab8c6]' 
+                    : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-slate-300'
+                  }
+                `}
+                title="Open scenario modeling panel"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span className="hidden sm:inline">Scenario</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -339,6 +389,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
           onTileClick={handleTileClick}
         />
       </main>
+
+      {/* Scenario Modeling Panel - CFO only */}
+      {persona === 'CFO' && (
+        <ScenarioModelingPanel
+          isOpen={scenarioOpen}
+          onToggle={handleToggleScenario}
+          baseMetrics={baseMetrics}
+          onApply={handleScenarioApply}
+        />
+      )}
     </div>
   );
 };

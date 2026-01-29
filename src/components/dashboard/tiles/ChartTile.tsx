@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChartType } from '../../../types/dashboard';
 import ExternalStackedBarChart from '../charts/StackedBarChart';
+import PredictiveLineChart from '../charts/PredictiveLineChart';
 
 /**
  * Props for the ChartTile component
@@ -22,6 +23,10 @@ export interface ChartTileProps {
   showLegend?: boolean;
   /** Custom color palette */
   colorPalette?: string[];
+  /** Callback when chat button is clicked */
+  onChat?: (query: string) => void;
+  /** Pre-filled chat query for this chart */
+  chatQuery?: string;
 }
 
 /**
@@ -263,7 +268,7 @@ const WaterfallChart: React.FC<{
   const chartData = data.map((item, index) => {
     let start: number;
     let end: number;
-    const type = item.type || (item.value >= 0 ? 'increase' : 'decrease');
+    const type = (item.type || (item.value >= 0 ? 'increase' : 'decrease')) as 'increase' | 'decrease' | 'total';
 
     if (type === 'total') {
       start = 0;
@@ -402,52 +407,6 @@ const WaterfallChart: React.FC<{
   );
 };
 
-/**
- * Simple stacked bar chart implementation
- */
-const StackedBarChart: React.FC<{
-  data: Array<{ label: string; values: Array<{ name: string; value: number }> }>;
-  onClick?: (label: string) => void;
-  colors: string[];
-}> = ({ data, onClick, colors }) => {
-  const maxTotal = Math.max(
-    ...data.map((d) => d.values.reduce((sum, v) => sum + v.value, 0)),
-    1
-  );
-
-  return (
-    <div className="flex items-end justify-around h-32 gap-1">
-      {data.map((item) => {
-        const total = item.values.reduce((sum, v) => sum + v.value, 0);
-        return (
-          <div
-            key={item.label}
-            className="flex flex-col items-center flex-1 cursor-pointer group"
-            onClick={() => onClick?.(item.label)}
-          >
-            <div
-              className="w-full flex flex-col-reverse rounded-t overflow-hidden transition-all duration-300 group-hover:opacity-80"
-              style={{ height: `${(total / maxTotal) * 100}%`, minHeight: '4px' }}
-            >
-              {item.values.map((segment, segmentIndex) => (
-                <div
-                  key={segment.name}
-                  style={{
-                    height: `${(segment.value / total) * 100}%`,
-                    backgroundColor: colors[segmentIndex % colors.length],
-                  }}
-                />
-              ))}
-            </div>
-            <span className="text-slate-500 text-xs mt-1 truncate max-w-full">
-              {item.label}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
 
 /**
  * Format a number for display
@@ -467,19 +426,26 @@ function formatNumber(value: number): string {
  * Normalize data from various formats to a standard format
  * Preserves special fields like 'type' for waterfall charts
  */
-function normalizeChartData(data: any): Array<{ label: string; value: number; type?: string; color?: string }> {
+function normalizeChartData(data: any): Array<{ label: string; value: number; type?: 'increase' | 'decrease' | 'total'; color?: string }> {
   if (!data) return [];
 
   // Handle array of objects with label/value
   if (Array.isArray(data)) {
-    return data.map((item) => ({
-      label: item.label || item.name || item.category || String(item.key || ''),
-      value: Number(item.value) || 0,
+    return data.map((item) => {
+      const normalized: { label: string; value: number; type?: 'increase' | 'decrease' | 'total'; color?: string } = {
+        label: item.label || item.name || item.category || String(item.key || ''),
+        value: Number(item.value) || 0,
+      };
       // Preserve type for waterfall charts (increase/decrease/total)
-      ...(item.type && { type: item.type }),
+      if (item.type && ['increase', 'decrease', 'total'].includes(item.type)) {
+        normalized.type = item.type as 'increase' | 'decrease' | 'total';
+      }
       // Preserve color if specified
-      ...(item.color && { color: item.color }),
-    }));
+      if (item.color) {
+        normalized.color = item.color;
+      }
+      return normalized;
+    });
   }
 
   // Handle object with keys as labels
@@ -501,19 +467,6 @@ function isStackedBarData(data: any): data is Array<{ label: string; segments: A
   return data[0] && Array.isArray(data[0].segments);
 }
 
-/**
- * Normalize stacked bar data format
- */
-function normalizeStackedBarData(data: any): Array<{ label: string; values: Array<{ name: string; value: number }> }> {
-  if (!isStackedBarData(data)) return [];
-  return data.map((item) => ({
-    label: item.label,
-    values: item.segments.map((seg) => ({
-      name: seg.label,
-      value: Number(seg.value) || 0,
-    })),
-  }));
-}
 
 /**
  * ChartTile - Wrapper component that selects the appropriate chart visualization
@@ -532,6 +485,8 @@ export const ChartTile: React.FC<ChartTileProps> = ({
   // showLegend is available for future use when implementing legend display
   showLegend: _showLegend = true,
   colorPalette = DEFAULT_COLORS,
+  onChat,
+  chatQuery,
 }) => {
   // Show loading skeleton
   if (loading) {
@@ -620,6 +575,51 @@ export const ChartTile: React.FC<ChartTileProps> = ({
           />
         );
 
+      case 'predictive-line':
+        // Check if data contains forecast information
+        const hasHistoricalData = Array.isArray(rawChartData) && rawChartData.length > 0;
+        const hasForecast = Array.isArray(rawChartData) && rawChartData.some((item: any) => item.forecast !== undefined);
+        
+        if (hasHistoricalData) {
+          const historicalData = Array.isArray(rawChartData) 
+            ? rawChartData.map((item: any) => ({
+                period: item.period || item.label || item.name || '',
+                value: item.value || 0,
+              }))
+            : [];
+          
+          const forecastData = hasForecast
+            ? rawChartData
+                .filter((item: any) => item.forecast !== undefined)
+                .map((item: any) => ({
+                  period: item.period || item.label || item.name || '',
+                  value: item.forecast,
+                  confidence: item.confidence,
+                }))
+            : undefined;
+
+          return (
+            <PredictiveLineChart
+              title={title}
+              historicalData={historicalData}
+              forecastData={forecastData}
+              onClick={onClick}
+              onChat={onChat}
+              chatQuery={chatQuery}
+              height={height}
+              showLegend={true}
+            />
+          );
+        }
+        // Fall back to bar chart if no data
+        return (
+          <BarChart
+            data={normalizedData}
+            onClick={onClick}
+            colors={colorPalette}
+          />
+        );
+
       default:
         return (
           <BarChart
@@ -636,7 +636,56 @@ export const ChartTile: React.FC<ChartTileProps> = ({
       className="bg-slate-800 rounded-xl p-4 h-full flex flex-col"
       style={{ minHeight: height }}
     >
-      <h3 className="text-slate-200 font-semibold text-sm mb-4">{title}</h3>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <h3 className="text-slate-200 font-semibold text-sm">{title}</h3>
+        {onChat && chatQuery && (
+          <button
+            onClick={() => onChat(chatQuery)}
+            className="
+              px-3
+              py-1.5
+              text-sm
+              text-slate-400
+              hover:bg-slate-700/50
+              transition-all
+              duration-200
+              rounded-md
+              flex items-center gap-1.5
+              focus:outline-none
+              flex-shrink-0
+            "
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#0bcad9';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'rgb(148, 163, 184)';
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.boxShadow = '0 0 0 2px rgba(11, 202, 217, 0.5), 0 0 0 4px rgba(1, 6, 23, 1)';
+              e.currentTarget.style.outlineStyle = 'none';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+            title="Ask questions about this chart"
+            aria-label="Chat about this chart"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            <span>Chat</span>
+          </button>
+        )}
+      </div>
       <div className="flex-1">{renderChart()}</div>
     </div>
   );
