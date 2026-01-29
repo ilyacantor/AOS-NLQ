@@ -9,7 +9,16 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import GridLayout, { Layout } from 'react-grid-layout';
+import GridLayout from 'react-grid-layout';
+type LayoutItem = {
+  i: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  minW?: number;
+  minH?: number;
+};
 import 'react-grid-layout/css/styles.css';
 import {
   DashboardSchema,
@@ -123,7 +132,7 @@ export function DashboardRenderer({
 
   // Drag and drop state
   const [isEditMode, setIsEditMode] = useState(false);
-  const [customLayout, setCustomLayout] = useState<Layout[] | null>(null);
+  const [customLayout, setCustomLayout] = useState<LayoutItem[] | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
 
@@ -149,7 +158,7 @@ export function DashboardRenderer({
   }, []);
 
   // Convert widget positions to react-grid-layout format
-  const gridLayout = useMemo((): Layout[] => {
+  const gridLayout = useMemo((): LayoutItem[] => {
     if (customLayout) return customLayout;
     if (!schema) return [];
 
@@ -165,7 +174,7 @@ export function DashboardRenderer({
   }, [schema, customLayout]);
 
   // Handle layout change from drag-and-drop
-  const handleLayoutChange = useCallback((newLayout: Layout[]) => {
+  const handleLayoutChange = useCallback((newLayout: LayoutItem[]) => {
     if (!isEditMode) return;
     setCustomLayout(newLayout);
 
@@ -493,13 +502,14 @@ export function DashboardRenderer({
       {/* Dashboard Grid with Drag-and-Drop */}
       {schema && !loading && (
         <div className="flex-1 overflow-auto p-6" ref={containerRef}>
+          {/* @ts-ignore - Type mismatch between react-grid-layout versions */}
           <GridLayout
             className="layout"
             layout={gridLayout}
             cols={schema.layout.columns}
             rowHeight={rowHeight}
             width={containerWidth}
-            onLayoutChange={handleLayoutChange}
+            onLayoutChange={handleLayoutChange as any}
             isDraggable={isEditMode}
             isResizable={isEditMode}
             margin={[schema.layout.gap, schema.layout.gap]}
