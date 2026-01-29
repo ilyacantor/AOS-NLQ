@@ -254,11 +254,12 @@ const STATIC_CRO_DATA: Record<string, TileData> = {
     formattedValue: '',
     rawData: {
       chartData: [
-        { label: 'Leads', value: 2400, type: 'total' },
-        { label: 'MQLs', value: 1200, type: 'decrease' },
-        { label: 'SQLs', value: 480, type: 'decrease' },
-        { label: 'Opps', value: 192, type: 'decrease' },
-        { label: 'Closed Won', value: 62, type: 'total' },
+        { label: '2024', value: 47.0, type: 'total' },
+        { label: 'New Logo', value: 12.5, type: 'increase' },
+        { label: 'Expansion', value: 5.2, type: 'increase' },
+        { label: 'Churn', value: -4.8, type: 'decrease' },
+        { label: 'Contraction', value: -2.4, type: 'decrease' },
+        { label: '2025', value: 57.5, type: 'total' },
       ]
     },
     status: 'healthy',
