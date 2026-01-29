@@ -433,11 +433,18 @@ def _generate_full_dashboard(requirements: VisualizationRequirements) -> List[Wi
     """Generate a full executive-style dashboard."""
     widgets = []
 
-    # Default to revenue-focused if no metrics specified
+    # Use detected metrics or default to CFO metrics
     metrics = requirements.metrics if requirements.metrics else ["revenue", "gross_margin_pct", "net_income", "pipeline"]
 
-    # Top KPI row
-    kpi_metrics = ["revenue", "gross_margin_pct", "net_income", "pipeline"]
+    # Top KPI row - use the detected metrics, pad with defaults if needed
+    kpi_metrics = metrics[:4]  # Take first 4 metrics
+    if len(kpi_metrics) < 4:
+        # Pad with relevant metrics based on context
+        defaults = ["revenue", "gross_margin_pct", "net_income", "pipeline"]
+        for m in defaults:
+            if m not in kpi_metrics and len(kpi_metrics) < 4:
+                kpi_metrics.append(m)
+
     col = 1
     for metric in kpi_metrics:
         widgets.append(Widget(
@@ -453,27 +460,28 @@ def _generate_full_dashboard(requirements: VisualizationRequirements) -> List[Wi
         ))
         col += 3
 
-    # Revenue trend chart
+    # Primary metric trend chart
+    primary_metric = metrics[0] if metrics else "revenue"
     widgets.append(Widget(
-        id="revenue_trend",
+        id=f"{primary_metric}_trend",
         type=WidgetType.LINE_CHART,
-        title="Revenue Trend",
+        title=f"{get_display_name(primary_metric)} Trend",
         data=DataBinding(
-            metrics=[MetricBinding(metric="revenue", format="$0.0M")],
+            metrics=[MetricBinding(metric=primary_metric, format=_get_format_string(primary_metric))],
             time=TimeBinding(period="last 8 quarters", granularity=TimeGranularity.QUARTERLY),
         ),
         position=GridPosition(column=1, row=3, col_span=6, row_span=4),
         chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
     ))
 
-    # Revenue by region
+    # Primary metric by dimension
     dimension = requirements.dimensions[0] if requirements.dimensions else "region"
     widgets.append(Widget(
-        id="revenue_by_region",
+        id=f"{primary_metric}_by_{dimension}",
         type=WidgetType.BAR_CHART,
-        title=f"Revenue by {dimension.title()}",
+        title=f"{get_display_name(primary_metric)} by {dimension.title()}",
         data=DataBinding(
-            metrics=[MetricBinding(metric="revenue", format="$0.0M")],
+            metrics=[MetricBinding(metric=primary_metric, format=_get_format_string(primary_metric))],
             dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
             time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
         ),

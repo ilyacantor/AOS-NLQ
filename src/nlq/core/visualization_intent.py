@@ -307,9 +307,22 @@ def _extract_metrics_from_query(query: str) -> List[str]:
                     metrics.append(canonical)
                 break
 
-    # If no specific metrics found, default to revenue
+    # If no specific metrics found, select based on dashboard type/persona
     if not metrics:
-        metrics = ["revenue"]
+        # Check for persona-specific dashboard requests
+        if any(term in q for term in ["ops dashboard", "operations dashboard", "coo dashboard"]):
+            metrics = ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months", "ltv_cac"]
+        elif any(term in q for term in ["sales dashboard", "cro dashboard", "growth dashboard"]):
+            metrics = ["pipeline", "win_rate", "quota_attainment", "sales_cycle_days"]
+        elif any(term in q for term in ["finance dashboard", "cfo dashboard", "financial dashboard"]):
+            metrics = ["revenue", "gross_margin_pct", "net_income", "arr"]
+        elif any(term in q for term in ["engineering dashboard", "cto dashboard", "tech dashboard"]):
+            metrics = ["uptime_pct", "p1_incidents", "deployment_frequency"]
+        elif any(term in q for term in ["customer dashboard", "cs dashboard", "success dashboard"]):
+            metrics = ["nrr", "gross_churn_pct", "customer_count"]
+        else:
+            # Default to revenue for generic requests
+            metrics = ["revenue"]
 
     return metrics
 
