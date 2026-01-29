@@ -103,7 +103,7 @@ class SupabasePersistenceService:
             supabase_key: Supabase service role key (for RLS bypass)
             default_tenant_id: Default tenant UUID for single-tenant mode
         """
-        self.supabase_url = supabase_url or os.getenv("SUPABASE_URL", "")
+        self.supabase_url = supabase_url or os.getenv("SUPABASE_API_URL") or os.getenv("SUPABASE_URL", "")
         self.supabase_key = supabase_key or os.getenv("SUPABASE_KEY", "")
         self.default_tenant_id = default_tenant_id
         
