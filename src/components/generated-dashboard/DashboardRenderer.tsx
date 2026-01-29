@@ -134,9 +134,9 @@ export function DashboardRenderer({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isRefining, setIsRefining] = useState(false);
 
-  // Drag and drop state
+  // Drag and drop state - use a map keyed by widget ID for stable position storage
   const [isEditMode, setIsEditMode] = useState(false);
-  const [customLayout, setCustomLayout] = useState<LayoutItem[] | null>(null);
+  const [layoutMap, setLayoutMap] = useState<Record<string, LayoutItem>>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
 
@@ -171,25 +171,38 @@ export function DashboardRenderer({
   }, [initialSchema, initialWidgetData]);
 
   // Convert widget positions to react-grid-layout format
+  // Prioritize layoutMap (user customizations) over schema positions
   const gridLayout = useMemo((): LayoutItem[] => {
-    if (customLayout) return customLayout;
     if (!schema) return [];
 
-    return schema.widgets.map(widget => ({
-      i: widget.id,
-      x: widget.position.column - 1,
-      y: widget.position.row - 1,
-      w: widget.position.col_span,
-      h: widget.position.row_span,
-      minW: 2,
-      minH: 2,
-    }));
-  }, [schema, customLayout]);
+    return schema.widgets.map(widget => {
+      // Use stored position from layoutMap if it exists, otherwise use schema position
+      const stored = layoutMap[widget.id];
+      if (stored) {
+        return { ...stored, i: widget.id };
+      }
+      return {
+        i: widget.id,
+        x: widget.position.column - 1,
+        y: widget.position.row - 1,
+        w: widget.position.col_span,
+        h: widget.position.row_span,
+        minW: 2,
+        minH: 2,
+      };
+    });
+  }, [schema, layoutMap]);
 
   // Handle layout change from drag-and-drop
   const handleLayoutChange = useCallback((newLayout: LayoutItem[]) => {
     if (!isEditMode) return;
-    setCustomLayout(newLayout);
+    
+    // Update the layout map with new positions (keyed by widget ID)
+    const newMap: Record<string, LayoutItem> = { ...layoutMap };
+    newLayout.forEach(item => {
+      newMap[item.i] = item;
+    });
+    setLayoutMap(newMap);
 
     // Update schema with new positions
     if (schema) {
@@ -211,7 +224,7 @@ export function DashboardRenderer({
       });
       setSchema({ ...schema, widgets: updatedWidgets });
     }
-  }, [isEditMode, schema]);
+  }, [isEditMode, schema, layoutMap]);
 
   // Reset dashboard
   const handleReset = useCallback(() => {
@@ -221,7 +234,7 @@ export function DashboardRenderer({
     setSuggestions([]);
     setInitialQuery('');
     setRefinementQuery('');
-    setCustomLayout(null);
+    setLayoutMap({});
     setIsEditMode(false);
   }, []);
 
@@ -269,7 +282,7 @@ export function DashboardRenderer({
   // Load saved dashboard or template
   const handleLoad = useCallback((item: SavedDashboard | SavedTemplate) => {
     setSchema(item.schema);
-    setCustomLayout(null);
+    setLayoutMap({});
     fetchWidgetData(item.schema);
     setShowLoadModal(false);
   }, []);
@@ -297,7 +310,7 @@ export function DashboardRenderer({
       if (data.success && data.dashboard) {
         setSchema(data.dashboard);
         setSuggestions(data.suggestions || []);
-        setCustomLayout(null);
+        setLayoutMap({});
         const initialData: Record<string, WidgetData> = {};
         data.dashboard.widgets.forEach(widget => {
           initialData[widget.id] = { loading: true };
@@ -337,75 +350,14 @@ export function DashboardRenderer({
       const data: DashboardRefinementResponse = await response.json();
 
       if (data.success && data.dashboard) {
-        // Preserve positions from current schema and customLayout for widgets that still exist
-        const newDashboard = { ...data.dashboard };
-        if (schema) {
-          // Build position maps from customLayout (most accurate) and schema
-          const oldLayoutById = new Map<string, LayoutItem>();
-          const oldLayoutByTitle = new Map<string, LayoutItem>();
-          
-          // First, get positions from schema
-          schema.widgets.forEach(w => {
-            const layoutItem = {
-              i: w.id,
-              x: w.position.column - 1,
-              y: w.position.row - 1,
-              w: w.position.col_span,
-              h: w.position.row_span,
-              minW: 2,
-              minH: 2,
-            };
-            oldLayoutById.set(w.id, layoutItem);
-            oldLayoutByTitle.set(w.title.toLowerCase(), layoutItem);
-          });
-          
-          // Override with customLayout positions (these reflect actual user resizes)
-          if (customLayout) {
-            customLayout.forEach(item => {
-              const widget = schema.widgets.find(w => w.id === item.i);
-              if (widget) {
-                const updatedItem = { ...item };
-                oldLayoutById.set(item.i, updatedItem);
-                oldLayoutByTitle.set(widget.title.toLowerCase(), updatedItem);
-              }
-            });
-          }
-          
-          // Update new widgets with preserved positions (match by ID first, then by title)
-          newDashboard.widgets = newDashboard.widgets.map(widget => {
-            const oldLayout = oldLayoutById.get(widget.id) || 
-                              oldLayoutByTitle.get(widget.title.toLowerCase());
-            if (oldLayout) {
-              return {
-                ...widget,
-                position: {
-                  ...widget.position,
-                  column: oldLayout.x + 1,
-                  row: oldLayout.y + 1,
-                  col_span: oldLayout.w,
-                  row_span: oldLayout.h,
-                },
-              };
-            }
-            return widget;
-          });
-          
-          // Build new customLayout from updated positions
-          const newLayout = newDashboard.widgets.map(widget => ({
-            i: widget.id,
-            x: widget.position.column - 1,
-            y: widget.position.row - 1,
-            w: widget.position.col_span,
-            h: widget.position.row_span,
-            minW: 2,
-            minH: 2,
-          }));
-          setCustomLayout(newLayout);
-        }
+        // With the map-based approach, we don't need complex matching logic:
+        // - layoutMap already has preserved positions for existing widgets (keyed by ID)
+        // - New widgets will automatically use server positions via gridLayout memo
+        // - The layoutMap is NOT modified here, preserving user customizations
         
-        setSchema(newDashboard);
-        onRefinement?.(newDashboard);
-        fetchWidgetData(newDashboard);
+        setSchema(data.dashboard);
+        onRefinement?.(data.dashboard);
+        fetchWidgetData(data.dashboard);
       } else {
         setError(data.error || 'Failed to refine dashboard');
       }
@@ -415,7 +367,7 @@ export function DashboardRenderer({
       setIsRefining(false);
       setRefinementQuery('');
     }
-  }, [schema, customLayout, onRefinement]);
+  }, [schema, onRefinement]);
 
   // Fetch data for all widgets (uses pre-resolved data if available, otherwise mock)
   const fetchWidgetData = useCallback(async (
