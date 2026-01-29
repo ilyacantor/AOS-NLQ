@@ -129,12 +129,14 @@ const RenderTile: React.FC<{
         label={tile.kpi.label}
         value={tileData.value ?? 0}
         format={tile.kpi.format}
+        period="2025 YTD"
         trend={
           tileData.trend
             ? {
                 direction: tileData.trend.direction,
                 value: tileData.trend.percentChange,
                 isPositive: tileData.trend.positiveIsGood,
+                comparisonPeriod: tileData.trend.comparisonPeriod,
               }
             : undefined
         }

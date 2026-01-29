@@ -34,6 +34,14 @@ AGGREGATION_QUERY examples:
 
 BREAKDOWN_QUERY examples:
 - "Break down operating expenses for 2025" → breakdown_metrics: ["selling_expenses", "g_and_a_expenses", "sga"]
+- "What is driving revenue this period?" → breakdown_metrics: ["product_revenue", "services_revenue", "recurring_revenue", "one_time_revenue"]
+- "What is driving bookings this period?" → breakdown_metrics: ["new_bookings", "expansion_bookings", "renewal_bookings"]
+- "What is driving changes in our magic number?" → breakdown_metrics: ["bookings", "sales_marketing_spend", "revenue_growth"]
+- "What is driving the OpEx savings?" → breakdown_metrics: ["personnel_costs", "marketing_spend", "infrastructure_costs", "vendor_costs"]
+- "What is driving gross margin?" → breakdown_metrics: ["cogs", "revenue", "cost_of_services", "hosting_costs"]
+- "What is driving churn?" → breakdown_metrics: ["voluntary_churn", "involuntary_churn", "downgrades", "cancellations"]
+
+For "driving" or "what caused" questions, always use BREAKDOWN_QUERY intent and include relevant sub-metrics or contributing factors as breakdown_metrics.
 
 Canonical metric names:
 - revenue, bookings, cogs, gross_profit, gross_margin_pct

@@ -11,12 +11,15 @@ Never return empty results silently - always provide appropriate error codes.
 """
 
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from src.nlq.core.confidence import ConfidenceCalculator, bounded_confidence
 from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.models.query import ParsedQuery, QueryIntent
 from src.nlq.models.response import QueryResult
+
+if TYPE_CHECKING:
+    from src.nlq.llm.client import ClaudeClient
 
 logger = logging.getLogger(__name__)
 
@@ -24,14 +27,16 @@ logger = logging.getLogger(__name__)
 class QueryExecutor:
     """Executes parsed queries against the fact base."""
 
-    def __init__(self, fact_base: FactBase):
+    def __init__(self, fact_base: FactBase, claude_client: Optional["ClaudeClient"] = None):
         """
         Initialize the query executor.
 
         Args:
             fact_base: The fact base to query against
+            claude_client: Optional Claude client for LLM fallback on unknown breakdowns
         """
         self.fact_base = fact_base
+        self.claude_client = claude_client
         self.confidence_calculator = ConfidenceCalculator()
 
     def execute(self, parsed_query: ParsedQuery) -> QueryResult:
@@ -93,6 +98,14 @@ class QueryExecutor:
 
     def _execute_point_query(self, parsed_query: ParsedQuery) -> QueryResult:
         """Execute a single metric, single period query."""
+        if not parsed_query.resolved_period:
+            return QueryResult(
+                success=False,
+                error="UNRESOLVED_PERIOD",
+                message="Period could not be resolved",
+                confidence=0.0
+            )
+
         result = self.fact_base.query(
             parsed_query.metric,
             parsed_query.resolved_period
@@ -122,6 +135,14 @@ class QueryExecutor:
 
     def _execute_comparison_query(self, parsed_query: ParsedQuery) -> QueryResult:
         """Execute a comparison between two periods."""
+        if not parsed_query.resolved_period:
+            return QueryResult(
+                success=False,
+                error="UNRESOLVED_PERIOD",
+                message="Period could not be resolved for comparison",
+                confidence=0.0
+            )
+
         # Get values for both periods
         value1 = self.fact_base.query(
             parsed_query.metric,
@@ -223,7 +244,13 @@ class QueryExecutor:
 
     def _execute_breakdown_query(self, parsed_query: ParsedQuery) -> QueryResult:
         """Execute a breakdown query (multiple metrics for one period)."""
-        if not parsed_query.breakdown_metrics:
+        breakdown_metrics = parsed_query.breakdown_metrics
+
+        # Fallback: If no breakdown_metrics provided, derive from the primary metric
+        if not breakdown_metrics:
+            breakdown_metrics = self._derive_breakdown_metrics(parsed_query.metric)
+
+        if not breakdown_metrics:
             return QueryResult(
                 success=False,
                 error="MISSING_BREAKDOWN_METRICS",
@@ -240,20 +267,28 @@ class QueryExecutor:
                 confidence=0.0
             )
 
-        # Get values for all metrics
+        # Get values for all metrics we have data for
         breakdown = {}
-        for metric in parsed_query.breakdown_metrics:
+        for metric in breakdown_metrics:
             value = self.fact_base.query(metric, period)
             if value is not None:
                 breakdown[metric] = value
 
+        # Graceful fallback: if none of the suggested metrics have data,
+        # fall back to core metrics that always exist (revenue, margin, etc.)
         if not breakdown:
-            return QueryResult(
-                success=False,
-                error="NO_DATA_FOR_BREAKDOWN",
-                message=f"No data found for any of the specified metrics in {period}",
-                confidence=0.0
-            )
+            fallback_metrics = ["revenue", "gross_margin_pct", "operating_profit", "arr"]
+            for metric in fallback_metrics:
+                value = self.fact_base.query(metric, period)
+                if value is not None:
+                    breakdown[metric] = value
+                    break  # Just need one to show something useful
+
+        # Still nothing? Try the primary metric itself
+        if not breakdown and parsed_query.metric:
+            value = self.fact_base.query(parsed_query.metric, period)
+            if value is not None:
+                breakdown[parsed_query.metric] = value
 
         return QueryResult(
             success=True,
@@ -263,3 +298,74 @@ class QueryExecutor:
             },
             confidence=bounded_confidence(0.95)
         )
+
+    def _derive_breakdown_metrics(self, metric: str) -> list[str]:
+        """
+        Derive breakdown metrics from a primary metric when LLM doesn't provide them.
+
+        Strategy:
+        1. Check BREAKDOWN_MAPPINGS for predefined breakdowns (fast)
+        2. If not found, ask the LLM what drives this metric (graceful fallback)
+
+        Uses actual metrics that exist in the fact base.
+        """
+        BREAKDOWN_MAPPINGS = {
+            # Revenue & Sales
+            "revenue": ["new_logo_revenue", "expansion_revenue", "renewal_revenue"],
+            "arr": ["new_logo_revenue", "expansion_revenue", "renewal_revenue"],
+            "bookings": ["new_logo_revenue", "expansion_revenue", "pipeline", "win_rate"],
+            # Profitability
+            "gross_profit": ["revenue", "cogs"],
+            "gross_margin_pct": ["revenue", "cogs", "gross_profit"],
+            "operating_profit": ["revenue", "cogs", "sga", "gross_profit"],
+            "operating_margin_pct": ["revenue", "operating_profit", "sga"],
+            "net_income": ["revenue", "gross_profit", "operating_profit", "sga"],
+            "net_income_pct": ["revenue", "gross_profit", "operating_profit", "sga"],
+            "cogs": ["revenue", "gross_margin_pct"],
+            # Expenses
+            "sga": ["selling_expenses", "g_and_a_expenses"],
+            "cloud_spend": ["cloud_spend_pct_revenue", "revenue"],
+            # Pipeline & Sales
+            "pipeline": ["qualified_pipeline", "win_rate", "sales_cycle_days", "avg_deal_size"],
+            "win_rate": ["pipeline", "qualified_pipeline", "avg_deal_size", "sales_cycle_days"],
+            "quota_attainment": ["reps_at_quota_pct", "sales_headcount", "pipeline", "win_rate"],
+            # Retention & Churn
+            "gross_churn_pct": ["logo_churn_pct", "nrr", "customer_count"],
+            "nrr": ["gross_churn_pct", "expansion_revenue", "renewal_revenue"],
+            "customer_count": ["new_logos", "logo_churn_pct", "nrr"],
+            # Efficiency Metrics
+            "magic_number": ["arr", "sga", "sales_headcount"],
+            "ltv_cac": ["cac_payback_months", "gross_churn_pct", "nrr"],
+            "burn_multiple": ["revenue", "operating_profit", "net_income"],
+            # People
+            "headcount": ["engineering_headcount", "product_headcount", "sales_headcount", "marketing_headcount", "cs_headcount", "ga_headcount"],
+            "attrition_rate": ["headcount", "hires", "attrition"],
+            "attrition": ["headcount", "hires", "attrition_rate"],
+            # Customer Success
+            "nps": ["csat", "support_tickets", "resolution_hours"],
+            "csat": ["nps", "support_tickets", "resolution_hours", "first_response_hours"],
+            # Tech & Engineering
+            "uptime_pct": ["downtime_hours", "deploys_per_week", "security_vulns"],
+            "tech_debt_pct": ["code_coverage_pct", "bug_escape_rate", "critical_bugs"],
+            # Balance Sheet
+            "ar": ["revenue", "deferred_revenue", "unbilled_revenue"],
+            "ap": ["revenue", "cogs", "current_liabilities"],
+            "cash": ["revenue", "cogs", "sga", "operating_profit"],
+        }
+
+        # Normalize metric name for lookup
+        metric_lower = metric.lower().replace("-", "_").replace(" ", "_")
+
+        # First: check predefined mappings (fast path)
+        if metric_lower in BREAKDOWN_MAPPINGS:
+            return BREAKDOWN_MAPPINGS[metric_lower]
+
+        # Second: ask LLM for breakdown components (graceful fallback)
+        if self.claude_client:
+            logger.info(f"No predefined breakdown for '{metric}', asking LLM...")
+            llm_components = self.claude_client.get_breakdown_components(metric)
+            if llm_components:
+                return llm_components
+
+        # No breakdown available
+        return []

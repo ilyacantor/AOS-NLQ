@@ -34,15 +34,89 @@ from src.nlq.core.parser import QueryParser
 from src.nlq.core.resolver import PeriodResolver
 from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.knowledge.schema import FINANCIAL_SCHEMA, get_metric_unit
+from src.nlq.knowledge.synonyms import normalize_metric
 from src.nlq.llm.client import ClaudeClient
-from src.nlq.models.query import NLQRequest, QueryIntent
+from src.nlq.models.query import NLQRequest, QueryIntent, ParsedQuery, PeriodType, QueryMode
 from src.nlq.models.response import AmbiguityType, Domain, IntentMapResponse, IntentNode, MatchType, NLQResponse, RelatedMetric
 from src.nlq.core.personality import (
     generate_personality_response,
     handle_off_topic_or_easter_egg,
     detect_persona_from_question,
     detect_persona_from_metric,
+    get_stumped_response,
 )
+from src.nlq.services.llm_call_counter import get_call_counter
+from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
+from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
+
+# =============================================================================
+# RAG CACHE HELPERS
+# =============================================================================
+
+def _cached_to_parsed_query(cached: dict) -> ParsedQuery:
+    """
+    Convert a cached dict from RAG cache back to a ParsedQuery object.
+
+    Args:
+        cached: Dict with intent, metric, period_type, period_reference, etc.
+
+    Returns:
+        ParsedQuery object ready for execution
+    """
+    # Map string intent back to QueryIntent enum
+    intent_str = cached.get("intent", "POINT_QUERY")
+    try:
+        intent = QueryIntent(intent_str)
+    except ValueError:
+        intent = QueryIntent.POINT_QUERY
+
+    # Map string period_type back to PeriodType enum
+    period_type_str = cached.get("period_type", "FULL_YEAR")
+    try:
+        period_type = PeriodType(period_type_str)
+    except ValueError:
+        period_type = PeriodType.FULL_YEAR
+
+    # Normalize metric using synonym system
+    raw_metric = cached.get("metric", "revenue")
+    normalized_metric = normalize_metric(raw_metric)
+
+    return ParsedQuery(
+        intent=intent,
+        metric=normalized_metric,
+        period_type=period_type,
+        period_reference=cached.get("period_reference", "2025"),
+        is_relative=False,  # Cached queries have resolved periods
+        comparison_period=cached.get("comparison_period"),
+        aggregation_type=cached.get("aggregation_type"),
+        aggregation_periods=cached.get("aggregation_periods"),
+        breakdown_metrics=cached.get("breakdown_metrics"),
+        raw_metric=raw_metric,
+    )
+
+
+def _parsed_query_to_cache_dict(parsed: ParsedQuery) -> dict:
+    """
+    Convert a ParsedQuery to a dict for storing in RAG cache.
+
+    Args:
+        parsed: ParsedQuery object from Claude parser
+
+    Returns:
+        Dict ready for cache storage
+    """
+    return {
+        "intent": parsed.intent.value,
+        "metric": parsed.metric,
+        "period_type": parsed.period_type.value,
+        "period_reference": parsed.period_reference,
+        "comparison_type": getattr(parsed, 'comparison_type', None),
+        "comparison_period": parsed.comparison_period,
+        "aggregation_type": parsed.aggregation_type,
+        "aggregation_periods": parsed.aggregation_periods,
+        "breakdown_metrics": parsed.breakdown_metrics,
+    }
+
 
 # =============================================================================
 # PEOPLE PERSONA QUERY HANDLING
@@ -2161,16 +2235,101 @@ async def query(request: NLQRequest) -> NLQResponse:
                 fact_base,
             )
 
-        # Set up components (only need Claude API for non-People queries)
-        claude_client = get_claude_client()
-        parser = QueryParser(claude_client)
+        # Set up components
         reference_date = request.reference_date or date.today()
         resolver = PeriodResolver(reference_date)
-        executor = QueryExecutor(fact_base)
+        claude_client = get_claude_client()
+        executor = QueryExecutor(fact_base, claude_client)
 
-        # Parse the query
-        parsed = parser.parse(request.question)
-        logger.info(f"Parsed query: {parsed}")
+        # Get session ID from request headers (if available)
+        session_id = getattr(request, 'session_id', None) or "default"
+
+        # =================================================================
+        # RAG CACHE LOOKUP - Check cache before calling Claude
+        # =================================================================
+        cache_service = get_cache_service()
+        parsed = None
+        cache_hit = False
+        cache_result = None
+
+        if cache_service and cache_service.is_available:
+            cache_result = cache_service.lookup(request.question)
+
+            if cache_result.high_confidence and cache_result.parsed:
+                # Use cached parsed structure - no Claude call needed
+                parsed = _cached_to_parsed_query(cache_result.parsed)
+                cache_hit = True
+                logger.info(f"RAG cache hit ({cache_result.hit_type.value}, {cache_result.similarity:.3f}): {request.question[:50]}...")
+
+                # Log to learning log
+                learning_log = get_learning_log()
+                await learning_log.log_entry(LearningLogEntry(
+                    query=request.question,
+                    success=True,
+                    source="cache",
+                    learned=False,
+                    message=f"Cache hit ({cache_result.hit_type.value}, {cache_result.similarity:.0%} match)",
+                    persona=detect_persona_from_metric(cache_result.parsed.get("metric")) or "CFO",
+                    similarity=cache_result.similarity,
+                ))
+
+        # =================================================================
+        # CLAUDE PARSING - Fall back to LLM if no cache hit
+        # =================================================================
+        if not cache_hit:
+            # In STATIC mode, return error if no cache hit (no LLM fallback)
+            if request.mode == QueryMode.STATIC:
+                logger.info(f"Static mode - no cache hit for: {request.question[:50]}...")
+                return NLQResponse(
+                    success=False,
+                    error_code="STATIC_MODE_CACHE_MISS",
+                    error_message="Query not found in cache. Switch to AI mode for LLM processing.",
+                    confidence=0.0,
+                    parsed_intent="UNKNOWN",
+                    resolved_metric=None,
+                    resolved_period=None,
+                )
+
+            # AI mode: Initialize Claude client and parser
+            claude_client = get_claude_client()
+            parser = QueryParser(claude_client)
+
+            # Parse the query with Claude
+            parsed = parser.parse(request.question)
+
+            # Increment LLM call counter
+            call_counter = get_call_counter()
+            call_counter.increment(session_id)
+
+            logger.info(f"Claude parsed query: {parsed}")
+
+            # Store new parse in cache for future use
+            if cache_service and cache_service.is_available:
+                persona = detect_persona_from_metric(parsed.metric) or "CFO"
+                cache_dict = _parsed_query_to_cache_dict(parsed)
+                cache_service.store(
+                    query=request.question,
+                    parsed=cache_dict,
+                    persona=persona,
+                    confidence=0.95,  # Claude parses are high confidence
+                    source="llm",
+                )
+
+            # Log to learning log
+            learning_log = get_learning_log()
+            stored_in_cache = cache_service and cache_service.is_available
+            await learning_log.log_entry(LearningLogEntry(
+                query=request.question,
+                success=True,
+                source="llm",
+                learned=stored_in_cache,
+                message=f'"{request.question}" → {parsed.metric}' + (" (learned)" if stored_in_cache else ""),
+                persona=detect_persona_from_metric(parsed.metric) or "CFO",
+                similarity=0.0,
+                llm_confidence=0.95,
+            ))
+
+        logger.info(f"Parsed query (cache_hit={cache_hit}): {parsed}")
 
         # Resolve the primary period
         resolved = resolver.resolve(parsed.period_reference)
@@ -2196,11 +2355,11 @@ async def query(request: NLQRequest) -> NLQResponse:
         result = executor.execute(parsed)
 
         if not result.success:
+            stumped_msg = get_stumped_response(include_suggestions=True)
             return NLQResponse(
-                success=False,
-                confidence=bounded_confidence(result.confidence),
-                error_code=result.error,
-                error_message=result.message,
+                success=True,
+                answer=stumped_msg,
+                confidence=0.5,
                 parsed_intent=parsed.intent.value,
                 resolved_metric=parsed.metric,
                 resolved_period=parsed.resolved_period,
@@ -2313,11 +2472,10 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
             if dashboard_response:
                 return dashboard_response
 
-        claude_client = get_claude_client()
-        parser = QueryParser(claude_client)
         reference_date = request.reference_date or date.today()
         resolver = PeriodResolver(reference_date)
-        executor = QueryExecutor(fact_base)
+        claude_client = get_claude_client()
+        executor = QueryExecutor(fact_base, claude_client)
 
         # Check for ambiguity first
         ambiguity_type, candidates, clarification = detect_ambiguity(request.question)
@@ -2333,9 +2491,99 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 resolver,
             )
 
-        # Parse the query
-        parsed = parser.parse(request.question)
-        logger.info(f"Parsed query for galaxy: {parsed}")
+        # Get session ID from request headers (if available)
+        session_id = getattr(request, 'session_id', None) or "default"
+
+        # =================================================================
+        # RAG CACHE LOOKUP - Check cache before calling Claude
+        # =================================================================
+        cache_service = get_cache_service()
+        parsed = None
+        cache_hit = False
+        cache_result = None
+
+        if cache_service and cache_service.is_available:
+            cache_result = cache_service.lookup(request.question)
+
+            if cache_result.high_confidence and cache_result.parsed:
+                # Use cached parsed structure - no Claude call needed
+                parsed = _cached_to_parsed_query(cache_result.parsed)
+                cache_hit = True
+                logger.info(f"Galaxy RAG cache hit ({cache_result.hit_type.value}, {cache_result.similarity:.3f}): {request.question[:50]}...")
+
+                # Log to learning log
+                learning_log = get_learning_log()
+                await learning_log.log_entry(LearningLogEntry(
+                    query=request.question,
+                    success=True,
+                    source="cache",
+                    learned=False,
+                    message=f'Retrieved "{request.question}" ({cache_result.similarity:.0%} match)',
+                    persona=detect_persona_from_metric(cache_result.parsed.get("metric")) or "CFO",
+                    similarity=cache_result.similarity,
+                ))
+
+        # =================================================================
+        # CLAUDE PARSING - Fall back to LLM if no cache hit
+        # =================================================================
+        if not cache_hit:
+            # In STATIC mode, return error if no cache hit (no LLM fallback)
+            if request.mode == QueryMode.STATIC:
+                logger.info(f"Galaxy static mode - no cache hit for: {request.question[:50]}...")
+                return IntentMapResponse(
+                    query=request.question,
+                    query_type="STATIC_MODE_CACHE_MISS",
+                    ambiguity_type=None,
+                    persona="CFO",
+                    overall_confidence=0.0,
+                    overall_data_quality=0.0,
+                    node_count=0,
+                    nodes=[],
+                    primary_node_id=None,
+                    primary_answer=None,
+                    text_response="Query not found in cache. Switch to AI mode for LLM processing.",
+                    needs_clarification=False,
+                    clarification_prompt=None,
+                )
+
+            # AI mode: Initialize Claude client and parser
+            claude_client = get_claude_client()
+            parser = QueryParser(claude_client)
+
+            # Parse the query with Claude
+            parsed = parser.parse(request.question)
+
+            # Increment LLM call counter
+            call_counter = get_call_counter()
+            call_counter.increment(session_id)
+
+            # Store new parse in cache for future use
+            if cache_service and cache_service.is_available:
+                persona = detect_persona_from_metric(parsed.metric) or "CFO"
+                cache_dict = _parsed_query_to_cache_dict(parsed)
+                cache_service.store(
+                    query=request.question,
+                    parsed=cache_dict,
+                    persona=persona,
+                    confidence=0.95,  # Claude parses are high confidence
+                    source="llm",
+                )
+
+            # Log to learning log
+            learning_log = get_learning_log()
+            stored_in_cache = cache_service and cache_service.is_available
+            await learning_log.log_entry(LearningLogEntry(
+                query=request.question,
+                success=True,
+                source="llm",
+                learned=stored_in_cache,
+                message=f'"{request.question}" → {parsed.metric}' + (" (learned)" if stored_in_cache else ""),
+                persona=detect_persona_from_metric(parsed.metric) or "CFO",
+                similarity=0.0,
+                llm_confidence=0.95,
+            ))
+
+        logger.info(f"Parsed query for galaxy (cache_hit={cache_hit}): {parsed}")
 
         # Resolve periods
         resolved = resolver.resolve(parsed.period_reference)
@@ -2356,11 +2604,9 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         result = executor.execute(parsed)
 
         if not result.success:
-            return _create_error_galaxy_response(
+            return _create_stumped_galaxy_response(
                 request.question,
                 parsed.intent.value,
-                result.error,
-                result.message,
             )
 
         # Generate nodes based on intent
@@ -2644,21 +2890,75 @@ def _create_error_galaxy_response(
     error_message: str,
 ) -> IntentMapResponse:
     """Create an error response for Galaxy endpoint."""
+    stumped_msg = get_stumped_response(include_suggestions=True)
     return IntentMapResponse(
         query=question,
         query_type=query_type,
         ambiguity_type=None,
         persona="CFO",
-        overall_confidence=0.0,
-        overall_data_quality=0.0,
+        overall_confidence=0.5,
+        overall_data_quality=0.5,
         node_count=0,
         nodes=[],
         primary_node_id=None,
-        primary_answer=None,
-        text_response=f"Error: {error_message}",
+        primary_answer=stumped_msg,
+        text_response=stumped_msg,
         needs_clarification=False,
         clarification_prompt=None,
     )
+
+
+def _create_stumped_galaxy_response(
+    question: str,
+    query_type: str,
+) -> IntentMapResponse:
+    """Create a friendly stumped response for Galaxy endpoint."""
+    stumped_msg = get_stumped_response(include_suggestions=True)
+    return IntentMapResponse(
+        query=question,
+        query_type=query_type,
+        ambiguity_type=None,
+        persona="CFO",
+        overall_confidence=0.5,
+        overall_data_quality=0.5,
+        node_count=0,
+        nodes=[],
+        primary_node_id=None,
+        primary_answer=stumped_msg,
+        text_response=stumped_msg,
+        needs_clarification=False,
+        clarification_prompt=None,
+    )
+
+
+def _format_value_with_unit(value: float, unit: str) -> str:
+    """Format a value with its unit for answer text."""
+    if unit == "%":
+        return f"{round(value, 1)}%"
+    elif unit == "USD millions":
+        return f"${round(value, 1)}M"
+    elif unit == "USD":
+        return f"${round(value, 2):,.2f}"
+    elif unit == "millions/month":
+        return f"${round(value, 2)}M/mo"
+    elif unit == "days":
+        return f"{round(value, 1)} days"
+    elif unit == "hours":
+        return f"{round(value, 1)} hours"
+    elif unit == "months":
+        return f"{round(value, 1)} months"
+    elif unit == "people":
+        return f"{int(value):,}"
+    elif unit == "customers":
+        return f"{int(value):,}"
+    elif unit in ("tickets", "bugs", "vulnerabilities", "incidents", "deploys", "features", "points"):
+        return f"{int(value):,}"
+    elif unit == "score":
+        return f"{round(value, 2)}"
+    elif unit == "x":
+        return f"{round(value, 2)}x"
+    else:
+        return f"{round(value, 2)}"
 
 
 def _format_answer(parsed, result, unit: str) -> tuple:
@@ -2667,10 +2967,8 @@ def _format_answer(parsed, result, unit: str) -> tuple:
 
     if parsed.intent == QueryIntent.POINT_QUERY:
         formatted_value = round(result.value, 1)
-        if unit == "%":
-            answer = f"{metric_display} for {parsed.resolved_period} was {formatted_value}%"
-        else:
-            answer = f"{metric_display} for {parsed.resolved_period} was ${formatted_value} million"
+        formatted_str = _format_value_with_unit(result.value, unit)
+        answer = f"{metric_display} for {parsed.resolved_period} was {formatted_str}"
         return answer, formatted_value
 
     elif parsed.intent == QueryIntent.COMPARISON_QUERY:
@@ -2681,19 +2979,12 @@ def _format_answer(parsed, result, unit: str) -> tuple:
         pct = round(data["pct_change"], 1) if data["pct_change"] else 0
 
         period1, period2 = data["period1"], data["period2"]
+        val1_str = _format_value_with_unit(val1, unit)
+        val2_str = _format_value_with_unit(val2, unit)
+        diff_str = _format_value_with_unit(abs(diff), unit)
 
-        if unit == "%":
-            # For percentage metrics, show the values and whether it improved
-            if diff > 0:
-                answer = f"{metric_display} improved from {val2}% in {period2} to {val1}% in {period1}"
-            elif diff < 0:
-                answer = f"{metric_display} declined from {val2}% in {period2} to {val1}% in {period1}"
-            else:
-                answer = f"{metric_display} remained at {val1}% from {period2} to {period1}"
-        else:
-            # For dollar metrics, show the change
-            direction = "increased" if diff > 0 else "decreased" if diff < 0 else "remained unchanged"
-            answer = f"{metric_display} {direction} from ${val2} million in {period2} to ${val1} million in {period1} (${abs(diff)} million, {abs(pct)}%)"
+        direction = "increased" if diff > 0 else "decreased" if diff < 0 else "remained unchanged"
+        answer = f"{metric_display} {direction} from {val2_str} in {period2} to {val1_str} in {period1} ({diff_str}, {abs(pct)}%)"
 
         return answer, {"period1": period1, "value1": val1, "period2": period2, "value2": val2, "change": diff, "pct_change": pct}
 
@@ -2701,17 +2992,12 @@ def _format_answer(parsed, result, unit: str) -> tuple:
         data = result.value
         agg_result = round(data["result"], 1)
         agg_type = data["aggregation_type"]
+        formatted_str = _format_value_with_unit(agg_result, unit)
 
         if agg_type == "average":
-            if unit == "%":
-                answer = f"Average {metric_display.lower()} was {agg_result}%"
-            else:
-                answer = f"Average {metric_display.lower()} was ${agg_result} million"
+            answer = f"Average {metric_display.lower()} was {formatted_str}"
         else:  # sum
-            if unit == "%":
-                answer = f"Total {metric_display.lower()} was {agg_result}%"
-            else:
-                answer = f"Total {metric_display.lower()} was ${agg_result} million"
+            answer = f"Total {metric_display.lower()} was {formatted_str}"
 
         return answer, agg_result
 
@@ -2724,12 +3010,9 @@ def _format_answer(parsed, result, unit: str) -> tuple:
         parts = []
         for metric, value in breakdown.items():
             metric_unit = get_metric_unit(metric)
-            formatted = round(value, 1)
             display = metric.replace('_', ' ').title()
-            if metric_unit == "%":
-                parts.append(f"{display}: {formatted}%")
-            else:
-                parts.append(f"{display}: ${formatted}M")
+            formatted_str = _format_value_with_unit(value, metric_unit)
+            parts.append(f"{display}: {formatted_str}")
 
         answer = f"Breakdown for {period}: {', '.join(parts)}"
         return answer, breakdown
@@ -2737,10 +3020,8 @@ def _format_answer(parsed, result, unit: str) -> tuple:
     else:
         # Fallback for unknown intent
         formatted_value = round(result.value, 1) if isinstance(result.value, (int, float)) else result.value
-        if unit == "%":
-            answer = f"{metric_display} for {parsed.resolved_period} was {formatted_value}%"
-        else:
-            answer = f"{metric_display} for {parsed.resolved_period} was ${formatted_value} million"
+        formatted_str = _format_value_with_unit(formatted_value, unit) if isinstance(formatted_value, (int, float)) else str(formatted_value)
+        answer = f"{metric_display} for {parsed.resolved_period} was {formatted_str}"
         return answer, formatted_value
 
 

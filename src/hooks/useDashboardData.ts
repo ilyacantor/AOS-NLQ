@@ -49,25 +49,30 @@ const STATIC_CFO_DATA: Record<string, TileData> = {
     error: null,
     lastUpdated: new Date(),
   },
-  'kpi-burn-rate': {
-    value: 847,
-    formattedValue: '$847K/mo',
-    trend: { direction: 'up', percentChange: 12, comparisonPeriod: 'vs last quarter', positiveIsGood: false },
+  'kpi-operating-margin': {
+    value: 35.0,
+    formattedValue: '35.0%',
+    trend: { direction: 'up', percentChange: 4.2, comparisonPeriod: 'vs 2024', positiveIsGood: true },
     sparklineData: [
-      { period: 'Jul', value: 780 }, { period: 'Aug', value: 795 }, { period: 'Sep', value: 810 },
-      { period: 'Oct', value: 825 }, { period: 'Nov', value: 840 }, { period: 'Dec', value: 847 },
+      { period: 'Q1 24', value: 31 }, { period: 'Q2 24', value: 32 },
+      { period: 'Q3 24', value: 33 }, { period: 'Q4 24', value: 35 },
     ],
-    status: 'caution',
-    confidence: 0.88,
+    status: 'healthy',
+    confidence: 0.94,
     loading: false,
     error: null,
     lastUpdated: new Date(),
   },
-  'kpi-runway': {
-    value: 14,
-    formattedValue: '14 months',
+  'kpi-net-income': {
+    value: 26.2,
+    formattedValue: '26.2%',
+    trend: { direction: 'up', percentChange: 5.5, comparisonPeriod: 'vs 2024', positiveIsGood: true },
+    sparklineData: [
+      { period: 'Q1 24', value: 22 }, { period: 'Q2 24', value: 23 },
+      { period: 'Q3 24', value: 24 }, { period: 'Q4 24', value: 26.2 },
+    ],
     status: 'healthy',
-    confidence: 0.90,
+    confidence: 0.93,
     loading: false,
     error: null,
     lastUpdated: new Date(),
@@ -77,12 +82,12 @@ const STATIC_CFO_DATA: Record<string, TileData> = {
     formattedValue: '',
     rawData: {
       chartData: [
-        { label: 'Starting', value: 40.8, type: 'total' },
+        { label: '2024', value: 40.8, type: 'total' },
         { label: 'New Sales', value: 8.2, type: 'increase' },
         { label: 'Expansions', value: 3.5, type: 'increase' },
         { label: 'Churn', value: -2.8, type: 'decrease' },
         { label: 'Downgrades', value: -1.5, type: 'decrease' },
-        { label: 'Ending', value: 48.2, type: 'total' },
+        { label: '2025', value: 48.2, type: 'total' },
       ]
     },
     status: 'healthy',
@@ -117,6 +122,11 @@ const STATIC_CFO_DATA: Record<string, TileData> = {
         { label: 'Global Solutions', value: 2900000 },
         { label: 'DataFlow Ltd', value: 2100000 },
         { label: 'CloudFirst Co', value: 1800000 },
+        { label: 'Nexus Systems', value: 1650000 },
+        { label: 'InnovateTech', value: 1420000 },
+        { label: 'Quantum Partners', value: 1280000 },
+        { label: 'Stellar Labs', value: 1150000 },
+        { label: 'Vertex Group', value: 980000 },
       ]
     },
     status: 'healthy',
@@ -164,6 +174,501 @@ const STATIC_CFO_DATA: Record<string, TileData> = {
     },
     status: 'caution',
     confidence: 0.88,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'nlq-input': {
+    value: null,
+    formattedValue: '',
+    status: 'healthy',
+    confidence: 1,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+};
+
+/**
+ * Static CRO dashboard data - Revenue Overview
+ */
+const STATIC_CRO_DATA: Record<string, TileData> = {
+  'kpi-bookings': {
+    value: 57.5,
+    formattedValue: '$57.5M',
+    trend: { direction: 'up', percentChange: 22, comparisonPeriod: 'vs 2024', positiveIsGood: true },
+    sparklineData: [
+      { period: 'Q1 24', value: 11.2 }, { period: 'Q2 24', value: 11.8 },
+      { period: 'Q3 24', value: 12.1 }, { period: 'Q4 24', value: 14.4 },
+    ],
+    status: 'healthy',
+    confidence: 0.95,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'kpi-pipeline': {
+    value: 145,
+    formattedValue: '$145M',
+    trend: { direction: 'up', percentChange: 18, comparisonPeriod: 'vs 2024', positiveIsGood: true },
+    sparklineData: [
+      { period: 'Q1 24', value: 98 }, { period: 'Q2 24', value: 108 },
+      { period: 'Q3 24', value: 125 }, { period: 'Q4 24', value: 145 },
+    ],
+    status: 'healthy',
+    confidence: 0.92,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'kpi-win-rate': {
+    value: 32,
+    formattedValue: '32%',
+    trend: { direction: 'up', percentChange: 3.5, comparisonPeriod: 'vs 2024', positiveIsGood: true },
+    sparklineData: [
+      { period: 'Q1 24', value: 28 }, { period: 'Q2 24', value: 29 },
+      { period: 'Q3 24', value: 30 }, { period: 'Q4 24', value: 32 },
+    ],
+    status: 'healthy',
+    confidence: 0.90,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'kpi-nrr': {
+    value: 118,
+    formattedValue: '118%',
+    trend: { direction: 'up', percentChange: 5, comparisonPeriod: 'vs 2024', positiveIsGood: true },
+    sparklineData: [
+      { period: 'Q1 24', value: 112 }, { period: 'Q2 24', value: 114 },
+      { period: 'Q3 24', value: 116 }, { period: 'Q4 24', value: 118 },
+    ],
+    status: 'healthy',
+    confidence: 0.94,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-pipeline-velocity': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { label: '2024', value: 47.0, type: 'total' },
+        { label: 'New Logo', value: 12.5, type: 'increase' },
+        { label: 'Expansion', value: 5.2, type: 'increase' },
+        { label: 'Churn', value: -4.8, type: 'decrease' },
+        { label: 'Contraction', value: -2.4, type: 'decrease' },
+        { label: '2025', value: 57.5, type: 'total' },
+      ]
+    },
+    status: 'healthy',
+    confidence: 0.92,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'panel-revenue-insights': {
+    value: null,
+    formattedValue: '',
+    insights: [
+      { id: '1', type: 'positive', text: 'Enterprise deals up 35% QoQ', query: 'Show enterprise deal analysis' },
+      { id: '2', type: 'warning', text: 'Mid-market churn elevated', query: 'What is causing mid-market churn?' },
+      { id: '3', type: 'positive', text: 'NRR at all-time high 118%', query: 'What is driving NRR improvement?' },
+      { id: '4', type: 'improving', text: 'Sales cycle down 12 days', query: 'What reduced the sales cycle?' },
+      { id: '5', type: 'positive', text: 'Q4 pipeline 2.5x coverage', query: 'Show Q4 pipeline breakdown' },
+    ],
+    status: 'healthy',
+    confidence: 0.88,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-churn-radar': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { label: 'Enterprise', value: 2.1 },
+        { label: 'Mid-Market', value: 8.5 },
+        { label: 'SMB', value: 12.3 },
+        { label: 'Startup', value: 18.2 },
+      ]
+    },
+    status: 'caution',
+    confidence: 0.90,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-win-rate-segment': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { label: 'Enterprise', value: 42, size: 28.5 },
+        { label: 'Mid-Market', value: 35, size: 15.2 },
+        { label: 'SMB', value: 28, size: 9.8 },
+        { label: 'Startup', value: 22, size: 4.0 },
+      ]
+    },
+    status: 'healthy',
+    confidence: 0.91,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-quota-attainment': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { label: 'Q1', segments: [{ label: 'Attained', value: 92 }, { label: 'Gap', value: 8 }] },
+        { label: 'Q2', segments: [{ label: 'Attained', value: 98 }, { label: 'Gap', value: 2 }] },
+        { label: 'Q3', segments: [{ label: 'Attained', value: 105 }, { label: 'Gap', value: 0 }] },
+        { label: 'Q4', segments: [{ label: 'Attained', value: 96 }, { label: 'Gap', value: 4 }] },
+      ]
+    },
+    status: 'healthy',
+    confidence: 0.94,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'nlq-input': {
+    value: null,
+    formattedValue: '',
+    status: 'healthy',
+    confidence: 1,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+};
+
+/**
+ * Static COO dashboard data - Operations Overview
+ */
+const STATIC_COO_DATA: Record<string, TileData> = {
+  'kpi-headcount': {
+    value: 450,
+    formattedValue: '450',
+    trend: { direction: 'up', percentChange: 12, comparisonPeriod: 'vs 2024', positiveIsGood: true },
+    sparklineData: [
+      { period: 'Q1 24', value: 380 }, { period: 'Q2 24', value: 395 },
+      { period: 'Q3 24', value: 420 }, { period: 'Q4 24', value: 450 },
+    ],
+    status: 'healthy',
+    confidence: 0.98,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'kpi-magic-number': {
+    value: 1.2,
+    formattedValue: '1.2x',
+    trend: { direction: 'up', percentChange: 15, comparisonPeriod: 'vs 2024', positiveIsGood: true },
+    sparklineData: [
+      { period: 'Q1 24', value: 0.95 }, { period: 'Q2 24', value: 1.0 },
+      { period: 'Q3 24', value: 1.1 }, { period: 'Q4 24', value: 1.2 },
+    ],
+    status: 'healthy',
+    confidence: 0.92,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'kpi-ltv-cac': {
+    value: 4.2,
+    formattedValue: '4.2x',
+    trend: { direction: 'up', percentChange: 8, comparisonPeriod: 'vs 2024', positiveIsGood: true },
+    sparklineData: [
+      { period: 'Q1 24', value: 3.6 }, { period: 'Q2 24', value: 3.8 },
+      { period: 'Q3 24', value: 4.0 }, { period: 'Q4 24', value: 4.2 },
+    ],
+    status: 'healthy',
+    confidence: 0.90,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'kpi-nps': {
+    value: 52,
+    formattedValue: '52',
+    trend: { direction: 'up', percentChange: 6, comparisonPeriod: 'vs 2024', positiveIsGood: true },
+    sparklineData: [
+      { period: 'Q1 24', value: 45 }, { period: 'Q2 24', value: 47 },
+      { period: 'Q3 24', value: 50 }, { period: 'Q4 24', value: 52 },
+    ],
+    status: 'healthy',
+    confidence: 0.88,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-headcount-by-function': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { label: 'Engineering', value: 150 },
+        { label: 'Sales', value: 85 },
+        { label: 'Customer Success', value: 65 },
+        { label: 'Marketing', value: 45 },
+        { label: 'Product', value: 40 },
+        { label: 'G&A', value: 35 },
+        { label: 'Finance', value: 30 },
+      ]
+    },
+    status: 'healthy',
+    confidence: 0.98,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'panel-operational-insights': {
+    value: null,
+    formattedValue: '',
+    insights: [
+      { id: '1', type: 'positive', text: 'Magic Number at 1.2x (healthy)', query: 'What improved our magic number?' },
+      { id: '2', type: 'improving', text: 'Hiring on track: 94% of plan', query: 'Show hiring progress by department' },
+      { id: '3', type: 'positive', text: 'LTV/CAC at 4.2x', query: 'What is driving LTV improvement?' },
+      { id: '4', type: 'warning', text: 'Support ticket volume up 18%', query: 'What is causing increased tickets?' },
+      { id: '5', type: 'positive', text: 'NPS improved 6 points YoY', query: 'What drove the NPS improvement?' },
+    ],
+    status: 'healthy',
+    confidence: 0.85,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-utilization-rates': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { label: 'Professional Services', value: 82 },
+        { label: 'Support', value: 78 },
+        { label: 'Engineering', value: 85 },
+        { label: 'Customer Success', value: 88 },
+      ]
+    },
+    status: 'healthy',
+    confidence: 0.90,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-service-metrics': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { period: 'Q1', implementation: 45, timeToValue: 32 },
+        { period: 'Q2', implementation: 42, timeToValue: 28 },
+        { period: 'Q3', implementation: 38, timeToValue: 25 },
+        { period: 'Q4', implementation: 35, timeToValue: 22 },
+      ]
+    },
+    status: 'healthy',
+    confidence: 0.88,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-csat-trend': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { period: 'Jan', value: 4.2 },
+        { period: 'Feb', value: 4.3 },
+        { period: 'Mar', value: 4.2 },
+        { period: 'Apr', value: 4.4 },
+        { period: 'May', value: 4.3 },
+        { period: 'Jun', value: 4.5 },
+        { period: 'Jul', value: 4.4 },
+        { period: 'Aug', value: 4.5 },
+        { period: 'Sep', value: 4.6 },
+        { period: 'Oct', value: 4.5 },
+        { period: 'Nov', value: 4.6 },
+        { period: 'Dec', value: 4.7 },
+      ]
+    },
+    status: 'healthy',
+    confidence: 0.92,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'nlq-input': {
+    value: null,
+    formattedValue: '',
+    status: 'healthy',
+    confidence: 1,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+};
+
+/**
+ * Static CTO dashboard data - Technology Overview
+ */
+const STATIC_CTO_DATA: Record<string, TileData> = {
+  'kpi-uptime': {
+    value: 99.95,
+    formattedValue: '99.95%',
+    trend: { direction: 'up', percentChange: 0.02, comparisonPeriod: 'vs 2024', positiveIsGood: true },
+    sparklineData: [
+      { period: 'Q1 24', value: 99.90 }, { period: 'Q2 24', value: 99.92 },
+      { period: 'Q3 24', value: 99.94 }, { period: 'Q4 24', value: 99.95 },
+    ],
+    status: 'healthy',
+    confidence: 0.99,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'kpi-velocity': {
+    value: 65,
+    formattedValue: '65 pts',
+    trend: { direction: 'up', percentChange: 12, comparisonPeriod: 'vs 2024', positiveIsGood: true },
+    sparklineData: [
+      { period: 'Q1 24', value: 52 }, { period: 'Q2 24', value: 56 },
+      { period: 'Q3 24', value: 60 }, { period: 'Q4 24', value: 65 },
+    ],
+    status: 'healthy',
+    confidence: 0.92,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'kpi-deploys-week': {
+    value: 45,
+    formattedValue: '45/wk',
+    trend: { direction: 'up', percentChange: 28, comparisonPeriod: 'vs 2024', positiveIsGood: true },
+    sparklineData: [
+      { period: 'Q1 24', value: 28 }, { period: 'Q2 24', value: 32 },
+      { period: 'Q3 24', value: 38 }, { period: 'Q4 24', value: 45 },
+    ],
+    status: 'healthy',
+    confidence: 0.95,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'kpi-tech-debt': {
+    value: 15,
+    formattedValue: '15%',
+    trend: { direction: 'down', percentChange: 8, comparisonPeriod: 'vs 2024', positiveIsGood: true },
+    sparklineData: [
+      { period: 'Q1 24', value: 22 }, { period: 'Q2 24', value: 20 },
+      { period: 'Q3 24', value: 18 }, { period: 'Q4 24', value: 15 },
+    ],
+    status: 'healthy',
+    confidence: 0.88,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-platform-incidents': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { period: 'Jan', p1: 0, p2: 2 },
+        { period: 'Feb', p1: 1, p2: 1 },
+        { period: 'Mar', p1: 0, p2: 2 },
+        { period: 'Apr', p1: 0, p2: 1 },
+        { period: 'May', p1: 0, p2: 2 },
+        { period: 'Jun', p1: 1, p2: 1 },
+        { period: 'Jul', p1: 0, p2: 1 },
+        { period: 'Aug', p1: 0, p2: 2 },
+        { period: 'Sep', p1: 0, p2: 1 },
+        { period: 'Oct', p1: 0, p2: 1 },
+        { period: 'Nov', p1: 0, p2: 0 },
+        { period: 'Dec', p1: 0, p2: 1 },
+      ]
+    },
+    status: 'healthy',
+    confidence: 0.98,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'panel-tech-insights': {
+    value: null,
+    formattedValue: '',
+    insights: [
+      { id: '1', type: 'positive', text: 'Zero P1 incidents in Q4', query: 'What prevented P1 incidents?' },
+      { id: '2', type: 'improving', text: 'Deploy frequency up 28% YoY', query: 'What improved deployment velocity?' },
+      { id: '3', type: 'positive', text: 'Tech debt reduced to 15%', query: 'How was tech debt reduced?' },
+      { id: '4', type: 'improving', text: 'Test coverage now at 82%', query: 'Show test coverage by module' },
+      { id: '5', type: 'positive', text: 'MTTR down to 18 minutes', query: 'What improved incident response?' },
+    ],
+    status: 'healthy',
+    confidence: 0.90,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-code-quality': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { label: 'Test Coverage', value: 82, size: 40 },
+        { label: 'Code Review', value: 95, size: 25 },
+        { label: 'Lint Pass', value: 98, size: 15 },
+        { label: 'Build Success', value: 96, size: 20 },
+      ]
+    },
+    status: 'healthy',
+    confidence: 0.94,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-deployment-metrics': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { period: 'Jan', value: 94 },
+        { period: 'Feb', value: 95 },
+        { period: 'Mar', value: 93 },
+        { period: 'Apr', value: 96 },
+        { period: 'May', value: 97 },
+        { period: 'Jun', value: 95 },
+        { period: 'Jul', value: 98 },
+        { period: 'Aug', value: 97 },
+        { period: 'Sep', value: 98 },
+        { period: 'Oct', value: 99 },
+        { period: 'Nov', value: 98 },
+        { period: 'Dec', value: 99 },
+      ]
+    },
+    status: 'healthy',
+    confidence: 0.96,
+    loading: false,
+    error: null,
+    lastUpdated: new Date(),
+  },
+  'chart-cloud-cost': {
+    value: null,
+    formattedValue: '',
+    rawData: {
+      chartData: [
+        { label: 'Compute', value: 42000, size: 42 },
+        { label: 'Storage', value: 18000, size: 18 },
+        { label: 'Network', value: 12000, size: 12 },
+        { label: 'Database', value: 15000, size: 15 },
+        { label: 'Other', value: 8000, size: 8 },
+      ]
+    },
+    status: 'healthy',
+    confidence: 0.95,
     loading: false,
     error: null,
     lastUpdated: new Date(),
@@ -462,10 +967,17 @@ export const useDashboardData = (
       return;
     }
 
-    // Use static data for CFO dashboard - instant load!
-    // This avoids 10+ slow API calls
-    if (config.id === 'cfo-dashboard-v1') {
-      setData(STATIC_CFO_DATA);
+    // Use static data for all persona dashboards - instant load!
+    // This avoids 10+ slow API calls per dashboard
+    const staticDataMap: Record<string, Record<string, TileData>> = {
+      'cfo-dashboard-v1': STATIC_CFO_DATA,
+      'cro-dashboard-v1': STATIC_CRO_DATA,
+      'coo-dashboard-v1': STATIC_COO_DATA,
+      'cto-dashboard-v1': STATIC_CTO_DATA,
+    };
+
+    if (config.id in staticDataMap) {
+      setData(staticDataMap[config.id]);
       setLastRefreshed(new Date());
       setLoading(false);
       return;

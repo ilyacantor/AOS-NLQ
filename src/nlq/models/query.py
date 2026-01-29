@@ -8,9 +8,15 @@ Contains Pydantic models for:
 
 from datetime import date
 from enum import Enum
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class QueryMode(str, Enum):
+    """Query processing modes."""
+    STATIC = "static"  # Cache-only, no LLM fallback
+    AI = "ai"          # Cache + LLM fallback
 
 
 class QueryIntent(str, Enum):
@@ -45,11 +51,17 @@ class NLQRequest(BaseModel):
         description="Date context for relative references (e.g., 'last quarter'). Defaults to today."
     )
 
+    mode: QueryMode = Field(
+        default=QueryMode.AI,
+        description="Query mode: 'static' for cache-only, 'ai' for cache + LLM fallback"
+    )
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "question": "What was revenue last year?",
-                "reference_date": "2026-01-27"
+                "reference_date": "2026-01-27",
+                "mode": "ai"
             }
         }
     )

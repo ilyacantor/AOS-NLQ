@@ -25,7 +25,7 @@
         "format": "currency",
         "showSparkline": true,
         "showTrend": true,
-        "trendQuery": "Show monthly revenue for the last 12 months"
+        "trendQuery": "Show quarterly revenue for the last 4 quarters"
       }
     },
     {
@@ -36,59 +36,60 @@
         "label": "Gross Margin",
         "query": "What is gross margin percentage year to date?",
         "clickQuery": "What factors are affecting gross margin?",
-        "format": "percentage",
+        "format": "percent",
         "showSparkline": true,
         "showTrend": true,
-        "trendQuery": "Show monthly gross margin for the last 12 months"
+        "trendQuery": "Show quarterly gross margin for the last 4 quarters"
       }
     },
     {
-      "id": "kpi-burn-rate",
+      "id": "kpi-operating-margin",
       "type": "kpi",
       "position": { "x": 6, "y": 0, "w": 3, "h": 2 },
       "config": {
-        "label": "Burn Rate",
-        "query": "What is the current monthly burn rate?",
-        "clickQuery": "What are the largest contributors to burn rate?",
-        "format": "currency",
+        "label": "Operating Profit",
+        "query": "What is operating margin percentage year to date?",
+        "clickQuery": "What is driving operating margin this period?",
+        "format": "percent",
         "showSparkline": true,
         "showTrend": true,
-        "trendQuery": "Show monthly burn rate for the last 12 months"
+        "trendQuery": "Show quarterly operating margin for the last 4 quarters"
       }
     },
     {
-      "id": "kpi-runway",
+      "id": "kpi-net-income",
       "type": "kpi",
       "position": { "x": 9, "y": 0, "w": 3, "h": 2 },
       "config": {
-        "label": "Cash Runway",
-        "query": "How many months of runway do we have at current burn rate?",
-        "clickQuery": "What scenarios affect our runway projection?",
-        "format": "months",
-        "showSparkline": false,
+        "label": "Net Income",
+        "query": "What is net income percentage year to date?",
+        "clickQuery": "What is driving net income this period?",
+        "format": "percent",
+        "showSparkline": true,
         "showTrend": true,
-        "trendQuery": "Show runway projection over the last 6 months"
+        "trendQuery": "Show quarterly net income margin for the last 4 quarters"
       }
     },
     {
       "id": "chart-revenue-waterfall",
       "type": "chart",
-      "position": { "x": 0, "y": 2, "w": 8, "h": 4 },
+      "position": { "x": 0, "y": 2, "w": 6, "h": 2 },
       "config": {
         "chartType": "waterfall",
         "title": "Revenue Bridge",
         "query": "Show revenue waterfall from last year to this year by category",
         "clickQuery": "Explain the changes in {category}",
         "colorScheme": "financial",
-        "showLegend": true,
+        "showLegend": false,
         "showLabels": true,
-        "enableDrilldown": true
+        "enableDrilldown": true,
+        "compact": true
       }
     },
     {
       "id": "panel-insights",
       "type": "insights",
-      "position": { "x": 8, "y": 2, "w": 4, "h": 4 },
+      "position": { "x": 6, "y": 2, "w": 6, "h": 2 },
       "config": {
         "title": "AI Financial Insights",
         "query": "What are the top 5 financial insights and anomalies this period?",
@@ -102,7 +103,7 @@
     {
       "id": "chart-top-customers",
       "type": "chart",
-      "position": { "x": 0, "y": 6, "w": 4, "h": 3 },
+      "position": { "x": 0, "y": 4, "w": 4, "h": 3 },
       "config": {
         "chartType": "horizontalBar",
         "title": "Top 10 Customers by Revenue",
@@ -118,23 +119,22 @@
     {
       "id": "chart-expenses",
       "type": "chart",
-      "position": { "x": 4, "y": 6, "w": 4, "h": 3 },
+      "position": { "x": 4, "y": 4, "w": 4, "h": 3 },
       "config": {
-        "chartType": "donut",
+        "chartType": "horizontalBar",
         "title": "Expense Breakdown",
         "query": "Show expense breakdown by category year to date",
         "clickQuery": "Show detailed expenses for {category}",
         "colorScheme": "categorical",
-        "showLegend": true,
+        "showLegend": false,
         "showLabels": true,
-        "enableDrilldown": true,
-        "showPercentages": true
+        "enableDrilldown": true
       }
     },
     {
       "id": "chart-ar-aging",
       "type": "chart",
-      "position": { "x": 8, "y": 6, "w": 4, "h": 3 },
+      "position": { "x": 8, "y": 4, "w": 4, "h": 3 },
       "config": {
         "chartType": "stackedBar",
         "title": "Accounts Receivable Aging",
@@ -150,7 +150,7 @@
     {
       "id": "nlq-input",
       "type": "nlq",
-      "position": { "x": 0, "y": 9, "w": 12, "h": 1 },
+      "position": { "x": 0, "y": 7, "w": 12, "h": 1 },
       "config": {
         "placeholder": "Ask a financial question...",
         "suggestedQueries": [

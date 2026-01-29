@@ -30,7 +30,7 @@ export type TrendDirection = 'up' | 'down' | 'flat';
 /**
  * Available chart types for visualization tiles
  */
-export type ChartType = 'waterfall' | 'bar' | 'donut' | 'line' | 'stacked-bar' | 'horizontal-bar';
+export type ChartType = 'waterfall' | 'bar' | 'donut' | 'line' | 'stacked-bar' | 'horizontal-bar' | 'predictive-line';
 
 /**
  * Data format types for KPI display

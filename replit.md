@@ -69,8 +69,12 @@ src/
     ├── main.py             # FastAPI application entry point
     ├── api/
     │   └── routes.py       # API endpoints (/v1/query, /v1/intent-map)
+    ├── db/
+    │   ├── schema.sql      # Supabase table definitions with RLS
+    │   └── supabase_persistence.py  # Tenant-aware persistence service
     └── services/
-        └── intent_mapper.py # Claude-powered intent mapping logic
+        ├── intent_mapper.py    # Claude-powered intent mapping logic
+        └── llm_call_counter.py # Session statistics with persistence
 ```
 
 ### API Endpoints
@@ -115,6 +119,35 @@ The production build serves:
 ### Environment Variables
 - `SESSION_SECRET` - Session encryption key
 - `AI_INTEGRATIONS_OPENAI_API_KEY` - OpenAI/Anthropic API access (managed by Replit)
+- `SUPABASE_URL` - Supabase project URL (optional, for persistence)
+- `SUPABASE_KEY` - Supabase service role key (optional, for persistence)
+
+---
+
+## Multi-Tenant Persistence
+
+### Overview
+AOS-NLQ includes optional Supabase PostgreSQL persistence for RAG session management. When configured, sessions persist across server restarts and support multi-tenant deployments.
+
+### Tables (src/nlq/db/schema.sql)
+| Table | Purpose |
+|-------|---------|
+| `rag_sessions` | Browser session statistics (LLM calls, cached queries) |
+| `rag_cache_entries` | Query-to-intent cache with embeddings |
+| `rag_learning_log` | Query execution history for ML training |
+| `rag_feedback` | User feedback (thumbs up/down) |
+
+### Tenant Isolation
+- Default tenant: `00000000-0000-0000-0000-000000000001` (single-tenant mode)
+- All queries include explicit `tenant_id` filtering
+- RLS policies defined for future JWT-based multi-tenant auth
+- Service role key bypasses RLS (server-side ops)
+
+### Graceful Fallback
+When Supabase credentials are not configured:
+- System logs warning and continues with in-memory storage
+- All functionality works, but sessions don't persist across restarts
+- No errors shown to users (graceful degradation)
 
 ### Key Files
 - `vite.config.ts` - Vite dev server with proxy to backend
@@ -132,6 +165,24 @@ The production build serves:
 
 ---
 
+## Recent Changes (2026-01-29)
+- **Fixed Supabase persistence connection**: Resolved import path mismatch between `src.nlq...` and `nlq...` paths that caused separate module globals
+- **Fixed SUPABASE_API_URL preference**: Both `supabase_persistence.py` and `rag_learning_log.py` now correctly prefer SUPABASE_API_URL over SUPABASE_URL (which may be PostgreSQL connection string)
+- Added persona-specific dashboards: CRO (Revenue), COO (Operations), CTO (Technology)
+- Created PredictiveLineChart component with Recharts for shadow forecasts
+- Added InsightCard component for anomaly storytelling with AI-generated explanations
+- Implemented "Chat with this Chart" buttons on KPITile and ChartTile for conversational drill-down
+- Added ScenarioModelingPanel for CFO dashboard with interactive sliders and live KPI impact preview
+- Fixed all LSP/TypeScript errors in ChartTile (removed unused functions, fixed type issues)
+- Integrated all new components into the dashboard rendering pipeline
+- **Fixed BREAKDOWN_QUERY issues**: Added fallback metric derivation in executor for "What is driving..." style questions
+- Updated LLM prompts with driver-style breakdown query examples
+- Added BREAKDOWN_MAPPINGS for revenue, bookings, expenses, margins, pipeline, churn, and other key metrics
+- **Improved KPI sparklines**: Replaced squiggly line charts with clean quarterly bar charts (last 4 quarters, current quarter highlighted)
+- **Compacted Revenue Bridge**: Reduced from 8x4 to 6x2 grid position, moved insights panel alongside for better space utilization
+- **Updated CFO metrics for profitable company**: Replaced startup metrics (Burn Rate, Runway, LTV/CAC, Rule of 40) with Revenue, Gross Margin %, Operating Profit %, Net Income %
+- **Refactored Scenario Modeling Panel**: Now shows Revenue, Growth, Gross Margin, Operating Margin with sliders for Revenue Growth, Pricing/Mix, Headcount, OpEx Change
+
 ## Recent Changes (2026-01-28)
 - Added collapsible sidebar with toggle button
 - Set sidebar to collapse by default on load
@@ -145,3 +196,22 @@ The production build serves:
 - Implemented single server architecture (FastAPI serves React build)
 - Added Galaxy view visualization
 - Configured production deployment
+
+---
+
+## Dashboard Personas
+
+| Persona | Focus Area | Key KPIs |
+|---------|------------|----------|
+| CFO | Finance Overview | Revenue, Gross Margin, Burn Rate, Cash Runway, Rule of 40, LTV/CAC |
+| CRO | Revenue Overview | Bookings, Pipeline, Win Rate, Net Revenue Retention |
+| COO | Operations Overview | Headcount, Magic Number, LTV/CAC, NPS |
+| CTO | Technology Overview | Uptime, Velocity, Deploys/Week, Tech Debt |
+
+### Dashboard Components
+
+- **KPITile**: Key metric cards with sparklines, trend indicators, and chat drill-down
+- **ChartTile**: Visualization tiles supporting bar, line, pie, area, stacked-bar, waterfall, and predictive-line charts
+- **InsightsTile**: AI-generated insights with anomaly storytelling (enhanced mode uses InsightCard)
+- **PredictiveLineChart**: Recharts-based chart with historical (cyan) and forecast (purple dashed) data
+- **ScenarioModelingPanel**: CFO-only collapsible panel with sliders for scenario modeling

@@ -1,0 +1,167 @@
+{
+  "id": "cto-dashboard-v1",
+  "persona": "CTO",
+  "name": "Technology Overview",
+  "description": "Engineering and product metrics dashboard",
+  "refreshInterval": 300,
+  "timeRangeDefault": "YTD",
+  "timeRangeOptions": ["MTD", "QTD", "YTD", "L12M", "Custom"],
+
+  "layout": {
+    "type": "grid",
+    "columns": 12,
+    "rowHeight": 80
+  },
+
+  "tiles": [
+    {
+      "id": "kpi-uptime",
+      "type": "kpi",
+      "position": { "x": 0, "y": 0, "w": 3, "h": 2 },
+      "config": {
+        "label": "Uptime",
+        "query": "What is the platform uptime percentage for 2025?",
+        "clickQuery": "What incidents have affected uptime this period?",
+        "format": "percentage",
+        "showSparkline": true,
+        "showTrend": true,
+        "trendQuery": "Show monthly uptime trend for the last 12 months"
+      }
+    },
+    {
+      "id": "kpi-velocity",
+      "type": "kpi",
+      "position": { "x": 3, "y": 0, "w": 3, "h": 2 },
+      "config": {
+        "label": "Velocity",
+        "query": "What is the current velocity in story points for 2025?",
+        "clickQuery": "What factors are affecting team velocity?",
+        "format": "number",
+        "showSparkline": true,
+        "showTrend": true,
+        "trendQuery": "Show weekly velocity trend for the last 12 weeks"
+      }
+    },
+    {
+      "id": "kpi-deploys-week",
+      "type": "kpi",
+      "position": { "x": 6, "y": 0, "w": 3, "h": 2 },
+      "config": {
+        "label": "Deploys/Week",
+        "query": "How many deployments per week did we have in 2025?",
+        "clickQuery": "What was deployed in recent releases?",
+        "format": "number",
+        "showSparkline": true,
+        "showTrend": true,
+        "trendQuery": "Show weekly deployment count for the last 12 weeks"
+      }
+    },
+    {
+      "id": "kpi-tech-debt",
+      "type": "kpi",
+      "position": { "x": 9, "y": 0, "w": 3, "h": 2 },
+      "config": {
+        "label": "Tech Debt",
+        "query": "What is the current technical debt percentage for 2025?",
+        "clickQuery": "What are the largest areas of technical debt?",
+        "format": "percentage",
+        "showSparkline": true,
+        "showTrend": true,
+        "trendQuery": "Show monthly tech debt trend for the last 12 months"
+      }
+    },
+    {
+      "id": "chart-platform-incidents",
+      "type": "chart",
+      "position": { "x": 0, "y": 2, "w": 8, "h": 4 },
+      "config": {
+        "chartType": "line",
+        "title": "Platform Incidents",
+        "query": "Show P1 and P2 incidents over time",
+        "clickQuery": "What caused the {severity} incident on {date}?",
+        "colorScheme": "categorical",
+        "showLegend": true,
+        "showLabels": true,
+        "enableDrilldown": true
+      }
+    },
+    {
+      "id": "panel-tech-insights",
+      "type": "insights",
+      "position": { "x": 8, "y": 2, "w": 4, "h": 4 },
+      "config": {
+        "title": "AI Tech Insights",
+        "query": "What are the top 5 engineering insights and blockers this period?",
+        "refreshInterval": 600,
+        "maxItems": 5,
+        "showSeverity": true,
+        "showActionable": true,
+        "categories": ["performance", "reliability", "quality", "security", "deployment"]
+      }
+    },
+    {
+      "id": "chart-code-quality",
+      "type": "chart",
+      "position": { "x": 0, "y": 6, "w": 4, "h": 3 },
+      "config": {
+        "chartType": "bar",
+        "title": "Code Quality",
+        "query": "Show code coverage and bug metrics",
+        "clickQuery": "Show detailed metrics for {repository}",
+        "colorScheme": "categorical",
+        "showLegend": false,
+        "showLabels": true,
+        "enableDrilldown": true
+      }
+    },
+    {
+      "id": "chart-deployment-metrics",
+      "type": "chart",
+      "position": { "x": 4, "y": 6, "w": 4, "h": 3 },
+      "config": {
+        "chartType": "line",
+        "title": "Deployment Metrics",
+        "query": "Show deployment success rate trend",
+        "clickQuery": "What caused failed deployments in {period}?",
+        "colorScheme": "categorical",
+        "showLegend": false,
+        "showLabels": true,
+        "enableDrilldown": true
+      }
+    },
+    {
+      "id": "chart-cloud-cost",
+      "type": "chart",
+      "position": { "x": 8, "y": 6, "w": 4, "h": 3 },
+      "config": {
+        "chartType": "bar",
+        "title": "Cloud Cost",
+        "query": "Show cloud spend by service",
+        "clickQuery": "Show detailed costs for {service}",
+        "colorScheme": "categorical",
+        "showLegend": false,
+        "showLabels": true,
+        "enableDrilldown": true
+      }
+    },
+    {
+      "id": "nlq-input",
+      "type": "nlq",
+      "position": { "x": 0, "y": 9, "w": 12, "h": 1 },
+      "config": {
+        "placeholder": "Ask an engineering question...",
+        "suggestedQueries": [
+          "What is our system reliability trend?",
+          "Show deployment frequency by team",
+          "What are the top blocking issues?",
+          "How much technical debt did we pay down?",
+          "What is our code quality baseline?"
+        ],
+        "showHistory": true,
+        "maxHistoryItems": 10,
+        "enableVoice": false,
+        "autoComplete": true
+      }
+    }
+  ]
+}

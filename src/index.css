@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@layer theme {
+  :root {
+    --color-autonomous-cyan: #0bcad9;
+  }
+}
+
 body {
   background-color: #020617;
   color: #e2e8f0;

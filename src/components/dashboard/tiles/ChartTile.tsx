@@ -1,5 +1,7 @@
 import React from 'react';
 import { ChartType } from '../../../types/dashboard';
+import ExternalStackedBarChart from '../charts/StackedBarChart';
+import PredictiveLineChart from '../charts/PredictiveLineChart';
 
 /**
  * Props for the ChartTile component
@@ -21,6 +23,10 @@ export interface ChartTileProps {
   showLegend?: boolean;
   /** Custom color palette */
   colorPalette?: string[];
+  /** Callback when chat button is clicked */
+  onChat?: (query: string) => void;
+  /** Pre-filled chat query for this chart */
+  chatQuery?: string;
 }
 
 /**
@@ -83,15 +89,15 @@ const HorizontalBarChart: React.FC<{
   const maxValue = Math.max(...data.map((d) => d.value), 1);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1 overflow-y-auto h-full" style={{ maxHeight: 'calc(100% - 8px)' }}>
       {data.map((item, index) => (
         <div
           key={item.label}
-          className="flex items-center gap-3 cursor-pointer hover:bg-slate-700/30 rounded p-1 -mx-1 transition-colors"
+          className="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 rounded px-1 py-0.5 -mx-1 transition-colors"
           onClick={() => onClick?.(item.label)}
         >
-          <span className="text-slate-400 text-xs w-24 truncate">{item.label}</span>
-          <div className="flex-1 h-4 bg-slate-700 rounded overflow-hidden">
+          <span className="text-slate-400 text-xs w-28 truncate flex-shrink-0">{item.label}</span>
+          <div className="flex-1 h-3 bg-slate-700 rounded overflow-hidden min-w-0">
             <div
               className="h-full rounded transition-all duration-300"
               style={{
@@ -100,7 +106,7 @@ const HorizontalBarChart: React.FC<{
               }}
             />
           </div>
-          <span className="text-slate-300 text-xs font-mono w-16 text-right">
+          <span className="text-slate-300 text-xs font-mono w-14 text-right flex-shrink-0">
             {formatNumber(item.value)}
           </span>
         </div>
@@ -111,38 +117,50 @@ const HorizontalBarChart: React.FC<{
 
 /**
  * Simple vertical bar chart implementation
+ * Supports optional 'size' property to scale bar heights proportionally
  */
 const BarChart: React.FC<{
-  data: Array<{ label: string; value: number }>;
+  data: Array<{ label: string; value: number; size?: number }>;
   onClick?: (label: string) => void;
   colors: string[];
 }> = ({ data, onClick, colors }) => {
-  const maxValue = Math.max(...data.map((d) => d.value), 1);
+  // Check if any item has a 'size' property for proportional height rendering
+  const hasSize = data.length > 0 && data.some((d) => typeof d.size === 'number' && d.size > 0);
+  const maxSize = hasSize 
+    ? Math.max(...data.map((d) => (typeof d.size === 'number' ? d.size : 0)), 1) 
+    : Math.max(...data.map((d) => d.value), 1);
+
+  // Calculate the max bar height in pixels (container is 128px minus labels)
+  const maxBarHeight = 100; // pixels
 
   return (
     <div className="flex items-end justify-around h-32 gap-1">
-      {data.map((item, index) => (
-        <div
-          key={item.label}
-          className="flex flex-col items-center flex-1 cursor-pointer group"
-          onClick={() => onClick?.(item.label)}
-        >
-          <span className="text-slate-400 text-xs mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {formatNumber(item.value)}
-          </span>
+      {data.map((item, index) => {
+        const heightValue = hasSize ? (typeof item.size === 'number' ? item.size : 0) : item.value;
+        const barHeight = Math.max((heightValue / maxSize) * maxBarHeight, 4); // Min 4px
+        
+        return (
           <div
-            className="w-full rounded-t transition-all duration-300 group-hover:opacity-80"
-            style={{
-              height: `${(item.value / maxValue) * 100}%`,
-              backgroundColor: colors[index % colors.length],
-              minHeight: '4px',
-            }}
-          />
-          <span className="text-slate-500 text-xs mt-1 truncate max-w-full">
-            {item.label}
-          </span>
-        </div>
-      ))}
+            key={item.label}
+            className="flex flex-col items-center justify-end flex-1 cursor-pointer group h-full"
+            onClick={() => onClick?.(item.label)}
+          >
+            <span className="text-slate-400 text-xs mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {hasSize ? `${item.value}%` : formatNumber(item.value)}
+            </span>
+            <div
+              className="w-full rounded-t transition-all duration-300 group-hover:opacity-80"
+              style={{
+                height: `${barHeight}px`,
+                backgroundColor: colors[index % colors.length],
+              }}
+            />
+            <span className="text-slate-500 text-xs mt-1 truncate max-w-full">
+              {item.label}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -240,115 +258,167 @@ const DonutChart: React.FC<{
 };
 
 /**
- * Simple waterfall chart implementation
+ * Waterfall chart colors
+ */
+const WATERFALL_COLORS = {
+  increase: '#10B981', // green
+  decrease: '#EF4444', // red
+  total: '#3B82F6',    // blue
+};
+
+/**
+ * Proper waterfall chart implementation with SVG
+ * Shows connector lines between bars and proper floating segments
  */
 const WaterfallChart: React.FC<{
   data: Array<{ label: string; value: number; type?: 'increase' | 'decrease' | 'total' }>;
   onClick?: (label: string) => void;
   colors: string[];
-}> = ({ data, onClick, colors }) => {
-  // Calculate running total and positions
+}> = ({ data, onClick }) => {
+  // Calculate running totals and bar positions
   let runningTotal = 0;
   const chartData = data.map((item, index) => {
-    const isTotal = item.type === 'total' || index === 0 || index === data.length - 1;
-    const start = isTotal ? 0 : runningTotal;
-    const height = Math.abs(item.value);
+    let start: number;
+    let end: number;
+    const type = (item.type || (item.value >= 0 ? 'increase' : 'decrease')) as 'increase' | 'decrease' | 'total';
 
-    if (!isTotal) {
-      runningTotal += item.value;
-    } else if (index === 0) {
+    if (type === 'total') {
+      start = 0;
+      end = item.value;
       runningTotal = item.value;
+    } else if (type === 'increase') {
+      start = runningTotal;
+      end = runningTotal + Math.abs(item.value);
+      runningTotal = end;
+    } else { // decrease
+      end = runningTotal;
+      start = runningTotal - Math.abs(item.value);
+      runningTotal = start;
     }
 
     return {
       ...item,
-      start,
-      height,
-      isPositive: item.value >= 0,
-      isTotal,
+      index,
+      type,
+      start: Math.min(start, end),
+      end: Math.max(start, end),
+      barStart: type === 'decrease' ? Math.min(start, end) : Math.min(start, end),
+      barEnd: type === 'decrease' ? Math.max(start, end) : Math.max(start, end),
+      connectorY: type === 'total' ? end : (type === 'decrease' ? start : end),
     };
   });
 
-  const maxValue = Math.max(...chartData.map((d) => d.start + d.height), 1);
+  // Calculate scale
+  const allValues = chartData.flatMap((d) => [d.start, d.end]);
+  const maxValue = Math.max(...allValues, 0);
+  const minValue = Math.min(...allValues, 0);
+  const range = maxValue - minValue || 1;
+
+  // SVG dimensions
+  const padding = { top: 20, right: 10, bottom: 35, left: 10 };
+  const chartWidth = 100;
+  const chartHeight = 80;
+  const barCount = chartData.length;
+  const barWidth = (chartWidth - padding.left - padding.right) / barCount;
+  const barPadding = barWidth * 0.2;
+
+  const scaleY = (value: number): number => {
+    return padding.top + ((maxValue - value) / range) * (chartHeight - padding.top - padding.bottom);
+  };
+
+  const formatValue = (value: number): string => {
+    const absValue = Math.abs(value);
+    if (absValue >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+    if (absValue >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+    return `$${value.toFixed(0)}`;
+  };
 
   return (
-    <div className="flex items-end justify-around h-32 gap-1">
-      {chartData.map((item) => (
-        <div
-          key={item.label}
-          className="flex flex-col items-center flex-1 cursor-pointer group relative h-full"
-          onClick={() => onClick?.(item.label)}
-        >
-          <div className="absolute bottom-6 w-full flex flex-col-reverse" style={{ height: 'calc(100% - 24px)' }}>
-            <div
-              className="w-full rounded transition-all duration-300 group-hover:opacity-80"
-              style={{
-                marginBottom: `${(item.start / maxValue) * 100}%`,
-                height: `${(item.height / maxValue) * 100}%`,
-                backgroundColor: item.isTotal
-                  ? colors[0]
-                  : item.isPositive
-                    ? '#10B981'
-                    : '#EF4444',
-                minHeight: '4px',
-              }}
-            />
-          </div>
-          <span className="absolute bottom-0 text-slate-500 text-xs truncate max-w-full">
-            {item.label}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-};
+    <div className="w-full h-full flex flex-col">
+      <svg
+        viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+        className="w-full flex-1"
+        preserveAspectRatio="xMidYMid meet"
+      >
+        {/* Bars and connectors */}
+        {chartData.map((bar, i) => {
+          const x = padding.left + i * barWidth + barPadding / 2;
+          const width = barWidth - barPadding;
+          const y = scaleY(bar.end);
+          const height = Math.abs(scaleY(bar.start) - scaleY(bar.end)) || 2;
 
-/**
- * Simple stacked bar chart implementation
- */
-const StackedBarChart: React.FC<{
-  data: Array<{ label: string; values: Array<{ name: string; value: number }> }>;
-  onClick?: (label: string) => void;
-  colors: string[];
-}> = ({ data, onClick, colors }) => {
-  const maxTotal = Math.max(
-    ...data.map((d) => d.values.reduce((sum, v) => sum + v.value, 0)),
-    1
-  );
-
-  return (
-    <div className="flex items-end justify-around h-32 gap-1">
-      {data.map((item) => {
-        const total = item.values.reduce((sum, v) => sum + v.value, 0);
-        return (
-          <div
-            key={item.label}
-            className="flex flex-col items-center flex-1 cursor-pointer group"
-            onClick={() => onClick?.(item.label)}
-          >
-            <div
-              className="w-full flex flex-col-reverse rounded-t overflow-hidden transition-all duration-300 group-hover:opacity-80"
-              style={{ height: `${(total / maxTotal) * 100}%`, minHeight: '4px' }}
-            >
-              {item.values.map((segment, segmentIndex) => (
-                <div
-                  key={segment.name}
-                  style={{
-                    height: `${(segment.value / total) * 100}%`,
-                    backgroundColor: colors[segmentIndex % colors.length],
-                  }}
+          return (
+            <g key={i}>
+              {/* Connector line to next bar */}
+              {i < chartData.length - 1 && (
+                <line
+                  x1={x + width}
+                  y1={scaleY(bar.connectorY)}
+                  x2={padding.left + (i + 1) * barWidth + barPadding / 2}
+                  y2={scaleY(bar.connectorY)}
+                  stroke="#475569"
+                  strokeWidth="0.3"
+                  strokeDasharray="1,0.5"
                 />
-              ))}
-            </div>
-            <span className="text-slate-500 text-xs mt-1 truncate max-w-full">
-              {item.label}
-            </span>
-          </div>
-        );
-      })}
+              )}
+
+              {/* Bar */}
+              <rect
+                x={x}
+                y={y}
+                width={width}
+                height={height}
+                fill={WATERFALL_COLORS[bar.type as keyof typeof WATERFALL_COLORS]}
+                rx="0.8"
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => onClick?.(bar.label)}
+              />
+
+              {/* Value label above bar */}
+              <text
+                x={x + width / 2}
+                y={y - 2}
+                textAnchor="middle"
+                className="fill-slate-300 font-medium"
+                style={{ fontSize: '2.5px' }}
+              >
+                {bar.type === 'decrease' ? '-' : ''}{formatValue(Math.abs(bar.value))}
+              </text>
+
+              {/* X-axis label */}
+              <text
+                x={x + width / 2}
+                y={chartHeight - padding.bottom + 5}
+                textAnchor="middle"
+                className="fill-slate-400"
+                style={{ fontSize: '2.5px' }}
+              >
+                {bar.label.length > 10 ? bar.label.substring(0, 10) : bar.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Legend */}
+      <div className="flex justify-center gap-3 mt-1 flex-shrink-0">
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded" style={{ backgroundColor: WATERFALL_COLORS.increase }} />
+          <span className="text-[10px] text-slate-400">Increase</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded" style={{ backgroundColor: WATERFALL_COLORS.decrease }} />
+          <span className="text-[10px] text-slate-400">Decrease</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded" style={{ backgroundColor: WATERFALL_COLORS.total }} />
+          <span className="text-[10px] text-slate-400">Total</span>
+        </div>
+      </div>
     </div>
   );
 };
+
 
 /**
  * Format a number for display
@@ -366,16 +436,32 @@ function formatNumber(value: number): string {
 
 /**
  * Normalize data from various formats to a standard format
+ * Preserves special fields like 'type' for waterfall charts and 'size' for proportional bar charts
  */
-function normalizeChartData(data: any): Array<{ label: string; value: number }> {
+function normalizeChartData(data: any): Array<{ label: string; value: number; type?: 'increase' | 'decrease' | 'total'; color?: string; size?: number }> {
   if (!data) return [];
 
   // Handle array of objects with label/value
   if (Array.isArray(data)) {
-    return data.map((item) => ({
-      label: item.label || item.name || item.category || String(item.key || ''),
-      value: Number(item.value) || 0,
-    }));
+    return data.map((item) => {
+      const normalized: { label: string; value: number; type?: 'increase' | 'decrease' | 'total'; color?: string; size?: number } = {
+        label: item.label || item.name || item.category || String(item.key || ''),
+        value: Number(item.value) || 0,
+      };
+      // Preserve type for waterfall charts (increase/decrease/total)
+      if (item.type && ['increase', 'decrease', 'total'].includes(item.type)) {
+        normalized.type = item.type as 'increase' | 'decrease' | 'total';
+      }
+      // Preserve color if specified
+      if (item.color) {
+        normalized.color = item.color;
+      }
+      // Preserve size for proportional bar charts
+      if (item.size !== undefined) {
+        normalized.size = Number(item.size) || 0;
+      }
+      return normalized;
+    });
   }
 
   // Handle object with keys as labels
@@ -388,6 +474,15 @@ function normalizeChartData(data: any): Array<{ label: string; value: number }> 
 
   return [];
 }
+
+/**
+ * Check if data is in stacked bar format (has segments array)
+ */
+function isStackedBarData(data: any): data is Array<{ label: string; segments: Array<{ label: string; value: number }> }> {
+  if (!Array.isArray(data) || data.length === 0) return false;
+  return data[0] && Array.isArray(data[0].segments);
+}
+
 
 /**
  * ChartTile - Wrapper component that selects the appropriate chart visualization
@@ -406,14 +501,19 @@ export const ChartTile: React.FC<ChartTileProps> = ({
   // showLegend is available for future use when implementing legend display
   showLegend: _showLegend = true,
   colorPalette = DEFAULT_COLORS,
+  onChat,
+  chatQuery,
 }) => {
   // Show loading skeleton
   if (loading) {
     return <ChartSkeleton height={height} />;
   }
 
+  // Extract chart data from nested structure (rawData may contain { chartData: [...] })
+  const rawChartData = data?.chartData || data;
+
   // Normalize chart data
-  const normalizedData = normalizeChartData(data);
+  const normalizedData = normalizeChartData(rawChartData);
 
   // Show empty state if no data
   if (!normalizedData || normalizedData.length === 0) {
@@ -460,17 +560,19 @@ export const ChartTile: React.FC<ChartTileProps> = ({
         );
 
       case 'stacked-bar':
-        // For stacked bar, we need a different data format
-        // If the data doesn't match, fall back to regular bar
-        if (normalizedData[0] && 'values' in normalizedData[0]) {
+        // For stacked bar, use the full-featured external component
+        // which supports segments format and has proper tooltips/legend
+        if (isStackedBarData(rawChartData)) {
           return (
-            <StackedBarChart
-              data={normalizedData as any}
-              onClick={onClick}
-              colors={colorPalette}
-            />
+            <div className="h-full" style={{ minHeight: '200px' }}>
+              <ExternalStackedBarChart
+                data={rawChartData}
+                onClick={onClick}
+              />
+            </div>
           );
         }
+        // Fall back to regular bar if data doesn't have segments
         return (
           <BarChart
             data={normalizedData}
@@ -481,6 +583,51 @@ export const ChartTile: React.FC<ChartTileProps> = ({
 
       case 'line':
         // Line chart - render as bar for now (can be enhanced later)
+        return (
+          <BarChart
+            data={normalizedData}
+            onClick={onClick}
+            colors={colorPalette}
+          />
+        );
+
+      case 'predictive-line':
+        // Check if data contains forecast information
+        const hasHistoricalData = Array.isArray(rawChartData) && rawChartData.length > 0;
+        const hasForecast = Array.isArray(rawChartData) && rawChartData.some((item: any) => item.forecast !== undefined);
+        
+        if (hasHistoricalData) {
+          const historicalData = Array.isArray(rawChartData) 
+            ? rawChartData.map((item: any) => ({
+                period: item.period || item.label || item.name || '',
+                value: item.value || 0,
+              }))
+            : [];
+          
+          const forecastData = hasForecast
+            ? rawChartData
+                .filter((item: any) => item.forecast !== undefined)
+                .map((item: any) => ({
+                  period: item.period || item.label || item.name || '',
+                  value: item.forecast,
+                  confidence: item.confidence,
+                }))
+            : undefined;
+
+          return (
+            <PredictiveLineChart
+              title={title}
+              historicalData={historicalData}
+              forecastData={forecastData}
+              onClick={onClick}
+              onChat={onChat}
+              chatQuery={chatQuery}
+              height={height}
+              showLegend={true}
+            />
+          );
+        }
+        // Fall back to bar chart if no data
         return (
           <BarChart
             data={normalizedData}
@@ -505,7 +652,56 @@ export const ChartTile: React.FC<ChartTileProps> = ({
       className="bg-slate-800 rounded-xl p-4 h-full flex flex-col"
       style={{ minHeight: height }}
     >
-      <h3 className="text-slate-200 font-semibold text-sm mb-4">{title}</h3>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <h3 className="text-slate-200 font-semibold text-sm">{title}</h3>
+        {onChat && chatQuery && (
+          <button
+            onClick={() => onChat(chatQuery)}
+            className="
+              px-3
+              py-1.5
+              text-sm
+              text-slate-400
+              hover:bg-slate-700/50
+              transition-all
+              duration-200
+              rounded-md
+              flex items-center gap-1.5
+              focus:outline-none
+              flex-shrink-0
+            "
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#0bcad9';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'rgb(148, 163, 184)';
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.boxShadow = '0 0 0 2px rgba(11, 202, 217, 0.5), 0 0 0 4px rgba(1, 6, 23, 1)';
+              e.currentTarget.style.outlineStyle = 'none';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+            title="Ask questions about this chart"
+            aria-label="Chat about this chart"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            <span>Chat</span>
+          </button>
+        )}
+      </div>
       <div className="flex-1">{renderChart()}</div>
     </div>
   );

@@ -114,6 +114,48 @@ class ClaudeClient:
 
         return content.strip()
 
+    def get_breakdown_components(self, metric: str) -> list[str]:
+        """
+        Ask Claude what metrics drive/compose a given metric.
+
+        This is used as a fallback when BREAKDOWN_MAPPINGS doesn't have
+        a predefined mapping for a metric.
+
+        Args:
+            metric: The metric to get breakdown components for
+
+        Returns:
+            List of component metric names that drive the given metric
+        """
+        prompt = f"""Given the financial/business metric "{metric}", what are the key component metrics or drivers that would explain changes in this metric?
+
+Return a JSON array of 3-5 canonical metric names (snake_case) that are commonly used to break down or explain this metric.
+
+Example for "revenue": ["new_logo_revenue", "expansion_revenue", "renewal_revenue", "churn_revenue"]
+Example for "accounts_receivable": ["ar_current", "ar_30_days", "ar_60_days", "ar_90_plus_days"]
+Example for "customer_acquisition_cost": ["marketing_spend", "sales_spend", "new_customers"]
+
+Return ONLY the JSON array, no explanation."""
+
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=200,
+                messages=[{"role": "user", "content": prompt}]
+            )
+
+            content = response.content[0].text.strip()  # type: ignore
+            content = self._clean_json_response(content)
+
+            components = json.loads(content)
+            if isinstance(components, list):
+                logger.info(f"LLM breakdown for '{metric}': {components}")
+                return components
+            return []
+        except Exception as e:
+            logger.warning(f"Failed to get LLM breakdown for '{metric}': {e}")
+            return []
+
     def health_check(self) -> bool:
         """
         Check if the Claude API is accessible.
@@ -122,7 +164,6 @@ class ClaudeClient:
             True if API is reachable and authenticated
         """
         try:
-            # Make a minimal API call
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=10,

@@ -272,6 +272,35 @@ PERSONA_VOICES = {
 # OFF-TOPIC RESPONSES
 # =============================================================================
 
+# =============================================================================
+# STUMPED RESPONSES - When we truly can't help
+# =============================================================================
+
+STUMPED_RESPONSES = [
+    "I'm scratching my silicon head here. Try rephrasing?",
+    "That one stumped me. I'm better with things like 'revenue' or 'pipeline'.",
+    "Hmm, my circuits are confused. Try asking about a metric?",
+    "I've searched my entire knowledge base and came up empty. What metric are you looking for?",
+    "Not gonna lie, I have no idea what that means. But I do know revenue is $200M!",
+    "You broke me. Just kidding. But seriously, try 'what's revenue?' or 'how's pipeline?'",
+    "I'm stumped! Maybe try: revenue, margin, bookings, churn, or headcount?",
+    "My training didn't cover that one. Ask me about business metrics?",
+    "Beep boop... error... just kidding. Try a different question?",
+    "I'm lost, but I'll never admit it. (Okay, I just admitted it.)",
+    "404: Answer not found. But my jokes are still working!",
+    "Even my backup systems are confused. Let's try a simpler question?",
+    "I'm a finance nerd, not a mind reader. Help me help you?",
+    "That's above my pay grade. Which is $0. I'm a bot. Anyway, try 'revenue'?",
+    "My developers didn't teach me that one. They did teach me about margins though!",
+]
+
+STUMPED_WITH_SUGGESTIONS = [
+    "I'm not sure what you mean, but here are some things I'm great at:\n• 'What's revenue?'\n• 'How's pipeline looking?'\n• 'Show me the CFO dashboard'",
+    "Hmm, that's a head-scratcher. Try asking me about:\n• Revenue, bookings, or ARR\n• Pipeline or churn\n• Any of the dashboards (CFO, CRO, COO, CTO)",
+    "I'm stumped! But I can definitely help with:\n• Financial metrics (revenue, margin, profit)\n• Sales metrics (pipeline, bookings, win rate)\n• Or try 'show me KPIs'",
+]
+
+
 OFF_TOPIC_RESPONSES = {
     "greetings": [
         "Speak, human.",
@@ -482,6 +511,13 @@ def check_easter_egg(question: str) -> Optional[str]:
             return response
 
     return None
+
+
+def get_stumped_response(include_suggestions: bool = False) -> str:
+    """Get a friendly, cutesy response when we're truly stumped."""
+    if include_suggestions:
+        return random.choice(STUMPED_WITH_SUGGESTIONS)
+    return random.choice(STUMPED_RESPONSES)
 
 
 # =============================================================================
