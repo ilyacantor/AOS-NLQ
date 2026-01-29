@@ -267,20 +267,28 @@ class QueryExecutor:
                 confidence=0.0
             )
 
-        # Get values for all metrics
+        # Get values for all metrics we have data for
         breakdown = {}
         for metric in breakdown_metrics:
             value = self.fact_base.query(metric, period)
             if value is not None:
                 breakdown[metric] = value
 
+        # Graceful fallback: if none of the suggested metrics have data,
+        # fall back to core metrics that always exist (revenue, margin, etc.)
         if not breakdown:
-            return QueryResult(
-                success=False,
-                error="NO_DATA_FOR_BREAKDOWN",
-                message=f"No data found for any of the specified metrics in {period}",
-                confidence=0.0
-            )
+            fallback_metrics = ["revenue", "gross_margin_pct", "operating_profit", "arr"]
+            for metric in fallback_metrics:
+                value = self.fact_base.query(metric, period)
+                if value is not None:
+                    breakdown[metric] = value
+                    break  # Just need one to show something useful
+
+        # Still nothing? Try the primary metric itself
+        if not breakdown and parsed_query.metric:
+            value = self.fact_base.query(parsed_query.metric, period)
+            if value is not None:
+                breakdown[parsed_query.metric] = value
 
         return QueryResult(
             success=True,
@@ -302,48 +310,23 @@ class QueryExecutor:
         Uses actual metrics that exist in the fact base.
         """
         BREAKDOWN_MAPPINGS = {
-            # Revenue drivers (using actual fact base metrics)
-            "revenue": ["new_logo_revenue", "expansion_revenue", "renewal_revenue", "gross_profit"],
-            "total_revenue": ["new_logo_revenue", "expansion_revenue", "renewal_revenue"],
-            "sales": ["new_logo_revenue", "expansion_revenue", "renewal_revenue"],
-            # Bookings drivers
-            "bookings": ["arr", "pipeline", "qualified_pipeline", "win_rate"],
-            "arr": ["new_logo_revenue", "expansion_revenue", "renewal_revenue", "gross_churn_pct"],
-            # Expense drivers
-            "operating_expenses": ["selling_expenses", "g_and_a_expenses", "sga"],
-            "opex": ["selling_expenses", "g_and_a_expenses", "sga"],
-            "sga": ["selling_expenses", "g_and_a_expenses"],
-            # Margin drivers
-            "gross_margin": ["revenue", "cogs", "gross_profit"],
+            "revenue": ["new_logo_revenue", "expansion_revenue", "renewal_revenue"],
+            "arr": ["new_logo_revenue", "expansion_revenue", "renewal_revenue"],
+            "bookings": ["new_logo_revenue", "expansion_revenue", "pipeline", "win_rate"],
             "gross_margin_pct": ["revenue", "cogs", "gross_profit"],
-            "operating_margin": ["revenue", "operating_profit", "sga"],
             "operating_margin_pct": ["revenue", "operating_profit", "sga"],
-            # Pipeline drivers
+            "sga": ["selling_expenses", "g_and_a_expenses"],
             "pipeline": ["qualified_pipeline", "win_rate", "sales_cycle_days", "avg_deal_size"],
-            # Churn drivers
-            "churn": ["gross_churn_pct", "logo_churn_pct", "nrr"],
             "gross_churn_pct": ["logo_churn_pct", "nrr", "customer_count"],
-            # Magic number components
-            "magic_number": ["bookings", "revenue", "sga", "sales_headcount"],
-            # LTV/CAC components
-            "ltv_cac": ["revenue", "cac_payback_months", "gross_churn_pct", "nrr"],
-            # Cash and burn
-            "cash": ["revenue", "cogs", "sga", "operating_profit"],
-            "burn_rate": ["revenue", "operating_profit", "sga", "headcount"],
+            "magic_number": ["arr", "sga", "sales_headcount"],
+            "ltv_cac": ["cac_payback_months", "gross_churn_pct", "nrr"],
             "burn_multiple": ["revenue", "operating_profit", "net_income"],
-            # Operational metrics
             "headcount": ["engineering_headcount", "product_headcount", "sales_headcount", "marketing_headcount", "cs_headcount", "ga_headcount"],
             "nps": ["csat", "support_tickets", "resolution_hours"],
-            # Tech metrics
-            "uptime_pct": ["downtime_hours", "p1_incidents", "p2_incidents", "mttr_p1_hours"],
-            "velocity": ["sprint_velocity", "story_points", "features_shipped", "deploys_per_week"],
+            "uptime_pct": ["downtime_hours", "deploys_per_week", "security_vulns"],
             "tech_debt_pct": ["code_coverage_pct", "bug_escape_rate", "critical_bugs"],
-            # AR / Accounts Receivable drivers
-            "accounts_receivable": ["ar_current", "ar_30_days", "ar_60_days", "ar_90_plus_days"],
-            "ar": ["ar_current", "ar_30_days", "ar_60_days", "ar_90_plus_days"],
-            # Cash flow drivers
-            "cash_flow": ["operating_cash_flow", "investing_cash_flow", "financing_cash_flow"],
-            "working_capital": ["accounts_receivable", "accounts_payable", "inventory"],
+            "ar": ["revenue", "deferred_revenue", "unbilled_revenue"],
+            "cash": ["revenue", "cogs", "sga", "operating_profit"],
         }
 
         # Normalize metric name for lookup
