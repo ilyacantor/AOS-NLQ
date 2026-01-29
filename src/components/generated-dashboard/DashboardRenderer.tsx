@@ -520,7 +520,7 @@ export function DashboardRenderer({
             {schema.widgets.map(widget => (
               <div
                 key={widget.id}
-                className={`${isEditMode ? 'ring-2 ring-cyan-500/50 ring-offset-2 ring-offset-slate-950' : ''}`}
+                className={`h-full ${isEditMode ? 'ring-2 ring-cyan-500/50 ring-offset-2 ring-offset-slate-950' : ''}`}
               >
                 <WidgetRenderer
                   widget={widget}
