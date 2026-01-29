@@ -85,7 +85,8 @@ export const RAGLearningPanel: React.FC<RAGLearningPanelProps> = ({
 
   const fetchData = useCallback(async () => {
     try {
-      const url = new URL('/api/v1/rag/learning/log', window.location.origin);
+      // Use DB endpoint for persistent history that survives server restarts
+      const url = new URL('/api/v1/rag/learning/log/db', window.location.origin);
       url.searchParams.set('limit', maxEntries.toString());
       if (persona) {
         url.searchParams.set('persona', persona);
@@ -97,7 +98,13 @@ export const RAGLearningPanel: React.FC<RAGLearningPanelProps> = ({
       }
 
       const data = await response.json();
-      setEntries(data.entries || []);
+      // DB endpoint returns entries in a slightly different format
+      const dbEntries = (data.entries || []).map((e: any) => ({
+        ...e,
+        timestamp: e.created_at || e.timestamp,
+      }));
+      setEntries(dbEntries);
+      // Stats are calculated from DB entries if not provided
       setStats(data.stats || null);
       setError(null);
     } catch (err) {
