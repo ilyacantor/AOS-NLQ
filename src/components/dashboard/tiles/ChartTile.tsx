@@ -117,38 +117,45 @@ const HorizontalBarChart: React.FC<{
 
 /**
  * Simple vertical bar chart implementation
+ * Supports optional 'size' property to scale bar heights proportionally
  */
 const BarChart: React.FC<{
-  data: Array<{ label: string; value: number }>;
+  data: Array<{ label: string; value: number; size?: number }>;
   onClick?: (label: string) => void;
   colors: string[];
 }> = ({ data, onClick, colors }) => {
-  const maxValue = Math.max(...data.map((d) => d.value), 1);
+  const hasSize = data.some((d) => d.size !== undefined);
+  const maxSize = hasSize ? Math.max(...data.map((d) => d.size || 0), 1) : Math.max(...data.map((d) => d.value), 1);
 
   return (
     <div className="flex items-end justify-around h-32 gap-1">
-      {data.map((item, index) => (
-        <div
-          key={item.label}
-          className="flex flex-col items-center flex-1 cursor-pointer group"
-          onClick={() => onClick?.(item.label)}
-        >
-          <span className="text-slate-400 text-xs mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {formatNumber(item.value)}
-          </span>
+      {data.map((item, index) => {
+        const heightValue = hasSize ? (item.size || 0) : item.value;
+        const heightPercent = (heightValue / maxSize) * 100;
+        
+        return (
           <div
-            className="w-full rounded-t transition-all duration-300 group-hover:opacity-80"
-            style={{
-              height: `${(item.value / maxValue) * 100}%`,
-              backgroundColor: colors[index % colors.length],
-              minHeight: '4px',
-            }}
-          />
-          <span className="text-slate-500 text-xs mt-1 truncate max-w-full">
-            {item.label}
-          </span>
-        </div>
-      ))}
+            key={item.label}
+            className="flex flex-col items-center flex-1 cursor-pointer group"
+            onClick={() => onClick?.(item.label)}
+          >
+            <span className="text-slate-400 text-xs mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {hasSize ? `${item.value}%` : formatNumber(item.value)}
+            </span>
+            <div
+              className="w-full rounded-t transition-all duration-300 group-hover:opacity-80"
+              style={{
+                height: `${heightPercent}%`,
+                backgroundColor: colors[index % colors.length],
+                minHeight: '4px',
+              }}
+            />
+            <span className="text-slate-500 text-xs mt-1 truncate max-w-full">
+              {item.label}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -424,15 +431,15 @@ function formatNumber(value: number): string {
 
 /**
  * Normalize data from various formats to a standard format
- * Preserves special fields like 'type' for waterfall charts
+ * Preserves special fields like 'type' for waterfall charts and 'size' for proportional bar charts
  */
-function normalizeChartData(data: any): Array<{ label: string; value: number; type?: 'increase' | 'decrease' | 'total'; color?: string }> {
+function normalizeChartData(data: any): Array<{ label: string; value: number; type?: 'increase' | 'decrease' | 'total'; color?: string; size?: number }> {
   if (!data) return [];
 
   // Handle array of objects with label/value
   if (Array.isArray(data)) {
     return data.map((item) => {
-      const normalized: { label: string; value: number; type?: 'increase' | 'decrease' | 'total'; color?: string } = {
+      const normalized: { label: string; value: number; type?: 'increase' | 'decrease' | 'total'; color?: string; size?: number } = {
         label: item.label || item.name || item.category || String(item.key || ''),
         value: Number(item.value) || 0,
       };
@@ -443,6 +450,10 @@ function normalizeChartData(data: any): Array<{ label: string; value: number; ty
       // Preserve color if specified
       if (item.color) {
         normalized.color = item.color;
+      }
+      // Preserve size for proportional bar charts
+      if (item.size !== undefined) {
+        normalized.size = Number(item.size) || 0;
       }
       return normalized;
     });
