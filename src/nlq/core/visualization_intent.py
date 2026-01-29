@@ -68,6 +68,7 @@ VISUALIZATION_TRIGGERS = {
     "by region": 0.85,
     "by rep": 0.85,
     "by product": 0.85,
+    "by stage": 0.85,
     "by quarter": 0.85,
     "by month": 0.85,
     "breakdown": 0.9,
