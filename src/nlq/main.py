@@ -18,8 +18,9 @@ from fastapi.staticfiles import StaticFiles
 from src.nlq.api.routes import router
 from src.nlq.api.rag_routes import router as rag_router
 from src.nlq.services.query_cache_service import init_cache_service_from_env, get_cache_service
-from src.nlq.services.llm_call_counter import get_call_counter
+from src.nlq.services.llm_call_counter import init_call_counter, get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log
+from src.nlq.db.supabase_persistence import init_persistence_service, get_persistence_service
 
 logger = logging.getLogger(__name__)
 
@@ -65,11 +66,25 @@ async def startup_event():
     """Initialize services on startup."""
     logger.info("Starting AOS-NLQ server...")
 
+    # Initialize Supabase persistence service first (required by other services)
+    persistence = init_persistence_service()
+    if persistence and persistence.is_available:
+        logger.info("Supabase persistence service initialized")
+        stats = persistence.get_stats()
+        logger.info(f"Persistence stats: {stats}")
+    else:
+        logger.warning("Persistence service not available - sessions will not persist")
+
     # Initialize RAG cache service
     init_cache_service_from_env()
 
-    # Initialize call counter and learning log (singletons)
-    get_call_counter()
+    # Initialize call counter with persistence and load active sessions
+    counter = init_call_counter(persist=persistence is not None and persistence.is_available)
+    if persistence and persistence.is_available:
+        loaded = counter.load_active_sessions(since_hours=168)  # 7 days
+        logger.info(f"Loaded {loaded} active sessions from database")
+
+    # Initialize learning log (singleton)
     get_learning_log()
 
     logger.info("AOS-NLQ server started successfully")
