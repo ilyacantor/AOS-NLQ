@@ -165,6 +165,20 @@ class IntentMapResponse(BaseModel):
         description="Question to ask for clarification"
     )
 
+    # Dashboard response (for visualization queries in galaxy mode)
+    dashboard: Optional[Any] = Field(
+        default=None,
+        description="Dashboard schema when visualization is requested"
+    )
+    dashboard_data: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Pre-resolved widget data for the dashboard"
+    )
+    response_type: Optional[str] = Field(
+        default="galaxy",
+        description="Response type: 'galaxy' for nodes, 'dashboard' for visualization"
+    )
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {

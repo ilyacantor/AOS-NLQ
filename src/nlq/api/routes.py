@@ -726,20 +726,32 @@ def _handle_dashboard_query(question: str, fact_base) -> Optional[IntentMapRespo
     q = question.lower()
     period = _extract_period_from_dashboard_query(question)
 
+    # Check if query is asking for KPIs without specific period
+    # KPI queries should use annual data for current year summary
+    is_kpi_query = "kpi" in q or "key metric" in q
+    has_explicit_quarter = any(qtr in q for qtr in ['q1', 'q2', 'q3', 'q4', 'quarter'])
+    use_annual = is_kpi_query and not has_explicit_quarter
+
     # Find the right data period
     quarterly_data = data.get('quarterly', [])
+    annual_data = data.get('annual', {})
 
-    # Try exact match first, then fall back to latest
-    period_data = None
-    for qd in quarterly_data:
-        if qd.get('period') == period:
-            period_data = qd
-            break
+    # Use annual data for KPI queries without explicit quarter
+    if use_annual and '2025' in annual_data:
+        period_data = annual_data['2025']
+        period = "2025"
+    else:
+        # Try exact match first, then fall back to latest quarter
+        period_data = None
+        for qd in quarterly_data:
+            if qd.get('period') == period:
+                period_data = qd
+                break
 
-    if not period_data:
-        # Default to most recent quarter (Q4 2025)
-        period_data = next((qd for qd in quarterly_data if qd.get('period') == '2025-Q4'), quarterly_data[-1])
-        period = period_data.get('period', '2025-Q4')
+        if not period_data:
+            # Default to most recent quarter (Q4 2025)
+            period_data = next((qd for qd in quarterly_data if qd.get('period') == '2025-Q4'), quarterly_data[-1])
+            period = period_data.get('period', '2025-Q4')
 
     # Detect persona from question or default based on keywords
     persona = _detect_dashboard_persona(question)
@@ -748,7 +760,44 @@ def _handle_dashboard_query(question: str, fact_base) -> Optional[IntentMapRespo
     nodes = []
     text_lines = []
 
-    if persona == "CFO":
+    # Check if query asks for specific metrics (e.g., "revenue, margin, and pipeline KPIs")
+    # This takes precedence over persona-based dashboards
+    if "kpi" in q:
+        requested_metrics = []
+        if "revenue" in q:
+            requested_metrics.append(("revenue", "Revenue", period_data.get('revenue'), "M", Domain.FINANCE))
+        if "margin" in q and "operating" not in q:
+            # "margin" alone means gross margin, not operating margin
+            requested_metrics.append(("gross_margin_pct", "Gross Margin", period_data.get('gross_margin_pct'), "%", Domain.FINANCE))
+        if "operating" in q and "margin" in q:
+            requested_metrics.append(("operating_margin_pct", "Operating Margin", period_data.get('operating_margin_pct'), "%", Domain.FINANCE))
+        if "pipeline" in q:
+            requested_metrics.append(("pipeline", "Pipeline", period_data.get('pipeline'), "M", Domain.GROWTH))
+        if "win" in q and "rate" in q:
+            requested_metrics.append(("win_rate", "Win Rate", period_data.get('win_rate'), "%", Domain.GROWTH))
+        if "churn" in q:
+            requested_metrics.append(("gross_churn_pct", "Churn", period_data.get('gross_churn_pct'), "%", Domain.GROWTH))
+        if "nrr" in q or "retention" in q:
+            requested_metrics.append(("nrr", "NRR", period_data.get('nrr'), "%", Domain.GROWTH))
+        if "headcount" in q:
+            requested_metrics.append(("headcount", "Headcount", period_data.get('headcount'), "", Domain.OPS))
+
+        if requested_metrics:
+            # Return only the specifically requested metrics
+            metrics = requested_metrics
+            persona = "KPIs"
+            metric_names = [m[1] for m in requested_metrics]
+            text_lines.append(f"**Key Metrics ({period})**")
+            text_lines.append(" | ".join([f"{m[1]}: {m[2]}{m[3] if m[3] != 'M' else 'M'}" if m[3] != 'M' else f"{m[1]}: ${m[2]}M" for m in requested_metrics]))
+        else:
+            # Fall through to persona-based dashboard
+            pass
+
+    if persona == "KPIs":
+        # Already handled above
+        pass
+
+    elif persona == "CFO":
         metrics = [
             ("revenue", "Revenue", period_data.get('revenue'), "M", Domain.FINANCE),
             ("gross_margin_pct", "Gross Margin", period_data.get('gross_margin_pct'), "%", Domain.FINANCE),
@@ -1452,6 +1501,161 @@ def _check_missing_data(question: str) -> Optional[NLQResponse]:
                 resolved_metric=None,
                 resolved_period=None,
                 response_type="text",
+            )
+
+    return None
+
+
+def _try_simple_metric_query_galaxy(question: str, fact_base: FactBase) -> Optional[IntentMapResponse]:
+    """
+    Try to answer a simple metric query directly from fact base for Galaxy mode.
+
+    Handles queries like "what's our revenue?" without needing Claude.
+    Returns None if the query doesn't match simple patterns.
+    """
+    q = question.lower().strip()
+
+    for pattern, (metric, unit) in _SIMPLE_METRIC_PATTERNS.items():
+        if _re_simple.search(pattern, q, _re_simple.IGNORECASE):
+            # Found a matching pattern, query fact base directly
+            value = fact_base.query(metric, "2025")
+            if value is None:
+                return None  # Metric not found, let normal flow handle it
+
+            # Format the value nicely
+            display_name = get_display_name(metric)
+            if unit == "USD millions":
+                formatted = f"${round(value, 1)}M"
+                answer = f"{display_name} for 2025 is {formatted}"
+            elif unit == "%":
+                formatted = f"{round(value, 1)}%"
+                answer = f"{display_name} for 2025 is {formatted}"
+            elif unit == "count":
+                formatted = f"{int(value):,}"
+                answer = f"{display_name} for 2025 is {formatted}"
+            else:
+                formatted = str(round(value, 1))
+                answer = f"{display_name} for 2025 is {formatted}"
+
+            # Determine domain from metric
+            domain = Domain.FINANCE
+            if metric in ["pipeline", "win_rate", "quota_attainment", "sales_cycle_days"]:
+                domain = Domain.GROWTH
+            elif metric in ["headcount"]:
+                domain = Domain.PEOPLE
+            elif metric in ["customer_count", "nrr", "gross_churn_pct"]:
+                domain = Domain.OPS
+
+            return IntentMapResponse(
+                query=question,
+                query_type="POINT_QUERY",
+                ambiguity_type=None,
+                persona="CFO",
+                overall_confidence=0.95,
+                overall_data_quality=1.0,
+                node_count=1,
+                nodes=[IntentNode(
+                    id=f"{metric}_1",
+                    metric=metric,
+                    display_name=display_name,
+                    match_type=MatchType.EXACT,
+                    domain=domain,
+                    confidence=0.95,
+                    data_quality=1.0,
+                    freshness="0h",
+                    value=value,
+                    formatted_value=formatted,
+                    period="2025",
+                    semantic_label="Direct Answer",
+                )],
+                primary_node_id=f"{metric}_1",
+                primary_answer=answer,
+                text_response=answer,
+                needs_clarification=False,
+                clarification_prompt=None,
+            )
+
+    return None  # No match, let normal flow handle it
+
+
+def _try_guided_discovery_galaxy(question: str) -> Optional[IntentMapResponse]:
+    """
+    Handle guided discovery queries like "what can you show me about customers?" for Galaxy mode.
+
+    Returns available metrics for the requested domain.
+    """
+    q = question.lower().strip()
+
+    for domain_name, config in _GUIDED_DISCOVERY_DOMAINS.items():
+        if _re_simple.search(config["pattern"], q, _re_simple.IGNORECASE):
+            # Create nodes for each available metric in this domain
+            nodes = []
+            domain = Domain.FINANCE
+            if domain_name == "customer":
+                domain = Domain.OPS
+            elif domain_name == "sales":
+                domain = Domain.GROWTH
+
+            for i, metric in enumerate(config["metrics"]):
+                display_name = get_display_name(metric)
+                nodes.append(IntentNode(
+                    id=f"discovery_{metric}",
+                    metric=metric,
+                    display_name=display_name,
+                    match_type=MatchType.POTENTIAL,
+                    domain=domain,
+                    confidence=0.85,
+                    data_quality=1.0,
+                    freshness="0h",
+                    value=None,
+                    formatted_value=None,
+                    period="2025",
+                    semantic_label="Available Metric",
+                ))
+
+            return IntentMapResponse(
+                query=question,
+                query_type="GUIDED_DISCOVERY",
+                ambiguity_type=None,
+                persona="CFO",
+                overall_confidence=0.9,
+                overall_data_quality=1.0,
+                node_count=len(nodes),
+                nodes=nodes,
+                primary_node_id=nodes[0].id if nodes else None,
+                primary_answer=config["response"],
+                text_response=config["response"],
+                needs_clarification=False,
+                clarification_prompt=None,
+            )
+
+    return None
+
+
+def _check_missing_data_galaxy(question: str) -> Optional[IntentMapResponse]:
+    """
+    Check if a query is asking about non-existent data for Galaxy mode.
+
+    Returns a graceful error response for queries about data we don't have.
+    """
+    q = question.lower().strip()
+
+    for pattern in _MISSING_DATA_PATTERNS:
+        if _re_simple.search(pattern, q, _re_simple.IGNORECASE):
+            return IntentMapResponse(
+                query=question,
+                query_type="MISSING_DATA",
+                ambiguity_type=None,
+                persona="CFO",
+                overall_confidence=0.8,
+                overall_data_quality=0.0,
+                node_count=0,
+                nodes=[],
+                primary_node_id=None,
+                primary_answer="I don't have data for that. I can help you with metrics like revenue, pipeline, win rate, customer count, margins, and other standard business metrics. What would you like to explore?",
+                text_response="I don't have data for that. I can help you with metrics like revenue, pipeline, win rate, customer count, margins, and other standard business metrics. What would you like to explore?",
+                needs_clarification=False,
+                clarification_prompt=None,
             )
 
     return None
@@ -2837,11 +3041,207 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                     clarification_prompt=None,
                 )
 
+        # =================================================================
+        # MISSING DATA CHECK - Gracefully handle non-existent data queries
+        # =================================================================
+        missing_data_response = _check_missing_data_galaxy(request.question)
+        if missing_data_response:
+            return missing_data_response
+
+        # =================================================================
+        # GUIDED DISCOVERY - Handle "what can you show me about X?" queries
+        # =================================================================
+        guided_response = _try_guided_discovery_galaxy(request.question)
+        if guided_response:
+            return guided_response
+
+        # =================================================================
+        # SIMPLE METRIC QUERIES - Handle direct questions like "what's revenue?"
+        # =================================================================
+        simple_response = _try_simple_metric_query_galaxy(request.question, fact_base)
+        if simple_response:
+            return simple_response
+
         # Check for dashboard/report queries (doesn't need Claude API)
         if _is_dashboard_query(request.question):
             dashboard_response = _handle_dashboard_query(request.question, fact_base)
             if dashboard_response:
                 return dashboard_response
+
+        # =================================================================
+        # REFINEMENT INTENT DETECTION - Handle refinement queries FIRST
+        # (Must come before visualization to handle "make that a bar chart")
+        # =================================================================
+        session_id = request.session_id or "default"
+        current_schema = get_session_dashboard(session_id)
+        has_current_dashboard = current_schema is not None
+
+        refinement_intent = detect_refinement_intent(request.question, has_current_dashboard)
+
+        # Handle context-dependent queries without a dashboard
+        if is_context_dependent_query(request.question) and not has_current_dashboard:
+            clarification_msg = needs_clarification_without_context(request.question)
+            if clarification_msg:
+                return IntentMapResponse(
+                    query=request.question,
+                    query_type="CLARIFICATION_NEEDED",
+                    ambiguity_type=None,
+                    persona="CFO",
+                    overall_confidence=0.7,
+                    overall_data_quality=1.0,
+                    node_count=0,
+                    nodes=[],
+                    primary_node_id=None,
+                    primary_answer=clarification_msg,
+                    text_response=clarification_msg,
+                    needs_clarification=True,
+                    clarification_prompt=clarification_msg,
+                )
+
+        # Handle refinement if we have a current dashboard
+        if refinement_intent.is_refinement and has_current_dashboard:
+            logger.info(f"Galaxy refinement detected: {refinement_intent.refinement_type}")
+
+            try:
+                # Detect visualization requirements for the refinement
+                _, viz_requirements = should_generate_visualization(request.question)
+
+                # Apply refinement
+                updated_schema = refine_dashboard_schema(
+                    current_schema=current_schema,
+                    refinement_query=request.question,
+                    requirements=viz_requirements,
+                )
+
+                # Resolve data for updated dashboard
+                data_resolver = DashboardDataResolver(fact_base)
+                widget_data = data_resolver.resolve_dashboard_data(
+                    updated_schema,
+                    reference_year="2025",
+                )
+
+                # Update session state
+                _session_dashboards[session_id] = updated_schema
+
+                # Create nodes from updated dashboard
+                nodes = []
+                for i, widget in enumerate(updated_schema.widgets):
+                    widget_id = widget.id
+                    data = widget_data.get(widget_id, {})
+                    value = data.get("value")
+                    formatted = data.get("formatted_value", str(value) if value else None)
+
+                    metric_name = widget.data.metrics[0].metric if widget.data.metrics else "metric"
+                    nodes.append(IntentNode(
+                        id=f"ref_{i}",
+                        metric=metric_name,
+                        display_name=widget.title,
+                        match_type=MatchType.EXACT,
+                        domain=Domain.FINANCE,
+                        confidence=0.95,
+                        data_quality=1.0,
+                        freshness="0h",
+                        value=value,
+                        formatted_value=formatted,
+                        period="2025",
+                        semantic_label="Refinement",
+                    ))
+
+                return IntentMapResponse(
+                    query=request.question,
+                    query_type="REFINEMENT",
+                    ambiguity_type=None,
+                    persona="CFO",
+                    overall_confidence=0.95,
+                    overall_data_quality=1.0,
+                    node_count=len(nodes),
+                    nodes=nodes,
+                    primary_node_id=nodes[0].id if nodes else None,
+                    primary_answer=f"Updated dashboard: {updated_schema.title}",
+                    text_response=f"Updated dashboard: {updated_schema.title}",
+                    needs_clarification=False,
+                    clarification_prompt=None,
+                    dashboard=updated_schema.model_dump(),
+                    dashboard_data=widget_data,
+                    response_type="dashboard",
+                )
+
+            except Exception as e:
+                logger.error(f"Error applying refinement: {e}", exc_info=True)
+                # Fall through to visualization/normal processing
+
+        # =================================================================
+        # VISUALIZATION INTENT DETECTION - Handle visualization queries
+        # =================================================================
+        should_viz, viz_requirements = should_generate_visualization(request.question)
+
+        if should_viz and viz_requirements.intent != VisualizationIntent.SIMPLE_ANSWER:
+            logger.info(f"Galaxy visualization intent detected: {viz_requirements.intent.value}")
+
+            try:
+                # Generate dashboard schema
+                dashboard_schema = generate_dashboard_schema(
+                    query=request.question,
+                    requirements=viz_requirements,
+                )
+
+                # Resolve real data from fact base
+                data_resolver = DashboardDataResolver(fact_base)
+                widget_data = data_resolver.resolve_dashboard_data(
+                    dashboard_schema,
+                    reference_year="2025",
+                )
+
+                # Store in session for refinement
+                session_id = request.session_id or "default"
+                _session_dashboards[session_id] = dashboard_schema
+
+                # Create galaxy nodes from dashboard metrics
+                nodes = []
+                for i, widget in enumerate(dashboard_schema.widgets):
+                    widget_id = widget.id
+                    data = widget_data.get(widget_id, {})
+                    value = data.get("value")
+                    formatted = data.get("formatted_value", str(value) if value else None)
+
+                    metric_name = widget.data.metrics[0].metric if widget.data.metrics else "metric"
+                    nodes.append(IntentNode(
+                        id=f"viz_{i}",
+                        metric=metric_name,
+                        display_name=widget.title,
+                        match_type=MatchType.EXACT,
+                        domain=Domain.FINANCE,
+                        confidence=0.95,
+                        data_quality=1.0,
+                        freshness="0h",
+                        value=value,
+                        formatted_value=formatted,
+                        period="2025",
+                        semantic_label="Visualization",
+                    ))
+
+                return IntentMapResponse(
+                    query=request.question,
+                    query_type="VISUALIZATION",
+                    ambiguity_type=None,
+                    persona=detect_persona_from_question(request.question) or "CFO",
+                    overall_confidence=0.95,
+                    overall_data_quality=1.0,
+                    node_count=len(nodes),
+                    nodes=nodes,
+                    primary_node_id=nodes[0].id if nodes else None,
+                    primary_answer=f"Here's a dashboard showing {dashboard_schema.title}",
+                    text_response=f"Here's a dashboard showing {dashboard_schema.title}",
+                    needs_clarification=False,
+                    clarification_prompt=None,
+                    dashboard=dashboard_schema.model_dump(),
+                    dashboard_data=widget_data,
+                    response_type="dashboard",
+                )
+
+            except Exception as e:
+                logger.error(f"Error generating visualization: {e}", exc_info=True)
+                # Fall through to normal processing
 
         reference_date = request.reference_date or date.today()
         resolver = PeriodResolver(reference_date)
