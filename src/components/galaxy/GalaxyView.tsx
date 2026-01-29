@@ -32,8 +32,8 @@ interface NodeState {
 
 export const GalaxyView: React.FC<GalaxyViewProps> = ({
   data,
-  width = 700,
-  height = 700,
+  width = 550,
+  height = 550,
 }) => {
   const [selectedNode, setSelectedNode] = useState<IntentNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<IntentNode | null>(null);
