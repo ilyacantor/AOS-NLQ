@@ -80,8 +80,7 @@ export function WidgetRenderer({ widget, data, onClick, rowHeight }: WidgetRende
 
   return (
     <div
-      style={style}
-      className={`bg-slate-900 border border-slate-800 rounded-xl overflow-hidden ${
+      className={`h-full bg-slate-900 border border-slate-800 rounded-xl overflow-hidden ${
         hasDrillDown ? 'cursor-pointer hover:border-cyan-500/50 transition-colors' : ''
       }`}
       onClick={() => hasDrillDown && onClick?.()}
