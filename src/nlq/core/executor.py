@@ -11,12 +11,15 @@ Never return empty results silently - always provide appropriate error codes.
 """
 
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from src.nlq.core.confidence import ConfidenceCalculator, bounded_confidence
 from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.models.query import ParsedQuery, QueryIntent
 from src.nlq.models.response import QueryResult
+
+if TYPE_CHECKING:
+    from src.nlq.llm.client import ClaudeClient
 
 logger = logging.getLogger(__name__)
 
@@ -24,14 +27,16 @@ logger = logging.getLogger(__name__)
 class QueryExecutor:
     """Executes parsed queries against the fact base."""
 
-    def __init__(self, fact_base: FactBase):
+    def __init__(self, fact_base: FactBase, claude_client: Optional["ClaudeClient"] = None):
         """
         Initialize the query executor.
 
         Args:
             fact_base: The fact base to query against
+            claude_client: Optional Claude client for LLM fallback on unknown breakdowns
         """
         self.fact_base = fact_base
+        self.claude_client = claude_client
         self.confidence_calculator = ConfidenceCalculator()
 
     def execute(self, parsed_query: ParsedQuery) -> QueryResult:
@@ -290,7 +295,10 @@ class QueryExecutor:
         """
         Derive breakdown metrics from a primary metric when LLM doesn't provide them.
 
-        Maps high-level metrics to their component parts for driver analysis.
+        Strategy:
+        1. Check BREAKDOWN_MAPPINGS for predefined breakdowns (fast)
+        2. If not found, ask the LLM what drives this metric (graceful fallback)
+
         Uses actual metrics that exist in the fact base.
         """
         BREAKDOWN_MAPPINGS = {
@@ -330,9 +338,27 @@ class QueryExecutor:
             "uptime_pct": ["downtime_hours", "p1_incidents", "p2_incidents", "mttr_p1_hours"],
             "velocity": ["sprint_velocity", "story_points", "features_shipped", "deploys_per_week"],
             "tech_debt_pct": ["code_coverage_pct", "bug_escape_rate", "critical_bugs"],
+            # AR / Accounts Receivable drivers
+            "accounts_receivable": ["ar_current", "ar_30_days", "ar_60_days", "ar_90_plus_days"],
+            "ar": ["ar_current", "ar_30_days", "ar_60_days", "ar_90_plus_days"],
+            # Cash flow drivers
+            "cash_flow": ["operating_cash_flow", "investing_cash_flow", "financing_cash_flow"],
+            "working_capital": ["accounts_receivable", "accounts_payable", "inventory"],
         }
 
         # Normalize metric name for lookup
         metric_lower = metric.lower().replace("-", "_").replace(" ", "_")
 
-        return BREAKDOWN_MAPPINGS.get(metric_lower, [])
+        # First: check predefined mappings (fast path)
+        if metric_lower in BREAKDOWN_MAPPINGS:
+            return BREAKDOWN_MAPPINGS[metric_lower]
+
+        # Second: ask LLM for breakdown components (graceful fallback)
+        if self.claude_client:
+            logger.info(f"No predefined breakdown for '{metric}', asking LLM...")
+            llm_components = self.claude_client.get_breakdown_components(metric)
+            if llm_components:
+                return llm_components
+
+        # No breakdown available
+        return []
