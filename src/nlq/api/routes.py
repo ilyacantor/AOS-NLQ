@@ -2256,14 +2256,14 @@ async def query(request: NLQRequest) -> NLQResponse:
 
                 # Log to learning log
                 learning_log = get_learning_log()
-                learning_log.log(LearningLogEntry(
+                await learning_log.log_entry(LearningLogEntry(
                     query=request.question,
                     success=True,
-                    cache_hit=True,
+                    source="cache",
+                    learned=False,
+                    message=f"Cache hit ({cache_result.hit_type.value}, {cache_result.similarity:.0%} match)",
+                    persona=detect_persona_from_metric(cache_result.parsed.get("metric")) or "CFO",
                     similarity=cache_result.similarity,
-                    hit_type=cache_result.hit_type.value,
-                    metric_learned=cache_result.parsed.get("metric"),
-                    session_id=session_id,
                 ))
 
         # =================================================================
@@ -2310,14 +2310,16 @@ async def query(request: NLQRequest) -> NLQResponse:
 
             # Log to learning log
             learning_log = get_learning_log()
-            learning_log.log(LearningLogEntry(
+            stored_in_cache = cache_service and cache_service.is_available
+            await learning_log.log_entry(LearningLogEntry(
                 query=request.question,
                 success=True,
-                cache_hit=False,
-                similarity=cache_result.similarity if cache_result else 0.0,
-                hit_type=cache_result.hit_type.value if cache_result else "miss",
-                metric_learned=parsed.metric,
-                session_id=session_id,
+                source="llm",
+                learned=stored_in_cache,
+                message=f"Parsed by Claude: {parsed.metric}" + (" (cached)" if stored_in_cache else ""),
+                persona=detect_persona_from_metric(parsed.metric) or "CFO",
+                similarity=0.0,
+                llm_confidence=0.95,
             ))
 
         logger.info(f"Parsed query (cache_hit={cache_hit}): {parsed}")
@@ -2503,14 +2505,14 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
 
                 # Log to learning log
                 learning_log = get_learning_log()
-                learning_log.log(LearningLogEntry(
+                await learning_log.log_entry(LearningLogEntry(
                     query=request.question,
                     success=True,
-                    cache_hit=True,
+                    source="cache",
+                    learned=False,
+                    message=f"Galaxy cache hit ({cache_result.hit_type.value}, {cache_result.similarity:.0%} match)",
+                    persona=detect_persona_from_metric(cache_result.parsed.get("metric")) or "CFO",
                     similarity=cache_result.similarity,
-                    hit_type=cache_result.hit_type.value,
-                    metric_learned=cache_result.parsed.get("metric"),
-                    session_id=session_id,
                 ))
 
         # =================================================================
@@ -2561,14 +2563,16 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
 
             # Log to learning log
             learning_log = get_learning_log()
-            learning_log.log(LearningLogEntry(
+            stored_in_cache = cache_service and cache_service.is_available
+            await learning_log.log_entry(LearningLogEntry(
                 query=request.question,
                 success=True,
-                cache_hit=False,
-                similarity=cache_result.similarity if cache_result else 0.0,
-                hit_type=cache_result.hit_type.value if cache_result else "miss",
-                metric_learned=parsed.metric,
-                session_id=session_id,
+                source="llm",
+                learned=stored_in_cache,
+                message=f"Galaxy parsed by Claude: {parsed.metric}" + (" (cached)" if stored_in_cache else ""),
+                persona=detect_persona_from_metric(parsed.metric) or "CFO",
+                similarity=0.0,
+                llm_confidence=0.95,
             ))
 
         logger.info(f"Parsed query for galaxy (cache_hit={cache_hit}): {parsed}")
