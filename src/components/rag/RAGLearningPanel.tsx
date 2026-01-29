@@ -98,14 +98,37 @@ export const RAGLearningPanel: React.FC<RAGLearningPanelProps> = ({
       }
 
       const data = await response.json();
-      // DB endpoint returns entries in a slightly different format
+      // DB endpoint returns entries in a different format - map to UI format
       const dbEntries = (data.entries || []).map((e: any) => ({
-        ...e,
+        id: e.id,
+        // Create description from query + context
+        description: e.message || `"${e.query}" ${e.learned ? 'learned' : 'processed'}`,
+        success: e.success,
+        source: e.source,
+        learned: e.learned,
         timestamp: e.created_at || e.timestamp,
+        persona: e.persona,
+        // Extra fields from DB
+        similarity: e.similarity,
+        llm_confidence: e.llm_confidence,
       }));
       setEntries(dbEntries);
-      // Stats are calculated from DB entries if not provided
-      setStats(data.stats || null);
+      
+      // Calculate stats from entries since DB endpoint doesn't include them
+      const totalQueries = dbEntries.length;
+      const fromCache = dbEntries.filter((e: any) => e.source === 'cache').length;
+      const fromLlm = dbEntries.filter((e: any) => e.source === 'llm').length;
+      const queriesLearned = dbEntries.filter((e: any) => e.learned).length;
+      setStats({
+        total_queries: totalQueries,
+        successful_queries: dbEntries.filter((e: any) => e.success).length,
+        queries_learned: queriesLearned,
+        from_cache: fromCache,
+        from_llm: fromLlm,
+        cache_hit_rate: totalQueries > 0 ? fromCache / totalQueries : 0,
+        learning_rate: totalQueries > 0 ? queriesLearned / totalQueries : 0,
+        supabase_connected: true,
+      });
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load');
