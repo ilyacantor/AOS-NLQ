@@ -615,7 +615,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               </text>
             </g>
 
-            {/* Nodes (per spec) */}
+            {/* Nodes - clean simple circles like source model */}
             {data.nodes.map((node) => {
               const pos = getNodePosition(node.id);
               const isPrimary = node.id === data.primary_node_id;
@@ -623,12 +623,9 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               const isHovered = hoveredNode?.id === node.id;
               const isDragging = draggedNodeId === node.id;
               const baseRadius = getCircleRadius(node.confidence, isPrimary);
-              // Hover pulse: +4px per spec
+              // Hover pulse: +4px
               const radius = isHovered ? baseRadius + 4 : baseRadius;
-              const qualityRingRadius = getQualityRingRadius(node.confidence);
-              const innerRadius = getInnerHighlightRadius(node.confidence);
               const color = DOMAIN_COLORS[node.domain] || DOMAIN_COLORS.finance;
-              const typeStyle = getTypeStyle(node.match_type, isPrimary);
               
               // Get glow filter based on domain
               const glowFilter = {
@@ -639,9 +636,8 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                 people: 'url(#glowPeople)',
               }[node.domain] || 'url(#glowFinance)';
               
-              // Confidence label prefix (per spec)
-              const confidencePrefix = node.confidence > 0.9 ? 'Exact: ' : node.confidence > 0.7 ? 'Likely: ' : 'Potential: ';
-              const prefixColor = node.confidence > 0.9 ? '#43e97b' : node.confidence > 0.7 ? '#fee140' : '#64748b';
+              // Match type label
+              const matchLabel = node.confidence > 0.9 ? 'Exact Match' : node.confidence > 0.7 ? 'Likely' : 'Potential';
 
               return (
                 <g
@@ -654,91 +650,82 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                   style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
                   className="galaxy-node"
                 >
-                  {/* Selection/hover ring */}
-                  {(isSelected || isHovered) && (
+                  {/* Selection ring */}
+                  {isSelected && (
                     <circle
-                      r={radius + 10}
+                      r={radius + 8}
                       fill="none"
-                      stroke={isSelected ? '#fff' : 'rgba(255,255,255,0.4)'}
-                      strokeWidth={isSelected ? 2 : 1}
-                      opacity={0.8}
+                      stroke="#fff"
+                      strokeWidth={2}
+                      opacity={0.6}
                     />
                   )}
 
-                  {/* Data quality ring (outer arc per spec) */}
-                  <path
-                    d={getArcPath(0, 0, qualityRingRadius, node.data_quality)}
+                  {/* Outer decorative rings (like source model) */}
+                  <circle
+                    r={radius + 12}
                     fill="none"
                     stroke={color}
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    opacity={node.data_quality * 0.6}
-                    style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}
+                    strokeWidth="1"
+                    opacity={0.15}
+                  />
+                  <circle
+                    r={radius + 6}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth="1"
+                    opacity={0.25}
                   />
 
-                  {/* Main circle with glow */}
+                  {/* Main circle - simple filled with glow */}
                   <circle
                     r={radius}
                     fill={color}
-                    opacity={typeStyle.opacity}
-                    stroke={color}
-                    strokeWidth={typeStyle.strokeWidth}
-                    strokeDasharray={typeStyle.dashArray === 'none' ? undefined : typeStyle.dashArray}
-                    filter={isPrimary || isHovered ? glowFilter : undefined}
-                    style={{ transition: 'r 150ms ease-out' }}
+                    filter={glowFilter}
+                    style={{ transition: 'all 150ms ease-out' }}
                   />
 
-                  {/* Inner highlight (per spec) */}
+                  {/* Freshness dot (small, top-right) */}
                   <circle
-                    r={innerRadius}
-                    fill="none"
-                    stroke="rgba(255,255,255,0.35)"
-                    strokeWidth="1"
-                  />
-
-                  {/* Freshness dot (per spec - top right) */}
-                  <circle
-                    cx={radius * 0.7}
-                    cy={-radius * 0.7}
-                    r={5}
+                    cx={radius * 0.65}
+                    cy={-radius * 0.65}
+                    r={4}
                     fill={getFreshnessColor(node.freshness)}
-                    stroke="#0f1424"
-                    strokeWidth="2"
+                    stroke="#0a0f1a"
+                    strokeWidth="1.5"
                   />
 
-                  {/* Confidence percentage (per spec) */}
+                  {/* Confidence percentage - clean white text */}
                   <text
                     textAnchor="middle"
                     dy="0.35em"
-                    fill="rgba(255,255,255,0.95)"
-                    fontSize={node.confidence > 0.6 ? 13 : 10}
+                    fill="#fff"
+                    fontSize={radius > 30 ? 14 : 11}
                     fontWeight="bold"
-                    fontFamily="monospace"
                     style={{ pointerEvents: 'none' }}
                   >
                     {Math.round(node.confidence * 100)}%
                   </text>
 
-                  {/* Semantic label with prefix (per spec) */}
+                  {/* Label below: Match type + display name */}
                   <text
-                    y={22 + (node.confidence * 32)}
+                    y={radius + 16}
                     textAnchor="middle"
                     fontSize="10"
-                    fontWeight="500"
                     style={{ pointerEvents: 'none' }}
                   >
-                    <tspan fill={prefixColor}>{confidencePrefix}</tspan>
-                    <tspan fill="#94a3b8">{node.display_name}{node.confidence <= 0.7 ? '?' : ''}</tspan>
+                    <tspan fill={node.confidence > 0.7 ? '#4facfe' : '#94a3b8'}>{matchLabel}: </tspan>
+                    <tspan fill="#cbd5e1">{node.display_name}{node.confidence <= 0.7 ? '?' : ''}</tspan>
                   </text>
 
-                  {/* Type badge (per spec) */}
+                  {/* Type badge */}
                   <text
-                    y={36 + (node.confidence * 32)}
+                    y={radius + 28}
                     textAnchor="middle"
                     fill="#64748b"
                     fontSize="8"
                     fontFamily="monospace"
-                    style={{ pointerEvents: 'none', textTransform: 'uppercase' }}
+                    style={{ pointerEvents: 'none' }}
                   >
                     {isPrimary ? 'PRIMARY' : node.match_type.toUpperCase()}
                   </text>
