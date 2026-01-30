@@ -175,7 +175,7 @@ def _track_intent_map_if_needed(
     persona = "CFO"
     resolved_metric = None
     resolved_period = None
-    parsed_intent = response.intent_type
+    parsed_intent = response.query_type
 
     if response.nodes:
         first_node = response.nodes[0]
