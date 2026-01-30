@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { GalaxyView, IntentMapResponse } from './components/galaxy'
 import { Dashboard } from './components/dashboard'
 import { RAGLearningPanel, LLMCallCounter, useSessionId } from './components/rag'
@@ -11,7 +11,7 @@ interface QueryHistoryItem {
   timestamp: string
   duration: string
   tag: string
-  count: number  // For aggregation
+  count: number
 }
 
 type ViewMode = 'galaxy' | 'dashboard'
@@ -44,29 +44,24 @@ const quickActions = [
 ]
 
 /**
- * Aggregate duplicate queries in history, keeping the most recent and adding count
+ * Aggregate duplicate queries in history
  */
 function aggregateHistory(items: QueryHistoryItem[]): QueryHistoryItem[] {
   const queryMap = new Map<string, QueryHistoryItem>()
-
-  // Process in order (newest first), aggregate duplicates
   for (const item of items) {
     const normalizedQuery = item.query.toLowerCase().trim()
     const existing = queryMap.get(normalizedQuery)
-
     if (existing) {
-      // Update count on the existing (most recent) entry
       existing.count += 1
     } else {
-      // First occurrence - keep it
       queryMap.set(normalizedQuery, { ...item, count: 1 })
     }
   }
-
   return Array.from(queryMap.values())
 }
 
 function App() {
+  // Core state
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('galaxy')
   const [queryMode, setQueryMode] = useState<QueryMode>('ai')
@@ -76,13 +71,21 @@ function App() {
   const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [galaxyResponse, setGalaxyResponse] = useState<IntentMapResponse | null>(null)
-  const [lastQuery, setLastQuery] = useState('')
   const [lastDuration, setLastDuration] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Dashboard builder state
   const [generatedDashboard, setGeneratedDashboard] = useState<DashboardSchema | null>(null)
   const [dashboardWidgetData, setDashboardWidgetData] = useState<Record<string, any>>({})
+  const [dashboardRefinement, setDashboardRefinement] = useState('')
+  const [isGeneratingDashboard, setIsGeneratingDashboard] = useState(false)
+
   const [hasLoadedDefault, setHasLoadedDefault] = useState(false)
   const sessionId = useSessionId()
+
+  // Use ref for query to avoid stale closure issues
+  const queryRef = useRef(query)
+  queryRef.current = query
 
   // Load query history from database on mount
   useEffect(() => {
@@ -108,32 +111,22 @@ function App() {
     loadHistory()
   }, [])
 
-  // Auto-query "2025 results" for Galaxy view on first load
-  useEffect(() => {
-    if (!hasLoadedDefault && viewMode === 'galaxy') {
-      setHasLoadedDefault(true)
-      handleSubmit('2025 results')
-    }
-  }, [hasLoadedDefault, viewMode])
-
-  const handleSubmit = useCallback(async (queryText?: string) => {
-    const textToSubmit = queryText ?? query
-    if (!textToSubmit.trim()) return
+  // Submit a Galaxy query - always requires explicit queryText
+  const submitGalaxyQuery = useCallback(async (queryText: string) => {
+    if (!queryText.trim()) return
 
     setIsLoading(true)
     setQuery('')
     setGalaxyResponse(null)
-    const now = new Date()
-    const timestamp = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+    const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
     const startTime = performance.now()
 
     try {
-      // Always use intent-map endpoint for Galaxy view
       const res = await fetch('/api/v1/intent-map', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          question: textToSubmit,
+          question: queryText,
           reference_date: '2026-01-27',
           mode: queryMode,
           session_id: sessionId
@@ -144,24 +137,21 @@ function App() {
       const duration = Math.round(performance.now() - startTime)
 
       setGalaxyResponse(data as IntentMapResponse)
-      setLastQuery(textToSubmit)
       setLastDuration(`${duration}ms`)
 
       const newItem: QueryHistoryItem = {
         id: Date.now().toString(),
-        query: textToSubmit,
-        timestamp: timestamp,
+        query: queryText,
+        timestamp,
         duration: `${duration}ms`,
         tag: (data as IntentMapResponse).query_type || 'intent-map',
         count: 1,
       }
-
       setQueryHistory(prev => aggregateHistory([newItem, ...prev]))
     } catch (error) {
       console.error('Query failed:', error)
-      // Show error in galaxy response
       setGalaxyResponse({
-        query: textToSubmit,
+        query: queryText,
         query_type: 'ERROR',
         ambiguity_type: null,
         persona: 'CFO',
@@ -178,11 +168,23 @@ function App() {
     }
 
     setIsLoading(false)
-  }, [query, queryMode, sessionId])
+  }, [queryMode, sessionId])
 
-  const handleQuickAction = (action: string) => {
-    handleSubmit(action)
-  }
+  // Auto-query "2025 results" for Galaxy view on first load
+  useEffect(() => {
+    if (!hasLoadedDefault && viewMode === 'galaxy') {
+      setHasLoadedDefault(true)
+      submitGalaxyQuery('2025 results')
+    }
+  }, [hasLoadedDefault, viewMode, submitGalaxyQuery])
+
+  // Handle form submit - uses ref to get current query value
+  const handleSubmit = useCallback(() => {
+    const currentQuery = queryRef.current
+    if (currentQuery.trim()) {
+      submitGalaxyQuery(currentQuery)
+    }
+  }, [submitGalaxyQuery])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -191,22 +193,89 @@ function App() {
     }
   }
 
-  const handleHistoryClick = (historyQuery: string) => {
-    handleSubmit(historyQuery)
-  }
-
   // Handle drill-down from dashboard tiles - open in Galaxy view
-  const handleDashboardDrillDown = (drillQuery: string) => {
+  const handleDashboardDrillDown = useCallback((drillQuery: string) => {
     setViewMode('galaxy')
-    setLastQuery(drillQuery)
-    handleSubmit(drillQuery)
+    submitGalaxyQuery(drillQuery)
+  }, [submitGalaxyQuery])
+
+  // Generate or refine a dashboard
+  const handleDashboardGenerate = useCallback(async (queryText: string) => {
+    if (!queryText.trim()) return
+
+    setIsGeneratingDashboard(true)
+    setDashboardRefinement('')
+
+    try {
+      // Check if this is a "build me X dashboard" request
+      const isBuildRequest = /build\s+(me\s+)?a?\s*\w+\s+dashboard/i.test(queryText)
+
+      if (isBuildRequest || !generatedDashboard) {
+        // Generate new dashboard
+        const res = await fetch('/api/v1/dashboard/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: queryText,
+            session_id: sessionId
+          })
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          if (data.dashboard) {
+            setGeneratedDashboard(data.dashboard)
+            setDashboardWidgetData(data.widget_data || {})
+            setDashboardMode('builder')
+          }
+        }
+      } else {
+        // Refine existing dashboard
+        const res = await fetch('/api/v1/dashboard/refine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: queryText,
+            current_schema: generatedDashboard,
+            session_id: sessionId
+          })
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          if (data.dashboard) {
+            setGeneratedDashboard(data.dashboard)
+            setDashboardWidgetData(data.widget_data || {})
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Dashboard generation failed:', error)
+    }
+
+    setIsGeneratingDashboard(false)
+  }, [generatedDashboard, sessionId])
+
+  // Handle dashboard refinement form submit
+  const handleDashboardRefinementSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (dashboardRefinement.trim()) {
+      handleDashboardGenerate(dashboardRefinement)
+    }
   }
 
-  // Handle generated dashboard from builder refinement
-  const handleDashboardRefinement = (newSchema: DashboardSchema) => {
+  // Handle dashboard refinement from DashboardRenderer
+  const handleDashboardRefinementCallback = useCallback((newSchema: DashboardSchema) => {
     setGeneratedDashboard(newSchema)
     setDashboardWidgetData({})
     setDashboardMode('builder')
+  }, [])
+
+  // Reset to persona dashboard
+  const handleResetDashboard = () => {
+    setGeneratedDashboard(null)
+    setDashboardWidgetData({})
+    setDashboardMode('persona')
   }
 
   const hasGalaxyResponse = galaxyResponse !== null
@@ -221,7 +290,7 @@ function App() {
             <span className="text-slate-300 text-lg font-normal">Natural Language Query</span>
           </div>
 
-          {/* View Mode Toggle - Only Galaxy and Dashboard */}
+          {/* View Mode Toggle */}
           <div className="flex items-center gap-2 ml-8">
             <span className="text-slate-500 text-sm">View:</span>
             <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-1">
@@ -288,7 +357,6 @@ function App() {
           {/* Query Input Section - Only shown in Galaxy view */}
           {viewMode === 'galaxy' && (
             <div className="flex flex-col items-center pt-6 pb-4 px-8">
-              {/* Query Input */}
               <div className="w-full max-w-2xl">
                 <div className="relative">
                   <input
@@ -315,7 +383,7 @@ function App() {
                 {quickActions.map((action) => (
                   <button
                     key={action}
-                    onClick={() => handleQuickAction(action)}
+                    onClick={() => submitGalaxyQuery(action)}
                     className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-xs hover:bg-slate-700 hover:border-slate-600 transition-colors"
                   >
                     {action}
@@ -327,7 +395,7 @@ function App() {
 
           {/* Results Area */}
           <div className="flex-1 overflow-hidden">
-            {/* Dashboard View - Unified with persona selector and builder */}
+            {/* Dashboard View */}
             {viewMode === 'dashboard' && (
               <div className="h-full overflow-hidden flex flex-col">
                 {/* Dashboard Header with Controls */}
@@ -360,16 +428,26 @@ function App() {
 
                       {/* Builder Mode Toggle */}
                       {generatedDashboard && (
-                        <button
-                          onClick={() => setDashboardMode(dashboardMode === 'builder' ? 'persona' : 'builder')}
-                          className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                            dashboardMode === 'builder'
-                              ? 'bg-purple-600 text-white'
-                              : 'bg-slate-800 text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          {dashboardMode === 'builder' ? '← Back to Persona' : 'Generated Dashboard'}
-                        </button>
+                        <>
+                          <button
+                            onClick={() => setDashboardMode(dashboardMode === 'builder' ? 'persona' : 'builder')}
+                            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                              dashboardMode === 'builder'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                            }`}
+                          >
+                            {dashboardMode === 'builder' ? 'Custom Dashboard' : 'View Custom'}
+                          </button>
+                          {dashboardMode === 'builder' && (
+                            <button
+                              onClick={handleResetDashboard}
+                              className="px-3 py-1 rounded-md text-xs font-medium bg-slate-800 text-red-400 hover:text-red-300 transition-colors"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
 
@@ -392,10 +470,48 @@ function App() {
                       initialSchema={generatedDashboard || undefined}
                       initialWidgetData={dashboardWidgetData}
                       onDrillDown={handleDashboardDrillDown}
-                      onRefinement={handleDashboardRefinement}
+                      onRefinement={handleDashboardRefinementCallback}
                       showRefinementInput={true}
                     />
                   )}
+                </div>
+
+                {/* Dashboard Builder Chat - Always visible at bottom */}
+                <div className="flex-shrink-0 px-6 py-4 border-t border-slate-800 bg-slate-900/50">
+                  <form onSubmit={handleDashboardRefinementSubmit} className="flex gap-3">
+                    <input
+                      type="text"
+                      value={dashboardRefinement}
+                      onChange={(e) => setDashboardRefinement(e.target.value)}
+                      placeholder={
+                        generatedDashboard
+                          ? "Refine dashboard... (e.g., 'Add a pipeline chart', 'Remove the bottom row')"
+                          : "Build a custom dashboard... (e.g., 'Build me a CFO dashboard with revenue and margin')"
+                      }
+                      className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                      disabled={isGeneratingDashboard}
+                    />
+                    <button
+                      type="submit"
+                      disabled={isGeneratingDashboard || !dashboardRefinement.trim()}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isGeneratingDashboard ? 'Building...' : (generatedDashboard ? 'Refine' : 'Build')}
+                    </button>
+                  </form>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-slate-600 text-xs">Try:</span>
+                    {['Build me a CFO dashboard', 'Build me a sales dashboard', 'Show revenue and margin'].map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        onClick={() => handleDashboardGenerate(suggestion)}
+                        className="px-2 py-0.5 text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded transition-colors"
+                        disabled={isGeneratingDashboard}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -463,7 +579,7 @@ function App() {
                     {queryHistory.map((item) => (
                       <div
                         key={item.id}
-                        onClick={() => handleHistoryClick(item.query)}
+                        onClick={() => submitGalaxyQuery(item.query)}
                         className="p-3 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-colors"
                       >
                         <div className="flex items-start justify-between gap-2">
