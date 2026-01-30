@@ -10,6 +10,7 @@ import cfoConfigJson from '../../config/dashboards/cfo.json';
 import croConfigJson from '../../config/dashboards/cro.json';
 import cooConfigJson from '../../config/dashboards/coo.json';
 import ctoConfigJson from '../../config/dashboards/cto.json';
+import chroConfigJson from '../../config/dashboards/chro.json';
 
 /**
  * Props for the Dashboard component
@@ -33,7 +34,7 @@ const PERSONA_CONFIGS: Record<Persona, DashboardConfig | null> = {
   CRO: transformJsonConfig(croConfigJson),
   COO: transformJsonConfig(cooConfigJson),
   CTO: transformJsonConfig(ctoConfigJson),
-  People: null, // TODO: Add People config
+  CHRO: transformJsonConfig(chroConfigJson),
 };
 
 /**
@@ -44,7 +45,7 @@ const PERSONA_INFO: Record<Persona, { title: string; description: string }> = {
   CRO: { title: 'Revenue Overview', description: 'Sales and revenue performance' },
   COO: { title: 'Operations Overview', description: 'Operational metrics and efficiency' },
   CTO: { title: 'Technology Overview', description: 'Engineering and product metrics' },
-  People: { title: 'People Overview', description: 'HR and team metrics' },
+  CHRO: { title: 'People Overview', description: 'HR and workforce dashboard' },
 };
 
 /**

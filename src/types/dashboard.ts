@@ -15,7 +15,7 @@ export type TimeRange = 'MTD' | 'QTD' | 'YTD' | 'L12M' | 'Custom';
 /**
  * Dashboard personas - determines which KPIs and views are shown
  */
-export type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'People';
+export type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO';
 
 /**
  * Health status for KPI indicators

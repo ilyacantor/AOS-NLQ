@@ -15,7 +15,7 @@ interface QueryHistoryItem {
 }
 
 type ViewMode = 'galaxy' | 'dashboard'
-type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'People'
+type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO'
 type PanelTab = 'History' | 'Learning' | 'Data Gaps' | 'Debug'
 type QueryMode = 'static' | 'ai'
 type DashboardMode = 'persona' | 'builder'
@@ -25,6 +25,7 @@ const personaOptions: { label: string; value: Persona }[] = [
   { label: 'CRO', value: 'CRO' },
   { label: 'COO', value: 'COO' },
   { label: 'CTO', value: 'CTO' },
+  { label: 'CHRO', value: 'CHRO' },
 ]
 
 const quickActions = [

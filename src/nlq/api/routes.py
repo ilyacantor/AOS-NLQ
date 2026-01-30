@@ -188,7 +188,7 @@ def _track_intent_map_if_needed(
                 Domain.GROWTH: "CRO",
                 Domain.OPERATIONS: "COO",
                 Domain.PRODUCT: "CTO",
-                Domain.PEOPLE: "People",
+                Domain.PEOPLE: "CHRO",
             }
             persona = domain_persona_map.get(first_node.domain, "CFO")
 

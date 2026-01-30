@@ -714,6 +714,7 @@ PERSONA_DOMAINS = {
     "CRO": "GROWTH",
     "COO": "OPS",
     "CTO": "PRODUCT",
+    "CHRO": "PEOPLE",
 }
 
 
@@ -763,6 +764,16 @@ METRIC_PERSONAS = {
     "lead_time_days": "CTO", "change_failure_rate": "CTO",
     "cloud_spend_pct_revenue": "CTO", "cost_per_transaction": "CTO",
     "api_requests_millions": "CTO",
+
+    # CHRO (People) metrics - HR and workforce
+    "total_headcount": "CHRO", "turnover_rate": "CHRO",
+    "voluntary_turnover": "CHRO", "involuntary_turnover": "CHRO",
+    "time_to_hire": "CHRO", "offer_acceptance_rate": "CHRO",
+    "employee_satisfaction": "CHRO", "engagement_score": "CHRO",
+    "training_hours": "CHRO", "promotion_rate": "CHRO",
+    "diversity_pct": "CHRO", "gender_ratio": "CHRO",
+    "open_positions": "CHRO", "recruiting_pipeline": "CHRO",
+    "compensation_ratio": "CHRO", "benefits_cost": "CHRO",
 }
 
 
