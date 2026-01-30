@@ -61,6 +61,8 @@ interface DashboardRendererProps {
   onRefinement?: (newSchema: DashboardSchema) => void;
   /** Show refinement input */
   showRefinementInput?: boolean;
+  /** Persona-specific preset refinement suggestions */
+  refinePresets?: string[];
 }
 
 // =============================================================================
@@ -123,6 +125,7 @@ export function DashboardRenderer({
   onDrillDown,
   onRefinement,
   showRefinementInput = true,
+  refinePresets = [],
 }: DashboardRendererProps) {
   const [schema, setSchema] = useState<DashboardSchema | null>(initialSchema || null);
   // Use pre-resolved data from backend if available, otherwise empty (will fetch mock)
@@ -135,7 +138,7 @@ export function DashboardRenderer({
   const [isRefining, setIsRefining] = useState(false);
 
   // Drag and drop state - use a map keyed by widget ID for stable position storage
-  const [isEditMode, setIsEditMode] = useState(false);
+  // Edit mode is always enabled (drag/resize always available)
   const [layoutMap, setLayoutMap] = useState<Record<string, LayoutItem>>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
@@ -209,8 +212,6 @@ export function DashboardRenderer({
 
   // Handle layout change from drag-and-drop
   const handleLayoutChange = useCallback((newLayout: LayoutItem[]) => {
-    if (!isEditMode) return;
-    
     // Update the layout map with new positions (keyed by widget ID)
     const newMap: Record<string, LayoutItem> = { ...layoutMap };
     newLayout.forEach(item => {
@@ -238,7 +239,7 @@ export function DashboardRenderer({
       });
       setSchema({ ...schema, widgets: updatedWidgets });
     }
-  }, [isEditMode, schema, layoutMap]);
+  }, [schema, layoutMap]);
 
   // Reset dashboard
   const handleReset = useCallback(() => {
@@ -249,7 +250,6 @@ export function DashboardRenderer({
     setInitialQuery('');
     setRefinementQuery('');
     setLayoutMap({});
-    setIsEditMode(false);
   }, []);
 
   // Save dashboard
@@ -414,13 +414,12 @@ export function DashboardRenderer({
 
   // Handle widget click (drill-down)
   const handleWidgetClick = useCallback((widget: Widget, value?: string) => {
-    if (isEditMode) return; // Don't drill down in edit mode
     const drillDown = widget.interactions.find(i => i.type === 'drill_down' && i.enabled);
     if (drillDown?.drill_down && onDrillDown) {
       const query = drillDown.drill_down.query_template.replace('{value}', value || '');
       onDrillDown(query);
     }
-  }, [onDrillDown, isEditMode]);
+  }, [onDrillDown]);
 
   // Handle refinement submit
   const handleRefinementSubmit = (e: React.FormEvent) => {
@@ -459,18 +458,6 @@ export function DashboardRenderer({
               )}
             </div>
             <div className="flex items-center gap-2">
-              {/* Edit Mode Toggle */}
-              <button
-                onClick={() => setIsEditMode(!isEditMode)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  isEditMode
-                    ? 'bg-cyan-600 text-white'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                {isEditMode ? '✓ Done Editing' : '⋮⋮ Edit Layout'}
-              </button>
-
               {/* Save Button */}
               <button
                 onClick={() => {
@@ -510,13 +497,6 @@ export function DashboardRenderer({
               </button>
             </div>
           </div>
-
-          {/* Edit mode hint */}
-          {isEditMode && (
-            <div className="mt-2 px-3 py-2 bg-cyan-900/30 border border-cyan-700/50 rounded-lg text-sm text-cyan-300">
-              Drag widgets to rearrange. Drag corners to resize. Click "Done Editing" when finished.
-            </div>
-          )}
 
           {/* Success message */}
           {saveSuccess && (
@@ -574,8 +554,8 @@ export function DashboardRenderer({
             rowHeight={rowHeight}
             width={containerWidth}
             onLayoutChange={handleLayoutChange as any}
-            isDraggable={isEditMode}
-            isResizable={isEditMode}
+            isDraggable={true}
+            isResizable={true}
             margin={[schema.layout.gap, schema.layout.gap]}
             containerPadding={[0, 0]}
             compactType={null}
@@ -584,7 +564,7 @@ export function DashboardRenderer({
             {schema.widgets.map(widget => (
               <div
                 key={widget.id}
-                className={`h-full ${isEditMode ? 'ring-2 ring-cyan-500/50 ring-offset-2 ring-offset-slate-950' : ''}`}
+                className="h-full"
               >
                 <WidgetRenderer
                   widget={widget}
@@ -599,7 +579,7 @@ export function DashboardRenderer({
       )}
 
       {/* Refinement Input */}
-      {schema && showRefinementInput && !isEditMode && (
+      {schema && showRefinementInput && (
         <div className="px-6 py-4 border-t border-slate-800 bg-slate-900/50">
           <form onSubmit={handleRefinementSubmit} className="flex gap-3">
             <input
@@ -619,9 +599,26 @@ export function DashboardRenderer({
             </button>
           </form>
 
-          {/* Suggestions */}
-          {suggestions.length > 0 && (
+          {/* Preset Refinements */}
+          {refinePresets.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-3">
+              <span className="text-slate-500 text-xs py-1">Try:</span>
+              {refinePresets.map((preset, i) => (
+                <button
+                  key={i}
+                  onClick={() => setRefinementQuery(preset)}
+                  disabled={isRefining}
+                  className="px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors disabled:opacity-50"
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Dynamic Suggestions from API */}
+          {suggestions.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
               {suggestions.map((suggestion, i) => (
                 <button
                   key={i}

@@ -208,7 +208,7 @@ def _generate_single_metric_trend(requirements: VisualizationRequirements) -> Li
             metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
             time=TimeBinding(period="last 8 quarters", granularity=granularity),
         ),
-        position=GridPosition(column=4, row=1, col_span=9, row_span=4),
+        position=GridPosition(column=4, row=1, col_span=9, row_span=3),
         chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
     ))
 
@@ -259,7 +259,7 @@ def _generate_breakdown_chart(requirements: VisualizationRequirements) -> List[W
             dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
             time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
         ),
-        position=GridPosition(column=4, row=1, col_span=9, row_span=4),
+        position=GridPosition(column=4, row=1, col_span=9, row_span=3),
         chart_config=ChartConfig(show_legend=True, show_grid=True, animate=True),
         interactions=interactions,
     ))
@@ -274,7 +274,7 @@ def _generate_breakdown_chart(requirements: VisualizationRequirements) -> List[W
             dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
             time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
         ),
-        position=GridPosition(column=1, row=3, col_span=3, row_span=4),
+        position=GridPosition(column=1, row=3, col_span=3, row_span=3),
         table_config=TableConfig(sortable=True, show_totals=True),
     ))
 
@@ -311,7 +311,7 @@ def _generate_comparison_chart(requirements: VisualizationRequirements) -> List[
             metrics=[MetricBinding(metric=m, format=_get_format_string(m)) for m in metrics[:2]],
             time=TimeBinding(period="last 8 quarters", granularity=TimeGranularity.QUARTERLY),
         ),
-        position=GridPosition(column=1, row=3, col_span=12, row_span=4),
+        position=GridPosition(column=1, row=3, col_span=12, row_span=3),
         chart_config=ChartConfig(show_legend=True, show_grid=True, animate=True),
     ))
 
@@ -347,7 +347,7 @@ def _generate_drill_down_view(requirements: VisualizationRequirements) -> List[W
             dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
             time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
         ),
-        position=GridPosition(column=5, row=1, col_span=8, row_span=4),
+        position=GridPosition(column=5, row=1, col_span=8, row_span=3),
         chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
         interactions=[
             InteractionConfig(
@@ -370,7 +370,7 @@ def _generate_drill_down_view(requirements: VisualizationRequirements) -> List[W
             metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
             time=TimeBinding(period="last 8 quarters", granularity=TimeGranularity.QUARTERLY),
         ),
-        position=GridPosition(column=1, row=3, col_span=4, row_span=4),
+        position=GridPosition(column=1, row=3, col_span=4, row_span=3),
         chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
     ))
 
@@ -408,7 +408,7 @@ def _generate_multi_metric_dashboard(requirements: VisualizationRequirements) ->
             metrics=[MetricBinding(metric=primary_metric, format=_get_format_string(primary_metric))],
             time=TimeBinding(period="last 8 quarters", granularity=TimeGranularity.QUARTERLY),
         ),
-        position=GridPosition(column=1, row=3, col_span=6, row_span=4),
+        position=GridPosition(column=1, row=3, col_span=6, row_span=3),
         chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
     ))
 
@@ -422,7 +422,7 @@ def _generate_multi_metric_dashboard(requirements: VisualizationRequirements) ->
                 metrics=[MetricBinding(metric=m, format=_get_format_string(m)) for m in metrics[1:4]],
                 time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
             ),
-            position=GridPosition(column=7, row=3, col_span=6, row_span=4),
+            position=GridPosition(column=7, row=3, col_span=6, row_span=3),
             chart_config=ChartConfig(show_legend=True, show_grid=True, animate=True),
         ))
 
@@ -470,7 +470,7 @@ def _generate_full_dashboard(requirements: VisualizationRequirements) -> List[Wi
             metrics=[MetricBinding(metric=primary_metric, format=_get_format_string(primary_metric))],
             time=TimeBinding(period="last 8 quarters", granularity=TimeGranularity.QUARTERLY),
         ),
-        position=GridPosition(column=1, row=3, col_span=6, row_span=4),
+        position=GridPosition(column=1, row=3, col_span=6, row_span=3),
         chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
     ))
 
@@ -485,7 +485,7 @@ def _generate_full_dashboard(requirements: VisualizationRequirements) -> List[Wi
             dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
             time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
         ),
-        position=GridPosition(column=7, row=3, col_span=6, row_span=4),
+        position=GridPosition(column=7, row=3, col_span=6, row_span=3),
         chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
         interactions=[
             InteractionConfig(

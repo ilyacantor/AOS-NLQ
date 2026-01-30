@@ -18,12 +18,37 @@ type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO'
 type PanelTab = 'History' | 'Learning' | 'Data Gaps' | 'Debug'
 type QueryMode = 'static' | 'ai'
 
-const personaOptions: { label: string; value: Persona; query: string }[] = [
-  { label: 'CFO', value: 'CFO', query: 'Show me a finance dashboard with revenue KPI, gross margin KPI, operating margin trend, net income, and cash position' },
-  { label: 'CRO', value: 'CRO', query: 'Show me a sales dashboard with pipeline KPI, bookings trend, win rate KPI, churn rate, and quota attainment breakdown' },
-  { label: 'COO', value: 'COO', query: 'Show me an operations dashboard with headcount KPI, revenue per employee, magic number trend, LTV/CAC ratio, and efficiency metrics' },
-  { label: 'CTO', value: 'CTO', query: 'Show me a technology dashboard with uptime KPI, deploys per week trend, sprint velocity, MTTR, and code coverage breakdown' },
-  { label: 'CHRO', value: 'CHRO', query: 'Show me a people dashboard with total headcount KPI, attrition rate trend, new hires, employee growth rate, and department breakdown' },
+const personaOptions: { label: string; value: Persona; query: string; refinePresets: string[] }[] = [
+  {
+    label: 'CFO',
+    value: 'CFO',
+    query: 'Show me a finance dashboard with revenue KPI, gross margin percent KPI, operating margin trend, net income KPI, and cash breakdown by region',
+    refinePresets: ['Add EBITDA card', 'Show burn rate trend', 'Add AR vs AP comparison', 'Filter to AMER region']
+  },
+  {
+    label: 'CRO',
+    value: 'CRO',
+    query: 'Show me a sales dashboard with ARR KPI, pipeline KPI, bookings trend over time, win rate KPI, and quota attainment by rep',
+    refinePresets: ['Add churn rate card', 'Show NRR trend', 'Break down by product', 'Add sales cycle chart']
+  },
+  {
+    label: 'COO',
+    value: 'COO',
+    query: 'Show me an operations dashboard with headcount KPI, revenue per employee KPI, magic number trend, LTV CAC ratio KPI, and NPS breakdown',
+    refinePresets: ['Add CAC payback card', 'Show customer count trend', 'Add CSAT score', 'Filter to Enterprise']
+  },
+  {
+    label: 'CTO',
+    value: 'CTO',
+    query: 'Show me a technology dashboard with uptime percent KPI, P1 incidents KPI, deploys per week trend, sprint velocity KPI, and MTTR breakdown',
+    refinePresets: ['Add code coverage card', 'Show tech debt trend', 'Add features shipped', 'Filter to Platform']
+  },
+  {
+    label: 'CHRO',
+    value: 'CHRO',
+    query: 'Show me a people dashboard with total headcount KPI, turnover rate KPI, time to hire trend, employee satisfaction KPI, and engagement breakdown',
+    refinePresets: ['Add training hours card', 'Show hiring trend', 'Break down by department', 'Add retention rate']
+  },
 ]
 
 const quickActions = [
@@ -436,7 +461,7 @@ function App() {
 
                     {/* Help Text */}
                     <div className="text-slate-500 text-xs">
-                      Edit Layout to drag & resize • Use chatbox below to refine
+                      Drag to rearrange • Resize from corners • Use chatbox to refine
                     </div>
                   </div>
                 </div>
@@ -449,6 +474,7 @@ function App() {
                     onDrillDown={handleDashboardDrillDown}
                     onRefinement={handleDashboardRefinement}
                     showRefinementInput={true}
+                    refinePresets={personaOptions.find(p => p.value === selectedPersona)?.refinePresets || []}
                   />
                 </div>
 
