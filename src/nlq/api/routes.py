@@ -186,7 +186,7 @@ def _track_intent_map_if_needed(
             domain_persona_map = {
                 Domain.FINANCE: "CFO",
                 Domain.GROWTH: "CRO",
-                Domain.OPERATIONS: "COO",
+                Domain.OPS: "COO",
                 Domain.PRODUCT: "CTO",
                 Domain.PEOPLE: "CHRO",
             }
