@@ -41,11 +41,11 @@ const PERSONA_CONFIGS: Record<Persona, DashboardConfig | null> = {
  * Persona display names and descriptions
  */
 const PERSONA_INFO: Record<Persona, { title: string; description: string }> = {
-  CFO: { title: 'Finance Overview', description: 'Executive financial health dashboard' },
-  CRO: { title: 'Revenue Overview', description: 'Sales and revenue performance' },
-  COO: { title: 'Operations Overview', description: 'Operational metrics and efficiency' },
-  CTO: { title: 'Technology Overview', description: 'Engineering and product metrics' },
-  CHRO: { title: 'People Overview', description: 'HR and workforce dashboard' },
+  CFO: { title: 'CFO Dashboard', description: 'Executive financial health dashboard' },
+  CRO: { title: 'CRO Dashboard', description: 'Sales and revenue performance' },
+  COO: { title: 'COO Dashboard', description: 'Operational metrics and efficiency' },
+  CTO: { title: 'CTO Dashboard', description: 'Engineering and product metrics' },
+  CHRO: { title: 'CHRO Dashboard', description: 'HR and workforce dashboard' },
 };
 
 /**
