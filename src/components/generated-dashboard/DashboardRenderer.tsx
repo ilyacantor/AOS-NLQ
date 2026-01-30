@@ -149,6 +149,20 @@ export function DashboardRenderer({
   const [templateDesc, setTemplateDesc] = useState('');
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
+  // Sync with initialSchema/initialWidgetData prop changes (for persona switching)
+  useEffect(() => {
+    if (initialSchema) {
+      setSchema(initialSchema);
+      setError(null);
+    }
+  }, [initialSchema]);
+
+  useEffect(() => {
+    if (initialWidgetData && Object.keys(initialWidgetData).length > 0) {
+      setWidgetData(initialWidgetData);
+    }
+  }, [initialWidgetData]);
+
   // Measure container width for grid layout
   useEffect(() => {
     const updateWidth = () => {

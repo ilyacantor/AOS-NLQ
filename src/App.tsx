@@ -19,11 +19,11 @@ type PanelTab = 'History' | 'Learning' | 'Data Gaps' | 'Debug'
 type QueryMode = 'static' | 'ai'
 
 const personaOptions: { label: string; value: Persona; query: string }[] = [
-  { label: 'CFO', value: 'CFO', query: 'Build me a CFO dashboard with revenue, margins, cash flow, and profitability' },
-  { label: 'CRO', value: 'CRO', query: 'Build me a CRO dashboard with pipeline, bookings, win rate, and churn' },
-  { label: 'COO', value: 'COO', query: 'Build me a COO dashboard with headcount, efficiency, magic number, and operational metrics' },
-  { label: 'CTO', value: 'CTO', query: 'Build me a CTO dashboard with uptime, velocity, deploys, and engineering metrics' },
-  { label: 'CHRO', value: 'CHRO', query: 'Build me a CHRO dashboard with headcount, attrition, hiring, and workforce metrics' },
+  { label: 'CFO', value: 'CFO', query: 'Show me a finance dashboard with revenue KPI, gross margin KPI, operating margin trend, net income, and cash position' },
+  { label: 'CRO', value: 'CRO', query: 'Show me a sales dashboard with pipeline KPI, bookings trend, win rate KPI, churn rate, and quota attainment breakdown' },
+  { label: 'COO', value: 'COO', query: 'Show me an operations dashboard with headcount KPI, revenue per employee, magic number trend, LTV/CAC ratio, and efficiency metrics' },
+  { label: 'CTO', value: 'CTO', query: 'Show me a technology dashboard with uptime KPI, deploys per week trend, sprint velocity, MTTR, and code coverage breakdown' },
+  { label: 'CHRO', value: 'CHRO', query: 'Show me a people dashboard with total headcount KPI, attrition rate trend, new hires, employee growth rate, and department breakdown' },
 ]
 
 const quickActions = [
@@ -118,26 +118,30 @@ function App() {
       const isBuildRequest = forceNew || /build\s+(me\s+)?a?\s*\w+\s+dashboard/i.test(queryText)
 
       if (isBuildRequest || !dashboardSchema) {
-        // Generate new dashboard
-        const res = await fetch('/api/v1/dashboard/generate', {
+        // Generate new dashboard - correct endpoint is /query/dashboard
+        const res = await fetch('/api/v1/query/dashboard', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            query: queryText,
-            session_id: sessionId
+            question: queryText,
+            reference_date: '2026-01-27',
+            conversation_id: sessionId
           })
         })
 
         if (res.ok) {
           const data = await res.json()
-          if (data.dashboard) {
+          if (data.success && data.dashboard) {
             setDashboardSchema(data.dashboard)
             setDashboardWidgetData(data.widget_data || {})
           } else if (data.error) {
             setDashboardError(data.error)
+          } else {
+            setDashboardError('Failed to generate dashboard - no schema returned')
           }
         } else {
-          setDashboardError('Failed to generate dashboard')
+          const errorData = await res.json().catch(() => ({}))
+          setDashboardError(errorData.detail || 'Failed to generate dashboard')
         }
       } else {
         // Refine existing dashboard
@@ -145,22 +149,23 @@ function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            query: queryText,
-            current_schema: dashboardSchema,
-            session_id: sessionId
+            dashboard_id: dashboardSchema.id,
+            refinement_query: queryText,
+            conversation_id: sessionId
           })
         })
 
         if (res.ok) {
           const data = await res.json()
-          if (data.dashboard) {
+          if (data.success && data.dashboard) {
             setDashboardSchema(data.dashboard)
             setDashboardWidgetData(data.widget_data || {})
           } else if (data.error) {
             setDashboardError(data.error)
           }
         } else {
-          setDashboardError('Failed to refine dashboard')
+          const errorData = await res.json().catch(() => ({}))
+          setDashboardError(errorData.detail || 'Failed to refine dashboard')
         }
       }
     } catch (error) {
