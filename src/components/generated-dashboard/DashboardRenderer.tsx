@@ -252,6 +252,126 @@ export function DashboardRenderer({
     setLayoutMap({});
   }, []);
 
+  // Auto-arrange widgets to remove gaps and create a clean layout
+  const handleAutoArrange = useCallback(() => {
+    if (!schema) return;
+
+    const cols = schema.layout.columns; // typically 12
+
+    // Separate widgets by type for logical grouping
+    const kpis = schema.widgets.filter(w => w.type === 'kpi_card');
+    const charts = schema.widgets.filter(w =>
+      ['line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar'].includes(w.type)
+    );
+    const tables = schema.widgets.filter(w => w.type === 'data_table');
+    const others = schema.widgets.filter(w =>
+      !['kpi_card', 'line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar', 'data_table'].includes(w.type)
+    );
+
+    // Grid occupation tracker
+    const grid: boolean[][] = [];
+    const getRow = (y: number) => {
+      while (grid.length <= y) grid.push(new Array(cols).fill(false));
+      return grid[y];
+    };
+
+    // Check if position is available
+    const canPlace = (x: number, y: number, w: number, h: number): boolean => {
+      if (x + w > cols) return false;
+      for (let dy = 0; dy < h; dy++) {
+        const row = getRow(y + dy);
+        for (let dx = 0; dx < w; dx++) {
+          if (row[x + dx]) return false;
+        }
+      }
+      return true;
+    };
+
+    // Mark position as occupied
+    const place = (x: number, y: number, w: number, h: number) => {
+      for (let dy = 0; dy < h; dy++) {
+        const row = getRow(y + dy);
+        for (let dx = 0; dx < w; dx++) {
+          row[x + dx] = true;
+        }
+      }
+    };
+
+    // Find next available position
+    const findPosition = (w: number, h: number): { x: number; y: number } => {
+      for (let y = 0; ; y++) {
+        for (let x = 0; x <= cols - w; x++) {
+          if (canPlace(x, y, w, h)) {
+            return { x, y };
+          }
+        }
+      }
+    };
+
+    const newLayoutMap: Record<string, LayoutItem> = {};
+
+    // Place KPIs first (row 0) - they're typically 3 cols wide, 2 rows tall
+    kpis.forEach(widget => {
+      const w = Math.min(widget.position.col_span || 3, cols);
+      const h = widget.position.row_span || 2;
+      const pos = findPosition(w, h);
+      place(pos.x, pos.y, w, h);
+      newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+    });
+
+    // Place charts (after KPIs)
+    charts.forEach(widget => {
+      const w = Math.min(widget.position.col_span || 6, cols);
+      const h = widget.position.row_span || 3;
+      const pos = findPosition(w, h);
+      place(pos.x, pos.y, w, h);
+      newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+    });
+
+    // Place tables
+    tables.forEach(widget => {
+      const w = Math.min(widget.position.col_span || 4, cols);
+      const h = widget.position.row_span || 3;
+      const pos = findPosition(w, h);
+      place(pos.x, pos.y, w, h);
+      newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+    });
+
+    // Place any other widgets
+    others.forEach(widget => {
+      const w = Math.min(widget.position.col_span || 3, cols);
+      const h = widget.position.row_span || 2;
+      const pos = findPosition(w, h);
+      place(pos.x, pos.y, w, h);
+      newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+    });
+
+    // Update layout map and schema
+    setLayoutMap(newLayoutMap);
+
+    // Update schema positions
+    const updatedWidgets = schema.widgets.map(widget => {
+      const layout = newLayoutMap[widget.id];
+      if (layout) {
+        return {
+          ...widget,
+          position: {
+            ...widget.position,
+            column: layout.x + 1,
+            row: layout.y + 1,
+            col_span: layout.w,
+            row_span: layout.h,
+          },
+        };
+      }
+      return widget;
+    });
+    setSchema({ ...schema, widgets: updatedWidgets });
+
+    setSaveSuccess('Layout auto-arranged!');
+    setTimeout(() => setSaveSuccess(null), 2000);
+  }, [schema]);
+
   // Save dashboard
   const handleSave = useCallback(() => {
     if (!schema || !saveName.trim()) return;
@@ -458,6 +578,15 @@ export function DashboardRenderer({
               )}
             </div>
             <div className="flex items-center gap-2">
+              {/* Auto-arrange Button */}
+              <button
+                onClick={handleAutoArrange}
+                className="px-3 py-1.5 bg-cyan-900/50 text-cyan-300 rounded-lg text-sm hover:bg-cyan-800/60 transition-colors"
+                title="Remove gaps and arrange widgets neatly"
+              >
+                ⊞ Auto
+              </button>
+
               {/* Save Button */}
               <button
                 onClick={() => {
