@@ -156,6 +156,7 @@ export function DashboardRenderer({
   useEffect(() => {
     if (initialSchema) {
       setSchema(initialSchema);
+      setLayoutMap({}); // Clear custom positions when new schema is loaded
       setError(null);
     }
   }, [initialSchema]);
@@ -213,15 +214,18 @@ export function DashboardRenderer({
   // Handle layout change from drag-and-drop
   const handleLayoutChange = useCallback((newLayout: LayoutItem[]) => {
     // Update the layout map with new positions (keyed by widget ID)
-    const newMap: Record<string, LayoutItem> = { ...layoutMap };
-    newLayout.forEach(item => {
-      newMap[item.i] = item;
+    setLayoutMap(prevMap => {
+      const newMap: Record<string, LayoutItem> = { ...prevMap };
+      newLayout.forEach(item => {
+        newMap[item.i] = item;
+      });
+      return newMap;
     });
-    setLayoutMap(newMap);
 
     // Update schema with new positions
-    if (schema) {
-      const updatedWidgets = schema.widgets.map(widget => {
+    setSchema(prevSchema => {
+      if (!prevSchema) return prevSchema;
+      const updatedWidgets = prevSchema.widgets.map(widget => {
         const layoutItem = newLayout.find(l => l.i === widget.id);
         if (layoutItem) {
           return {
@@ -237,9 +241,9 @@ export function DashboardRenderer({
         }
         return widget;
       });
-      setSchema({ ...schema, widgets: updatedWidgets });
-    }
-  }, [schema, layoutMap]);
+      return { ...prevSchema, widgets: updatedWidgets };
+    });
+  }, []);
 
   // Reset dashboard
   const handleReset = useCallback(() => {
@@ -254,123 +258,126 @@ export function DashboardRenderer({
 
   // Auto-arrange widgets to remove gaps and create a clean layout
   const handleAutoArrange = useCallback(() => {
-    if (!schema) return;
+    setSchema(prevSchema => {
+      if (!prevSchema) return prevSchema;
 
-    const cols = schema.layout.columns; // typically 12
+      const cols = prevSchema.layout.columns; // typically 12
 
-    // Separate widgets by type for logical grouping
-    const kpis = schema.widgets.filter(w => w.type === 'kpi_card');
-    const charts = schema.widgets.filter(w =>
-      ['line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar'].includes(w.type)
-    );
-    const tables = schema.widgets.filter(w => w.type === 'data_table');
-    const others = schema.widgets.filter(w =>
-      !['kpi_card', 'line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar', 'data_table'].includes(w.type)
-    );
+      // Separate widgets by type for logical grouping
+      const kpis = prevSchema.widgets.filter(w => w.type === 'kpi_card');
+      const charts = prevSchema.widgets.filter(w =>
+        ['line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar'].includes(w.type)
+      );
+      const tables = prevSchema.widgets.filter(w => w.type === 'data_table');
+      const others = prevSchema.widgets.filter(w =>
+        !['kpi_card', 'line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar', 'data_table'].includes(w.type)
+      );
 
-    // Grid occupation tracker
-    const grid: boolean[][] = [];
-    const getRow = (y: number) => {
-      while (grid.length <= y) grid.push(new Array(cols).fill(false));
-      return grid[y];
-    };
+      // Grid occupation tracker
+      const grid: boolean[][] = [];
+      const getRow = (y: number) => {
+        while (grid.length <= y) grid.push(new Array(cols).fill(false));
+        return grid[y];
+      };
 
-    // Check if position is available
-    const canPlace = (x: number, y: number, w: number, h: number): boolean => {
-      if (x + w > cols) return false;
-      for (let dy = 0; dy < h; dy++) {
-        const row = getRow(y + dy);
-        for (let dx = 0; dx < w; dx++) {
-          if (row[x + dx]) return false;
-        }
-      }
-      return true;
-    };
-
-    // Mark position as occupied
-    const place = (x: number, y: number, w: number, h: number) => {
-      for (let dy = 0; dy < h; dy++) {
-        const row = getRow(y + dy);
-        for (let dx = 0; dx < w; dx++) {
-          row[x + dx] = true;
-        }
-      }
-    };
-
-    // Find next available position
-    const findPosition = (w: number, h: number): { x: number; y: number } => {
-      for (let y = 0; ; y++) {
-        for (let x = 0; x <= cols - w; x++) {
-          if (canPlace(x, y, w, h)) {
-            return { x, y };
+      // Check if position is available
+      const canPlace = (x: number, y: number, w: number, h: number): boolean => {
+        if (x + w > cols) return false;
+        for (let dy = 0; dy < h; dy++) {
+          const row = getRow(y + dy);
+          for (let dx = 0; dx < w; dx++) {
+            if (row[x + dx]) return false;
           }
         }
-      }
-    };
+        return true;
+      };
 
-    const newLayoutMap: Record<string, LayoutItem> = {};
+      // Mark position as occupied
+      const place = (x: number, y: number, w: number, h: number) => {
+        for (let dy = 0; dy < h; dy++) {
+          const row = getRow(y + dy);
+          for (let dx = 0; dx < w; dx++) {
+            row[x + dx] = true;
+          }
+        }
+      };
 
-    // Place KPIs first (row 0) - they're typically 3 cols wide, 2 rows tall
-    kpis.forEach(widget => {
-      const w = Math.min(widget.position.col_span || 3, cols);
-      const h = widget.position.row_span || 2;
-      const pos = findPosition(w, h);
-      place(pos.x, pos.y, w, h);
-      newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+      // Find next available position
+      const findPosition = (w: number, h: number): { x: number; y: number } => {
+        for (let y = 0; ; y++) {
+          for (let x = 0; x <= cols - w; x++) {
+            if (canPlace(x, y, w, h)) {
+              return { x, y };
+            }
+          }
+        }
+      };
+
+      const newLayoutMap: Record<string, LayoutItem> = {};
+
+      // Place KPIs first (row 0) - they're typically 3 cols wide, 2 rows tall
+      kpis.forEach(widget => {
+        const w = Math.min(widget.position.col_span || 3, cols);
+        const h = widget.position.row_span || 2;
+        const pos = findPosition(w, h);
+        place(pos.x, pos.y, w, h);
+        newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+      });
+
+      // Place charts (after KPIs)
+      charts.forEach(widget => {
+        const w = Math.min(widget.position.col_span || 6, cols);
+        const h = widget.position.row_span || 3;
+        const pos = findPosition(w, h);
+        place(pos.x, pos.y, w, h);
+        newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+      });
+
+      // Place tables
+      tables.forEach(widget => {
+        const w = Math.min(widget.position.col_span || 4, cols);
+        const h = widget.position.row_span || 3;
+        const pos = findPosition(w, h);
+        place(pos.x, pos.y, w, h);
+        newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+      });
+
+      // Place any other widgets
+      others.forEach(widget => {
+        const w = Math.min(widget.position.col_span || 3, cols);
+        const h = widget.position.row_span || 2;
+        const pos = findPosition(w, h);
+        place(pos.x, pos.y, w, h);
+        newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+      });
+
+      // Update layout map (separate setState call)
+      setLayoutMap(newLayoutMap);
+
+      // Update schema positions
+      const updatedWidgets = prevSchema.widgets.map(widget => {
+        const layout = newLayoutMap[widget.id];
+        if (layout) {
+          return {
+            ...widget,
+            position: {
+              ...widget.position,
+              column: layout.x + 1,
+              row: layout.y + 1,
+              col_span: layout.w,
+              row_span: layout.h,
+            },
+          };
+        }
+        return widget;
+      });
+
+      return { ...prevSchema, widgets: updatedWidgets };
     });
-
-    // Place charts (after KPIs)
-    charts.forEach(widget => {
-      const w = Math.min(widget.position.col_span || 6, cols);
-      const h = widget.position.row_span || 3;
-      const pos = findPosition(w, h);
-      place(pos.x, pos.y, w, h);
-      newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
-    });
-
-    // Place tables
-    tables.forEach(widget => {
-      const w = Math.min(widget.position.col_span || 4, cols);
-      const h = widget.position.row_span || 3;
-      const pos = findPosition(w, h);
-      place(pos.x, pos.y, w, h);
-      newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
-    });
-
-    // Place any other widgets
-    others.forEach(widget => {
-      const w = Math.min(widget.position.col_span || 3, cols);
-      const h = widget.position.row_span || 2;
-      const pos = findPosition(w, h);
-      place(pos.x, pos.y, w, h);
-      newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
-    });
-
-    // Update layout map and schema
-    setLayoutMap(newLayoutMap);
-
-    // Update schema positions
-    const updatedWidgets = schema.widgets.map(widget => {
-      const layout = newLayoutMap[widget.id];
-      if (layout) {
-        return {
-          ...widget,
-          position: {
-            ...widget.position,
-            column: layout.x + 1,
-            row: layout.y + 1,
-            col_span: layout.w,
-            row_span: layout.h,
-          },
-        };
-      }
-      return widget;
-    });
-    setSchema({ ...schema, widgets: updatedWidgets });
 
     setSaveSuccess('Layout auto-arranged!');
     setTimeout(() => setSaveSuccess(null), 2000);
-  }, [schema]);
+  }, []);
 
   // Save dashboard
   const handleSave = useCallback(() => {
