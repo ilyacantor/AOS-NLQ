@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from ..services.llm_call_counter import get_call_counter
 from ..services.rag_learning_log import get_learning_log
 from ..services.query_cache_service import get_cache_service
+from ..services.insufficient_data_tracker import get_insufficient_data_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,35 @@ class LearningStatsResponse(BaseModel):
     from_llm: int
     cache_hit_rate: float
     learning_rate: float
+    supabase_connected: bool
+
+
+class InsufficientDataEntry(BaseModel):
+    """Model for an insufficient data log entry."""
+    id: str
+    description: str
+    query: str
+    confidence: float
+    reason: str
+    persona: str
+    timestamp: str
+
+
+class InsufficientDataResponse(BaseModel):
+    """Response model for insufficient data log."""
+    entries: List[InsufficientDataEntry]
+    total: int
+    stats: dict
+    message: str = "Possible insufficient data conditions detected"
+
+
+class InsufficientDataStatsResponse(BaseModel):
+    """Response model for insufficient data statistics."""
+    total_entries: int
+    avg_confidence: float
+    by_reason: dict
+    by_persona: dict
+    threshold: float
     supabase_connected: bool
 
 
@@ -346,3 +376,90 @@ async def get_rag_status(
         "recent_log": recent_entries,
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
+
+
+# =============================================================================
+# INSUFFICIENT DATA TRACKING ENDPOINTS
+# =============================================================================
+
+@router.get("/insufficient-data/log", response_model=InsufficientDataResponse)
+async def get_insufficient_data_log(
+    limit: int = Query(default=50, ge=1, le=200, description="Maximum entries to return"),
+    persona: Optional[str] = Query(default=None, description="Filter by persona")
+):
+    """
+    Get recent queries that returned with low confidence (<80%).
+
+    These represent possible insufficient data conditions where:
+    - The metric was not recognized
+    - The time period was unclear
+    - The data was not available
+    - The query was ambiguous
+
+    This helps identify data gaps and query patterns that need better coverage.
+    """
+    tracker = get_insufficient_data_tracker()
+
+    # Get entries with plain English descriptions
+    entries = tracker.get_recent_entries_plain(limit)
+
+    # Filter by persona if specified
+    if persona:
+        entries = [e for e in entries if e.get("persona") == persona]
+
+    stats = tracker.get_stats()
+
+    return InsufficientDataResponse(
+        entries=[InsufficientDataEntry(**e) for e in entries],
+        total=len(entries),
+        stats=stats
+    )
+
+
+@router.get("/insufficient-data/stats", response_model=InsufficientDataStatsResponse)
+async def get_insufficient_data_stats():
+    """
+    Get statistics about insufficient data conditions.
+
+    Shows breakdown by reason and persona to help identify patterns.
+    """
+    tracker = get_insufficient_data_tracker()
+    stats = tracker.get_stats()
+    return InsufficientDataStatsResponse(**stats)
+
+
+@router.get("/insufficient-data/log/db")
+async def get_insufficient_data_from_db(
+    limit: int = Query(default=50, ge=1, le=500, description="Maximum entries to return"),
+    offset: int = Query(default=0, ge=0, description="Number of entries to skip"),
+    persona: Optional[str] = Query(default=None, description="Filter by persona")
+):
+    """
+    Get insufficient data log entries from Supabase database.
+
+    For historical analysis and reporting of data gaps.
+    """
+    tracker = get_insufficient_data_tracker()
+    entries = await tracker.get_entries_from_db(limit=limit, offset=offset, persona=persona)
+    return {"entries": entries, "limit": limit, "offset": offset}
+
+
+@router.delete("/insufficient-data/clear")
+async def clear_insufficient_data_log(
+    confirm: bool = Query(default=False, description="Must be true to proceed")
+):
+    """
+    Clear the in-memory insufficient data log.
+
+    Requires confirm=true query parameter.
+    Note: This only clears memory buffer, not database records.
+    """
+    if not confirm:
+        raise HTTPException(
+            status_code=400,
+            detail="Must pass confirm=true to clear log"
+        )
+
+    tracker = get_insufficient_data_tracker()
+    tracker.clear_memory()
+    return {"status": "cleared", "message": "Insufficient data log memory cleared"}

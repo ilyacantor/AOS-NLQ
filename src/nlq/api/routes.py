@@ -49,6 +49,7 @@ from src.nlq.core.personality import (
 from src.nlq.services.llm_call_counter import get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
 from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
+from src.nlq.services.insufficient_data_tracker import get_insufficient_data_tracker, CONFIDENCE_THRESHOLD
 
 # Dashboard generation imports
 from src.nlq.core.visualization_intent import (
@@ -90,6 +91,131 @@ def clear_session_dashboard(session_id: str):
     """Clear dashboard state for a session."""
     if session_id in _session_dashboards:
         del _session_dashboards[session_id]
+
+
+# =============================================================================
+# INSUFFICIENT DATA TRACKING HELPERS
+# =============================================================================
+
+def _track_insufficient_data_if_needed(
+    response: NLQResponse,
+    question: str,
+    session_id: str = None,
+    metric_found: bool = True,
+    period_found: bool = True,
+    data_exists: bool = True,
+    is_ambiguous: bool = False,
+) -> NLQResponse:
+    """
+    Track a response if confidence is below threshold (80%).
+
+    Adds 'Possible insufficient data condition' message if tracked.
+    Returns the response (potentially modified with warning message).
+    """
+    tracker = get_insufficient_data_tracker()
+
+    # Only track if below threshold
+    if not tracker.should_track(response.confidence):
+        return response
+
+    # Detect persona from the response
+    persona = "CFO"  # default
+    if response.resolved_metric:
+        detected = detect_persona_from_metric(response.resolved_metric)
+        if detected:
+            persona = detected
+
+    # Track the entry
+    entry = tracker.track_sync(
+        query=question,
+        confidence=response.confidence,
+        persona=persona,
+        resolved_metric=response.resolved_metric,
+        resolved_period=response.resolved_period,
+        parsed_intent=response.parsed_intent,
+        session_id=session_id,
+        metric_found=metric_found,
+        period_found=period_found,
+        data_exists=data_exists,
+        is_ambiguous=is_ambiguous,
+    )
+
+    # If tracked, add warning to answer
+    if entry and response.answer:
+        warning = f"\n\n⚠️ Possible insufficient data condition ({response.confidence:.0%} confidence)"
+        response_dict = response.model_dump()
+        response_dict["answer"] = response.answer + warning
+        return NLQResponse(**response_dict)
+
+    return response
+
+
+def _track_intent_map_if_needed(
+    response: IntentMapResponse,
+    question: str,
+    session_id: str = None,
+    metric_found: bool = True,
+    period_found: bool = True,
+    data_exists: bool = True,
+    is_ambiguous: bool = False,
+) -> IntentMapResponse:
+    """
+    Track an IntentMapResponse if overall_confidence is below threshold (80%).
+
+    Adds 'Possible insufficient data condition' message if tracked.
+    Returns the response (potentially modified with warning message).
+    """
+    tracker = get_insufficient_data_tracker()
+
+    # Only track if below threshold
+    if not tracker.should_track(response.overall_confidence):
+        return response
+
+    # Detect persona and resolved info from nodes
+    persona = "CFO"
+    resolved_metric = None
+    resolved_period = None
+    parsed_intent = response.intent_type
+
+    if response.nodes:
+        first_node = response.nodes[0]
+        resolved_metric = first_node.metric
+        resolved_period = first_node.period
+        if first_node.domain:
+            # Map domain to persona
+            domain_persona_map = {
+                Domain.FINANCE: "CFO",
+                Domain.GROWTH: "CRO",
+                Domain.OPERATIONS: "COO",
+                Domain.PRODUCT: "CTO",
+                Domain.PEOPLE: "People",
+            }
+            persona = domain_persona_map.get(first_node.domain, "CFO")
+
+    # Track the entry
+    entry = tracker.track_sync(
+        query=question,
+        confidence=response.overall_confidence,
+        persona=persona,
+        resolved_metric=resolved_metric,
+        resolved_period=resolved_period,
+        parsed_intent=parsed_intent,
+        session_id=session_id,
+        metric_found=metric_found,
+        period_found=period_found,
+        data_exists=data_exists,
+        is_ambiguous=is_ambiguous,
+    )
+
+    # If tracked, add warning to text response
+    if entry and response.text_response:
+        warning = f"\n\n⚠️ Possible insufficient data condition ({response.overall_confidence:.0%} confidence)"
+        response_dict = response.model_dump()
+        response_dict["text_response"] = response.text_response + warning
+        return IntentMapResponse(**response_dict)
+
+    return response
+
 
 # =============================================================================
 # RAG CACHE HELPERS
@@ -2932,7 +3058,7 @@ async def query(request: NLQRequest) -> NLQResponse:
 
         if not result.success:
             stumped_msg = get_stumped_response(include_suggestions=True)
-            return NLQResponse(
+            response = NLQResponse(
                 success=True,
                 answer=stumped_msg,
                 confidence=0.5,
@@ -2940,12 +3066,17 @@ async def query(request: NLQRequest) -> NLQResponse:
                 resolved_metric=parsed.metric,
                 resolved_period=parsed.resolved_period,
             )
+            # Track as insufficient data (execution failed)
+            return _track_insufficient_data_if_needed(
+                response, request.question, session_id,
+                metric_found=True, period_found=True, data_exists=False
+            )
 
         # Format the answer based on intent type
         unit = get_metric_unit(parsed.metric)
         answer, formatted_value = _format_answer(parsed, result, unit)
 
-        return NLQResponse(
+        response = NLQResponse(
             success=True,
             answer=answer,
             value=formatted_value,
@@ -2955,6 +3086,8 @@ async def query(request: NLQRequest) -> NLQResponse:
             resolved_metric=parsed.metric,
             resolved_period=parsed.resolved_period,
         )
+        # Track if confidence is below threshold
+        return _track_insufficient_data_if_needed(response, request.question, session_id)
 
     except ValueError as e:
         logger.error(f"Query parsing error: {e}")
@@ -3404,10 +3537,18 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         # Execute the query
         result = executor.execute(parsed)
 
+        # Get session ID for tracking
+        session_id = request.session_id or "default"
+
         if not result.success:
-            return _create_stumped_galaxy_response(
+            response = _create_stumped_galaxy_response(
                 request.question,
                 parsed.intent.value,
+            )
+            # Track as insufficient data (execution failed)
+            return _track_intent_map_if_needed(
+                response, request.question, session_id,
+                metric_found=True, period_found=True, data_exists=False
             )
 
         # Generate nodes based on intent
@@ -3427,7 +3568,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         # Get primary node
         primary_node_id = nodes[0].id if nodes else None
 
-        return IntentMapResponse(
+        response = IntentMapResponse(
             query=request.question,
             query_type=parsed.intent.value,
             ambiguity_type=None,
@@ -3442,23 +3583,29 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
             needs_clarification=False,
             clarification_prompt=None,
         )
+        # Track if confidence is below threshold
+        return _track_intent_map_if_needed(response, request.question, session_id)
 
     except ValueError as e:
         logger.error(f"Query parsing error: {e}")
-        return _create_error_galaxy_response(
+        response = _create_error_galaxy_response(
             request.question,
             "UNKNOWN",
             "PARSE_ERROR",
             str(e),
         )
+        # Track error responses
+        return _track_intent_map_if_needed(response, request.question)
     except Exception as e:
         logger.exception(f"Unexpected error processing galaxy query: {e}")
-        return _create_error_galaxy_response(
+        response = _create_error_galaxy_response(
             request.question,
             "UNKNOWN",
             "INTERNAL_ERROR",
             "An unexpected error occurred",
         )
+        # Track error responses
+        return _track_intent_map_if_needed(response, request.question)
 
 
 def _handle_ambiguous_query_galaxy(

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { GalaxyView, IntentMapResponse } from './components/galaxy'
 import { Dashboard } from './components/dashboard'
 import { RAGLearningPanel, LLMCallCounter, useSessionId } from './components/rag'
+import { InsufficientDataPanel } from './components/rag/InsufficientDataPanel'
 import { DashboardRenderer, DashboardSchema } from './components/generated-dashboard'
 
 interface QueryHistoryItem {
@@ -44,7 +45,7 @@ interface NLQResponse {
 
 type ViewMode = 'text' | 'galaxy' | 'dashboard' | 'builder'
 type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'People'
-type PanelTab = 'History' | 'Learning' | 'Debug'
+type PanelTab = 'History' | 'Learning' | 'Data Gaps' | 'Debug'
 type QueryMode = 'static' | 'ai'
 
 const dashboardOptions: { label: string; persona: Persona; query: string }[] = [
@@ -688,7 +689,7 @@ function App() {
         <aside className={`${sidebarOpen ? 'w-[283px]' : 'w-0 overflow-hidden'} border-l border-slate-800 flex flex-col bg-slate-900/30 transition-all duration-300`}>
           {/* Panel Tabs */}
           <div className="flex border-b border-slate-800">
-            {(['History', 'Learning', 'Debug'] as PanelTab[]).map((tab) => (
+            {(['History', 'Learning', 'Data Gaps', 'Debug'] as PanelTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setPanelTab(tab)}
@@ -734,6 +735,13 @@ function App() {
 
             {panelTab === 'Learning' && (
               <RAGLearningPanel
+                refreshInterval={5000}
+                maxEntries={50}
+              />
+            )}
+
+            {panelTab === 'Data Gaps' && (
+              <InsufficientDataPanel
                 refreshInterval={5000}
                 maxEntries={50}
               />
