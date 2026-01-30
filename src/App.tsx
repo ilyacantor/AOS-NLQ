@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { GalaxyView, IntentMapResponse } from './components/galaxy'
 import { Dashboard } from './components/dashboard'
 import { RAGLearningPanel, LLMCallCounter, useSessionId } from './components/rag'
@@ -11,48 +11,20 @@ interface QueryHistoryItem {
   timestamp: string
   duration: string
   tag: string
+  count: number  // For aggregation
 }
 
-interface RelatedMetric {
-  metric: string
-  display_name: string
-  value: number | string | null
-  formatted_value: string | null
-  period: string | null
-  confidence: number
-  match_type: string
-  rationale: string | null
-  domain?: string
-}
-
-interface NLQResponse {
-  success: boolean
-  answer?: string
-  value?: number | string
-  unit?: string
-  confidence: number
-  parsed_intent?: string
-  resolved_metric?: string
-  resolved_period?: string
-  error_code?: string
-  error_message?: string
-  related_metrics?: RelatedMetric[]
-  // Dashboard response fields
-  response_type?: 'text' | 'dashboard'
-  dashboard?: DashboardSchema
-  dashboard_data?: Record<string, any>
-}
-
-type ViewMode = 'text' | 'galaxy' | 'dashboard' | 'builder'
+type ViewMode = 'galaxy' | 'dashboard'
 type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'People'
 type PanelTab = 'History' | 'Learning' | 'Data Gaps' | 'Debug'
 type QueryMode = 'static' | 'ai'
+type DashboardMode = 'persona' | 'builder'
 
-const dashboardOptions: { label: string; persona: Persona; query: string }[] = [
-  { label: 'CFO Dashboard', persona: 'CFO', query: 'CFO dashboard' },
-  { label: 'CRO Dashboard', persona: 'CRO', query: 'CRO dashboard' },
-  { label: 'COO Dashboard', persona: 'COO', query: 'COO dashboard' },
-  { label: 'CTO Dashboard', persona: 'CTO', query: 'CTO dashboard' },
+const personaOptions: { label: string; value: Persona }[] = [
+  { label: 'CFO', value: 'CFO' },
+  { label: 'CRO', value: 'CRO' },
+  { label: 'COO', value: 'COO' },
+  { label: 'CTO', value: 'CTO' },
 ]
 
 const quickActions = [
@@ -70,62 +42,46 @@ const quickActions = [
   '401k match',
 ]
 
-// Quick actions for the Builder view (visualization-focused)
-// These will be used by DashboardRenderer internally for suggestions
-const _builderQuickActions = [
-  'Show me revenue by region over time',
-  'Create a dashboard with revenue, margin, and pipeline KPIs',
-  'Visualize sales trends with ability to drill into reps',
-  'Show quarterly revenue trend',
-  'Revenue breakdown by product',
-  'Compare revenue vs gross margin',
-  'Build a CFO overview dashboard',
-  'Show headcount by department',
-]
-void _builderQuickActions; // Silence unused warning
+/**
+ * Aggregate duplicate queries in history, keeping the most recent and adding count
+ */
+function aggregateHistory(items: QueryHistoryItem[]): QueryHistoryItem[] {
+  const queryMap = new Map<string, QueryHistoryItem>()
 
-// Helper to detect dashboard requests
-const isDashboardQuery = (q: string): Persona | null => {
-  const lower = q.toLowerCase()
-  if (lower.includes('cfo dashboard') || lower.includes('finance dashboard')) return 'CFO'
-  if (lower.includes('cro dashboard') || lower.includes('sales dashboard')) return 'CRO'
-  if (lower.includes('coo dashboard') || lower.includes('ops dashboard') || lower.includes('operations dashboard')) return 'COO'
-  if (lower.includes('cto dashboard') || lower.includes('tech dashboard') || lower.includes('engineering dashboard')) return 'CTO'
-  if (lower.includes('people dashboard') || lower.includes('hr dashboard')) return 'People'
-  return null
+  // Process in order (newest first), aggregate duplicates
+  for (const item of items) {
+    const normalizedQuery = item.query.toLowerCase().trim()
+    const existing = queryMap.get(normalizedQuery)
+
+    if (existing) {
+      // Update count on the existing (most recent) entry
+      existing.count += 1
+    } else {
+      // First occurrence - keep it
+      queryMap.set(normalizedQuery, { ...item, count: 1 })
+    }
+  }
+
+  return Array.from(queryMap.values())
 }
 
 function App() {
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('galaxy')
-  const [queryMode, setQueryMode] = useState<QueryMode>('ai')  // Default to AI (Prod mode)
+  const [queryMode, setQueryMode] = useState<QueryMode>('ai')
   const [dashboardPersona, setDashboardPersona] = useState<Persona>('CFO')
+  const [dashboardMode, setDashboardMode] = useState<DashboardMode>('persona')
   const [panelTab, setPanelTab] = useState<PanelTab>('History')
   const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [textResponse, setTextResponse] = useState<NLQResponse | null>(null)
   const [galaxyResponse, setGalaxyResponse] = useState<IntentMapResponse | null>(null)
   const [lastQuery, setLastQuery] = useState('')
   const [lastDuration, setLastDuration] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [dashboardDropdownOpen, setDashboardDropdownOpen] = useState(false)
   const [generatedDashboard, setGeneratedDashboard] = useState<DashboardSchema | null>(null)
   const [dashboardWidgetData, setDashboardWidgetData] = useState<Record<string, any>>({})
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const sessionId = useSessionId()  // For LLM call tracking
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDashboardDropdownOpen(false)
-      }
-    }
-    if (dashboardDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [dashboardDropdownOpen])
+  const [hasLoadedDefault, setHasLoadedDefault] = useState(false)
+  const sessionId = useSessionId()
 
   // Load query history from database on mount
   useEffect(() => {
@@ -140,8 +96,9 @@ function App() {
             timestamp: new Date(entry.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
             duration: entry.execution_time_ms ? `${entry.execution_time_ms}ms` : '',
             tag: entry.learned ? 'LEARNED' : (entry.source === 'cache' ? 'CACHED' : 'AI'),
+            count: 1,
           }))
-          setQueryHistory(historyItems)
+          setQueryHistory(aggregateHistory(historyItems))
         }
       } catch (error) {
         console.error('Failed to load history:', error)
@@ -150,77 +107,42 @@ function App() {
     loadHistory()
   }, [])
 
-  const handleSubmit = async (queryText?: string, forceTextView?: boolean) => {
+  // Auto-query "2025 results" for Galaxy view on first load
+  useEffect(() => {
+    if (!hasLoadedDefault && viewMode === 'galaxy') {
+      setHasLoadedDefault(true)
+      handleSubmit('2025 results')
+    }
+  }, [hasLoadedDefault, viewMode])
+
+  const handleSubmit = useCallback(async (queryText?: string) => {
     const textToSubmit = queryText ?? query
     if (!textToSubmit.trim()) return
 
-    // Check for dashboard query first
-    const persona = isDashboardQuery(textToSubmit)
-    if (persona) {
-      setDashboardPersona(persona)
-      setViewMode('dashboard')
-      setQuery('')
-      setLastQuery(textToSubmit)
-      // Add to history
-      const now = new Date()
-      const timestamp = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-      const newItem: QueryHistoryItem = {
-        id: Date.now().toString(),
-        query: textToSubmit,
-        timestamp: timestamp,
-        duration: '0ms',
-        tag: `${persona} Dashboard`,
-      }
-      setQueryHistory(prev => [newItem, ...prev])
-      return
-    }
-
     setIsLoading(true)
-    setQuery(textToSubmit)
-    setTextResponse(null)
+    setQuery('')
     setGalaxyResponse(null)
     const now = new Date()
     const timestamp = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
     const startTime = performance.now()
 
-    // Determine the effective view mode (text view if forced from dashboard drill-down)
-    const effectiveViewMode = forceTextView ? 'text' : viewMode
-
     try {
-      // Fetch from appropriate endpoint based on view mode
-      // Galaxy uses intent-map endpoint, Text uses query endpoint
-      const endpoint = effectiveViewMode === 'galaxy' ? '/api/v1/intent-map' : '/api/v1/query'
-      const res = await fetch(endpoint, {
+      // Always use intent-map endpoint for Galaxy view
+      const res = await fetch('/api/v1/intent-map', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           question: textToSubmit,
           reference_date: '2026-01-27',
-          mode: queryMode,  // Pass static/ai mode to backend
-          session_id: sessionId  // For LLM call tracking
+          mode: queryMode,
+          session_id: sessionId
         })
       })
 
       const data = await res.json()
       const duration = Math.round(performance.now() - startTime)
 
-      if (effectiveViewMode === 'galaxy') {
-        setGalaxyResponse(data as IntentMapResponse)
-      } else {
-        // Check if this is a dashboard response
-        const nlqResponse = data as NLQResponse
-        if (nlqResponse.response_type === 'dashboard' && nlqResponse.dashboard) {
-          // Dashboard visualization response - switch to builder view
-          setGeneratedDashboard(nlqResponse.dashboard as DashboardSchema)
-          setDashboardWidgetData(nlqResponse.dashboard_data || {})
-          setViewMode('builder')
-          setTextResponse(null) // Clear text response
-        } else {
-          // Text view or drill-down from dashboard
-          setTextResponse(nlqResponse)
-        }
-      }
-
+      setGalaxyResponse(data as IntentMapResponse)
       setLastQuery(textToSubmit)
       setLastDuration(`${duration}ms`)
 
@@ -229,36 +151,33 @@ function App() {
         query: textToSubmit,
         timestamp: timestamp,
         duration: `${duration}ms`,
-        tag: effectiveViewMode === 'galaxy'
-          ? (data as IntentMapResponse).query_type || 'intent-map'
-          : (data as NLQResponse).resolved_metric || 'nlq.query',
+        tag: (data as IntentMapResponse).query_type || 'intent-map',
+        count: 1,
       }
 
-      setQueryHistory(prev => [newItem, ...prev])
+      setQueryHistory(prev => aggregateHistory([newItem, ...prev]))
     } catch (error) {
       console.error('Query failed:', error)
-      if (viewMode === 'galaxy') {
-        // Show error in text mode
-        setTextResponse({
-          success: false,
-          confidence: 0,
-          error_code: 'NETWORK_ERROR',
-          error_message: 'Failed to connect to backend. Is the server running?'
-        })
-        setViewMode('text')
-      } else {
-        setTextResponse({
-          success: false,
-          confidence: 0,
-          error_code: 'NETWORK_ERROR',
-          error_message: 'Failed to connect to backend. Is the server running?'
-        })
-      }
+      // Show error in galaxy response
+      setGalaxyResponse({
+        query: textToSubmit,
+        query_type: 'ERROR',
+        ambiguity_type: null,
+        persona: 'CFO',
+        overall_confidence: 0,
+        overall_data_quality: 0,
+        node_count: 0,
+        nodes: [],
+        primary_node_id: null,
+        primary_answer: 'Failed to connect to backend. Is the server running?',
+        text_response: 'Failed to connect to backend. Is the server running?',
+        needs_clarification: false,
+        clarification_prompt: null,
+      } as IntentMapResponse)
     }
 
-    setQuery('')
     setIsLoading(false)
-  }
+  }, [query, queryMode, sessionId])
 
   const handleQuickAction = (action: string) => {
     handleSubmit(action)
@@ -275,9 +194,21 @@ function App() {
     handleSubmit(historyQuery)
   }
 
-  const hasResponse = galaxyResponse || textResponse
+  // Handle drill-down from dashboard tiles - open in Galaxy view
+  const handleDashboardDrillDown = (drillQuery: string) => {
+    setViewMode('galaxy')
+    setLastQuery(drillQuery)
+    handleSubmit(drillQuery)
+  }
 
-  // No auto-query on mount - user can use quick actions or type a query
+  // Handle generated dashboard from builder refinement
+  const handleDashboardRefinement = (newSchema: DashboardSchema) => {
+    setGeneratedDashboard(newSchema)
+    setDashboardWidgetData({})
+    setDashboardMode('builder')
+  }
+
+  const hasGalaxyResponse = galaxyResponse !== null
 
   return (
     <div className="h-screen bg-slate-950 flex flex-col overflow-hidden">
@@ -289,50 +220,30 @@ function App() {
             <span className="text-slate-300 text-lg font-normal">Natural Language Query</span>
           </div>
 
-          {/* View Mode Toggle */}
+          {/* View Mode Toggle - Only Galaxy and Dashboard */}
           <div className="flex items-center gap-2 ml-8">
             <span className="text-slate-500 text-sm">View:</span>
             <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-1">
               <button
                 onClick={() => setViewMode('galaxy')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'galaxy'
-                  ? 'bg-slate-700 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Galaxy View
-            </button>
-            <button
-              onClick={() => setViewMode('text')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'text'
-                  ? 'bg-slate-700 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Text View
-            </button>
-            <button
-              onClick={() => setViewMode('dashboard')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'dashboard'
-                  ? 'bg-slate-700 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Dashboard
-            </button>
-            <button
-              onClick={() => setViewMode('builder')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'builder'
-                  ? 'bg-cyan-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Builder
-            </button>
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'galaxy'
+                    ? 'bg-slate-700 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Galaxy
+              </button>
+              <button
+                onClick={() => setViewMode('dashboard')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'dashboard'
+                    ? 'bg-slate-700 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Dashboard
+              </button>
             </div>
           </div>
         </div>
@@ -373,8 +284,8 @@ function App() {
       <div className="flex flex-1 overflow-hidden relative">
         {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          {/* Query Input Section - Hidden in Dashboard and Builder views */}
-          {viewMode !== 'dashboard' && viewMode !== 'builder' && (
+          {/* Query Input Section - Only shown in Galaxy view */}
+          {viewMode === 'galaxy' && (
             <div className="flex flex-col items-center pt-6 pb-4 px-8">
               {/* Query Input */}
               <div className="w-full max-w-2xl">
@@ -400,39 +311,6 @@ function App() {
 
               {/* Quick Action Buttons */}
               <div className="flex flex-wrap justify-center items-center gap-2 mt-4 max-w-3xl">
-                {/* Dashboard Dropdown */}
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    onClick={() => setDashboardDropdownOpen(!dashboardDropdownOpen)}
-                    className="px-3 py-1.5 bg-purple-900/50 border border-purple-700 rounded-full text-purple-300 text-xs hover:bg-purple-800/50 hover:border-purple-600 transition-colors flex items-center gap-1.5"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                    </svg>
-                    Dashboards
-                    <svg className={`w-3 h-3 transition-transform ${dashboardDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {dashboardDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 min-w-[140px] py-1">
-                      {dashboardOptions.map((option) => (
-                        <button
-                          key={option.persona}
-                          onClick={() => {
-                            handleQuickAction(option.query)
-                            setDashboardDropdownOpen(false)
-                          }}
-                          className="w-full px-3 py-2 text-left text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Query Presets */}
                 {quickActions.map((action) => (
                   <button
                     key={action}
@@ -448,221 +326,88 @@ function App() {
 
           {/* Results Area */}
           <div className="flex-1 overflow-hidden">
-            {/* Dashboard View */}
+            {/* Dashboard View - Unified with persona selector and builder */}
             {viewMode === 'dashboard' && (
-              <div className="h-full overflow-hidden">
-                <Dashboard
-                  persona={dashboardPersona}
-                  onNLQQuery={(q) => {
-                    // Switch to text view for drill-down queries (more reliable than galaxy)
-                    setViewMode('text')
-                    // Set the query to show loading state immediately
-                    setLastQuery(q)
-                    // Submit the query with forceTextView=true to ensure text endpoint is used
-                    handleSubmit(q, true)
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Builder View - Self-Developing Dashboard */}
-            {viewMode === 'builder' && (
-              <div className="h-full overflow-hidden">
-                <DashboardRenderer
-                  initialSchema={generatedDashboard || undefined}
-                  initialWidgetData={dashboardWidgetData}
-                  onDrillDown={(q) => {
-                    // Switch to text view for drill-down queries
-                    setViewMode('text')
-                    setLastQuery(q)
-                    handleSubmit(q, true)
-                  }}
-                  onRefinement={(newSchema) => {
-                    setGeneratedDashboard(newSchema)
-                    setDashboardWidgetData({}) // Clear pre-resolved data, let refinement fetch new
-                  }}
-                  showRefinementInput={true}
-                />
-              </div>
-            )}
-
-            {/* Galaxy View */}
-            {viewMode === 'galaxy' && galaxyResponse && (
-              <div className="h-full overflow-hidden">
-                <GalaxyView data={galaxyResponse} />
-              </div>
-            )}
-
-            {/* Text View */}
-            {viewMode === 'text' && textResponse && (
-              <div className="h-full overflow-y-auto p-8">
-                <div className="max-w-4xl mx-auto">
-                  {/* Query echo header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-slate-400 text-sm">{lastQuery}</span>
-                    <button
-                      onClick={() => setTextResponse(null)}
-                      className="text-slate-500 hover:text-slate-300"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  {textResponse.success ? (
-                    textResponse.parsed_intent === 'DASHBOARD' ? (
-                      /* Dashboard View - with table */
-                      <div className="flex gap-6">
-                        {/* Main Table */}
-                        <div className="flex-1 bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
-                          <div className="p-4 border-b border-slate-700">
-                            <h2 className="text-lg font-semibold text-white">
-                              {textResponse.answer?.split('\n')[0]?.replace(/\*\*/g, '') || '2025 vs 2024 KPIs'}
-                            </h2>
-                          </div>
-                          <div className="p-4">
-                            {(() => {
-                              const lines = (textResponse.answer || '').split('\n');
-                              const tableLines = lines.filter(l => l.startsWith('|'));
-                              if (tableLines.length > 2) {
-                                const headers = tableLines[0].split('|').filter(c => c.trim());
-                                const rows = tableLines.slice(2);
-                                return (
-                                  <table className="w-full text-sm">
-                                    <thead>
-                                      <tr className="border-b border-slate-700">
-                                        {headers.map((h, i) => (
-                                          <th key={i} className="px-3 py-2 text-left text-slate-400 font-medium">
-                                            {h.trim()}
-                                          </th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {rows.map((row, rowIdx) => {
-                                        const cells = row.split('|').filter(c => c.trim());
-                                        const isPersonaRow = cells[0]?.includes('**');
-                                        return (
-                                          <tr key={rowIdx} className={`border-b border-slate-800 ${isPersonaRow ? 'bg-slate-800/30' : ''}`}>
-                                            {cells.map((cell, cellIdx) => {
-                                              const content = cell.trim().replace(/\*\*/g, '');
-                                              const isChange = cellIdx === cells.length - 1;
-                                              const isPositive = content.startsWith('+');
-                                              const isNeutral = content === '0.0pp' || content === '0%';
-                                              return (
-                                                <td key={cellIdx} className={`px-3 py-2 ${
-                                                  cellIdx === 0 && isPersonaRow ? 'font-semibold text-white' :
-                                                  isChange ? (isPositive ? 'text-emerald-400' : isNeutral ? 'text-slate-400' : 'text-red-400') :
-                                                  'text-slate-300'
-                                                }`}>
-                                                  {content}
-                                                </td>
-                                              );
-                                            })}
-                                          </tr>
-                                        );
-                                      })}
-                                    </tbody>
-                                  </table>
-                                );
-                              }
-                              return <pre className="text-slate-300 whitespace-pre-wrap">{textResponse.answer}</pre>;
-                            })()}
-                          </div>
+              <div className="h-full overflow-hidden flex flex-col">
+                {/* Dashboard Header with Controls */}
+                <div className="flex-shrink-0 px-6 py-3 border-b border-slate-800 bg-slate-900/50">
+                  <div className="flex items-center justify-between">
+                    {/* Left: Persona Selector & Mode Toggle */}
+                    <div className="flex items-center gap-4">
+                      {/* Persona Selector */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-500 text-xs">Persona:</span>
+                        <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
+                          {personaOptions.map((option) => (
+                            <button
+                              key={option.value}
+                              onClick={() => {
+                                setDashboardPersona(option.value)
+                                setDashboardMode('persona')
+                              }}
+                              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                                dashboardPersona === option.value && dashboardMode === 'persona'
+                                  ? 'bg-cyan-600 text-white'
+                                  : 'text-slate-400 hover:text-slate-200'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
                         </div>
-
-                        {/* Sidebar - Metrics by Persona */}
-                        {textResponse.related_metrics && textResponse.related_metrics.length > 0 && (
-                          <div className="w-64 flex-shrink-0">
-                            <div className="bg-slate-900 border border-slate-700 rounded-xl p-4">
-                              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-                                Metrics by Domain
-                              </h3>
-                              {(() => {
-                                const domainColors: Record<string, string> = {
-                                  finance: '#3B82F6', growth: '#EC4899', ops: '#10B981', product: '#8B5CF6', people: '#F97316'
-                                };
-                                const domainLabels: Record<string, string> = {
-                                  finance: 'CFO', growth: 'CRO', ops: 'COO', product: 'CTO', people: 'People'
-                                };
-                                const byDomain = textResponse.related_metrics.reduce((acc, m) => {
-                                  const d = (m as any).domain || 'finance';
-                                  if (!acc[d]) acc[d] = [];
-                                  acc[d].push(m);
-                                  return acc;
-                                }, {} as Record<string, typeof textResponse.related_metrics>);
-
-                                return Object.entries(byDomain).map(([domain, metrics]) => (
-                                  <div key={domain} className="mb-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: domainColors[domain] }} />
-                                      <span className="text-slate-400 text-xs font-medium">{domainLabels[domain] || domain}</span>
-                                    </div>
-                                    {metrics.map((m, i) => (
-                                      <div key={i} className="flex justify-between text-xs py-1 border-b border-slate-800/50">
-                                        <span className="text-slate-400">{m.display_name}</span>
-                                        <span className="text-slate-200 font-mono">{m.formatted_value}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ));
-                              })()}
-                            </div>
-                          </div>
-                        )}
                       </div>
-                    ) : (
-                      /* Standard Text View */
-                      <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
-                        {/* Answer */}
-                        <div className="text-slate-200 text-lg mb-4 p-4 bg-slate-800/50 rounded-lg">
-                          {textResponse.answer}
-                        </div>
 
-                        {/* Metadata row */}
-                        <div className="flex items-center gap-4 text-sm text-slate-400 mb-4">
-                          <span>Definition: <span className="text-cyan-400">{textResponse.resolved_metric}</span></span>
-                          <span>Confidence: <span className="text-green-400">{Math.round(textResponse.confidence * 100)}%</span></span>
-                          <span>{lastDuration}</span>
-                        </div>
-
-                        {/* Value display */}
-                        {textResponse.value !== undefined && (
-                          <div className="grid grid-cols-3 gap-4 p-4 bg-slate-800/30 rounded-lg">
-                            <div>
-                              <div className="text-slate-500 text-xs mb-1">Value</div>
-                              <div className="text-slate-200 font-mono text-xl">
-                                {textResponse.unit === '%'
-                                  ? `${Number(textResponse.value).toFixed(1)}%`
-                                  : `$${Number(textResponse.value).toFixed(1)}M`}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-slate-500 text-xs mb-1">Period</div>
-                              <div className="text-slate-200">{textResponse.resolved_period}</div>
-                            </div>
-                            <div>
-                              <div className="text-slate-500 text-xs mb-1">Intent</div>
-                              <div className="text-slate-200">{textResponse.parsed_intent}</div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  ) : (
-                    /* Error display */
-                    <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
-                      <div className="p-4 bg-red-900/20 border border-red-800/50 rounded-lg">
-                        <div className="text-red-400 font-medium mb-1">{textResponse.error_code}</div>
-                        <div className="text-red-300/80 text-sm">{textResponse.error_message}</div>
-                      </div>
+                      {/* Builder Mode Toggle */}
+                      {generatedDashboard && (
+                        <button
+                          onClick={() => setDashboardMode(dashboardMode === 'builder' ? 'persona' : 'builder')}
+                          className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                            dashboardMode === 'builder'
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          {dashboardMode === 'builder' ? '← Back to Persona' : 'Generated Dashboard'}
+                        </button>
+                      )}
                     </div>
+
+                    {/* Right: Help Text */}
+                    <div className="text-slate-500 text-xs">
+                      Click any tile to drill down in Galaxy view
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dashboard Content */}
+                <div className="flex-1 overflow-hidden">
+                  {dashboardMode === 'persona' ? (
+                    <Dashboard
+                      persona={dashboardPersona}
+                      onNLQQuery={handleDashboardDrillDown}
+                    />
+                  ) : (
+                    <DashboardRenderer
+                      initialSchema={generatedDashboard || undefined}
+                      initialWidgetData={dashboardWidgetData}
+                      onDrillDown={handleDashboardDrillDown}
+                      onRefinement={handleDashboardRefinement}
+                      showRefinementInput={true}
+                    />
                   )}
                 </div>
               </div>
             )}
 
-            {/* Empty State */}
-            {!hasResponse && (
+            {/* Galaxy View */}
+            {viewMode === 'galaxy' && hasGalaxyResponse && (
+              <div className="h-full overflow-hidden">
+                <GalaxyView data={galaxyResponse} />
+              </div>
+            )}
+
+            {/* Empty State for Galaxy */}
+            {viewMode === 'galaxy' && !hasGalaxyResponse && !isLoading && (
               <div className="h-full flex items-center justify-center text-slate-500">
                 <p>Enter a query above to see results</p>
               </div>
@@ -685,7 +430,7 @@ function App() {
           </svg>
         </button>
 
-        {/* Right Sidebar - History Panel */}
+        {/* Right Sidebar */}
         <aside className={`${sidebarOpen ? 'w-[283px]' : 'w-0 overflow-hidden'} border-l border-slate-800 flex flex-col bg-slate-900/30 transition-all duration-300`}>
           {/* Panel Tabs */}
           <div className="flex border-b border-slate-800">
@@ -720,7 +465,14 @@ function App() {
                         onClick={() => handleHistoryClick(item.query)}
                         className="p-3 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-colors"
                       >
-                        <p className="text-slate-200 text-sm truncate">{item.query}</p>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-slate-200 text-sm truncate flex-1">{item.query}</p>
+                          {item.count > 1 && (
+                            <span className="text-cyan-400/70 text-xs font-medium bg-cyan-400/10 px-1.5 py-0.5 rounded">
+                              ×{item.count}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-slate-500 text-xs">{item.timestamp}</span>
                           <span className="text-slate-600 text-xs">{item.duration}</span>
@@ -757,15 +509,7 @@ function App() {
                     </pre>
                   </div>
                 )}
-                {textResponse && (
-                  <div className="text-xs font-mono">
-                    <div className="text-slate-400 mb-2">NLQResponse:</div>
-                    <pre className="text-slate-500 whitespace-pre-wrap break-words overflow-x-auto">
-                      {JSON.stringify(textResponse, null, 2)}
-                    </pre>
-                  </div>
-                )}
-                {!galaxyResponse && !textResponse && (
+                {!galaxyResponse && (
                   <div className="text-slate-500 text-sm text-center py-8">
                     Run a query to see debug data
                   </div>
