@@ -643,6 +643,74 @@ export function DashboardRenderer({
         </div>
       )}
 
+      {/* Refinement Input - At top of dashboard */}
+      {schema && showRefinementInput && (
+        <div className="px-6 py-4 border-b border-slate-800 bg-slate-900/50">
+          <form onSubmit={handleRefinementSubmit} className="flex gap-3">
+            <input
+              type="text"
+              value={refinementQuery}
+              onChange={(e) => setRefinementQuery(e.target.value)}
+              placeholder="Refine this dashboard... (e.g., 'Add a pipeline KPI', 'Make that a bar chart')"
+              className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+              disabled={isRefining}
+            />
+            <button
+              type="submit"
+              disabled={isRefining || !refinementQuery.trim()}
+              className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isRefining ? 'Refining...' : 'Refine'}
+            </button>
+          </form>
+
+          {/* Preset Refinements */}
+          {refinePresets.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              <span className="text-slate-500 text-xs py-1">Try:</span>
+              {refinePresets.map((preset, i) => (
+                <button
+                  key={i}
+                  onClick={() => setRefinementQuery(preset)}
+                  disabled={isRefining}
+                  className="px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors disabled:opacity-50"
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Dynamic Suggestions from API */}
+          {suggestions.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {suggestions.map((suggestion, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  className="px-3 py-1 bg-slate-800/50 border border-slate-700/50 rounded-full text-slate-400 text-xs hover:bg-slate-700 hover:text-slate-200 transition-colors"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Refinement History */}
+          {schema.refinement_history.length > 0 && (
+            <div className="mt-3 text-xs text-slate-500">
+              <span>Refinements: </span>
+              {schema.refinement_history.map((r, i) => (
+                <span key={i}>
+                  {i > 0 && ' → '}
+                  <span className="text-slate-400">"{r}"</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Loading State */}
       {loading && (
         <div className="flex-1 flex items-center justify-center">
@@ -711,74 +779,6 @@ export function DashboardRenderer({
               </div>
             ))}
           </GridLayout>
-        </div>
-      )}
-
-      {/* Refinement Input */}
-      {schema && showRefinementInput && (
-        <div className="px-6 py-4 border-t border-slate-800 bg-slate-900/50">
-          <form onSubmit={handleRefinementSubmit} className="flex gap-3">
-            <input
-              type="text"
-              value={refinementQuery}
-              onChange={(e) => setRefinementQuery(e.target.value)}
-              placeholder="Refine this dashboard... (e.g., 'Add a pipeline KPI', 'Make that a bar chart')"
-              className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-              disabled={isRefining}
-            />
-            <button
-              type="submit"
-              disabled={isRefining || !refinementQuery.trim()}
-              className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isRefining ? 'Refining...' : 'Refine'}
-            </button>
-          </form>
-
-          {/* Preset Refinements */}
-          {refinePresets.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              <span className="text-slate-500 text-xs py-1">Try:</span>
-              {refinePresets.map((preset, i) => (
-                <button
-                  key={i}
-                  onClick={() => setRefinementQuery(preset)}
-                  disabled={isRefining}
-                  className="px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors disabled:opacity-50"
-                >
-                  {preset}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Dynamic Suggestions from API */}
-          {suggestions.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {suggestions.map((suggestion, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  className="px-3 py-1 bg-slate-800/50 border border-slate-700/50 rounded-full text-slate-400 text-xs hover:bg-slate-700 hover:text-slate-200 transition-colors"
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Refinement History */}
-          {schema.refinement_history.length > 0 && (
-            <div className="mt-3 text-xs text-slate-500">
-              <span>Refinements: </span>
-              {schema.refinement_history.map((r, i) => (
-                <span key={i}>
-                  {i > 0 && ' → '}
-                  <span className="text-slate-400">"{r}"</span>
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
