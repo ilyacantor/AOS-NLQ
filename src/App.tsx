@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { GalaxyView, IntentMapResponse } from './components/galaxy'
-import { Dashboard } from './components/dashboard'
 import { RAGLearningPanel, LLMCallCounter, useSessionId } from './components/rag'
 import { InsufficientDataPanel } from './components/rag/InsufficientDataPanel'
 import { DashboardRenderer, DashboardSchema } from './components/generated-dashboard'
@@ -18,14 +17,13 @@ type ViewMode = 'galaxy' | 'dashboard'
 type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO'
 type PanelTab = 'History' | 'Learning' | 'Data Gaps' | 'Debug'
 type QueryMode = 'static' | 'ai'
-type DashboardMode = 'persona' | 'builder'
 
-const personaOptions: { label: string; value: Persona }[] = [
-  { label: 'CFO', value: 'CFO' },
-  { label: 'CRO', value: 'CRO' },
-  { label: 'COO', value: 'COO' },
-  { label: 'CTO', value: 'CTO' },
-  { label: 'CHRO', value: 'CHRO' },
+const personaOptions: { label: string; value: Persona; query: string }[] = [
+  { label: 'CFO', value: 'CFO', query: 'Build me a CFO dashboard with revenue, margins, cash flow, and profitability' },
+  { label: 'CRO', value: 'CRO', query: 'Build me a CRO dashboard with pipeline, bookings, win rate, and churn' },
+  { label: 'COO', value: 'COO', query: 'Build me a COO dashboard with headcount, efficiency, magic number, and operational metrics' },
+  { label: 'CTO', value: 'CTO', query: 'Build me a CTO dashboard with uptime, velocity, deploys, and engineering metrics' },
+  { label: 'CHRO', value: 'CHRO', query: 'Build me a CHRO dashboard with headcount, attrition, hiring, and workforce metrics' },
 ]
 
 const quickActions = [
@@ -43,9 +41,6 @@ const quickActions = [
   '401k match',
 ]
 
-/**
- * Aggregate duplicate queries in history
- */
 function aggregateHistory(items: QueryHistoryItem[]): QueryHistoryItem[] {
   const queryMap = new Map<string, QueryHistoryItem>()
   for (const item of items) {
@@ -65,8 +60,7 @@ function App() {
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('galaxy')
   const [queryMode, setQueryMode] = useState<QueryMode>('ai')
-  const [dashboardPersona, setDashboardPersona] = useState<Persona>('CFO')
-  const [dashboardMode, setDashboardMode] = useState<DashboardMode>('persona')
+  const [selectedPersona, setSelectedPersona] = useState<Persona>('CFO')
   const [panelTab, setPanelTab] = useState<PanelTab>('History')
   const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -74,13 +68,14 @@ function App() {
   const [lastDuration, setLastDuration] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Dashboard builder state
-  const [generatedDashboard, setGeneratedDashboard] = useState<DashboardSchema | null>(null)
+  // Dashboard state - always use DashboardRenderer
+  const [dashboardSchema, setDashboardSchema] = useState<DashboardSchema | null>(null)
   const [dashboardWidgetData, setDashboardWidgetData] = useState<Record<string, any>>({})
-  const [dashboardRefinement, setDashboardRefinement] = useState('')
   const [isGeneratingDashboard, setIsGeneratingDashboard] = useState(false)
+  const [dashboardError, setDashboardError] = useState<string | null>(null)
 
   const [hasLoadedDefault, setHasLoadedDefault] = useState(false)
+  const [hasLoadedDefaultDashboard, setHasLoadedDefaultDashboard] = useState(false)
   const sessionId = useSessionId()
 
   // Use ref for query to avoid stale closure issues
@@ -111,7 +106,92 @@ function App() {
     loadHistory()
   }, [])
 
-  // Submit a Galaxy query - always requires explicit queryText
+  // Generate dashboard via API
+  const generateDashboard = useCallback(async (queryText: string, forceNew: boolean = false) => {
+    if (!queryText.trim()) return
+
+    setIsGeneratingDashboard(true)
+    setDashboardError(null)
+
+    try {
+      // Check if this is a "build me X dashboard" request or we're forcing new
+      const isBuildRequest = forceNew || /build\s+(me\s+)?a?\s*\w+\s+dashboard/i.test(queryText)
+
+      if (isBuildRequest || !dashboardSchema) {
+        // Generate new dashboard
+        const res = await fetch('/api/v1/dashboard/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: queryText,
+            session_id: sessionId
+          })
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          if (data.dashboard) {
+            setDashboardSchema(data.dashboard)
+            setDashboardWidgetData(data.widget_data || {})
+          } else if (data.error) {
+            setDashboardError(data.error)
+          }
+        } else {
+          setDashboardError('Failed to generate dashboard')
+        }
+      } else {
+        // Refine existing dashboard
+        const res = await fetch('/api/v1/dashboard/refine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: queryText,
+            current_schema: dashboardSchema,
+            session_id: sessionId
+          })
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          if (data.dashboard) {
+            setDashboardSchema(data.dashboard)
+            setDashboardWidgetData(data.widget_data || {})
+          } else if (data.error) {
+            setDashboardError(data.error)
+          }
+        } else {
+          setDashboardError('Failed to refine dashboard')
+        }
+      }
+    } catch (error) {
+      console.error('Dashboard generation failed:', error)
+      setDashboardError('Connection error. Is the server running?')
+    }
+
+    setIsGeneratingDashboard(false)
+  }, [dashboardSchema, sessionId])
+
+  // Handle persona selection - generate that persona's dashboard
+  const handlePersonaSelect = useCallback((persona: Persona) => {
+    setSelectedPersona(persona)
+    const personaConfig = personaOptions.find(p => p.value === persona)
+    if (personaConfig) {
+      generateDashboard(personaConfig.query, true)
+    }
+  }, [generateDashboard])
+
+  // Load default dashboard on first view
+  useEffect(() => {
+    if (!hasLoadedDefaultDashboard && viewMode === 'dashboard') {
+      setHasLoadedDefaultDashboard(true)
+      const personaConfig = personaOptions.find(p => p.value === selectedPersona)
+      if (personaConfig) {
+        generateDashboard(personaConfig.query, true)
+      }
+    }
+  }, [hasLoadedDefaultDashboard, viewMode, selectedPersona, generateDashboard])
+
+  // Submit a Galaxy query
   const submitGalaxyQuery = useCallback(async (queryText: string) => {
     if (!queryText.trim()) return
 
@@ -178,7 +258,7 @@ function App() {
     }
   }, [hasLoadedDefault, viewMode, submitGalaxyQuery])
 
-  // Handle form submit - uses ref to get current query value
+  // Handle form submit
   const handleSubmit = useCallback(() => {
     const currentQuery = queryRef.current
     if (currentQuery.trim()) {
@@ -199,84 +279,11 @@ function App() {
     submitGalaxyQuery(drillQuery)
   }, [submitGalaxyQuery])
 
-  // Generate or refine a dashboard
-  const handleDashboardGenerate = useCallback(async (queryText: string) => {
-    if (!queryText.trim()) return
-
-    setIsGeneratingDashboard(true)
-    setDashboardRefinement('')
-
-    try {
-      // Check if this is a "build me X dashboard" request
-      const isBuildRequest = /build\s+(me\s+)?a?\s*\w+\s+dashboard/i.test(queryText)
-
-      if (isBuildRequest || !generatedDashboard) {
-        // Generate new dashboard
-        const res = await fetch('/api/v1/dashboard/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            query: queryText,
-            session_id: sessionId
-          })
-        })
-
-        if (res.ok) {
-          const data = await res.json()
-          if (data.dashboard) {
-            setGeneratedDashboard(data.dashboard)
-            setDashboardWidgetData(data.widget_data || {})
-            setDashboardMode('builder')
-          }
-        }
-      } else {
-        // Refine existing dashboard
-        const res = await fetch('/api/v1/dashboard/refine', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            query: queryText,
-            current_schema: generatedDashboard,
-            session_id: sessionId
-          })
-        })
-
-        if (res.ok) {
-          const data = await res.json()
-          if (data.dashboard) {
-            setGeneratedDashboard(data.dashboard)
-            setDashboardWidgetData(data.widget_data || {})
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Dashboard generation failed:', error)
-    }
-
-    setIsGeneratingDashboard(false)
-  }, [generatedDashboard, sessionId])
-
-  // Handle dashboard refinement form submit
-  const handleDashboardRefinementSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (dashboardRefinement.trim()) {
-      handleDashboardGenerate(dashboardRefinement)
-    }
-  }
-
   // Handle dashboard refinement from DashboardRenderer
-  const handleDashboardRefinementCallback = useCallback((newSchema: DashboardSchema) => {
-    setGeneratedDashboard(newSchema)
+  const handleDashboardRefinement = useCallback((newSchema: DashboardSchema) => {
+    setDashboardSchema(newSchema)
     setDashboardWidgetData({})
-    setDashboardMode('builder')
   }, [])
-
-  // Reset to persona dashboard
-  const handleResetDashboard = () => {
-    setGeneratedDashboard(null)
-    setDashboardWidgetData({})
-    setDashboardMode('persona')
-  }
 
   const hasGalaxyResponse = galaxyResponse !== null
 
@@ -395,124 +402,57 @@ function App() {
 
           {/* Results Area */}
           <div className="flex-1 overflow-hidden">
-            {/* Dashboard View */}
+            {/* Dashboard View - Always uses DashboardRenderer with full controls */}
             {viewMode === 'dashboard' && (
               <div className="h-full overflow-hidden flex flex-col">
-                {/* Dashboard Header with Controls */}
+                {/* Dashboard Header with Persona Selector */}
                 <div className="flex-shrink-0 px-6 py-3 border-b border-slate-800 bg-slate-900/50">
                   <div className="flex items-center justify-between">
-                    {/* Left: Persona Selector & Mode Toggle */}
-                    <div className="flex items-center gap-4">
-                      {/* Persona Selector */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500 text-xs">Persona:</span>
-                        <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
-                          {personaOptions.map((option) => (
-                            <button
-                              key={option.value}
-                              onClick={() => {
-                                setDashboardPersona(option.value)
-                                setDashboardMode('persona')
-                              }}
-                              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                                dashboardPersona === option.value && dashboardMode === 'persona'
-                                  ? 'bg-cyan-600 text-white'
-                                  : 'text-slate-400 hover:text-slate-200'
-                              }`}
-                            >
-                              {option.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Builder Mode Toggle */}
-                      {generatedDashboard && (
-                        <>
+                    {/* Persona Quick Select */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 text-xs">Quick Load:</span>
+                      <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
+                        {personaOptions.map((option) => (
                           <button
-                            onClick={() => setDashboardMode(dashboardMode === 'builder' ? 'persona' : 'builder')}
-                            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                              dashboardMode === 'builder'
-                                ? 'bg-purple-600 text-white'
-                                : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                            key={option.value}
+                            onClick={() => handlePersonaSelect(option.value)}
+                            disabled={isGeneratingDashboard}
+                            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors disabled:opacity-50 ${
+                              selectedPersona === option.value
+                                ? 'bg-cyan-600 text-white'
+                                : 'text-slate-400 hover:text-slate-200'
                             }`}
                           >
-                            {dashboardMode === 'builder' ? 'Custom Dashboard' : 'View Custom'}
+                            {option.label}
                           </button>
-                          {dashboardMode === 'builder' && (
-                            <button
-                              onClick={handleResetDashboard}
-                              className="px-3 py-1 rounded-md text-xs font-medium bg-slate-800 text-red-400 hover:text-red-300 transition-colors"
-                            >
-                              Reset
-                            </button>
-                          )}
-                        </>
-                      )}
+                        ))}
+                      </div>
                     </div>
 
-                    {/* Right: Help Text */}
+                    {/* Help Text */}
                     <div className="text-slate-500 text-xs">
-                      Click any tile to drill down in Galaxy view
+                      Edit Layout to drag & resize • Use chatbox below to refine
                     </div>
                   </div>
                 </div>
 
-                {/* Dashboard Content */}
+                {/* DashboardRenderer - Full builder functionality */}
                 <div className="flex-1 overflow-hidden">
-                  {dashboardMode === 'persona' ? (
-                    <Dashboard
-                      persona={dashboardPersona}
-                      onNLQQuery={handleDashboardDrillDown}
-                    />
-                  ) : (
-                    <DashboardRenderer
-                      initialSchema={generatedDashboard || undefined}
-                      initialWidgetData={dashboardWidgetData}
-                      onDrillDown={handleDashboardDrillDown}
-                      onRefinement={handleDashboardRefinementCallback}
-                      showRefinementInput={true}
-                    />
-                  )}
+                  <DashboardRenderer
+                    initialSchema={dashboardSchema || undefined}
+                    initialWidgetData={dashboardWidgetData}
+                    onDrillDown={handleDashboardDrillDown}
+                    onRefinement={handleDashboardRefinement}
+                    showRefinementInput={true}
+                  />
                 </div>
 
-                {/* Dashboard Builder Chat - Always visible at bottom */}
-                <div className="flex-shrink-0 px-6 py-4 border-t border-slate-800 bg-slate-900/50">
-                  <form onSubmit={handleDashboardRefinementSubmit} className="flex gap-3">
-                    <input
-                      type="text"
-                      value={dashboardRefinement}
-                      onChange={(e) => setDashboardRefinement(e.target.value)}
-                      placeholder={
-                        generatedDashboard
-                          ? "Refine dashboard... (e.g., 'Add a pipeline chart', 'Remove the bottom row')"
-                          : "Build a custom dashboard... (e.g., 'Build me a CFO dashboard with revenue and margin')"
-                      }
-                      className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-                      disabled={isGeneratingDashboard}
-                    />
-                    <button
-                      type="submit"
-                      disabled={isGeneratingDashboard || !dashboardRefinement.trim()}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {isGeneratingDashboard ? 'Building...' : (generatedDashboard ? 'Refine' : 'Build')}
-                    </button>
-                  </form>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-slate-600 text-xs">Try:</span>
-                    {['Build me a CFO dashboard', 'Build me a sales dashboard', 'Show revenue and margin'].map((suggestion) => (
-                      <button
-                        key={suggestion}
-                        onClick={() => handleDashboardGenerate(suggestion)}
-                        className="px-2 py-0.5 text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded transition-colors"
-                        disabled={isGeneratingDashboard}
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
+                {/* Error display */}
+                {dashboardError && (
+                  <div className="px-6 py-3 bg-red-900/20 border-t border-red-800/50 text-red-400 text-sm">
+                    {dashboardError}
                   </div>
-                </div>
+                )}
               </div>
             )}
 
