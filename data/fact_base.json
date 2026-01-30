@@ -1484,6 +1484,63 @@
       }
     ]
   },
+  "pipeline_by_stage": {
+    "2024": {
+      "Lead": 57.5,
+      "Qualified": 86.25,
+      "Proposal": 57.5,
+      "Negotiation": 43.125,
+      "Closed-Won": 43.125
+    },
+    "2025": {
+      "Lead": 86.25,
+      "Qualified": 129.375,
+      "Proposal": 86.25,
+      "Negotiation": 64.69,
+      "Closed-Won": 64.69
+    },
+    "2026": {
+      "Lead": 115.0,
+      "Qualified": 172.5,
+      "Proposal": 115.0,
+      "Negotiation": 86.25,
+      "Closed-Won": 86.25
+    }
+  },
+  "pipeline_by_region": {
+    "2024": {
+      "AMER": 143.75,
+      "EMEA": 86.25,
+      "APAC": 57.5
+    },
+    "2025": {
+      "AMER": 215.625,
+      "EMEA": 129.375,
+      "APAC": 86.25
+    },
+    "2026": {
+      "AMER": 287.5,
+      "EMEA": 172.5,
+      "APAC": 115.0
+    }
+  },
+  "revenue_by_region": {
+    "2024": {
+      "AMER": 50.0,
+      "EMEA": 30.0,
+      "APAC": 20.0
+    },
+    "2025": {
+      "AMER": 75.0,
+      "EMEA": 45.0,
+      "APAC": 30.0
+    },
+    "2026": {
+      "AMER": 100.0,
+      "EMEA": 60.0,
+      "APAC": 40.0
+    }
+  },
   "people": {
     "employees": [
       {"id": "E001", "name": "Sarah Chen", "title": "CEO", "department": "Executive", "manager": null, "location": "SF HQ", "email": "sarah.chen@company.com", "phone": "x1001", "start_date": "2018-03-15"},

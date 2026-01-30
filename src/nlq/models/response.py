@@ -10,9 +10,12 @@ CRITICAL: Confidence scores are bounded [0.0, 1.0] using Pydantic Field constrai
 """
 
 from enum import Enum
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
+
+if TYPE_CHECKING:
+    from src.nlq.models.dashboard_schema import DashboardSchema
 
 
 class MatchType(str, Enum):
@@ -162,6 +165,20 @@ class IntentMapResponse(BaseModel):
         description="Question to ask for clarification"
     )
 
+    # Dashboard response (for visualization queries in galaxy mode)
+    dashboard: Optional[Any] = Field(
+        default=None,
+        description="Dashboard schema when visualization is requested"
+    )
+    dashboard_data: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Pre-resolved widget data for the dashboard"
+    )
+    response_type: Optional[str] = Field(
+        default="galaxy",
+        description="Response type: 'galaxy' for nodes, 'dashboard' for visualization"
+    )
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -305,6 +322,27 @@ class NLQResponse(BaseModel):
     error_message: Optional[str] = Field(
         default=None,
         description="Human-readable error message"
+    )
+
+    # Dashboard response (for visualization queries)
+    dashboard: Optional[Any] = Field(
+        default=None,
+        description="Dashboard schema when visualization is requested"
+    )
+
+    dashboard_data: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Pre-resolved widget data for the dashboard"
+    )
+
+    response_type: Optional[str] = Field(
+        default="text",
+        description="Response type: 'text' for simple answer, 'dashboard' for visualization"
+    )
+
+    active_filters: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Active cross-widget filters (dimension -> value)"
     )
 
     model_config = ConfigDict(

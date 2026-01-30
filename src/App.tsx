@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { GalaxyView, IntentMapResponse } from './components/galaxy'
 import { Dashboard } from './components/dashboard'
-import { RAGLearningPanel, LLMCallCounter } from './components/rag'
+import { RAGLearningPanel, LLMCallCounter, useSessionId } from './components/rag'
+import { DashboardRenderer, DashboardSchema } from './components/generated-dashboard'
 
 interface QueryHistoryItem {
   id: string
@@ -35,9 +36,13 @@ interface NLQResponse {
   error_code?: string
   error_message?: string
   related_metrics?: RelatedMetric[]
+  // Dashboard response fields
+  response_type?: 'text' | 'dashboard'
+  dashboard?: DashboardSchema
+  dashboard_data?: Record<string, any>
 }
 
-type ViewMode = 'text' | 'galaxy' | 'dashboard'
+type ViewMode = 'text' | 'galaxy' | 'dashboard' | 'builder'
 type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'People'
 type PanelTab = 'History' | 'Learning' | 'Debug'
 type QueryMode = 'static' | 'ai'
@@ -64,6 +69,20 @@ const quickActions = [
   '401k match',
 ]
 
+// Quick actions for the Builder view (visualization-focused)
+// These will be used by DashboardRenderer internally for suggestions
+const _builderQuickActions = [
+  'Show me revenue by region over time',
+  'Create a dashboard with revenue, margin, and pipeline KPIs',
+  'Visualize sales trends with ability to drill into reps',
+  'Show quarterly revenue trend',
+  'Revenue breakdown by product',
+  'Compare revenue vs gross margin',
+  'Build a CFO overview dashboard',
+  'Show headcount by department',
+]
+void _builderQuickActions; // Silence unused warning
+
 // Helper to detect dashboard requests
 const isDashboardQuery = (q: string): Persona | null => {
   const lower = q.toLowerCase()
@@ -89,7 +108,10 @@ function App() {
   const [lastDuration, setLastDuration] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [dashboardDropdownOpen, setDashboardDropdownOpen] = useState(false)
+  const [generatedDashboard, setGeneratedDashboard] = useState<DashboardSchema | null>(null)
+  const [dashboardWidgetData, setDashboardWidgetData] = useState<Record<string, any>>({})
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const sessionId = useSessionId()  // For LLM call tracking
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -173,7 +195,8 @@ function App() {
         body: JSON.stringify({
           question: textToSubmit,
           reference_date: '2026-01-27',
-          mode: queryMode  // Pass static/ai mode to backend
+          mode: queryMode,  // Pass static/ai mode to backend
+          session_id: sessionId  // For LLM call tracking
         })
       })
 
@@ -183,8 +206,18 @@ function App() {
       if (effectiveViewMode === 'galaxy') {
         setGalaxyResponse(data as IntentMapResponse)
       } else {
-        // Text view or drill-down from dashboard
-        setTextResponse(data as NLQResponse)
+        // Check if this is a dashboard response
+        const nlqResponse = data as NLQResponse
+        if (nlqResponse.response_type === 'dashboard' && nlqResponse.dashboard) {
+          // Dashboard visualization response - switch to builder view
+          setGeneratedDashboard(nlqResponse.dashboard as DashboardSchema)
+          setDashboardWidgetData(nlqResponse.dashboard_data || {})
+          setViewMode('builder')
+          setTextResponse(null) // Clear text response
+        } else {
+          // Text view or drill-down from dashboard
+          setTextResponse(nlqResponse)
+        }
       }
 
       setLastQuery(textToSubmit)
@@ -289,6 +322,16 @@ function App() {
             >
               Dashboard
             </button>
+            <button
+              onClick={() => setViewMode('builder')}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'builder'
+                  ? 'bg-cyan-600 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Builder
+            </button>
             </div>
           </div>
         </div>
@@ -329,8 +372,8 @@ function App() {
       <div className="flex flex-1 overflow-hidden relative">
         {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          {/* Query Input Section - Hidden in Dashboard view */}
-          {viewMode !== 'dashboard' && (
+          {/* Query Input Section - Hidden in Dashboard and Builder views */}
+          {viewMode !== 'dashboard' && viewMode !== 'builder' && (
             <div className="flex flex-col items-center pt-6 pb-4 px-8">
               {/* Query Input */}
               <div className="w-full max-w-2xl">
@@ -417,6 +460,27 @@ function App() {
                     // Submit the query with forceTextView=true to ensure text endpoint is used
                     handleSubmit(q, true)
                   }}
+                />
+              </div>
+            )}
+
+            {/* Builder View - Self-Developing Dashboard */}
+            {viewMode === 'builder' && (
+              <div className="h-full overflow-hidden">
+                <DashboardRenderer
+                  initialSchema={generatedDashboard || undefined}
+                  initialWidgetData={dashboardWidgetData}
+                  onDrillDown={(q) => {
+                    // Switch to text view for drill-down queries
+                    setViewMode('text')
+                    setLastQuery(q)
+                    handleSubmit(q, true)
+                  }}
+                  onRefinement={(newSchema) => {
+                    setGeneratedDashboard(newSchema)
+                    setDashboardWidgetData({}) // Clear pre-resolved data, let refinement fetch new
+                  }}
+                  showRefinementInput={true}
                 />
               </div>
             )}
