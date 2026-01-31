@@ -1,7 +1,7 @@
 """
 Insufficient Data Tracker Service
 
-Tracks queries that return with confidence below the threshold (80%),
+Tracks queries that return with confidence below the threshold (70%),
 indicating possible insufficient data conditions.
 
 These queries are recorded for analysis and UI display to help identify
@@ -18,7 +18,7 @@ import uuid
 logger = logging.getLogger(__name__)
 
 # Confidence threshold - queries below this are flagged
-CONFIDENCE_THRESHOLD = 0.8
+CONFIDENCE_THRESHOLD = 0.7
 
 DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001"
 
