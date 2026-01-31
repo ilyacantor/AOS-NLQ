@@ -18,11 +18,12 @@ Ilya is the product owner. He does NOT write code directly. He uses AI assistant
 
 ### What this project is
 A standalone NLQ (Natural Language Query) engine that:
-1. Accepts natural language questions about financial data
+1. Accepts natural language questions about enterprise data across 5 personas
 2. Parses intent, entities, and time references
 3. Resolves relative dates ("last quarter") to absolute dates
 4. Generates structured queries against a financial fact base
 5. Returns answers with confidence scores (MUST be 0.0-1.0, never exceed 1.0)
+6. Interactive dashboard with prompt-based build autonomy
 
 ### What this project is NOT
 - Not a DCL component (decoupled)
