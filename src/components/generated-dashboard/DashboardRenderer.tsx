@@ -201,15 +201,6 @@ export function DashboardRenderer({
     };
   }, []);
 
-  // Initialize with pre-resolved data if provided (from /v1/query endpoint)
-  useEffect(() => {
-    if (initialSchema && initialWidgetData && Object.keys(initialWidgetData).length > 0) {
-      // We have pre-resolved data from the backend - use it directly
-      setSchema(initialSchema);
-      setWidgetData(initialWidgetData);
-    }
-  }, [initialSchema, initialWidgetData]);
-
   // Convert widget positions to react-grid-layout format for all breakpoints
   // Prioritize layoutMap (user customizations) over schema positions
   const responsiveLayouts = useMemo((): Record<string, LayoutItem[]> => {
@@ -265,10 +256,14 @@ export function DashboardRenderer({
   }, [schema, layoutMap]);
 
   // Legacy: for compatibility with existing code
-  const gridLayout = responsiveLayouts.lg;
+  // Track if user has dragged/resized to distinguish from initial render
+  const userInteractedRef = useRef(false);
 
-  // Handle layout change from drag-and-drop
+  // Handle layout change from drag-and-drop (only update on actual user interaction)
   const handleLayoutChange = useCallback((newLayout: LayoutItem[], layouts: Record<string, LayoutItem[]>) => {
+    // Skip updates during initial render to prevent infinite loop
+    if (!userInteractedRef.current) return;
+    
     // Only update layout map from the lg (desktop) layout to preserve user customizations
     const lgLayout = layouts.lg || newLayout;
 
@@ -302,6 +297,18 @@ export function DashboardRenderer({
       });
       return { ...prevSchema, widgets: updatedWidgets };
     });
+    
+    // Reset flag after update
+    userInteractedRef.current = false;
+  }, []);
+  
+  // Track drag/resize start to know when user is interacting
+  const handleDragStart = useCallback(() => {
+    userInteractedRef.current = true;
+  }, []);
+  
+  const handleResizeStart = useCallback(() => {
+    userInteractedRef.current = true;
   }, []);
 
   // Handle breakpoint change
@@ -860,6 +867,8 @@ export function DashboardRenderer({
             rowHeight={isMobile ? 60 : rowHeight}
             onLayoutChange={handleLayoutChange as any}
             onBreakpointChange={handleBreakpointChange}
+            onDragStart={handleDragStart}
+            onResizeStart={handleResizeStart}
             isDraggable={!isMobile}
             isResizable={!isMobile}
             margin={isMobile ? [8, 8] : [schema.layout.gap, schema.layout.gap]}
