@@ -9,10 +9,13 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Responsive, WidthProvider } from 'react-grid-layout';
+// Use require-style default import for ESM compatibility with react-grid-layout
+import RGL from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 
-const ResponsiveGridLayout = WidthProvider(Responsive);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ReactGridLayout = RGL as any;
+const ResponsiveGridLayout = ReactGridLayout.WidthProvider(ReactGridLayout.Responsive);
 
 type LayoutItem = {
   i: string;
