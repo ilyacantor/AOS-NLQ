@@ -601,117 +601,102 @@ export function DashboardRenderer({
 
   const rowHeight = schema?.layout.row_height || 80;
 
+  // State for mobile menu
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+
   return (
     <div className="h-full flex flex-col bg-slate-950">
-      {/* Dashboard Header */}
+      {/* Dashboard Header - Compact on mobile */}
       {schema && (
-        <div className="px-6 py-4 border-b border-slate-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-white">{schema.title}</h2>
-              {schema.description && (
-                <p className="text-sm text-slate-400 mt-1">{schema.description}</p>
+        <div className="px-4 md:px-6 py-2 md:py-3 border-b border-slate-800">
+          <div className="flex items-center justify-between gap-2">
+            {/* Title - compact on mobile */}
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base md:text-lg font-semibold text-white truncate">{schema.title}</h2>
+            </div>
+
+            {/* Mobile: Single menu button */}
+            <div className="md:hidden relative">
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
+              >
+                ⋮ Edit
+              </button>
+              {showMobileMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowMobileMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+                    <button onClick={() => { handleAutoArrange(); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">⊞ Auto Arrange</button>
+                    <button onClick={() => { setSaveName(schema.title); setShowSaveModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">💾 Save</button>
+                    <button onClick={() => { setTemplateName(schema.title + ' Template'); setShowTemplateModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">📋 Template</button>
+                    <button onClick={() => { setShowLoadModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">📂 Load</button>
+                    <hr className="my-1 border-slate-700" />
+                    <button onClick={() => { handleReset(); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-slate-700">✕ Reset</button>
+                  </div>
+                </>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              {/* Auto-arrange Button */}
-              <button
-                onClick={handleAutoArrange}
-                className="px-3 py-1.5 bg-cyan-900/50 text-cyan-300 rounded-lg text-sm hover:bg-cyan-800/60 transition-colors"
-                title="Remove gaps and arrange widgets neatly"
-              >
-                ⊞ Auto
-              </button>
 
-              {/* Save Button */}
-              <button
-                onClick={() => {
-                  setSaveName(schema.title);
-                  setShowSaveModal(true);
-                }}
-                className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
-              >
-                💾 Save
-              </button>
-
-              {/* Save as Template Button */}
-              <button
-                onClick={() => {
-                  setTemplateName(schema.title + ' Template');
-                  setShowTemplateModal(true);
-                }}
-                className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
-              >
-                📋 Template
-              </button>
-
-              {/* Load Button */}
-              <button
-                onClick={() => setShowLoadModal(true)}
-                className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
-              >
-                📂 Load
-              </button>
-
-              {/* Reset Button */}
-              <button
-                onClick={handleReset}
-                className="px-3 py-1.5 bg-red-900/50 text-red-300 rounded-lg text-sm hover:bg-red-900/70 transition-colors"
-              >
-                ✕ Reset
-              </button>
+            {/* Desktop: Button bar */}
+            <div className="hidden md:flex items-center gap-2">
+              <button onClick={handleAutoArrange} className="px-3 py-1.5 bg-cyan-900/50 text-cyan-300 rounded-lg text-sm hover:bg-cyan-800/60 transition-colors" title="Remove gaps and arrange widgets neatly">⊞ Auto</button>
+              <button onClick={() => { setSaveName(schema.title); setShowSaveModal(true); }} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">💾 Save</button>
+              <button onClick={() => { setTemplateName(schema.title + ' Template'); setShowTemplateModal(true); }} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">📋 Template</button>
+              <button onClick={() => setShowLoadModal(true)} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">📂 Load</button>
+              <button onClick={handleReset} className="px-3 py-1.5 bg-red-900/50 text-red-300 rounded-lg text-sm hover:bg-red-900/70 transition-colors">✕ Reset</button>
             </div>
           </div>
 
           {/* Success message */}
           {saveSuccess && (
-            <div className="mt-2 px-3 py-2 bg-green-900/30 border border-green-700/50 rounded-lg text-sm text-green-300">
+            <div className="mt-2 px-3 py-1.5 bg-green-900/30 border border-green-700/50 rounded-lg text-xs md:text-sm text-green-300">
               {saveSuccess}
             </div>
           )}
         </div>
       )}
 
-      {/* Refinement Input - At top of dashboard */}
+      {/* Refinement Input - Compact on mobile */}
       {schema && showRefinementInput && (
-        <div className="px-6 py-4 border-b border-slate-800 bg-slate-900/50">
-          <form onSubmit={handleRefinementSubmit} className="flex gap-3">
+        <div className="px-4 md:px-6 py-2 md:py-3 border-b border-slate-800 bg-slate-900/50">
+          <form onSubmit={handleRefinementSubmit} className="flex gap-2">
             <input
               type="text"
               value={refinementQuery}
               onChange={(e) => setRefinementQuery(e.target.value)}
-              placeholder="Refine this dashboard... (e.g., 'Add a pipeline KPI', 'Make that a bar chart')"
-              className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+              placeholder="Refine dashboard..."
+              className="flex-1 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
               disabled={isRefining}
             />
             <button
               type="submit"
               disabled={isRefining || !refinementQuery.trim()}
-              className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
             >
-              {isRefining ? 'Refining...' : 'Refine'}
+              {isRefining ? '...' : 'Go'}
             </button>
           </form>
 
           {/* Refinement Message */}
           {refinementMessage && (
-            <div className="mt-3 px-4 py-2 bg-green-900/30 border border-green-700/50 rounded-lg">
-              <p className="text-green-300 text-sm">
+            <div className="mt-2 px-3 py-1.5 bg-green-900/30 border border-green-700/50 rounded-lg">
+              <p className="text-green-300 text-xs">
                 ✓ {refinementMessage}
               </p>
             </div>
           )}
 
-          {/* Preset Refinements */}
+          {/* Preset Refinements - Hidden on mobile, horizontal scroll on tablet+ */}
           {refinePresets.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              <span className="text-slate-500 text-xs py-1">Try:</span>
+            <div className="hidden md:flex items-center gap-2 mt-2 overflow-x-auto">
+              <span className="text-slate-500 text-xs py-1 flex-shrink-0">Try:</span>
               {refinePresets.map((preset, i) => (
                 <button
                   key={i}
                   onClick={() => refineDashboard(preset)}
                   disabled={isRefining}
-                  className="px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors disabled:opacity-50"
+                  className="flex-shrink-0 px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors disabled:opacity-50 whitespace-nowrap"
                 >
                   {preset}
                 </button>
@@ -719,9 +704,9 @@ export function DashboardRenderer({
             </div>
           )}
 
-          {/* Dynamic Suggestions from API */}
+          {/* Dynamic Suggestions from API - Desktop only */}
           {suggestions.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="hidden md:flex flex-wrap gap-2 mt-2">
               {suggestions.map((suggestion, i) => (
                 <button
                   key={i}
@@ -734,9 +719,9 @@ export function DashboardRenderer({
             </div>
           )}
 
-          {/* Refinement History */}
+          {/* Refinement History - Desktop only */}
           {schema.refinement_history.length > 0 && (
-            <div className="mt-3 text-xs text-slate-500">
+            <div className="hidden md:block mt-2 text-xs text-slate-500">
               <span>Refinements: </span>
               {schema.refinement_history.map((r, i) => (
                 <span key={i}>

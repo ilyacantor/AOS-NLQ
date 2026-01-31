@@ -563,19 +563,41 @@ function App() {
             {/* Dashboard View - Always uses DashboardRenderer with full controls */}
             {viewMode === 'dashboard' && (
               <div className="h-full overflow-hidden flex flex-col">
-                {/* Dashboard Header with Persona Selector */}
-                <div className="flex-shrink-0 px-4 md:px-6 py-3 border-b border-slate-800 bg-slate-900/50">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                    {/* Persona Quick Select */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-500 text-xs hidden md:inline">Quick Load:</span>
-                      <div className="flex flex-wrap items-center gap-1 bg-slate-800 rounded-lg p-1">
+                {/* Dashboard Header with Persona Selector - Compact on mobile */}
+                <div className="flex-shrink-0 px-4 md:px-6 py-2 md:py-3 border-b border-slate-800 bg-slate-900/50">
+                  <div className="flex items-center justify-between gap-2">
+                    {/* Mobile: Dropdown selector */}
+                    <div className="md:hidden flex items-center gap-2">
+                      <select
+                        value={selectedPersona}
+                        onChange={(e) => handlePersonaSelect(e.target.value as Persona)}
+                        disabled={isGeneratingDashboard}
+                        className="min-h-[36px] px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-cyan-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500/50 disabled:opacity-50"
+                      >
+                        {personaOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label} Dashboard
+                          </option>
+                        ))}
+                      </select>
+                      {isGeneratingDashboard && (
+                        <svg className="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                      )}
+                    </div>
+
+                    {/* Desktop: Button tabs */}
+                    <div className="hidden md:flex items-center gap-2">
+                      <span className="text-slate-500 text-xs">Quick Load:</span>
+                      <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-1">
                         {personaOptions.map((option) => (
                           <button
                             key={option.value}
                             onClick={() => handlePersonaSelect(option.value)}
                             disabled={isGeneratingDashboard}
-                            className={`min-h-[44px] px-3 md:px-4 py-2 rounded-md text-xs font-medium transition-colors disabled:opacity-50 ${
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-50 ${
                               selectedPersona === option.value
                                 ? 'bg-cyan-600 text-white'
                                 : 'text-slate-400 hover:text-slate-200'
@@ -587,10 +609,10 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Help Text - Prominent Banner */}
-                    <div className="hidden md:block px-4 py-2 bg-cyan-900/30 border border-cyan-700/50 rounded-lg">
-                      <p className="text-cyan-300 text-sm font-medium">
-                        💡 Drag to rearrange • Resize from corners • Use chatbox to refine
+                    {/* Help Text - Desktop only */}
+                    <div className="hidden lg:block px-3 py-1.5 bg-cyan-900/30 border border-cyan-700/50 rounded-lg">
+                      <p className="text-cyan-300 text-xs">
+                        💡 Drag to rearrange • Resize corners • Chatbox to refine
                       </p>
                     </div>
                   </div>
