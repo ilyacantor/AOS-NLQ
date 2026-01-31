@@ -29,3 +29,31 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.5);
 }
+
+/* Mobile-friendly grid layout overrides */
+@media (max-width: 767px) {
+  /* Stack grid items vertically on mobile */
+  .react-grid-layout .react-grid-item {
+    position: relative !important;
+    transform: none !important;
+    width: 100% !important;
+    left: 0 !important;
+    margin-bottom: 1rem;
+  }
+
+  /* Ensure proper height on mobile */
+  .react-grid-layout {
+    height: auto !important;
+  }
+
+  /* Disable drag/resize handles on mobile for cleaner look */
+  .react-grid-item > .react-resizable-handle {
+    display: none;
+  }
+}
+
+/* Touch-friendly scrolling */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
