@@ -3,6 +3,7 @@ import { GalaxyView, IntentMapResponse } from './components/galaxy'
 import { RAGLearningPanel, LLMCallCounter, useSessionId } from './components/rag'
 import { InsufficientDataPanel } from './components/rag/InsufficientDataPanel'
 import { DashboardRenderer, DashboardSchema } from './components/generated-dashboard'
+import { UserGuide } from './components/UserGuide'
 
 interface QueryHistoryItem {
   id: string
@@ -92,6 +93,7 @@ function App() {
   const [galaxyResponse, setGalaxyResponse] = useState<IntentMapResponse | null>(null)
   const [lastDuration, setLastDuration] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showGuide, setShowGuide] = useState(false)
 
   // Dashboard state - always use DashboardRenderer
   const [dashboardSchema, setDashboardSchema] = useState<DashboardSchema | null>(null)
@@ -384,10 +386,23 @@ function App() {
           </div>
           <LLMCallCounter />
           {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
+          <button
+            onClick={() => setShowGuide(true)}
+            className="px-3 py-1.5 text-slate-400 hover:text-cyan-400 transition-colors text-sm"
+            title="User Guide"
+          >
+            ? Help
+          </button>
         </div>
       </header>
 
+      {/* User Guide Page */}
+      {showGuide && (
+        <UserGuide onClose={() => setShowGuide(false)} />
+      )}
+
       {/* Main Content Area */}
+      {!showGuide && (
       <div className="flex flex-1 overflow-hidden relative">
         {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-hidden">
@@ -607,6 +622,7 @@ function App() {
           </div>
         </aside>
       </div>
+      )}
     </div>
   )
 }
