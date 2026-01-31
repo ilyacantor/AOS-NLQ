@@ -2,7 +2,7 @@
 
 > **Created**: 2026-01-31
 > **Status**: Planning
-> **Target**: Full mobile responsiveness across all viewports (320px - 2560px+)
+> **Target**: Full mobile responsiveness across all viewports (375px+ primary, 320px edge case testing)
 
 ---
 
@@ -43,6 +43,10 @@ Using Tailwind's default breakpoints, aligned with common device sizes:
 | `xl:` | 1280px+ | Laptops, desktops |
 | `2xl:` | 1536px+ | Large monitors |
 
+**Primary Target**: 375px+ (iPhone 6/7/8 and newer). Most modern phones are 375px+.
+
+**Edge Case Testing**: 320px (iPhone SE/5). Good discipline to test, but don't over-optimize for this shrinking user segment at the cost of making 375px+ experiences worse.
+
 ---
 
 ## Implementation Phases
@@ -50,6 +54,20 @@ Using Tailwind's default breakpoints, aligned with common device sizes:
 ### Phase 1: Foundation & Layout (Priority: CRITICAL)
 
 **Goal**: Core layout works on all screen sizes without horizontal scroll
+
+#### 1.0 Viewport Meta Tag Update (PREREQUISITE)
+
+Update `/index.html` to enable safe area insets for notched devices:
+
+```html
+<!-- BEFORE -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<!-- AFTER -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+```
+
+This is required for `env(safe-area-inset-*)` CSS values to work on iPhones with notch/Dynamic Island.
 
 #### 1.1 App.tsx - Main Layout Restructure
 
@@ -130,20 +148,32 @@ Using Tailwind's default breakpoints, aligned with common device sizes:
 **Changes**:
 ```tsx
 // Use viewBox with dynamic container sizing
+// IMPORTANT: Debounce the resize handler to prevent performance issues
+// during rapid window resizing (SVG redraws dozens of times per second without it)
 const containerRef = useRef<HTMLDivElement>(null);
 const [dimensions, setDimensions] = useState({ width: 700, height: 500 });
 
 useEffect(() => {
+  let timeoutId: ReturnType<typeof setTimeout>;
+
   const updateDimensions = () => {
-    if (containerRef.current) {
-      const { width, height } = containerRef.current.getBoundingClientRect();
-      setDimensions({ width, height: Math.min(height, width * 0.8) });
-    }
+    // Debounce: wait 100ms after last resize before updating
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        setDimensions({ width, height: Math.min(height, width * 0.8) });
+      }
+    }, 100);
   };
 
   const resizeObserver = new ResizeObserver(updateDimensions);
   if (containerRef.current) resizeObserver.observe(containerRef.current);
-  return () => resizeObserver.disconnect();
+
+  return () => {
+    clearTimeout(timeoutId);
+    resizeObserver.disconnect();
+  };
 }, []);
 
 <svg
@@ -152,6 +182,8 @@ useEffect(() => {
   preserveAspectRatio="xMidYMid meet"
 >
 ```
+
+**⚠️ Performance Note**: Without debouncing, rapid window resizing causes the SVG to redraw dozens of times per second, leading to jank and high CPU usage.
 
 **Implementation Tasks**:
 - [ ] Add ResizeObserver for dynamic SVG sizing
@@ -202,6 +234,11 @@ useEffect(() => {
 - Fixed 12-column grid
 - No breakpoint definitions for react-grid-layout
 - Tiles don't reflow on resize
+
+**⚠️ Implementation Warning**: `react-grid-layout`'s responsive mode can be finicky. The breakpoints need careful tuning. Test thoroughly what happens when users resize their browser window mid-session — layouts should reflow gracefully without awkward jumps. Consider:
+- Using `onBreakpointChange` callback to track current breakpoint
+- Adding CSS transitions on the grid items for smoother reflow
+- Testing at exact breakpoint boundaries (767px → 768px, etc.)
 
 **Changes**:
 ```tsx
@@ -424,7 +461,10 @@ Add to `/src/index.css`:
 }
 
 @layer utilities {
-  /* Safe area insets for notched devices */
+  /* Safe area insets for notched devices (iPhone X+, Dynamic Island)
+     IMPORTANT: These only work if viewport meta tag includes viewport-fit=cover:
+     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  */
   .safe-top {
     padding-top: env(safe-area-inset-top);
   }
@@ -516,13 +556,22 @@ Add to `/src/index.css`:
 
 ## Testing Checklist
 
-### Viewport Testing
-- [ ] iPhone SE (375px)
+### Viewport Testing (Primary Targets)
+- [ ] iPhone SE (375px) ← **Primary minimum**
 - [ ] iPhone 14 (390px)
 - [ ] iPhone 14 Pro Max (430px)
 - [ ] iPad Mini (768px)
 - [ ] iPad Pro (1024px)
 - [ ] Desktop (1280px+)
+
+### Edge Case Testing
+- [ ] iPhone 5/SE 1st gen (320px) — should work, but don't over-optimize
+
+### Breakpoint Boundary Testing
+Test at exact breakpoint transitions to ensure smooth reflow:
+- [ ] 639px → 640px (sm breakpoint)
+- [ ] 767px → 768px (md breakpoint)
+- [ ] 1023px → 1024px (lg breakpoint)
 
 ### Interaction Testing
 - [ ] Sidebar opens/closes on mobile
@@ -531,6 +580,7 @@ Add to `/src/index.css`:
 - [ ] Galaxy nodes tappable
 - [ ] Dashboard tiles readable
 - [ ] Charts display correctly
+- [ ] **Browser resize mid-session** (dashboard grid should reflow gracefully, not jump)
 
 ### Orientation Testing
 - [ ] Portrait on phones
@@ -556,12 +606,13 @@ Add to `/src/index.css`:
 
 ## Success Criteria
 
-1. **No horizontal scroll** on any viewport 320px+
+1. **No horizontal scroll** on any viewport 375px+ (acceptable minor issues on 320px)
 2. **Touch-friendly** all interactive elements ≥44x44px
 3. **Readable content** on phone screens
 4. **Smooth transitions** sidebar/layouts animate properly
-5. **Performance** no jank during resize/scroll
-6. **Accessibility** maintains keyboard navigation
+5. **Graceful reflow** dashboard grid transitions smoothly during browser resize
+6. **Performance** no jank during resize/scroll (debounced handlers where needed)
+7. **Accessibility** maintains keyboard navigation
 
 ---
 
@@ -569,10 +620,11 @@ Add to `/src/index.css`:
 
 | Risk | Mitigation |
 |------|------------|
-| react-grid-layout mobile issues | Test thoroughly; have fallback CSS-only grid |
-| SVG performance on mobile | Reduce node count on small screens |
-| Touch conflicts with scroll | Use `touch-action` CSS properties |
+| react-grid-layout responsive mode finicky | Test at breakpoint boundaries; use `onBreakpointChange` callback; add CSS transitions for smooth reflow; have fallback CSS-only grid ready |
+| SVG performance on mobile | Debounce ResizeObserver (100ms); reduce node count on small screens |
+| Touch conflicts with scroll | Use `touch-action` CSS properties; disable grid drag/resize on mobile |
 | Breaking desktop layout | Test desktop after each mobile change |
+| Layout jumps during resize | Add `transition` on grid items; debounce dimension updates |
 
 ---
 
