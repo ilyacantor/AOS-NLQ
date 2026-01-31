@@ -136,6 +136,7 @@ export function DashboardRenderer({
   const [initialQuery, setInitialQuery] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isRefining, setIsRefining] = useState(false);
+  const [refinementMessage, setRefinementMessage] = useState<string | null>(null);
 
   // Drag and drop state - use a map keyed by widget ID for stable position storage
   // Edit mode is always enabled (drag/resize always available)
@@ -483,6 +484,7 @@ export function DashboardRenderer({
 
     setIsRefining(true);
     setError(null);
+    setRefinementMessage(null);
 
     try {
       const response = await fetch('/api/v1/dashboard/refine', {
@@ -497,19 +499,37 @@ export function DashboardRenderer({
       const data: DashboardRefinementResponse = await response.json();
 
       if (data.success && data.dashboard) {
-        // With the map-based approach, we don't need complex matching logic:
-        // - layoutMap already has preserved positions for existing widgets (keyed by ID)
-        // - New widgets will automatically use server positions via gridLayout memo
-        // - The layoutMap is NOT modified here, preserving user customizations
+        // Check if changes were actually made
+        const changesDescription = data.changes_made && data.changes_made.length > 0
+          ? data.changes_made.join(', ')
+          : null;
+        
+        // Compare widget counts to detect if anything changed
+        const oldWidgetCount = schema.widgets.length;
+        const newWidgetCount = data.dashboard.widgets.length;
+        const widgetCountChanged = oldWidgetCount !== newWidgetCount;
 
         setSchema(data.dashboard);
         onRefinement?.(data.dashboard);
+        
         // Use pre-resolved widget data from backend if available
         if (data.widget_data && Object.keys(data.widget_data).length > 0) {
           setWidgetData(data.widget_data);
         } else {
           fetchWidgetData(data.dashboard);
         }
+
+        // Show appropriate message
+        if (changesDescription) {
+          setRefinementMessage(`Applied: ${changesDescription}`);
+        } else if (widgetCountChanged) {
+          setRefinementMessage(`Dashboard updated (${newWidgetCount} widgets)`);
+        } else {
+          setRefinementMessage('Refinement processed - some requests may require data not currently available');
+        }
+        
+        // Clear message after 5 seconds
+        setTimeout(() => setRefinementMessage(null), 5000);
       } else {
         setError(data.error || 'Failed to refine dashboard');
       }
@@ -663,6 +683,15 @@ export function DashboardRenderer({
               {isRefining ? 'Refining...' : 'Refine'}
             </button>
           </form>
+
+          {/* Refinement Message */}
+          {refinementMessage && (
+            <div className="mt-3 px-4 py-2 bg-green-900/30 border border-green-700/50 rounded-lg">
+              <p className="text-green-300 text-sm">
+                ✓ {refinementMessage}
+              </p>
+            </div>
+          )}
 
           {/* Preset Refinements */}
           {refinePresets.length > 0 && (
