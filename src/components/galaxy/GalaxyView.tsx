@@ -17,8 +17,6 @@ import { DashboardModal } from './DashboardModal';
 
 interface GalaxyViewProps {
   data: IntentMapResponse;
-  width?: number;
-  height?: number;
 }
 
 interface NodeState {
@@ -30,17 +28,59 @@ interface NodeState {
   targetY: number;
 }
 
-export const GalaxyView: React.FC<GalaxyViewProps> = ({
-  data,
-  width = 700,
-  height = 700,
-}) => {
+// Custom hook for responsive dimensions
+function useContainerDimensions(ref: React.RefObject<HTMLDivElement | null>) {
+  const [dimensions, setDimensions] = useState({ width: 500, height: 500 });
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const updateDimensions = () => {
+      // Debounce: wait 100ms after last resize before updating
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        if (ref.current) {
+          const { width, height } = ref.current.getBoundingClientRect();
+          // Ensure minimum size and maintain aspect ratio
+          const minSize = Math.max(300, Math.min(width, height));
+          setDimensions({
+            width: Math.max(300, width),
+            height: Math.max(300, Math.min(height, width * 0.85))
+          });
+        }
+      }, 100);
+    };
+
+    // Initial measurement
+    updateDimensions();
+
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    if (ref.current) resizeObserver.observe(ref.current);
+
+    return () => {
+      clearTimeout(timeoutId);
+      resizeObserver.disconnect();
+    };
+  }, [ref]);
+
+  return dimensions;
+}
+
+export const GalaxyView: React.FC<GalaxyViewProps> = ({ data }) => {
   const [selectedNode, setSelectedNode] = useState<IntentNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<IntentNode | null>(null);
   const [hoveredPosition, setHoveredPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [nodeStates, setNodeStates] = useState<Map<string, NodeState>>(new Map());
   const [showDashboardModal, setShowDashboardModal] = useState(false);
+  const [showLeftPanel, setShowLeftPanel] = useState(true);
+
+  // Responsive container ref and dimensions
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { width, height } = useContainerDimensions(containerRef);
+
+  // Check if we're on mobile
+  const isMobile = width < 640;
 
   // Auto-show modal for dashboard queries
   const isDashboard = data.query_type === 'DASHBOARD';
@@ -55,8 +95,17 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
   const animationRef = useRef<number | null>(null);
 
+  // Calculate center based on current dimensions
   const centerX = width / 2;
   const centerY = height / 2;
+
+  // Scale rings for smaller screens
+  const scaleFactor = Math.min(1, width / 700);
+  const scaledRingConfig = {
+    inner: { ...RING_CONFIG.inner, radius: RING_CONFIG.inner.radius * scaleFactor },
+    middle: { ...RING_CONFIG.middle, radius: RING_CONFIG.middle.radius * scaleFactor },
+    outer: { ...RING_CONFIG.outer, radius: RING_CONFIG.outer.radius * scaleFactor },
+  };
 
   // Calculate target positions for nodes on their rings
   const targetPositions = useMemo(() => {
@@ -80,12 +129,12 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
     const middle = data.nodes.filter(n => n.match_type === 'potential');
     const outer = data.nodes.filter(n => n.match_type === 'hypothesis');
 
-    placeNodesOnRing(inner, RING_CONFIG.inner.radius);
-    placeNodesOnRing(middle, RING_CONFIG.middle.radius);
-    placeNodesOnRing(outer, RING_CONFIG.outer.radius);
+    placeNodesOnRing(inner, scaledRingConfig.inner.radius);
+    placeNodesOnRing(middle, scaledRingConfig.middle.radius);
+    placeNodesOnRing(outer, scaledRingConfig.outer.radius);
 
     return positions;
-  }, [data.nodes, centerX, centerY]);
+  }, [data.nodes, centerX, centerY, scaledRingConfig]);
 
   // Initialize node states when data changes
   useEffect(() => {
@@ -241,17 +290,42 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
         query={data.query}
       />
 
-      {/* Main content area - three column layout */}
-      <div className="flex-1 flex min-h-0 overflow-hidden">
+      {/* Main content area - responsive layout */}
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
         {/* Left Panel - Text Response & Data Table */}
-        <div className="flex-shrink-0 flex flex-col border-r border-slate-800 bg-slate-900/30" style={{ width: '293px' }}>
-          {/* Text Answer - Top Left */}
+        {/* Mobile: collapsible, Desktop: always visible */}
+        <div className={`
+          ${isMobile ? (showLeftPanel ? 'max-h-48' : 'max-h-0') : ''}
+          lg:max-h-none lg:flex-shrink-0
+          flex flex-col border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-900/30
+          transition-all duration-300 overflow-hidden
+          w-full lg:w-72 xl:w-[293px]
+        `}>
+          {/* Mobile: Toggle button for left panel */}
+          {isMobile && (
+            <button
+              onClick={() => setShowLeftPanel(!showLeftPanel)}
+              className="flex items-center justify-between w-full px-4 py-2 bg-slate-800/50 text-slate-300 text-sm"
+            >
+              <span>Answer & Data</span>
+              <svg
+                className={`w-4 h-4 transition-transform ${showLeftPanel ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          )}
+
+          {/* Text Answer */}
           {data.text_response && (
-            <div className="p-4 border-b border-slate-800/50">
+            <div className="p-3 lg:p-4 border-b border-slate-800/50">
               <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
                 Answer
               </h3>
-              <p className="text-slate-200 text-sm leading-relaxed">
+              <p className="text-slate-200 text-sm leading-relaxed line-clamp-3 lg:line-clamp-none">
                 {data.text_response}
               </p>
               {data.needs_clarification && data.clarification_prompt && (
@@ -262,30 +336,53 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             </div>
           )}
 
-          {/* Data Table - Below Text Answer */}
-          {hasMultipleDataElements && (
-            <div className="flex-1 overflow-auto p-3">
+          {/* Data Table - Below Text Answer (hidden on mobile when collapsed) */}
+          {hasMultipleDataElements && (!isMobile || showLeftPanel) && (
+            <div className="flex-1 overflow-auto p-3 hidden lg:block">
               <DataTable nodes={data.nodes} title="Data Points" />
             </div>
           )}
 
-          {/* Legend at bottom of left panel */}
-          <div className="mt-auto border-t border-slate-800/50">
+          {/* Legend at bottom of left panel - hidden on mobile */}
+          <div className="mt-auto border-t border-slate-800/50 hidden lg:block">
             <GalaxyLegend compact />
           </div>
         </div>
 
         {/* Center - SVG Visualization */}
-        <div className="flex-1 flex items-center justify-center p-4 overflow-hidden min-h-0">
+        <div
+          ref={containerRef}
+          className="flex-1 flex items-center justify-center p-2 lg:p-4 overflow-hidden min-h-0"
+        >
           <svg
             ref={svgRef}
             width={width}
             height={height}
             viewBox={`0 0 ${width} ${height}`}
-            className="galaxy-svg max-w-full max-h-full"
+            className="galaxy-svg w-full h-full"
+            style={{ maxWidth: width, maxHeight: height }}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
+            onTouchMove={(e) => {
+              if (!draggedNodeId || !svgRef.current) return;
+              const touch = e.touches[0];
+              const svgRect = svgRef.current.getBoundingClientRect();
+              const touchX = touch.clientX - svgRect.left;
+              const touchY = touch.clientY - svgRect.top;
+              setNodeStates(prev => {
+                const next = new Map(prev);
+                const state = next.get(draggedNodeId);
+                if (state) {
+                  state.x = touchX;
+                  state.y = touchY;
+                  state.vx = 0;
+                  state.vy = 0;
+                }
+                return next;
+              });
+            }}
+            onTouchEnd={() => setDraggedNodeId(null)}
           >
             {/* Gradient definitions */}
             <defs>
@@ -296,11 +393,11 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             </defs>
             <rect width={width} height={height} fill="url(#bgGradient)" />
 
-            {/* Orbital Rings */}
+            {/* Orbital Rings - scaled for responsive */}
             <circle
               cx={centerX}
               cy={centerY}
-              r={RING_CONFIG.outer.radius}
+              r={scaledRingConfig.outer.radius}
               fill="none"
               stroke={RING_CONFIG.outer.strokeColor}
               strokeWidth="1"
@@ -309,7 +406,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             <circle
               cx={centerX}
               cy={centerY}
-              r={RING_CONFIG.middle.radius}
+              r={scaledRingConfig.middle.radius}
               fill="none"
               stroke={RING_CONFIG.middle.strokeColor}
               strokeWidth="1"
@@ -318,36 +415,40 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             <circle
               cx={centerX}
               cy={centerY}
-              r={RING_CONFIG.inner.radius}
+              r={scaledRingConfig.inner.radius}
               fill="none"
               stroke={RING_CONFIG.inner.strokeColor}
               strokeWidth="2"
             />
 
-            {/* Ring Labels */}
-            <text
-              x={centerX}
-              y={centerY - RING_CONFIG.inner.radius - 8}
-              textAnchor="middle"
-              fill="#64748b"
-              fontSize="10"
-            >
-              Inner
-            </text>
-            <text
-              x={centerX + RING_CONFIG.middle.radius + 15}
-              y={centerY}
-              textAnchor="start"
-              fill="#475569"
-              fontSize="10"
-            >
-              Outer
-            </text>
+            {/* Ring Labels - hidden on small screens */}
+            {!isMobile && (
+              <>
+                <text
+                  x={centerX}
+                  y={centerY - scaledRingConfig.inner.radius - 8}
+                  textAnchor="middle"
+                  fill="#64748b"
+                  fontSize="10"
+                >
+                  Inner
+                </text>
+                <text
+                  x={centerX + scaledRingConfig.middle.radius + 15}
+                  y={centerY}
+                  textAnchor="start"
+                  fill="#475569"
+                  fontSize="10"
+                >
+                  Outer
+                </text>
+              </>
+            )}
 
-            {/* Center - Persona */}
+            {/* Center - Persona - scaled for responsive */}
             <g transform={`translate(${centerX}, ${centerY})`}>
               <circle
-                r={50}
+                r={50 * scaleFactor}
                 fill="rgba(59, 130, 246, 0.15)"
                 stroke="#3B82F6"
                 strokeWidth="2"
@@ -356,7 +457,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                 textAnchor="middle"
                 dy="-0.2em"
                 fill="#fff"
-                fontSize="14"
+                fontSize={14 * scaleFactor}
                 fontWeight="bold"
               >
                 {data.persona || 'CFO'}
@@ -365,7 +466,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                 textAnchor="middle"
                 dy="1.2em"
                 fill="#64748b"
-                fontSize="10"
+                fontSize={10 * scaleFactor}
               >
                 PERSONA
               </text>
@@ -378,7 +479,9 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               const isSelected = selectedNode?.id === node.id;
               const isHovered = hoveredNode?.id === node.id;
               const isDragging = draggedNodeId === node.id;
-              const radius = getCircleRadius(node.confidence, isPrimary);
+              // Scale radius for mobile, ensure minimum touch target (22px radius = 44px diameter)
+              const baseRadius = getCircleRadius(node.confidence, isPrimary);
+              const radius = Math.max(22, baseRadius * scaleFactor);
               const color = DOMAIN_COLORS[node.domain] || DOMAIN_COLORS.finance;
               const arcRadius = radius + 6;
 
@@ -390,7 +493,13 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                   onMouseDown={(e) => handleMouseDown(e, node)}
                   onMouseEnter={() => handleNodeMouseEnter(node)}
                   onMouseLeave={handleNodeMouseLeave}
-                  style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    setDraggedNodeId(node.id);
+                    setHoveredNode(null);
+                    setHoveredPosition(null);
+                  }}
+                  style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
                   className="galaxy-node"
                 >
                   {/* Selection/hover ring */}
@@ -438,35 +547,39 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                     textAnchor="middle"
                     dy="0.35em"
                     fill="#fff"
-                    fontSize={isPrimary ? 14 : 11}
+                    fontSize={Math.max(10, (isPrimary ? 14 : 11) * scaleFactor)}
                     fontWeight="bold"
                     style={{ pointerEvents: 'none' }}
                   >
                     {Math.round(node.confidence * 100)}%
                   </text>
 
-                  {/* Label below node */}
-                  <text
-                    y={radius + 16}
-                    textAnchor="middle"
-                    fill="#94a3b8"
-                    fontSize="10"
-                    fontWeight="500"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {node.semantic_label}: {node.display_name}
-                  </text>
+                  {/* Label below node - hidden on small screens */}
+                  {!isMobile && (
+                    <>
+                      <text
+                        y={radius + 16}
+                        textAnchor="middle"
+                        fill="#94a3b8"
+                        fontSize={10 * scaleFactor}
+                        fontWeight="500"
+                        style={{ pointerEvents: 'none' }}
+                      >
+                        {node.semantic_label}: {node.display_name}
+                      </text>
 
-                  {/* Secondary label */}
-                  <text
-                    y={radius + 28}
-                    textAnchor="middle"
-                    fill="#64748b"
-                    fontSize="9"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {isPrimary ? 'PRIMARY' : node.match_type.toUpperCase()}
-                  </text>
+                      {/* Secondary label */}
+                      <text
+                        y={radius + 28}
+                        textAnchor="middle"
+                        fill="#64748b"
+                        fontSize={9 * scaleFactor}
+                        style={{ pointerEvents: 'none' }}
+                      >
+                        {isPrimary ? 'PRIMARY' : node.match_type.toUpperCase()}
+                      </text>
+                    </>
+                  )}
                 </g>
               );
             })}
@@ -486,12 +599,20 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
         </div>
 
         {/* Right Panel - Node Detail Panel */}
+        {/* Mobile: Bottom sheet, Desktop: Side panel */}
         {selectedNode && (
-          <NodeDetailPanel
-            node={selectedNode}
-            isPrimary={selectedNode.id === data.primary_node_id}
-            onClose={() => setSelectedNode(null)}
-          />
+          <div className={`
+            ${isMobile
+              ? 'fixed inset-x-0 bottom-0 z-50 max-h-[60vh] rounded-t-2xl safe-bottom'
+              : 'relative'
+            }
+          `}>
+            <NodeDetailPanel
+              node={selectedNode}
+              isPrimary={selectedNode.id === data.primary_node_id}
+              onClose={() => setSelectedNode(null)}
+            />
+          </div>
         )}
       </div>
 

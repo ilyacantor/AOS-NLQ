@@ -326,15 +326,17 @@ function App() {
   return (
     <div className="h-screen bg-slate-950 flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-slate-800">
-        <div className="flex items-center gap-3">
+      <header className="border-b border-slate-800 safe-top">
+        {/* Top row - always visible */}
+        <div className="flex items-center justify-between px-4 lg:px-6 py-3">
+          {/* Logo */}
           <div className="flex items-center gap-2">
-            <span className="text-cyan-400 text-2xl font-bold">NLQ</span>
-            <span className="text-slate-300 text-lg font-normal">Natural Language Query</span>
+            <span className="text-cyan-400 text-xl lg:text-2xl font-bold">NLQ</span>
+            <span className="text-slate-300 text-sm lg:text-lg font-normal hidden sm:inline">Natural Language Query</span>
           </div>
 
-          {/* View Mode Toggle */}
-          <div className="flex items-center gap-2 ml-8">
+          {/* Desktop: View Mode Toggle */}
+          <div className="hidden md:flex items-center gap-2">
             <span className="text-slate-500 text-sm">View:</span>
             <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-1">
               <button
@@ -366,37 +368,84 @@ function App() {
               </button>
             </div>
           </div>
+
+          {/* Right side controls */}
+          <div className="flex items-center gap-2 lg:gap-4">
+            {/* Static/AI Mode Toggle */}
+            <div className="flex items-center gap-1 lg:gap-2">
+              <span className="text-slate-500 text-xs hidden lg:inline">Mode:</span>
+              <div className="flex items-center bg-slate-900 rounded-lg p-0.5">
+                <button
+                  onClick={() => setQueryMode('static')}
+                  className={`px-2 lg:px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                    queryMode === 'static'
+                      ? 'bg-amber-600 text-white'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Static
+                </button>
+                <button
+                  onClick={() => setQueryMode('ai')}
+                  className={`px-2 lg:px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                    queryMode === 'ai'
+                      ? 'bg-emerald-600 text-white'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  AI
+                </button>
+              </div>
+            </div>
+            <div className="hidden sm:block">
+              <LLMCallCounter />
+            </div>
+            {lastDuration && <span className="text-slate-400 text-xs lg:text-sm hidden sm:inline">{lastDuration}</span>}
+
+            {/* Mobile: Hamburger menu for sidebar */}
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="lg:hidden p-2 rounded-lg hover:bg-slate-800 transition-colors touch-target"
+              aria-label="Toggle sidebar"
+            >
+              <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4 text-slate-500 text-sm">
-          {/* Static/AI Mode Toggle */}
-          <div className="flex items-center gap-2">
-            <span className="text-slate-500 text-xs">Mode:</span>
-            <div className="flex items-center bg-slate-900 rounded-lg p-0.5">
-              <button
-                onClick={() => setQueryMode('static')}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  queryMode === 'static'
-                    ? 'bg-amber-600 text-white'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Static
-              </button>
-              <button
-                onClick={() => setQueryMode('ai')}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  queryMode === 'ai'
-                    ? 'bg-emerald-600 text-white'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                AI
-              </button>
-            </div>
+        {/* Mobile: View Mode Toggle - second row */}
+        <div className="flex md:hidden items-center justify-center gap-1 px-4 pb-3">
+          <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-1 w-full max-w-sm">
+            <button
+              onClick={() => setViewMode('galaxy')}
+              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'galaxy'
+                  ? 'bg-slate-700 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Galaxy
+            </button>
+            <button
+              onClick={() => setViewMode('dashboard')}
+              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'dashboard'
+                  ? 'bg-slate-700 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => setShowGuide(true)}
+              className="px-3 py-2 rounded-md text-sm font-medium text-slate-400 hover:text-cyan-400 transition-colors"
+              title="User Guide"
+            >
+              Guide
+            </button>
           </div>
-          <LLMCallCounter />
-          {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
         </div>
       </header>
 
@@ -412,7 +461,7 @@ function App() {
         <main className="flex-1 flex flex-col overflow-hidden">
           {/* Query Input Section - Only shown in Galaxy view */}
           {viewMode === 'galaxy' && (
-            <div className="flex flex-col items-center pt-6 pb-4 px-8">
+            <div className="flex flex-col items-center pt-4 lg:pt-6 pb-4 px-4 lg:px-8">
               <div className="w-full max-w-2xl">
                 <div className="relative">
                   <input
@@ -420,8 +469,8 @@ function App() {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Ask any question, use a preset from below, or just say hi"
-                    className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-lg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
+                    placeholder="Ask any question..."
+                    className="w-full px-4 lg:px-5 py-3 lg:py-4 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-base lg:text-lg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
                   />
                   {isLoading && (
                     <div className="absolute right-4 top-1/2 -translate-y-1/2">
@@ -434,17 +483,19 @@ function App() {
                 </div>
               </div>
 
-              {/* Quick Action Buttons */}
-              <div className="flex flex-wrap justify-center items-center gap-2 mt-4 max-w-3xl">
-                {quickActions.map((action) => (
-                  <button
-                    key={action}
-                    onClick={() => submitGalaxyQuery(action)}
-                    className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-xs hover:bg-slate-700 hover:border-slate-600 transition-colors"
-                  >
-                    {action}
-                  </button>
-                ))}
+              {/* Quick Action Buttons - horizontal scroll on mobile */}
+              <div className="w-full max-w-3xl mt-4 overflow-x-auto scrollbar-hide touch-scroll">
+                <div className="flex sm:flex-wrap sm:justify-center items-center gap-2 pb-2 sm:pb-0 min-w-max sm:min-w-0">
+                  {quickActions.map((action) => (
+                    <button
+                      key={action}
+                      onClick={() => submitGalaxyQuery(action)}
+                      className="px-3 py-2 sm:py-1.5 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-xs whitespace-nowrap hover:bg-slate-700 hover:border-slate-600 transition-colors"
+                    >
+                      {action}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -455,18 +506,18 @@ function App() {
             {viewMode === 'dashboard' && (
               <div className="h-full overflow-hidden flex flex-col">
                 {/* Dashboard Header with Persona Selector */}
-                <div className="flex-shrink-0 px-6 py-3 border-b border-slate-800 bg-slate-900/50">
-                  <div className="flex items-center justify-between">
-                    {/* Persona Quick Select */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-500 text-xs">Quick Load:</span>
+                <div className="flex-shrink-0 px-4 lg:px-6 py-3 border-b border-slate-800 bg-slate-900/50">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    {/* Persona Quick Select - horizontal scroll on mobile */}
+                    <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto scrollbar-hide">
+                      <span className="text-slate-500 text-xs whitespace-nowrap">Quick Load:</span>
                       <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
                         {personaOptions.map((option) => (
                           <button
                             key={option.value}
                             onClick={() => handlePersonaSelect(option.value)}
                             disabled={isGeneratingDashboard}
-                            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors disabled:opacity-50 ${
+                            className={`px-2 sm:px-3 py-1.5 sm:py-1 rounded-md text-xs font-medium transition-colors disabled:opacity-50 whitespace-nowrap ${
                               selectedPersona === option.value
                                 ? 'bg-cyan-600 text-white'
                                 : 'text-slate-400 hover:text-slate-200'
@@ -478,8 +529,8 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Help Text - Prominent Banner */}
-                    <div className="px-4 py-2 bg-cyan-900/30 border border-cyan-700/50 rounded-lg">
+                    {/* Help Text - Hidden on mobile, shown on larger screens */}
+                    <div className="hidden md:block px-4 py-2 bg-cyan-900/30 border border-cyan-700/50 rounded-lg">
                       <p className="text-cyan-300 text-sm font-medium">
                         💡 Drag to rearrange • Resize from corners • Use chatbox to refine
                       </p>
@@ -524,10 +575,10 @@ function App() {
           </div>
         </main>
 
-        {/* Hamburger Toggle Button */}
+        {/* Desktop: Hamburger Toggle Button */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-slate-800 border border-slate-700 rounded-l-lg hover:bg-slate-700 transition-colors"
+          className="hidden lg:block absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-slate-800 border border-slate-700 rounded-l-lg hover:bg-slate-700 transition-colors"
           style={{ right: sidebarOpen ? '283px' : '0' }}
         >
           <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -539,15 +590,43 @@ function App() {
           </svg>
         </button>
 
-        {/* Right Sidebar */}
-        <aside className={`${sidebarOpen ? 'w-[283px]' : 'w-0 overflow-hidden'} border-l border-slate-800 flex flex-col bg-slate-900/30 transition-all duration-300`}>
+        {/* Mobile: Sidebar Backdrop */}
+        <div
+          className={`sidebar-backdrop ${sidebarOpen ? '' : 'hidden'}`}
+          onClick={() => setSidebarOpen(false)}
+        />
+
+        {/* Right Sidebar - Mobile: full-width drawer, Desktop: fixed width */}
+        <aside className={`
+          fixed lg:relative inset-y-0 right-0 z-40
+          w-full sm:w-80 lg:w-[283px]
+          transform transition-transform duration-300 ease-in-out
+          ${sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
+          ${!sidebarOpen && 'lg:w-0 lg:overflow-hidden'}
+          border-l border-slate-800 flex flex-col bg-slate-900 lg:bg-slate-900/30
+          safe-top safe-bottom
+        `}>
+          {/* Mobile: Close button */}
+          <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-slate-800">
+            <span className="text-slate-300 font-medium">Panels</span>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-2 rounded-lg hover:bg-slate-800 transition-colors touch-target"
+              aria-label="Close sidebar"
+            >
+              <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
           {/* Panel Tabs */}
-          <div className="flex border-b border-slate-800">
+          <div className="flex border-b border-slate-800 overflow-x-auto scrollbar-hide">
             {(['History', 'Learning', 'Data Gaps', 'Debug'] as PanelTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setPanelTab(tab)}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
+                className={`flex-1 min-w-fit px-3 lg:px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
                   panelTab === tab
                     ? 'text-white border-b-2 border-cyan-400 bg-slate-900/50'
                     : 'text-slate-400 hover:text-slate-200'
