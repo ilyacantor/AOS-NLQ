@@ -167,7 +167,7 @@ export const InsufficientDataPanel: React.FC<InsufficientDataPanelProps> = ({
           </span>
         </div>
         <p className="text-slate-500 text-xs">
-          Queries with &lt;80% confidence may indicate data gaps
+          Queries with &lt;70% confidence may indicate data gaps
         </p>
       </div>
 
