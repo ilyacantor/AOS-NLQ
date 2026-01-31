@@ -161,9 +161,11 @@ export const RAGLearningPanel: React.FC<RAGLearningPanelProps> = ({
 
   const fetchData = useCallback(async () => {
     try {
-      // Use DB endpoint for persistent history that survives server restarts
+      // Fetch ALL entries from DB to get accurate cumulative stats
+      // Use a high limit to capture all historical data for seeding
       const url = new URL('/api/v1/rag/learning/log/db', window.location.origin);
-      url.searchParams.set('limit', maxEntries.toString());
+      // Fetch more entries for accurate cumulative stats, but only display maxEntries
+      url.searchParams.set('limit', '500');
       if (persona) {
         url.searchParams.set('persona', persona);
       }
@@ -175,7 +177,7 @@ export const RAGLearningPanel: React.FC<RAGLearningPanelProps> = ({
 
       const data = await response.json();
       // DB endpoint returns entries in a different format - map to UI format
-      const dbEntries = (data.entries || []).map((e: any) => ({
+      const allDbEntries = (data.entries || []).map((e: any) => ({
         id: e.id,
         // Create description from query + context
         description: e.message || `"${e.query}" ${e.learned ? 'learned' : 'processed'}`,
@@ -188,13 +190,16 @@ export const RAGLearningPanel: React.FC<RAGLearningPanelProps> = ({
         similarity: e.similarity,
         llm_confidence: e.llm_confidence,
       }));
-      setEntries(dbEntries);
 
-      // Update cumulative stats with new entries we haven't seen before
-      let statsUpdated = false;
-      for (const entry of dbEntries) {
-        if (!seenEntriesRef.current.has(entry.id)) {
-          // This is a new entry - add to cumulative stats
+      // Only display the most recent maxEntries
+      setEntries(allDbEntries.slice(0, maxEntries));
+
+      // Check if we need to seed cumulative stats (first load or empty localStorage)
+      const isFirstLoad = cumulativeStatsRef.current.total_queries === 0 && seenEntriesRef.current.size === 0;
+
+      if (isFirstLoad && allDbEntries.length > 0) {
+        // Seed cumulative stats from all existing DB entries
+        for (const entry of allDbEntries) {
           seenEntriesRef.current.add(entry.id);
           cumulativeStatsRef.current.total_queries += 1;
           if (entry.learned) {
@@ -206,15 +211,37 @@ export const RAGLearningPanel: React.FC<RAGLearningPanelProps> = ({
           if (entry.source === 'llm') {
             cumulativeStatsRef.current.from_llm += 1;
           }
-          statsUpdated = true;
         }
-      }
-
-      // Save updated cumulative stats if changed
-      if (statsUpdated) {
         cumulativeStatsRef.current.last_updated = new Date().toISOString();
         saveCumulativeStats(cumulativeStatsRef.current);
         saveSeenEntries(seenEntriesRef.current);
+      } else {
+        // Update cumulative stats with new entries we haven't seen before
+        let statsUpdated = false;
+        for (const entry of allDbEntries) {
+          if (!seenEntriesRef.current.has(entry.id)) {
+            // This is a new entry - add to cumulative stats
+            seenEntriesRef.current.add(entry.id);
+            cumulativeStatsRef.current.total_queries += 1;
+            if (entry.learned) {
+              cumulativeStatsRef.current.queries_learned += 1;
+            }
+            if (entry.source === 'cache') {
+              cumulativeStatsRef.current.from_cache += 1;
+            }
+            if (entry.source === 'llm') {
+              cumulativeStatsRef.current.from_llm += 1;
+            }
+            statsUpdated = true;
+          }
+        }
+
+        // Save updated cumulative stats if changed
+        if (statsUpdated) {
+          cumulativeStatsRef.current.last_updated = new Date().toISOString();
+          saveCumulativeStats(cumulativeStatsRef.current);
+          saveSeenEntries(seenEntriesRef.current);
+        }
       }
 
       // Use cumulative stats for display
