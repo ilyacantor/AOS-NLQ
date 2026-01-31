@@ -189,12 +189,68 @@ class QueryExecutor:
 
     def _execute_trend_query(self, parsed_query: ParsedQuery) -> QueryResult:
         """Execute a trend query across multiple periods."""
-        # TODO: Implement trend queries
+        metric = parsed_query.metric
+        if not metric:
+            return QueryResult(
+                success=False,
+                error="MISSING_METRIC",
+                message="Trend query requires a metric",
+                confidence=0.0
+            )
+
+        # Determine periods to query based on trend_periods or default to quarterly
+        if parsed_query.trend_periods:
+            periods = parsed_query.trend_periods
+        else:
+            # Default: Get last 8 quarters
+            periods = [
+                "2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4",
+                "2025-Q1", "2025-Q2", "2025-Q3", "2025-Q4"
+            ]
+
+        # Query each period
+        trend_data = []
+        for period in periods:
+            value = self.fact_base.query(metric, period)
+            if value is not None:
+                trend_data.append({
+                    "period": period,
+                    "value": value
+                })
+
+        if not trend_data:
+            return QueryResult(
+                success=False,
+                error="NO_DATA_FOR_TREND",
+                message=f"No data found for {metric} across the specified periods",
+                confidence=0.0
+            )
+
+        # Calculate trend direction
+        if len(trend_data) >= 2:
+            first_val = trend_data[0]["value"]
+            last_val = trend_data[-1]["value"]
+            change_pct = ((last_val - first_val) / first_val * 100) if first_val != 0 else 0
+            trend_direction = "increasing" if change_pct > 0 else "decreasing" if change_pct < 0 else "flat"
+        else:
+            change_pct = 0
+            trend_direction = "insufficient data"
+
         return QueryResult(
-            success=False,
-            error="NOT_IMPLEMENTED",
-            message="Trend queries are not yet implemented",
-            confidence=0.0
+            success=True,
+            value={
+                "metric": metric,
+                "trend_data": trend_data,
+                "change_pct": round(change_pct, 1),
+                "trend_direction": trend_direction,
+                "period_count": len(trend_data)
+            },
+            confidence=0.95,
+            query_type="trend",
+            metadata={
+                "metric": metric,
+                "periods": [d["period"] for d in trend_data]
+            }
         )
 
     def _execute_aggregation_query(self, parsed_query: ParsedQuery) -> QueryResult:

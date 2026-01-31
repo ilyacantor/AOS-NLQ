@@ -5,6 +5,7 @@
  * the appropriate visualization component (chart, KPI, table, etc.)
  */
 
+import { useRef, useCallback } from 'react';
 import { Widget, WidgetData } from '../../types/generated-dashboard';
 import {
   LineChart,
@@ -53,6 +54,32 @@ export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight
     gridRow: `${widget.position.row} / span ${widget.position.row_span}`,
   };
 
+  // Handle click vs double-click for KPI cards
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isKPI = widget.type === 'kpi_card';
+
+  const handleClick = useCallback(() => {
+    const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
+
+    if (isKPI && onDoubleClick) {
+      // For KPIs, use timeout to distinguish single vs double click
+      if (clickTimeoutRef.current) {
+        // Double click detected
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+        onDoubleClick(widget);
+      } else {
+        // Single click - wait to see if it's a double click
+        clickTimeoutRef.current = setTimeout(() => {
+          clickTimeoutRef.current = null;
+          if (hasDrillDown) onClick?.();
+        }, 250);
+      }
+    } else if (hasDrillDown) {
+      onClick?.();
+    }
+  }, [widget, onClick, onDoubleClick, isKPI]);
+
   // Loading state
   if (data.loading) {
     return (
@@ -79,16 +106,12 @@ export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight
   // Check if widget has drill-down interaction
   const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
-  // KPI cards support double-click to show trend chart
-  const isKPI = widget.type === 'kpi_card';
-
   return (
     <div
       className={`h-full bg-slate-900 border border-slate-800 rounded-xl overflow-hidden ${
         hasDrillDown || isKPI ? 'cursor-pointer hover:border-cyan-500/50 transition-colors' : ''
       }`}
-      onClick={() => hasDrillDown && onClick?.()}
-      onDoubleClick={() => isKPI && onDoubleClick?.(widget)}
+      onClick={handleClick}
       title={isKPI ? 'Double-click to view trend chart' : undefined}
     >
       {content}

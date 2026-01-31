@@ -28,6 +28,7 @@ import {
   DashboardRefinementResponse,
 } from '../../types/generated-dashboard';
 import { WidgetRenderer } from './WidgetRenderer';
+import { ScenarioModelingPanel } from '../dashboard/shared/ScenarioModelingPanel';
 
 // Storage keys
 const SAVED_DASHBOARDS_KEY = 'aos_saved_dashboards';
@@ -63,6 +64,8 @@ interface DashboardRendererProps {
   showRefinementInput?: boolean;
   /** Persona-specific preset refinement suggestions */
   refinePresets?: string[];
+  /** Current persona (for showing what-if panel) */
+  persona?: string;
 }
 
 // =============================================================================
@@ -126,6 +129,7 @@ export function DashboardRenderer({
   onRefinement,
   showRefinementInput = true,
   refinePresets = [],
+  persona,
 }: DashboardRendererProps) {
   const [schema, setSchema] = useState<DashboardSchema | null>(initialSchema || null);
   // Use pre-resolved data from backend if available, otherwise empty (will fetch mock)
@@ -137,6 +141,18 @@ export function DashboardRenderer({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isRefining, setIsRefining] = useState(false);
   const [refinementMessage, setRefinementMessage] = useState<string | null>(null);
+
+  // Scenario modeling panel state (CFO only)
+  const [scenarioOpen, setScenarioOpen] = useState(false);
+  const baseMetrics = useMemo(() => ({
+    revenue: 150000000,
+    revenueGrowthPct: 18,
+    grossMarginPct: 65,
+    operatingMarginPct: 30,
+    netIncomePct: 22,
+    headcount: 350,
+    opex: 45000000,
+  }), []);
 
   // Drag and drop state - use a map keyed by widget ID for stable position storage
   // Edit mode is always enabled (drag/resize always available)
@@ -637,6 +653,9 @@ export function DashboardRenderer({
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowMobileMenu(false)} />
                   <div className="absolute right-0 top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+                    {persona === 'CFO' && (
+                      <button onClick={() => { setScenarioOpen(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-cyan-300 hover:bg-slate-700">📊 What-If</button>
+                    )}
                     <button onClick={() => { handleAutoArrange(); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">⊞ Auto Arrange</button>
                     <button onClick={() => { setSaveName(schema.title); setShowSaveModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">💾 Save</button>
                     <button onClick={() => { setTemplateName(schema.title + ' Template'); setShowTemplateModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">📋 Template</button>
@@ -650,6 +669,15 @@ export function DashboardRenderer({
 
             {/* Desktop: Button bar */}
             <div className="hidden md:flex items-center gap-2">
+              {persona === 'CFO' && (
+                <button
+                  onClick={() => setScenarioOpen(true)}
+                  className="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-500 transition-colors"
+                  title="What-If Scenario Modeling"
+                >
+                  📊 What-If
+                </button>
+              )}
               <button onClick={handleAutoArrange} className="px-3 py-1.5 bg-cyan-900/50 text-cyan-300 rounded-lg text-sm hover:bg-cyan-800/60 transition-colors" title="Remove gaps and arrange widgets neatly">⊞ Auto</button>
               <button onClick={() => { setSaveName(schema.title); setShowSaveModal(true); }} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">💾 Save</button>
               <button onClick={() => { setTemplateName(schema.title + ' Template'); setShowTemplateModal(true); }} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">📋 Template</button>
@@ -973,6 +1001,19 @@ export function DashboardRenderer({
           onDelete={(id, type) => {
             if (type === 'dashboard') deleteSavedDashboard(id);
             else deleteSavedTemplate(id);
+          }}
+        />
+      )}
+
+      {/* Scenario Modeling Panel - CFO only */}
+      {persona === 'CFO' && (
+        <ScenarioModelingPanel
+          isOpen={scenarioOpen}
+          onToggle={() => setScenarioOpen(!scenarioOpen)}
+          baseMetrics={baseMetrics}
+          onApply={(adjustments) => {
+            console.log('Scenario adjustments applied:', adjustments);
+            setScenarioOpen(false);
           }}
         />
       )}

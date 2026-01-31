@@ -701,6 +701,7 @@ function App() {
                     onRefinement={handleDashboardRefinement}
                     showRefinementInput={true}
                     refinePresets={personaOptions.find(p => p.value === selectedPersona)?.refinePresets || []}
+                    persona={selectedPersona}
                   />
                 </div>
 
