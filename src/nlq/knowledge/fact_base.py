@@ -242,9 +242,25 @@ class FactBase:
         if not values:
             return None
 
-        # Sum for income statement items, last value for balance sheet
-        # This is a simplification - real implementation would check metric type
-        return sum(values)
+        # Determine aggregation method based on metric type
+        normalized_metric = metric.lower().replace(" ", "_")
+        
+        # Percentage metrics should be averaged, not summed
+        pct_indicators = ['_pct', '_rate', '_ratio', 'margin', 'utilization', 'coverage', 'attainment']
+        is_percentage = any(ind in normalized_metric for ind in pct_indicators)
+        
+        # Stock/snapshot metrics should use last value (balance sheet items)
+        stock_metrics = ['cash', 'ar', 'ap', 'headcount', 'customer_count', 'arr', 
+                        'deferred_revenue', 'ppe', 'equity', 'assets', 'liabilities',
+                        'open_roles', 'nps', 'csat', 'engagement_score', 'satisfaction']
+        is_stock = any(sm in normalized_metric for sm in stock_metrics)
+        
+        if is_percentage:
+            return sum(values) / len(values)  # Average for percentages
+        elif is_stock:
+            return values[-1]  # Last value for stock metrics
+        else:
+            return sum(values)  # Sum for flow metrics (revenue, bookings, etc.)
 
     def _normalize_period_key(self, period_key: str) -> str:
         """
