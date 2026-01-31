@@ -653,12 +653,14 @@ function App() {
 
         {/* Right Sidebar - Full overlay on mobile, fixed width on desktop */}
         <aside className={`
-          ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}
           fixed md:relative right-0 top-0 h-full z-40 md:z-auto
-          w-[85vw] max-w-[320px] md:w-[283px]
+          w-[85vw] max-w-[320px]
           border-l border-slate-800 flex flex-col bg-slate-900 md:bg-slate-900/30
-          transition-transform md:transition-all duration-300
-          ${!sidebarOpen && 'md:w-0 md:overflow-hidden md:translate-x-0'}
+          transition-all duration-300
+          ${sidebarOpen
+            ? 'translate-x-0 md:w-[283px]'
+            : 'translate-x-full md:translate-x-0 md:w-0 md:overflow-hidden'
+          }
         `}>
           {/* Mobile Close Button */}
           <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-slate-800">
