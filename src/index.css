@@ -1,32 +1,8 @@
 @import "tailwindcss";
 
-/* ============================================
-   MOBILE-FIRST FOUNDATION
-   ============================================ */
-
 @layer theme {
   :root {
     --color-autonomous-cyan: #0bcad9;
-
-    /* Responsive spacing tokens */
-    --spacing-page-x: 1rem;
-    --spacing-page-y: 1rem;
-    --header-height: 56px;
-    --sidebar-width: 100%;
-  }
-
-  @media (min-width: 640px) {
-    :root {
-      --spacing-page-x: 1.5rem;
-      --sidebar-width: 320px;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    :root {
-      --spacing-page-x: 2rem;
-      --sidebar-width: 283px;
-    }
   }
 }
 
@@ -35,109 +11,6 @@ body {
   color: #e2e8f0;
   font-family: 'Quicksand', sans-serif;
 }
-
-/* ============================================
-   UTILITY CLASSES
-   ============================================ */
-
-@layer utilities {
-  /* Safe area insets for notched devices (iPhone X+, Dynamic Island)
-     Requires viewport-fit=cover in meta tag */
-  .safe-top {
-    padding-top: env(safe-area-inset-top);
-  }
-
-  .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .safe-left {
-    padding-left: env(safe-area-inset-left);
-  }
-
-  .safe-right {
-    padding-right: env(safe-area-inset-right);
-  }
-
-  /* Prevent text selection on touch */
-  .no-select {
-    -webkit-user-select: none;
-    user-select: none;
-  }
-
-  /* Hide scrollbar but keep functionality */
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Touch scroll optimization */
-  .touch-scroll {
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-  }
-
-  /* Minimum touch target size (44x44px per WCAG) */
-  .touch-target {
-    min-height: 44px;
-    min-width: 44px;
-  }
-}
-
-/* ============================================
-   MOBILE SIDEBAR OVERLAY
-   ============================================ */
-
-.sidebar-backdrop {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 30;
-  transition: opacity 0.3s ease;
-}
-
-.sidebar-backdrop.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-@media (min-width: 1024px) {
-  .sidebar-backdrop {
-    display: none;
-  }
-}
-
-/* ============================================
-   RESPONSIVE GRID LAYOUT OVERRIDES
-   ============================================ */
-
-.react-grid-layout {
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-}
-
-/* On mobile, stack grid items vertically */
-@media (max-width: 639px) {
-  .react-grid-layout .react-grid-item {
-    position: relative !important;
-    transform: none !important;
-    width: 100% !important;
-    left: 0 !important;
-    margin-bottom: 1rem;
-  }
-}
-
-/* Smooth transitions for grid reflow */
-.react-grid-item {
-  transition: transform 0.2s ease, width 0.2s ease, height 0.2s ease;
-}
-
-/* ============================================
-   SCROLLBAR STYLES
-   ============================================ */
 
 ::-webkit-scrollbar {
   width: 8px;
@@ -155,30 +28,4 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.5);
-}
-
-/* Hide scrollbars on mobile for cleaner look */
-@media (max-width: 639px) {
-  ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-  }
-}
-
-/* ============================================
-   TOUCH DEVICE OPTIMIZATIONS
-   ============================================ */
-
-@media (hover: none) and (pointer: coarse) {
-  /* Larger touch targets on touch devices */
-  button,
-  [role="button"],
-  .clickable {
-    min-height: 44px;
-  }
-
-  /* Disable hover effects that don't make sense on touch */
-  .hover-only {
-    display: none;
-  }
 }

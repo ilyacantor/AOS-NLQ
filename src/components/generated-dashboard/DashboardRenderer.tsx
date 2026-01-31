@@ -9,11 +9,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Responsive, WidthProvider } from 'react-grid-layout';
-import 'react-grid-layout/css/styles.css';
-
-const ResponsiveGridLayout = WidthProvider(Responsive);
-
+import GridLayout from 'react-grid-layout';
 type LayoutItem = {
   i: string;
   x: number;
@@ -23,10 +19,7 @@ type LayoutItem = {
   minW?: number;
   minH?: number;
 };
-
-// Responsive breakpoints and column counts
-const BREAKPOINTS = { lg: 1024, md: 768, sm: 640, xs: 480, xxs: 0 };
-const COLS = { lg: 12, md: 8, sm: 6, xs: 4, xxs: 2 };
+import 'react-grid-layout/css/styles.css';
 import {
   DashboardSchema,
   Widget,
@@ -150,10 +143,6 @@ export function DashboardRenderer({
   const [layoutMap, setLayoutMap] = useState<Record<string, LayoutItem>>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
-  const [currentBreakpoint, setCurrentBreakpoint] = useState<string>('lg');
-
-  // Check if we're on mobile (disable drag/resize on touch devices)
-  const isMobile = containerWidth < 640;
 
   // Modal states
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -179,35 +168,34 @@ export function DashboardRenderer({
     }
   }, [initialWidgetData]);
 
-  // Measure container width for grid layout (with debouncing for performance)
+  // Measure container width for grid layout
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-
     const updateWidth = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        if (containerRef.current) {
-          const width = containerRef.current.offsetWidth - (containerRef.current.offsetWidth < 640 ? 24 : 48);
-          setContainerWidth(width);
-        }
-      }, 100); // Debounce by 100ms
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth - 48); // minus padding
+      }
     };
-
     updateWidth();
     window.addEventListener('resize', updateWidth);
-    return () => {
-      clearTimeout(timeoutId);
-      window.removeEventListener('resize', updateWidth);
-    };
+    return () => window.removeEventListener('resize', updateWidth);
   }, []);
 
-  // Convert widget positions to react-grid-layout format for all breakpoints
-  // Prioritize layoutMap (user customizations) over schema positions
-  const responsiveLayouts = useMemo((): Record<string, LayoutItem[]> => {
-    if (!schema) return { lg: [], md: [], sm: [], xs: [], xxs: [] };
+  // Initialize with pre-resolved data if provided (from /v1/query endpoint)
+  useEffect(() => {
+    if (initialSchema && initialWidgetData && Object.keys(initialWidgetData).length > 0) {
+      // We have pre-resolved data from the backend - use it directly
+      setSchema(initialSchema);
+      setWidgetData(initialWidgetData);
+    }
+  }, [initialSchema, initialWidgetData]);
 
-    // Generate base layout from schema/layoutMap
-    const baseLayout = schema.widgets.map(widget => {
+  // Convert widget positions to react-grid-layout format
+  // Prioritize layoutMap (user customizations) over schema positions
+  const gridLayout = useMemo((): LayoutItem[] => {
+    if (!schema) return [];
+
+    return schema.widgets.map(widget => {
+      // Use stored position from layoutMap if it exists, otherwise use schema position
       const stored = layoutMap[widget.id];
       if (stored) {
         return { ...stored, i: widget.id };
@@ -222,65 +210,24 @@ export function DashboardRenderer({
         minH: 2,
       };
     });
-
-    // Generate responsive layouts for each breakpoint
-    return {
-      lg: baseLayout,
-      md: baseLayout.map(item => ({
-        ...item,
-        w: Math.min(item.w, COLS.md),
-        x: Math.min(item.x, COLS.md - Math.min(item.w, COLS.md)),
-      })),
-      sm: baseLayout.map((item, idx) => ({
-        ...item,
-        x: 0,
-        y: idx * 2,
-        w: COLS.sm, // Full width on small screens
-        h: Math.max(item.h, 2),
-      })),
-      xs: baseLayout.map((item, idx) => ({
-        ...item,
-        x: 0,
-        y: idx * 2,
-        w: COLS.xs,
-        h: Math.max(item.h, 2),
-      })),
-      xxs: baseLayout.map((item, idx) => ({
-        ...item,
-        x: 0,
-        y: idx * 2,
-        w: COLS.xxs,
-        h: Math.max(item.h, 2),
-      })),
-    };
   }, [schema, layoutMap]);
 
-  // Legacy: for compatibility with existing code
-  // Track if user has dragged/resized to distinguish from initial render
-  const userInteractedRef = useRef(false);
-
-  // Handle layout change from drag-and-drop (only update on actual user interaction)
-  const handleLayoutChange = useCallback((newLayout: LayoutItem[], layouts: Record<string, LayoutItem[]>) => {
-    // Skip updates during initial render to prevent infinite loop
-    if (!userInteractedRef.current) return;
-    
-    // Only update layout map from the lg (desktop) layout to preserve user customizations
-    const lgLayout = layouts.lg || newLayout;
-
+  // Handle layout change from drag-and-drop
+  const handleLayoutChange = useCallback((newLayout: LayoutItem[]) => {
     // Update the layout map with new positions (keyed by widget ID)
     setLayoutMap(prevMap => {
       const newMap: Record<string, LayoutItem> = { ...prevMap };
-      lgLayout.forEach(item => {
+      newLayout.forEach(item => {
         newMap[item.i] = item;
       });
       return newMap;
     });
 
-    // Update schema with new positions (from desktop layout)
+    // Update schema with new positions
     setSchema(prevSchema => {
       if (!prevSchema) return prevSchema;
       const updatedWidgets = prevSchema.widgets.map(widget => {
-        const layoutItem = lgLayout.find(l => l.i === widget.id);
+        const layoutItem = newLayout.find(l => l.i === widget.id);
         if (layoutItem) {
           return {
             ...widget,
@@ -297,23 +244,6 @@ export function DashboardRenderer({
       });
       return { ...prevSchema, widgets: updatedWidgets };
     });
-    
-    // Reset flag after update
-    userInteractedRef.current = false;
-  }, []);
-  
-  // Track drag/resize start to know when user is interacting
-  const handleDragStart = useCallback(() => {
-    userInteractedRef.current = true;
-  }, []);
-  
-  const handleResizeStart = useCallback(() => {
-    userInteractedRef.current = true;
-  }, []);
-
-  // Handle breakpoint change
-  const handleBreakpointChange = useCallback((newBreakpoint: string) => {
-    setCurrentBreakpoint(newBreakpoint);
   }, []);
 
   // Reset dashboard
@@ -673,21 +603,21 @@ export function DashboardRenderer({
 
   return (
     <div className="h-full flex flex-col bg-slate-950">
-      {/* Dashboard Header - Responsive */}
+      {/* Dashboard Header */}
       {schema && (
-        <div className="px-4 lg:px-6 py-3 lg:py-4 border-b border-slate-800">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="text-lg lg:text-xl font-semibold text-white truncate">{schema.title}</h2>
+        <div className="px-6 py-4 border-b border-slate-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-white">{schema.title}</h2>
               {schema.description && (
-                <p className="text-xs lg:text-sm text-slate-400 mt-1 line-clamp-1">{schema.description}</p>
+                <p className="text-sm text-slate-400 mt-1">{schema.description}</p>
               )}
             </div>
-            <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-hide flex-shrink-0">
-              {/* Auto-arrange Button - hidden on mobile */}
+            <div className="flex items-center gap-2">
+              {/* Auto-arrange Button */}
               <button
                 onClick={handleAutoArrange}
-                className="hidden sm:flex px-2 lg:px-3 py-1.5 bg-cyan-900/50 text-cyan-300 rounded-lg text-xs lg:text-sm hover:bg-cyan-800/60 transition-colors whitespace-nowrap"
+                className="px-3 py-1.5 bg-cyan-900/50 text-cyan-300 rounded-lg text-sm hover:bg-cyan-800/60 transition-colors"
                 title="Remove gaps and arrange widgets neatly"
               >
                 ⊞ Auto
@@ -699,18 +629,18 @@ export function DashboardRenderer({
                   setSaveName(schema.title);
                   setShowSaveModal(true);
                 }}
-                className="px-2 lg:px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-xs lg:text-sm hover:bg-slate-700 transition-colors whitespace-nowrap"
+                className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
               >
-                💾 <span className="hidden sm:inline">Save</span>
+                💾 Save
               </button>
 
-              {/* Save as Template Button - hidden on mobile */}
+              {/* Save as Template Button */}
               <button
                 onClick={() => {
                   setTemplateName(schema.title + ' Template');
                   setShowTemplateModal(true);
                 }}
-                className="hidden md:flex px-2 lg:px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-xs lg:text-sm hover:bg-slate-700 transition-colors whitespace-nowrap"
+                className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
               >
                 📋 Template
               </button>
@@ -718,70 +648,70 @@ export function DashboardRenderer({
               {/* Load Button */}
               <button
                 onClick={() => setShowLoadModal(true)}
-                className="px-2 lg:px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-xs lg:text-sm hover:bg-slate-700 transition-colors whitespace-nowrap"
+                className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
               >
-                📂 <span className="hidden sm:inline">Load</span>
+                📂 Load
               </button>
 
               {/* Reset Button */}
               <button
                 onClick={handleReset}
-                className="px-2 lg:px-3 py-1.5 bg-red-900/50 text-red-300 rounded-lg text-xs lg:text-sm hover:bg-red-900/70 transition-colors whitespace-nowrap"
+                className="px-3 py-1.5 bg-red-900/50 text-red-300 rounded-lg text-sm hover:bg-red-900/70 transition-colors"
               >
-                ✕
+                ✕ Reset
               </button>
             </div>
           </div>
 
           {/* Success message */}
           {saveSuccess && (
-            <div className="mt-2 px-3 py-2 bg-green-900/30 border border-green-700/50 rounded-lg text-xs lg:text-sm text-green-300">
+            <div className="mt-2 px-3 py-2 bg-green-900/30 border border-green-700/50 rounded-lg text-sm text-green-300">
               {saveSuccess}
             </div>
           )}
         </div>
       )}
 
-      {/* Refinement Input - At top of dashboard - Responsive */}
+      {/* Refinement Input - At top of dashboard */}
       {schema && showRefinementInput && (
-        <div className="px-4 lg:px-6 py-3 lg:py-4 border-b border-slate-800 bg-slate-900/50">
-          <form onSubmit={handleRefinementSubmit} className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+        <div className="px-6 py-4 border-b border-slate-800 bg-slate-900/50">
+          <form onSubmit={handleRefinementSubmit} className="flex gap-3">
             <input
               type="text"
               value={refinementQuery}
               onChange={(e) => setRefinementQuery(e.target.value)}
-              placeholder="Refine dashboard..."
-              className="flex-1 px-3 lg:px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm lg:text-base placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+              placeholder="Refine this dashboard... (e.g., 'Add a pipeline KPI', 'Make that a bar chart')"
+              className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
               disabled={isRefining}
             />
             <button
               type="submit"
               disabled={isRefining || !refinementQuery.trim()}
-              className="px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm lg:text-base hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+              className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {isRefining ? '...' : 'Refine'}
+              {isRefining ? 'Refining...' : 'Refine'}
             </button>
           </form>
 
           {/* Refinement Message */}
           {refinementMessage && (
-            <div className="mt-2 lg:mt-3 px-3 lg:px-4 py-2 bg-green-900/30 border border-green-700/50 rounded-lg">
-              <p className="text-green-300 text-xs lg:text-sm">
+            <div className="mt-3 px-4 py-2 bg-green-900/30 border border-green-700/50 rounded-lg">
+              <p className="text-green-300 text-sm">
                 ✓ {refinementMessage}
               </p>
             </div>
           )}
 
-          {/* Preset Refinements - horizontal scroll on mobile */}
+          {/* Preset Refinements */}
           {refinePresets.length > 0 && (
-            <div className="flex gap-2 mt-2 lg:mt-3 overflow-x-auto scrollbar-hide touch-scroll pb-1">
-              <span className="text-slate-500 text-xs py-1 flex-shrink-0">Try:</span>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <span className="text-slate-500 text-xs py-1">Try:</span>
               {refinePresets.map((preset, i) => (
                 <button
                   key={i}
                   onClick={() => refineDashboard(preset)}
                   disabled={isRefining}
-                  className="px-3 py-1.5 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors disabled:opacity-50 whitespace-nowrap flex-shrink-0"
+                  className="px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors disabled:opacity-50"
                 >
                   {preset}
                 </button>
@@ -855,25 +785,22 @@ export function DashboardRenderer({
         </div>
       )}
 
-      {/* Dashboard Grid with Drag-and-Drop - Responsive */}
+      {/* Dashboard Grid with Drag-and-Drop */}
       {schema && !loading && (
-        <div className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6 touch-scroll" ref={containerRef}>
+        <div className="flex-1 overflow-auto p-6" ref={containerRef}>
           {/* @ts-ignore - Type mismatch between react-grid-layout versions */}
-          <ResponsiveGridLayout
+          <GridLayout
             className="layout"
-            layouts={responsiveLayouts}
-            breakpoints={BREAKPOINTS}
-            cols={COLS}
-            rowHeight={isMobile ? 60 : rowHeight}
+            layout={gridLayout}
+            cols={schema.layout.columns}
+            rowHeight={rowHeight}
+            width={containerWidth}
             onLayoutChange={handleLayoutChange as any}
-            onBreakpointChange={handleBreakpointChange}
-            onDragStart={handleDragStart}
-            onResizeStart={handleResizeStart}
-            isDraggable={!isMobile}
-            isResizable={!isMobile}
-            margin={isMobile ? [8, 8] : [schema.layout.gap, schema.layout.gap]}
+            isDraggable={true}
+            isResizable={true}
+            margin={[schema.layout.gap, schema.layout.gap]}
             containerPadding={[0, 0]}
-            compactType={isMobile ? 'vertical' : null}
+            compactType={null}
             preventCollision={false}
           >
             {schema.widgets.map(widget => (
@@ -885,11 +812,11 @@ export function DashboardRenderer({
                   widget={widget}
                   data={widgetData[widget.id] || { loading: true }}
                   onClick={(value) => handleWidgetClick(widget, value)}
-                  rowHeight={isMobile ? 60 : rowHeight}
+                  rowHeight={rowHeight}
                 />
               </div>
             ))}
-          </ResponsiveGridLayout>
+          </GridLayout>
         </div>
       )}
 

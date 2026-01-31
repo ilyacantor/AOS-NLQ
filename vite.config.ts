@@ -17,12 +17,6 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: 'dist',
-    commonjsOptions: {
-      include: [/react-grid-layout/, /node_modules/]
-    }
-  },
-  optimizeDeps: {
-    include: ['react-grid-layout']
+    outDir: 'dist'
   }
 })

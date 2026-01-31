@@ -42,12 +42,6 @@ const CHART_COLORS = [
   '#EAB308', // Yellow
 ];
 
-// Check if we're on mobile for responsive adjustments
-const useIsMobile = () => {
-  if (typeof window === 'undefined') return false;
-  return window.innerWidth < 640;
-};
-
 export function WidgetRenderer({ widget, data, onClick, rowHeight }: WidgetRendererProps) {
   // Calculate widget dimensions
   const height = widget.position.row_span * rowHeight - 16; // Account for gap
@@ -139,13 +133,13 @@ function KPICardContent({ widget, data }: { widget: Widget; data: WidgetData }) 
   const showSparkline = widget.kpi_config?.show_sparkline && data.sparkline_data;
 
   return (
-    <div className="p-3 sm:p-4 h-full flex flex-col justify-between">
+    <div className="p-4 h-full flex flex-col justify-between">
       <div>
-        <h3 className="text-xs sm:text-sm font-medium text-slate-400 mb-1 truncate">{widget.title}</h3>
-        <div className="flex items-baseline gap-2 sm:gap-3 flex-wrap">
-          <span className="text-2xl sm:text-3xl font-bold text-white">{data.formatted_value}</span>
+        <h3 className="text-sm font-medium text-slate-400 mb-1">{widget.title}</h3>
+        <div className="flex items-baseline gap-3">
+          <span className="text-3xl font-bold text-white">{data.formatted_value}</span>
           {trend && widget.kpi_config?.show_trend && (
-            <span className={`text-xs sm:text-sm font-medium flex items-center gap-1 ${
+            <span className={`text-sm font-medium flex items-center gap-1 ${
               trend.direction === 'up' ? 'text-emerald-400' :
               trend.direction === 'down' ? 'text-red-400' : 'text-slate-400'
             }`}>
@@ -155,12 +149,12 @@ function KPICardContent({ widget, data }: { widget: Widget; data: WidgetData }) 
           )}
         </div>
         {trend && (
-          <span className="text-xs text-slate-500 hidden sm:inline">{trend.comparison_label}</span>
+          <span className="text-xs text-slate-500">{trend.comparison_label}</span>
         )}
       </div>
 
       {showSparkline && (
-        <div className="h-10 sm:h-12 mt-2">
+        <div className="h-12 mt-2">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data.sparkline_data?.map((v, i) => ({ value: v, i }))}>
               <Area
@@ -196,43 +190,32 @@ function LineChartContent({
 }) {
   const chartData = data.series?.[0]?.data || [];
   const showLegend = widget.chart_config?.show_legend && (data.series?.length || 0) > 1;
-  const isMobile = useIsMobile();
 
   return (
-    <div className="p-3 sm:p-4 h-full flex flex-col">
-      <h3 className="text-xs sm:text-sm font-medium text-slate-400 mb-2 sm:mb-3">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: Math.max(120, height - 80) }}>
+    <div className="p-4 h-full flex flex-col">
+      <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
+      <div className="flex-1" style={{ minHeight: height - 80 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ bottom: isMobile ? 5 : 5 }}>
+          <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
             <XAxis
               dataKey="label"
-              tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 11 }}
+              tick={{ fill: '#94a3b8', fontSize: 11 }}
               axisLine={{ stroke: '#475569' }}
-              interval={isMobile ? 'preserveStartEnd' : 0}
             />
             <YAxis
-              tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 11 }}
+              tick={{ fill: '#94a3b8', fontSize: 11 }}
               axisLine={{ stroke: '#475569' }}
-              width={isMobile ? 30 : 40}
             />
             <Tooltip
               contentStyle={{
                 backgroundColor: '#1e293b',
                 border: '1px solid #334155',
                 borderRadius: '8px',
-                fontSize: isMobile ? '12px' : '14px',
               }}
               labelStyle={{ color: '#f1f5f9' }}
             />
-            {showLegend && (
-              <Legend
-                layout="horizontal"
-                verticalAlign="bottom"
-                align="center"
-                wrapperStyle={{ fontSize: isMobile ? '10px' : '12px' }}
-              />
-            )}
+            {showLegend && <Legend />}
             {data.series?.map((series, i) => (
               <Line
                 key={series.name}
@@ -241,9 +224,9 @@ function LineChartContent({
                 data={series.data}
                 name={series.name}
                 stroke={series.color || CHART_COLORS[i % CHART_COLORS.length]}
-                strokeWidth={isMobile ? 1.5 : 2}
-                dot={{ r: isMobile ? 3 : 4, fill: series.color || CHART_COLORS[i % CHART_COLORS.length] }}
-                activeDot={{ r: isMobile ? 5 : 6 }}
+                strokeWidth={2}
+                dot={{ r: 4, fill: series.color || CHART_COLORS[i % CHART_COLORS.length] }}
+                activeDot={{ r: 6 }}
               />
             ))}
           </LineChart>
@@ -270,32 +253,28 @@ function BarChartContent({
 }) {
   const chartData = data.series?.[0]?.data || [];
   const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
-  const isMobile = useIsMobile();
 
   return (
-    <div className="p-3 sm:p-4 h-full flex flex-col">
-      <h3 className="text-xs sm:text-sm font-medium text-slate-400 mb-2 sm:mb-3">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: Math.max(120, height - 80) }}>
+    <div className="p-4 h-full flex flex-col">
+      <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
+      <div className="flex-1" style={{ minHeight: height - 80 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
             <XAxis
               dataKey="label"
-              tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 11 }}
+              tick={{ fill: '#94a3b8', fontSize: 11 }}
               axisLine={{ stroke: '#475569' }}
-              interval={isMobile ? 'preserveStartEnd' : 0}
             />
             <YAxis
-              tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 11 }}
+              tick={{ fill: '#94a3b8', fontSize: 11 }}
               axisLine={{ stroke: '#475569' }}
-              width={isMobile ? 30 : 40}
             />
             <Tooltip
               contentStyle={{
                 backgroundColor: '#1e293b',
                 border: '1px solid #334155',
                 borderRadius: '8px',
-                fontSize: isMobile ? '12px' : '14px',
               }}
               labelStyle={{ color: '#f1f5f9' }}
               cursor={{ fill: 'rgba(11, 202, 217, 0.1)' }}
@@ -331,33 +310,31 @@ function HorizontalBarContent({
 }) {
   const chartData = data.series?.[0]?.data || [];
   const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
-  const isMobile = useIsMobile();
 
   return (
-    <div className="p-3 sm:p-4 h-full flex flex-col">
-      <h3 className="text-xs sm:text-sm font-medium text-slate-400 mb-2 sm:mb-3">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: Math.max(120, height - 80) }}>
+    <div className="p-4 h-full flex flex-col">
+      <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
+      <div className="flex-1" style={{ minHeight: height - 80 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
             <XAxis
               type="number"
-              tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 11 }}
+              tick={{ fill: '#94a3b8', fontSize: 11 }}
               axisLine={{ stroke: '#475569' }}
             />
             <YAxis
               type="category"
               dataKey="label"
-              tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 11 }}
+              tick={{ fill: '#94a3b8', fontSize: 11 }}
               axisLine={{ stroke: '#475569' }}
-              width={isMobile ? 60 : 80}
+              width={80}
             />
             <Tooltip
               contentStyle={{
                 backgroundColor: '#1e293b',
                 border: '1px solid #334155',
                 borderRadius: '8px',
-                fontSize: isMobile ? '12px' : '14px',
               }}
               labelStyle={{ color: '#f1f5f9' }}
             />
@@ -446,12 +423,11 @@ function DonutChartContent({
 }) {
   const chartData = data.series?.[0]?.data || [];
   const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
-  const isMobile = useIsMobile();
 
   return (
-    <div className="p-3 sm:p-4 h-full flex flex-col">
-      <h3 className="text-xs sm:text-sm font-medium text-slate-400 mb-2 sm:mb-3">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: Math.max(120, height - 80) }}>
+    <div className="p-4 h-full flex flex-col">
+      <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
+      <div className="flex-1" style={{ minHeight: height - 80 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -459,9 +435,9 @@ function DonutChartContent({
               dataKey="value"
               nameKey="label"
               cx="50%"
-              cy={isMobile ? "45%" : "50%"}
-              innerRadius={isMobile ? "40%" : "50%"}
-              outerRadius={isMobile ? "70%" : "80%"}
+              cy="50%"
+              innerRadius="50%"
+              outerRadius="80%"
               paddingAngle={2}
               onClick={(data) => hasDrillDown && onClick?.(data.label)}
               cursor={hasDrillDown ? 'pointer' : undefined}
@@ -475,16 +451,13 @@ function DonutChartContent({
                 backgroundColor: '#1e293b',
                 border: '1px solid #334155',
                 borderRadius: '8px',
-                fontSize: isMobile ? '12px' : '14px',
               }}
               labelStyle={{ color: '#f1f5f9' }}
             />
             <Legend
-              layout="horizontal"
               verticalAlign="bottom"
-              align="center"
-              wrapperStyle={{ fontSize: isMobile ? '10px' : '12px' }}
-              formatter={(value) => <span className="text-slate-300">{value}</span>}
+              height={36}
+              formatter={(value) => <span className="text-slate-300 text-xs">{value}</span>}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -517,40 +490,33 @@ function StackedBarContent({
     });
     return point;
   });
-  const isMobile = useIsMobile();
 
   return (
-    <div className="p-3 sm:p-4 h-full flex flex-col">
-      <h3 className="text-xs sm:text-sm font-medium text-slate-400 mb-2 sm:mb-3">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: Math.max(120, height - 80) }}>
+    <div className="p-4 h-full flex flex-col">
+      <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
+      <div className="flex-1" style={{ minHeight: height - 80 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ bottom: isMobile ? 20 : 5 }}>
+          <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
             <XAxis
               dataKey="category"
-              tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 11 }}
+              tick={{ fill: '#94a3b8', fontSize: 11 }}
               axisLine={{ stroke: '#475569' }}
             />
             <YAxis
-              tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 11 }}
+              tick={{ fill: '#94a3b8', fontSize: 11 }}
               axisLine={{ stroke: '#475569' }}
-              width={isMobile ? 30 : 40}
             />
             <Tooltip
               contentStyle={{
                 backgroundColor: '#1e293b',
                 border: '1px solid #334155',
                 borderRadius: '8px',
-                fontSize: isMobile ? '12px' : '14px',
               }}
               labelStyle={{ color: '#f1f5f9' }}
             />
             <Legend
-              layout="horizontal"
-              verticalAlign="bottom"
-              align="center"
-              wrapperStyle={{ fontSize: isMobile ? '10px' : '12px' }}
-              formatter={(value) => <span className="text-slate-300">{value}</span>}
+              formatter={(value) => <span className="text-slate-300 text-xs">{value}</span>}
             />
             {data.series?.map((series, i) => (
               <Bar
@@ -586,9 +552,9 @@ function DataTableContent({
 
   if (rows.length === 0) {
     return (
-      <div className="p-3 sm:p-4">
-        <h3 className="text-xs sm:text-sm font-medium text-slate-400 mb-2 sm:mb-3">{widget.title}</h3>
-        <p className="text-slate-500 text-xs sm:text-sm">No data available</p>
+      <div className="p-4">
+        <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
+        <p className="text-slate-500 text-sm">No data available</p>
       </div>
     );
   }
@@ -596,14 +562,14 @@ function DataTableContent({
   const columns = Object.keys(rows[0]);
 
   return (
-    <div className="p-3 sm:p-4 h-full flex flex-col">
-      <h3 className="text-xs sm:text-sm font-medium text-slate-400 mb-2 sm:mb-3">{widget.title}</h3>
-      <div className="flex-1 overflow-auto touch-scroll">
-        <table className="w-full text-xs sm:text-sm min-w-max">
+    <div className="p-4 h-full flex flex-col">
+      <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
+      <div className="flex-1 overflow-auto">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-700">
               {columns.map(col => (
-                <th key={col} className="px-2 sm:px-3 py-2 text-left text-slate-400 font-medium capitalize whitespace-nowrap">
+                <th key={col} className="px-3 py-2 text-left text-slate-400 font-medium capitalize">
                   {col.replace(/_/g, ' ')}
                 </th>
               ))}
@@ -614,12 +580,12 @@ function DataTableContent({
               <tr
                 key={i}
                 className={`border-b border-slate-800 ${
-                  hasDrillDown ? 'hover:bg-slate-800/50 cursor-pointer active:bg-slate-800' : ''
+                  hasDrillDown ? 'hover:bg-slate-800/50 cursor-pointer' : ''
                 }`}
                 onClick={() => hasDrillDown && onClick?.(row[columns[0]])}
               >
                 {columns.map(col => (
-                  <td key={col} className="px-2 sm:px-3 py-2 text-slate-300 whitespace-nowrap">
+                  <td key={col} className="px-3 py-2 text-slate-300">
                     {typeof row[col] === 'number' ? row[col].toFixed(1) : row[col]}
                   </td>
                 ))}
