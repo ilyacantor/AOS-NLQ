@@ -481,7 +481,7 @@ function App() {
                     {/* Help Text - Prominent Banner */}
                     <div className="px-4 py-2 bg-cyan-900/30 border border-cyan-700/50 rounded-lg">
                       <p className="text-cyan-300 text-sm font-medium">
-                        💡 Drag to rearrange • Resize from corners • Use chatbox above to refine
+                        💡 Drag to rearrange • Resize from corners • Use chatbox to refine
                       </p>
                     </div>
                   </div>
