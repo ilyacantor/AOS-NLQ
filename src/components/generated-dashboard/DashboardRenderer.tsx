@@ -519,8 +519,17 @@ export function DashboardRenderer({
           fetchWidgetData(data.dashboard);
         }
 
-        // Show appropriate message
-        if (changesDescription) {
+        // Show appropriate message based on what actually changed
+        const widgetsAdded = newWidgetCount > oldWidgetCount;
+        const widgetsRemoved = newWidgetCount < oldWidgetCount;
+        
+        if (widgetsAdded) {
+          const added = newWidgetCount - oldWidgetCount;
+          setRefinementMessage(`Added ${added} widget${added > 1 ? 's' : ''} to dashboard`);
+        } else if (widgetsRemoved) {
+          const removed = oldWidgetCount - newWidgetCount;
+          setRefinementMessage(`Removed ${removed} widget${removed > 1 ? 's' : ''} from dashboard`);
+        } else if (changesDescription && !changesDescription.includes('Applied refinement:')) {
           setRefinementMessage(changesDescription);
         } else if (widgetCountChanged) {
           setRefinementMessage(`Dashboard updated (${newWidgetCount} widgets)`);
