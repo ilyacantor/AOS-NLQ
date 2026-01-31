@@ -514,7 +514,7 @@ function App() {
         <main className="flex-1 flex flex-col overflow-hidden">
           {/* Query Input Section - Only shown in Galaxy view */}
           {viewMode === 'galaxy' && (
-            <div className="flex flex-col items-center pt-6 pb-4 px-8">
+            <div className="flex flex-col items-center pt-4 pb-3 px-6">
               <div className="w-full max-w-2xl">
                 <div className="relative">
                   <input
@@ -522,12 +522,12 @@ function App() {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Ask any question, use a preset from below, or just say hi"
-                    className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-lg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
+                    placeholder="Ask any question, use a preset below, or just say hi..."
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
                   />
                   {isLoading && (
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                      <svg className="w-5 h-5 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <svg className="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
@@ -537,18 +537,18 @@ function App() {
               </div>
 
               {/* Quick Action Buttons - Horizontally scrollable with fade edges */}
-              <div className="relative w-full max-w-3xl mt-4">
+              <div className="relative w-full max-w-2xl mt-3">
                 {/* Left fade edge */}
-                <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-slate-950 to-transparent z-10 pointer-events-none" />
+                <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-slate-950 to-transparent z-10 pointer-events-none" />
                 {/* Right fade edge */}
-                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-slate-950 to-transparent z-10 pointer-events-none" />
+                <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-slate-950 to-transparent z-10 pointer-events-none" />
                 {/* Scrollable container */}
-                <div className="flex items-center gap-2 overflow-x-auto px-8 py-2 scrollbar-hide">
+                <div className="flex items-center gap-2 overflow-x-auto px-6 py-1 scrollbar-hide">
                   {quickActions.map((action) => (
                     <button
                       key={action}
                       onClick={() => submitGalaxyQuery(action)}
-                      className="flex-shrink-0 min-h-[44px] px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-sm hover:bg-slate-700 hover:border-slate-600 transition-colors whitespace-nowrap"
+                      className="flex-shrink-0 px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors whitespace-nowrap"
                     >
                       {action}
                     </button>
