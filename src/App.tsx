@@ -357,6 +357,13 @@ function App() {
               >
                 Dashboard
               </button>
+              <button
+                onClick={() => setShowGuide(true)}
+                className="px-4 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-cyan-400 transition-colors"
+                title="User Guide"
+              >
+                User Guide
+              </button>
             </div>
           </div>
         </div>
@@ -390,13 +397,6 @@ function App() {
           </div>
           <LLMCallCounter />
           {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
-          <button
-            onClick={() => setShowGuide(true)}
-            className="px-3 py-1.5 text-slate-400 hover:text-cyan-400 transition-colors text-sm"
-            title="User Guide"
-          >
-            ? Help
-          </button>
         </div>
       </header>
 
