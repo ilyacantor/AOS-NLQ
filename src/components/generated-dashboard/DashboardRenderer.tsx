@@ -671,7 +671,7 @@ export function DashboardRenderer({
               {refinePresets.map((preset, i) => (
                 <button
                   key={i}
-                  onClick={() => setRefinementQuery(preset)}
+                  onClick={() => refineDashboard(preset)}
                   disabled={isRefining}
                   className="px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors disabled:opacity-50"
                 >
