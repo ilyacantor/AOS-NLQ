@@ -521,7 +521,7 @@ export function DashboardRenderer({
 
         // Show appropriate message
         if (changesDescription) {
-          setRefinementMessage(`Applied: ${changesDescription}`);
+          setRefinementMessage(changesDescription);
         } else if (widgetCountChanged) {
           setRefinementMessage(`Dashboard updated (${newWidgetCount} widgets)`);
         } else {
