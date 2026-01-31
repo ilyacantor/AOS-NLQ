@@ -14,7 +14,7 @@ interface QueryHistoryItem {
   count: number
 }
 
-type ViewMode = 'galaxy' | 'dashboard'
+type ViewMode = 'galaxy' | 'dashboard' | 'guide'
 type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO'
 type PanelTab = 'History' | 'Learning' | 'Data Gaps'
 type QueryMode = 'static' | 'ai'
@@ -92,7 +92,6 @@ function App() {
   const [lastDuration, setLastDuration] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [showGuide, setShowGuide] = useState(false)
 
   // Dashboard state - always use DashboardRenderer
   const [dashboardSchema, setDashboardSchema] = useState<DashboardSchema | null>(null)
@@ -336,7 +335,7 @@ function App() {
             <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-1">
               <button
                 onClick={() => setViewMode('galaxy')}
-                className={`min-h-[44px] min-w-[44px] px-3 rounded-md text-sm font-medium transition-colors ${
+                className={`min-h-[44px] min-w-[44px] px-2 rounded-md text-xs font-medium transition-colors ${
                   viewMode === 'galaxy'
                     ? 'bg-slate-700 text-white'
                     : 'text-slate-400 hover:text-slate-200'
@@ -346,13 +345,23 @@ function App() {
               </button>
               <button
                 onClick={() => setViewMode('dashboard')}
-                className={`min-h-[44px] min-w-[44px] px-3 rounded-md text-sm font-medium transition-colors ${
+                className={`min-h-[44px] min-w-[44px] px-2 rounded-md text-xs font-medium transition-colors ${
                   viewMode === 'dashboard'
                     ? 'bg-slate-700 text-white'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 Dash
+              </button>
+              <button
+                onClick={() => setViewMode('guide')}
+                className={`min-h-[44px] min-w-[44px] px-2 rounded-md text-xs font-medium transition-colors ${
+                  viewMode === 'guide'
+                    ? 'bg-slate-700 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Guide
               </button>
             </div>
             {/* Hamburger Menu Button */}
@@ -405,8 +414,12 @@ function App() {
               {/* User Guide & Stats */}
               <div className="flex items-center justify-between">
                 <button
-                  onClick={() => { setShowGuide(true); setMobileMenuOpen(false); }}
-                  className="min-h-[44px] px-4 py-2 bg-slate-800 rounded-lg text-cyan-400 hover:bg-slate-700 transition-colors"
+                  onClick={() => { setViewMode('guide'); setMobileMenuOpen(false); }}
+                  className={`min-h-[44px] px-4 py-2 rounded-lg transition-colors ${
+                    viewMode === 'guide'
+                      ? 'bg-slate-700 text-white'
+                      : 'bg-slate-800 text-cyan-400 hover:bg-slate-700'
+                  }`}
                 >
                   User Guide
                 </button>
@@ -459,9 +472,12 @@ function App() {
                   Dashboard
                 </button>
                 <button
-                  onClick={() => setShowGuide(true)}
-                  className="min-h-[44px] px-4 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-cyan-400 transition-colors"
-                  title="User Guide"
+                  onClick={() => setViewMode('guide')}
+                  className={`min-h-[44px] px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === 'guide'
+                      ? 'bg-slate-700 text-white'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
                 >
                   User Guide
                 </button>
@@ -502,13 +518,7 @@ function App() {
         </div>
       </header>
 
-      {/* User Guide Page */}
-      {showGuide && (
-        <UserGuide onClose={() => setShowGuide(false)} />
-      )}
-
       {/* Main Content Area */}
-      {!showGuide && (
       <div className="flex flex-1 overflow-hidden relative">
         {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-hidden">
@@ -652,6 +662,11 @@ function App() {
                 <p>Enter a query above to see results</p>
               </div>
             )}
+
+            {/* User Guide View */}
+            {viewMode === 'guide' && (
+              <UserGuide />
+            )}
           </div>
         </main>
 
@@ -772,7 +787,6 @@ function App() {
           </div>
         </aside>
       </div>
-      )}
     </div>
   )
 }
