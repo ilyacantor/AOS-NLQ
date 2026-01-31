@@ -59,10 +59,8 @@ const quickActions = [
   'how\'s pipeline looking',
   'churn?',
   'are we efficient',
-  'magic number',
   'platform stable?',
   'how\'s velocity',
-  'who is the CEO',
   'pto days',
   '401k match',
 ]
@@ -538,17 +536,24 @@ function App() {
                 </div>
               </div>
 
-              {/* Quick Action Buttons */}
-              <div className="flex flex-wrap justify-center items-center gap-2 mt-4 max-w-3xl px-4">
-                {quickActions.map((action) => (
-                  <button
-                    key={action}
-                    onClick={() => submitGalaxyQuery(action)}
-                    className="min-h-[44px] px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-sm hover:bg-slate-700 hover:border-slate-600 transition-colors"
-                  >
-                    {action}
-                  </button>
-                ))}
+              {/* Quick Action Buttons - Horizontally scrollable with fade edges */}
+              <div className="relative w-full max-w-3xl mt-4">
+                {/* Left fade edge */}
+                <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-slate-950 to-transparent z-10 pointer-events-none" />
+                {/* Right fade edge */}
+                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-slate-950 to-transparent z-10 pointer-events-none" />
+                {/* Scrollable container */}
+                <div className="flex items-center gap-2 overflow-x-auto px-8 py-2 scrollbar-hide">
+                  {quickActions.map((action) => (
+                    <button
+                      key={action}
+                      onClick={() => submitGalaxyQuery(action)}
+                      className="flex-shrink-0 min-h-[44px] px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-sm hover:bg-slate-700 hover:border-slate-600 transition-colors whitespace-nowrap"
+                    >
+                      {action}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
