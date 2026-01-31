@@ -4,20 +4,20 @@ interface UserGuideProps {
 
 export function UserGuide({ onClose }: UserGuideProps) {
   return (
-    <div className="h-full overflow-auto bg-slate-950 p-8">
+    <div className="h-full overflow-auto bg-slate-950 p-4 sm:p-6 lg:p-8 touch-scroll">
       <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-white">NLQ User Guide</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">NLQ User Guide</h1>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
+            className="px-4 py-2.5 min-h-[44px] bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 active:bg-slate-600 transition-colors touch-target"
           >
             Back to App
           </button>
         </div>
 
-        <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-cyan-400 mb-4">What is NLQ?</h2>
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl font-semibold text-cyan-400 mb-3 sm:mb-4">What is NLQ?</h2>
           <p className="text-slate-300 leading-relaxed">
             NLQ (Natural Language Query) lets you ask business questions in plain English and get instant answers. 
             Instead of navigating complicated reports or writing database queries, just type your question like 
@@ -25,9 +25,9 @@ export function UserGuide({ onClose }: UserGuideProps) {
           </p>
         </section>
 
-        <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-cyan-400 mb-4">Getting Started</h2>
-          <div className="bg-slate-900 rounded-lg p-6 mb-4">
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl font-semibold text-cyan-400 mb-3 sm:mb-4">Getting Started</h2>
+          <div className="bg-slate-900 rounded-lg p-4 sm:p-6 mb-4">
             <h3 className="text-lg font-medium text-white mb-3">Asking Your First Question</h3>
             <ol className="list-decimal list-inside text-slate-300 space-y-2">
               <li>Type your question in the search bar at the top of the screen</li>
@@ -69,11 +69,11 @@ export function UserGuide({ onClose }: UserGuideProps) {
           </p>
         </section>
 
-        <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-cyan-400 mb-4">View Modes</h2>
-          
-          <div className="space-y-6">
-            <div className="bg-slate-900 rounded-lg p-6">
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl font-semibold text-cyan-400 mb-3 sm:mb-4">View Modes</h2>
+
+          <div className="space-y-4 sm:space-y-6">
+            <div className="bg-slate-900 rounded-lg p-4 sm:p-6">
               <h3 className="text-lg font-medium text-white mb-3">Galaxy View (Visual Mode)</h3>
               <p className="text-slate-300 mb-3">Galaxy View shows your answer as an interactive visualization:</p>
               <ul className="list-disc list-inside text-slate-300 space-y-2">
@@ -89,7 +89,7 @@ export function UserGuide({ onClose }: UserGuideProps) {
               </ul>
             </div>
 
-            <div className="bg-slate-900 rounded-lg p-6">
+            <div className="bg-slate-900 rounded-lg p-4 sm:p-6">
               <h3 className="text-lg font-medium text-white mb-3">Dashboard View</h3>
               <p className="text-slate-300 mb-3">For overview questions, you'll see a full dashboard with:</p>
               <ul className="list-disc list-inside text-slate-300 space-y-2">
@@ -101,11 +101,11 @@ export function UserGuide({ onClose }: UserGuideProps) {
           </div>
         </section>
 
-        <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-cyan-400 mb-4">Dashboard Features</h2>
-          
-          <div className="space-y-6">
-            <div className="bg-slate-900 rounded-lg p-6">
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl font-semibold text-cyan-400 mb-3 sm:mb-4">Dashboard Features</h2>
+
+          <div className="space-y-4 sm:space-y-6">
+            <div className="bg-slate-900 rounded-lg p-4 sm:p-6">
               <h3 className="text-lg font-medium text-white mb-3">Persona Dashboards</h3>
               <p className="text-slate-300 mb-3">Ask for role-specific views:</p>
               <ul className="list-disc list-inside text-slate-300 space-y-2">
@@ -117,7 +117,7 @@ export function UserGuide({ onClose }: UserGuideProps) {
               </ul>
             </div>
 
-            <div className="bg-slate-900 rounded-lg p-6">
+            <div className="bg-slate-900 rounded-lg p-4 sm:p-6">
               <h3 className="text-lg font-medium text-white mb-3">Customizing Your Dashboard</h3>
               <p className="text-slate-300 mb-3">Once a dashboard loads, you can:</p>
               <ul className="list-disc list-inside text-slate-300 space-y-2">
@@ -127,7 +127,7 @@ export function UserGuide({ onClose }: UserGuideProps) {
               </ul>
             </div>
 
-            <div className="bg-slate-900 rounded-lg p-6">
+            <div className="bg-slate-900 rounded-lg p-4 sm:p-6">
               <h3 className="text-lg font-medium text-white mb-3">Refining Your Dashboard</h3>
               <p className="text-slate-300 mb-3">The refinement box lets you modify what you see. Try commands like:</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
@@ -138,7 +138,7 @@ export function UserGuide({ onClose }: UserGuideProps) {
               </div>
             </div>
 
-            <div className="bg-slate-900 rounded-lg p-6">
+            <div className="bg-slate-900 rounded-lg p-4 sm:p-6">
               <h3 className="text-lg font-medium text-white mb-3">Saving Your Work</h3>
               <ul className="list-disc list-inside text-slate-300 space-y-2">
                 <li><span className="text-white">Save:</span> Keep your customized layout</li>
@@ -149,9 +149,9 @@ export function UserGuide({ onClose }: UserGuideProps) {
           </div>
         </section>
 
-        <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-cyan-400 mb-4">Tips for Best Results</h2>
-          <div className="bg-slate-900 rounded-lg p-6">
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl font-semibold text-cyan-400 mb-3 sm:mb-4">Tips for Best Results</h2>
+          <div className="bg-slate-900 rounded-lg p-4 sm:p-6">
             <ul className="list-disc list-inside text-slate-300 space-y-3">
               <li>
                 <span className="text-white">Be specific when needed:</span> Instead of "sales?" try "Q4 sales by region"
@@ -166,10 +166,10 @@ export function UserGuide({ onClose }: UserGuideProps) {
           </div>
         </section>
 
-        <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-cyan-400 mb-4">Understanding Your Answers</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl font-semibold text-cyan-400 mb-3 sm:mb-4">Understanding Your Answers</h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
             <div className="bg-slate-900 rounded-lg p-4">
               <h3 className="text-lg font-medium text-white mb-2">Confidence Levels</h3>
               <ul className="text-slate-300 space-y-1 text-sm">
@@ -195,9 +195,9 @@ export function UserGuide({ onClose }: UserGuideProps) {
           </div>
         </section>
 
-        <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-cyan-400 mb-4">Troubleshooting</h2>
-          <div className="space-y-4">
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl font-semibold text-cyan-400 mb-3 sm:mb-4">Troubleshooting</h2>
+          <div className="space-y-3 sm:space-y-4">
             <div className="bg-slate-900 rounded-lg p-4">
               <h3 className="text-white font-medium mb-2">"I'm not getting the expected answer"</h3>
               <p className="text-slate-300 text-sm">
@@ -219,10 +219,10 @@ export function UserGuide({ onClose }: UserGuideProps) {
           </div>
         </section>
 
-        <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-cyan-400 mb-4">Keyboard Shortcuts</h2>
-          <div className="bg-slate-900 rounded-lg p-6">
-            <table className="w-full text-left">
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl font-semibold text-cyan-400 mb-3 sm:mb-4">Keyboard Shortcuts</h2>
+          <div className="bg-slate-900 rounded-lg p-4 sm:p-6 overflow-x-auto touch-scroll">
+            <table className="w-full text-left min-w-[280px]">
               <thead>
                 <tr className="border-b border-slate-700">
                   <th className="pb-3 text-slate-400">Action</th>
@@ -247,13 +247,13 @@ export function UserGuide({ onClose }: UserGuideProps) {
           </div>
         </section>
 
-        <div className="text-center py-8 border-t border-slate-800">
-          <p className="text-slate-400 italic">
+        <div className="text-center py-6 sm:py-8 border-t border-slate-800">
+          <p className="text-slate-400 italic text-sm sm:text-base">
             NLQ - Ask questions in plain English, get answers instantly.
           </p>
           <button
             onClick={onClose}
-            className="mt-4 px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 transition-colors"
+            className="mt-4 px-6 py-2.5 min-h-[44px] bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 active:bg-cyan-400 transition-colors touch-target"
           >
             Back to App
           </button>
