@@ -225,9 +225,73 @@ function App() {
     }
   }, [hasLoadedDefaultDashboard, viewMode, selectedPersona, generateDashboard])
 
+  // Detect if query is a dashboard command (add/remove/show widgets, build dashboard, etc.)
+  const isDashboardCommand = useCallback((queryText: string): boolean => {
+    const dashboardPatterns = [
+      /\b(add|remove|delete|show|hide|create|insert)\b.*(kpi|card|chart|widget|metric|dashboard)/i,
+      /\bbuild\s+(me\s+)?a?\s*\w*\s*dashboard/i,
+      /\b(make|resize|move|arrange|reorganize)\b.*widget/i,
+      /\badd\s+(a\s+)?(revenue|margin|pipeline|churn|headcount|arr|nrr|cac|ltv)/i,
+    ]
+    return dashboardPatterns.some(pattern => pattern.test(queryText))
+  }, [])
+
   // Submit a Galaxy query
   const submitGalaxyQuery = useCallback(async (queryText: string) => {
     if (!queryText.trim()) return
+
+    // Check if this is a dashboard command - route to dashboard
+    if (isDashboardCommand(queryText)) {
+      const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+
+      // Add to history first
+      const newItem: QueryHistoryItem = {
+        id: Date.now().toString(),
+        query: queryText,
+        timestamp,
+        duration: '',
+        tag: 'DASHBOARD',
+        count: 1,
+      }
+      setQueryHistory(prev => aggregateHistory([newItem, ...prev]))
+      setQuery('')
+
+      // Switch to dashboard and trigger refinement or generation
+      setViewMode('dashboard')
+
+      // If we have an existing dashboard, refine it; otherwise generate new
+      if (dashboardSchema) {
+        // Trigger refinement via the dashboard API
+        try {
+          const startTime = performance.now()
+          const res = await fetch('/api/v1/dashboard/refine', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              dashboard_id: dashboardSchema.id,
+              refinement_query: queryText,
+              conversation_id: sessionId
+            })
+          })
+          const data = await res.json()
+          const duration = Math.round(performance.now() - startTime)
+          setLastDuration(`${duration}ms`)
+
+          if (data.success && data.dashboard) {
+            setDashboardSchema(data.dashboard)
+            if (data.widget_data) {
+              setDashboardWidgetData(data.widget_data)
+            }
+          }
+        } catch (error) {
+          console.error('Dashboard refinement failed:', error)
+        }
+      } else {
+        // Generate new dashboard
+        generateDashboard(queryText, true)
+      }
+      return
+    }
 
     setIsLoading(true)
     setQuery('')
@@ -282,7 +346,7 @@ function App() {
     }
 
     setIsLoading(false)
-  }, [queryMode, sessionId])
+  }, [queryMode, sessionId, isDashboardCommand, dashboardSchema, generateDashboard])
 
   // Auto-query "2025 results" for Galaxy view on first load
   useEffect(() => {

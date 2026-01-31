@@ -28,6 +28,7 @@ interface WidgetRendererProps {
   widget: Widget;
   data: WidgetData;
   onClick?: (value?: string) => void;
+  onDoubleClick?: (widget: Widget) => void;
   rowHeight: number;
 }
 
@@ -42,7 +43,7 @@ const CHART_COLORS = [
   '#EAB308', // Yellow
 ];
 
-export function WidgetRenderer({ widget, data, onClick, rowHeight }: WidgetRendererProps) {
+export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight }: WidgetRendererProps) {
   // Calculate widget dimensions
   const height = widget.position.row_span * rowHeight - 16; // Account for gap
 
@@ -78,12 +79,17 @@ export function WidgetRenderer({ widget, data, onClick, rowHeight }: WidgetRende
   // Check if widget has drill-down interaction
   const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
+  // KPI cards support double-click to show trend chart
+  const isKPI = widget.type === 'kpi_card';
+
   return (
     <div
       className={`h-full bg-slate-900 border border-slate-800 rounded-xl overflow-hidden ${
-        hasDrillDown ? 'cursor-pointer hover:border-cyan-500/50 transition-colors' : ''
+        hasDrillDown || isKPI ? 'cursor-pointer hover:border-cyan-500/50 transition-colors' : ''
       }`}
       onClick={() => hasDrillDown && onClick?.()}
+      onDoubleClick={() => isKPI && onDoubleClick?.(widget)}
+      title={isKPI ? 'Double-click to view trend chart' : undefined}
     >
       {content}
     </div>

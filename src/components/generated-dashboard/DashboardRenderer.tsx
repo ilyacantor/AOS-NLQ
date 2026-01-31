@@ -577,6 +577,16 @@ export function DashboardRenderer({
     }
   }, [onDrillDown]);
 
+  // Handle KPI double-click to show time-based chart
+  const handleKPIDoubleClick = useCallback((widget: Widget) => {
+    const metric = widget.data.metrics[0]?.metric;
+    if (metric) {
+      // Trigger refinement to add a trend chart for this metric
+      const refinementQuery = `Add a quarterly trend chart for ${widget.title || metric}`;
+      refineDashboard(refinementQuery);
+    }
+  }, [refineDashboard]);
+
   // Handle refinement submit
   const handleRefinementSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -797,6 +807,7 @@ export function DashboardRenderer({
                   widget={widget}
                   data={widgetData[widget.id] || { loading: true }}
                   onClick={(value) => handleWidgetClick(widget, value)}
+                  onDoubleClick={handleKPIDoubleClick}
                   rowHeight={rowHeight}
                 />
               </div>
