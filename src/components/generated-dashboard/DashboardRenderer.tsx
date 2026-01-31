@@ -65,7 +65,7 @@ interface DashboardRendererProps {
   /** Persona-specific preset refinement suggestions */
   refinePresets?: string[];
   /** Current persona (for showing what-if panel) */
-  persona?: string;
+  persona?: 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO' | string;
 }
 
 // =============================================================================

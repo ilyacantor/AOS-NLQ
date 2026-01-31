@@ -136,7 +136,7 @@ function renderWidgetContent(
     case 'horizontal_bar':
       return <HorizontalBarContent widget={widget} data={data} height={height} onClick={onClick} />;
     case 'area_chart':
-      return <AreaChartContent widget={widget} data={data} height={height} />;
+      return <AreaChartContent widget={widget} data={data} height={height} onClick={onClick} />;
     case 'donut_chart':
       return <DonutChartContent widget={widget} data={data} height={height} onClick={onClick} />;
     case 'stacked_bar':
@@ -211,7 +211,7 @@ function LineChartContent({
   widget,
   data,
   height,
-  onClick: _onClick,
+  onClick,
 }: {
   widget: Widget;
   data: WidgetData;
@@ -220,13 +220,21 @@ function LineChartContent({
 }) {
   const chartData = data.series?.[0]?.data || [];
   const showLegend = widget.chart_config?.show_legend && (data.series?.length || 0) > 1;
+  const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
   return (
     <div className="p-4 h-full flex flex-col">
       <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
       <div className="flex-1" style={{ minHeight: height - 80 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData}>
+          <LineChart 
+            data={chartData}
+            onClick={(e) => {
+              if (hasDrillDown && e?.activeLabel) {
+                onClick?.(String(e.activeLabel));
+              }
+            }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
             <XAxis
               dataKey="label"
@@ -244,6 +252,7 @@ function LineChartContent({
                 borderRadius: '8px',
               }}
               labelStyle={{ color: '#f1f5f9' }}
+              cursor={hasDrillDown ? { stroke: '#0BCAD9', strokeWidth: 2 } : undefined}
             />
             {showLegend && <Legend />}
             {data.series?.map((series, i) => (
@@ -256,7 +265,7 @@ function LineChartContent({
                 stroke={series.color || CHART_COLORS[i % CHART_COLORS.length]}
                 strokeWidth={2}
                 dot={{ r: 4, fill: series.color || CHART_COLORS[i % CHART_COLORS.length] }}
-                activeDot={{ r: 6 }}
+                activeDot={hasDrillDown ? { r: 8, stroke: '#0BCAD9', strokeWidth: 2, cursor: 'pointer' } : { r: 6 }}
               />
             ))}
           </LineChart>
@@ -390,19 +399,29 @@ function AreaChartContent({
   widget,
   data,
   height,
+  onClick,
 }: {
   widget: Widget;
   data: WidgetData;
   height: number;
+  onClick?: (value?: string) => void;
 }) {
   const chartData = data.series?.[0]?.data || [];
+  const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
   return (
     <div className="p-4 h-full flex flex-col">
       <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
       <div className="flex-1" style={{ minHeight: height - 80 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData}>
+          <AreaChart 
+            data={chartData}
+            onClick={(e) => {
+              if (hasDrillDown && e?.activeLabel) {
+                onClick?.(String(e.activeLabel));
+              }
+            }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
             <XAxis
               dataKey="label"
@@ -420,6 +439,7 @@ function AreaChartContent({
                 borderRadius: '8px',
               }}
               labelStyle={{ color: '#f1f5f9' }}
+              cursor={hasDrillDown ? { stroke: '#0BCAD9', strokeWidth: 2 } : undefined}
             />
             <Area
               type="monotone"
@@ -428,6 +448,7 @@ function AreaChartContent({
               fill="#0BCAD9"
               fillOpacity={0.2}
               strokeWidth={2}
+              activeDot={hasDrillDown ? { r: 8, stroke: '#0BCAD9', strokeWidth: 2, cursor: 'pointer' } : undefined}
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -504,7 +525,7 @@ function StackedBarContent({
   widget,
   data,
   height,
-  onClick: _onClick,
+  onClick,
 }: {
   widget: Widget;
   data: WidgetData;
@@ -520,13 +541,21 @@ function StackedBarContent({
     });
     return point;
   });
+  const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
   return (
     <div className="p-4 h-full flex flex-col">
       <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
       <div className="flex-1" style={{ minHeight: height - 80 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData}>
+          <BarChart 
+            data={chartData}
+            onClick={(e) => {
+              if (hasDrillDown && e?.activeLabel) {
+                onClick?.(String(e.activeLabel));
+              }
+            }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
             <XAxis
               dataKey="category"
@@ -544,6 +573,7 @@ function StackedBarContent({
                 borderRadius: '8px',
               }}
               labelStyle={{ color: '#f1f5f9' }}
+              cursor={hasDrillDown ? { fill: 'rgba(11, 202, 217, 0.1)' } : undefined}
             />
             <Legend
               formatter={(value) => <span className="text-slate-300 text-xs">{value}</span>}
@@ -555,6 +585,7 @@ function StackedBarContent({
                 stackId="stack"
                 fill={series.color || CHART_COLORS[i % CHART_COLORS.length]}
                 radius={i === (data.series?.length || 0) - 1 ? [4, 4, 0, 0] : undefined}
+                cursor={hasDrillDown ? 'pointer' : undefined}
               />
             ))}
           </BarChart>
