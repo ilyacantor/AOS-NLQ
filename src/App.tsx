@@ -16,7 +16,7 @@ interface QueryHistoryItem {
 
 type ViewMode = 'galaxy' | 'dashboard'
 type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO'
-type PanelTab = 'History' | 'Learning' | 'Data Gaps' | 'Debug'
+type PanelTab = 'History' | 'Learning' | 'Data Gaps'
 type QueryMode = 'static' | 'ai'
 
 const personaOptions: { label: string; value: Persona; query: string; refinePresets: string[] }[] = [
@@ -677,7 +677,7 @@ function App() {
 
           {/* Panel Tabs */}
           <div className="flex border-b border-slate-800 overflow-x-auto">
-            {(['History', 'Learning', 'Data Gaps', 'Debug'] as PanelTab[]).map((tab) => (
+            {(['History', 'Learning', 'Data Gaps'] as PanelTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setPanelTab(tab)}
@@ -742,23 +742,6 @@ function App() {
               />
             )}
 
-            {panelTab === 'Debug' && (
-              <div className="p-3">
-                {galaxyResponse && (
-                  <div className="text-xs font-mono">
-                    <div className="text-slate-400 mb-2">IntentMapResponse:</div>
-                    <pre className="text-slate-500 whitespace-pre-wrap break-words overflow-x-auto">
-                      {JSON.stringify(galaxyResponse, null, 2)}
-                    </pre>
-                  </div>
-                )}
-                {!galaxyResponse && (
-                  <div className="text-slate-500 text-sm text-center py-8">
-                    Run a query to see debug data
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </aside>
       </div>
