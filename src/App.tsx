@@ -134,7 +134,7 @@ function App() {
   }, [])
 
   // Generate dashboard via API
-  const generateDashboard = useCallback(async (queryText: string, forceNew: boolean = false) => {
+  const generateDashboard = useCallback(async (queryText: string, forceNew: boolean = false, titleOverride?: string) => {
     if (!queryText.trim()) return
 
     setIsGeneratingDashboard(true)
@@ -159,7 +159,11 @@ function App() {
         if (res.ok) {
           const data = await res.json()
           if (data.success && data.dashboard) {
-            setDashboardSchema(data.dashboard)
+            const schema = data.dashboard
+            if (titleOverride) {
+              schema.title = titleOverride
+            }
+            setDashboardSchema(schema)
             setDashboardWidgetData(data.widget_data || {})
           } else if (data.error) {
             setDashboardError(data.error)
@@ -208,7 +212,7 @@ function App() {
     setSelectedPersona(persona)
     const personaConfig = personaOptions.find(p => p.value === persona)
     if (personaConfig) {
-      generateDashboard(personaConfig.query, true)
+      generateDashboard(personaConfig.query, true, `${persona} Dashboard`)
     }
   }, [generateDashboard])
 
@@ -218,7 +222,7 @@ function App() {
       setHasLoadedDefaultDashboard(true)
       const personaConfig = personaOptions.find(p => p.value === selectedPersona)
       if (personaConfig) {
-        generateDashboard(personaConfig.query, true)
+        generateDashboard(personaConfig.query, true, `${selectedPersona} Dashboard`)
       }
     }
   }, [hasLoadedDefaultDashboard, viewMode, selectedPersona, generateDashboard])
