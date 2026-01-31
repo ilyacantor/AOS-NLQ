@@ -55,30 +55,33 @@ export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight
   };
 
   // Handle click vs double-click for KPI cards
-  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isKPI = widget.type === 'kpi_card';
+  const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
+  // Single click handler - delayed to allow double-click to cancel
   const handleClick = useCallback(() => {
-    const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
-
     if (isKPI && onDoubleClick) {
-      // For KPIs, use timeout to distinguish single vs double click
-      if (clickTimeoutRef.current) {
-        // Double click detected
-        clearTimeout(clickTimeoutRef.current);
+      // For KPIs, delay single-click to allow double-click detection
+      clickTimeoutRef.current = setTimeout(() => {
         clickTimeoutRef.current = null;
-        onDoubleClick(widget);
-      } else {
-        // Single click - wait to see if it's a double click
-        clickTimeoutRef.current = setTimeout(() => {
-          clickTimeoutRef.current = null;
-          if (hasDrillDown) onClick?.();
-        }, 250);
-      }
+        if (hasDrillDown) onClick?.();
+      }, 300);
     } else if (hasDrillDown) {
       onClick?.();
     }
-  }, [widget, onClick, onDoubleClick, isKPI]);
+  }, [isKPI, hasDrillDown, onClick, onDoubleClick]);
+
+  // Native double-click handler - cancels pending single-click
+  const handleDoubleClick = useCallback(() => {
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+    }
+    if (isKPI && onDoubleClick) {
+      onDoubleClick(widget);
+    }
+  }, [isKPI, widget, onDoubleClick]);
 
   // Loading state
   if (data.loading) {
@@ -103,15 +106,13 @@ export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight
   // Render based on widget type
   const content = renderWidgetContent(widget, data, onClick, height);
 
-  // Check if widget has drill-down interaction
-  const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
-
   return (
     <div
       className={`h-full bg-slate-900 border border-slate-800 rounded-xl overflow-hidden ${
         hasDrillDown || isKPI ? 'cursor-pointer hover:border-cyan-500/50 transition-colors' : ''
       }`}
       onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       title={isKPI ? 'Double-click to view trend chart' : undefined}
     >
       {content}
