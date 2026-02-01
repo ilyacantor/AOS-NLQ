@@ -125,6 +125,35 @@ async def generate_dashboard(request: DashboardQueryRequest) -> DashboardGenerat
                 ],
             )
 
+        # Validate extracted metrics against semantic catalog
+        from src.nlq.services.dcl_semantic_client import get_semantic_client
+        semantic_client = get_semantic_client()
+        valid_metrics, metric_errors = semantic_client.validate_metrics(requirements.metrics)
+
+        if metric_errors:
+            # Log warnings but continue with valid metrics
+            for error in metric_errors:
+                logger.warning(f"Metric validation: {error}")
+
+        if not valid_metrics:
+            # No valid metrics found - provide helpful error
+            available_metrics = semantic_client.get_all_metrics()[:10]
+            return DashboardGenerationResponse(
+                success=False,
+                dashboard=None,
+                error=f"Could not find metrics in your query. {metric_errors[0] if metric_errors else 'Please specify a metric.'}",
+                query=request.question,
+                intent_detected=requirements.intent.value,
+                confidence=requirements.confidence,
+                suggestions=[
+                    f"Try: 'Show me {available_metrics[0]} over time'" if available_metrics else "Try: 'Show me revenue over time'",
+                    f"Available metrics: {', '.join(available_metrics[:5])}",
+                ],
+            )
+
+        # Update requirements with validated metrics
+        requirements.metrics = valid_metrics
+
         # Generate dashboard schema
         dashboard = generate_dashboard_schema(
             query=request.question,

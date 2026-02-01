@@ -15,6 +15,12 @@ from src.nlq.core.visualization_intent import (
 )
 from src.nlq.knowledge.display import get_display_name, get_domain
 from src.nlq.knowledge.schema import get_metric_unit
+from src.nlq.services.dcl_semantic_client import get_semantic_client
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 from src.nlq.models.dashboard_schema import (
     AggregationType,
     ChartConfig,
@@ -34,6 +40,63 @@ from src.nlq.models.dashboard_schema import (
     Widget,
     WidgetType,
 )
+
+
+def _validate_metric_dimension(metric: str, dimension: str) -> tuple[bool, str, list[str]]:
+    """
+    Validate that a dimension is valid for a given metric.
+
+    Uses DCL semantic client to check allowed dimensions.
+
+    Args:
+        metric: Canonical metric ID
+        dimension: Requested dimension
+
+    Returns:
+        Tuple of (is_valid, error_message, valid_dimensions)
+    """
+    semantic_client = get_semantic_client()
+    is_valid, error_msg = semantic_client.validate_dimension(metric, dimension)
+    valid_dims = semantic_client.get_valid_dimensions(metric)
+
+    return is_valid, error_msg or "", valid_dims
+
+
+def _get_fallback_dimension(metric: str, requested_dimension: str) -> str | None:
+    """
+    Get a fallback dimension if the requested one isn't valid.
+
+    Returns the first valid dimension for the metric, or None if no breakdowns exist.
+    """
+    semantic_client = get_semantic_client()
+    valid_dims = semantic_client.get_valid_dimensions(metric)
+
+    if not valid_dims:
+        logger.warning(f"Metric '{metric}' does not support any dimensional breakdowns")
+        return None
+
+    if requested_dimension in valid_dims:
+        return requested_dimension
+
+    # Try common dimension mappings
+    dim_aliases = {
+        "salesperson": "rep",
+        "sales rep": "rep",
+        "customer": "customer",
+        "territory": "region",
+        "area": "region",
+    }
+
+    normalized = dim_aliases.get(requested_dimension.lower(), requested_dimension.lower())
+    if normalized in valid_dims:
+        return normalized
+
+    # Return first valid dimension as fallback
+    logger.warning(
+        f"Dimension '{requested_dimension}' not valid for '{metric}'. "
+        f"Falling back to '{valid_dims[0]}'. Valid dimensions: {', '.join(valid_dims)}"
+    )
+    return valid_dims[0]
 
 
 def generate_dashboard_schema(
@@ -219,7 +282,14 @@ def _generate_breakdown_chart(requirements: VisualizationRequirements) -> List[W
     """Generate a breakdown chart by dimension."""
     widgets = []
     metric = requirements.metrics[0] if requirements.metrics else "revenue"
-    dimension = requirements.dimensions[0] if requirements.dimensions else "region"
+    requested_dimension = requirements.dimensions[0] if requirements.dimensions else "region"
+
+    # Validate dimension for this metric - use fallback if invalid
+    dimension = _get_fallback_dimension(metric, requested_dimension)
+    if dimension is None:
+        # No breakdowns available - generate KPI only
+        logger.warning(f"No breakdown dimensions available for '{metric}', generating KPI only")
+        return _generate_simple_kpi(requirements)
 
     # KPI summary
     widgets.append(Widget(
@@ -322,7 +392,14 @@ def _generate_drill_down_view(requirements: VisualizationRequirements) -> List[W
     """Generate a view with drill-down capability."""
     widgets = []
     metric = requirements.metrics[0] if requirements.metrics else "revenue"
-    dimension = requirements.dimensions[0] if requirements.dimensions else "region"
+    requested_dimension = requirements.dimensions[0] if requirements.dimensions else "region"
+
+    # Validate dimension for this metric
+    dimension = _get_fallback_dimension(metric, requested_dimension)
+    if dimension is None:
+        # No breakdowns available - generate trend view instead
+        logger.warning(f"No breakdown dimensions available for '{metric}', generating trend view")
+        return _generate_single_metric_trend(requirements)
 
     # Summary KPI
     widgets.append(Widget(
@@ -474,30 +551,48 @@ def _generate_full_dashboard(requirements: VisualizationRequirements) -> List[Wi
         chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
     ))
 
-    # Primary metric by dimension
-    dimension = requirements.dimensions[0] if requirements.dimensions else "region"
-    widgets.append(Widget(
-        id=f"{primary_metric}_by_{dimension}",
-        type=WidgetType.BAR_CHART,
-        title=f"{get_display_name(primary_metric)} by {dimension.title()}",
-        data=DataBinding(
-            metrics=[MetricBinding(metric=primary_metric, format=_get_format_string(primary_metric))],
-            dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
-            time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
-        ),
-        position=GridPosition(column=7, row=3, col_span=6, row_span=3),
-        chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
-        interactions=[
-            InteractionConfig(
-                type=InteractionType.DRILL_DOWN,
-                enabled=True,
-                drill_down=DrillDownConfig(
-                    target_dimension="rep",
-                    query_template="Show me revenue for {value} by rep",
+    # Primary metric by dimension - validate dimension first
+    requested_dimension = requirements.dimensions[0] if requirements.dimensions else "region"
+    dimension = _get_fallback_dimension(primary_metric, requested_dimension)
+
+    if dimension:
+        widgets.append(Widget(
+            id=f"{primary_metric}_by_{dimension}",
+            type=WidgetType.BAR_CHART,
+            title=f"{get_display_name(primary_metric)} by {dimension.title()}",
+            data=DataBinding(
+                metrics=[MetricBinding(metric=primary_metric, format=_get_format_string(primary_metric))],
+                dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
+                time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+            ),
+            position=GridPosition(column=7, row=3, col_span=6, row_span=3),
+            chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
+            interactions=[
+                InteractionConfig(
+                    type=InteractionType.DRILL_DOWN,
+                    enabled=True,
+                    drill_down=DrillDownConfig(
+                        target_dimension="rep",
+                        query_template=f"Show me {get_display_name(primary_metric)} for {{value}} by rep",
+                    ),
+                )
+            ],
+        ))
+    else:
+        # No breakdown available - add another metric comparison instead
+        logger.warning(f"No breakdown for '{primary_metric}', adding metric comparison instead")
+        if len(metrics) > 1:
+            widgets.append(Widget(
+                id="metrics_comparison",
+                type=WidgetType.BAR_CHART,
+                title="Metrics Comparison",
+                data=DataBinding(
+                    metrics=[MetricBinding(metric=m, format=_get_format_string(m)) for m in metrics[1:4]],
+                    time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
                 ),
-            )
-        ],
-    ))
+                position=GridPosition(column=7, row=3, col_span=6, row_span=3),
+                chart_config=ChartConfig(show_legend=True, show_grid=True, animate=True),
+            ))
 
     return widgets
 
@@ -661,61 +756,77 @@ def refine_dashboard_schema(
         # Extract dimension from "by <dimension>" pattern
         dim_match = re.search(r"\bby\s+(stage|salesperson|rep|customer|region|product|segment|quarter)\b", q, re.IGNORECASE)
         if dim_match:
-            dimension = dim_match.group(1).lower()
+            requested_dimension = dim_match.group(1).lower()
             # Normalize dimension names
-            if dimension == "salesperson":
-                dimension = "rep"
+            if requested_dimension == "salesperson":
+                requested_dimension = "rep"
 
             metric = requirements.metrics[0]
-            chart_id = f"breakdown_{metric}_by_{dimension}"
 
-            if not any(w.id == chart_id for w in updated_schema.widgets):
-                max_row = max((w.position.row + w.position.row_span for w in updated_schema.widgets), default=0)
-                updated_schema.widgets.append(Widget(
-                    id=chart_id,
-                    type=WidgetType.BAR_CHART,
-                    title=f"{get_display_name(metric)} by {dimension.title()}",
-                    data=DataBinding(
-                        metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
-                        dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
-                        time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
-                    ),
-                    position=GridPosition(column=1, row=max_row + 1, col_span=6, row_span=3),
-                    chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
-                ))
+            # Validate dimension for this metric
+            dimension = _get_fallback_dimension(metric, requested_dimension)
+            if dimension is None:
+                # Log warning - no breakdown available
+                logger.warning(
+                    f"Cannot add breakdown: metric '{metric}' does not support dimensional breakdowns"
+                )
+            else:
+                chart_id = f"breakdown_{metric}_by_{dimension}"
+
+                if not any(w.id == chart_id for w in updated_schema.widgets):
+                    max_row = max((w.position.row + w.position.row_span for w in updated_schema.widgets), default=0)
+                    updated_schema.widgets.append(Widget(
+                        id=chart_id,
+                        type=WidgetType.BAR_CHART,
+                        title=f"{get_display_name(metric)} by {dimension.title()}",
+                        data=DataBinding(
+                            metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
+                            dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
+                            time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+                        ),
+                        position=GridPosition(column=1, row=max_row + 1, col_span=6, row_span=3),
+                        chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
+                    ))
 
     # Handle "break down by" dimension changes (modifies existing charts)
     if "break" in q and "down" in q and "by" in q:
         # Extract new dimension from requirements or query
-        new_dimension = None
+        requested_dimension = None
         if requirements.dimensions:
-            new_dimension = requirements.dimensions[0]
+            requested_dimension = requirements.dimensions[0]
         else:
             # Try to extract from query pattern "by <dimension>"
             import re
             dim_match = re.search(r"\bby\s+(region|rep|product|segment|stage|quarter)\b", q)
             if dim_match:
-                new_dimension = dim_match.group(1)
+                requested_dimension = dim_match.group(1)
 
-        if new_dimension:
-            # Update chart widgets with the new dimension
+        if requested_dimension:
+            # Update chart widgets with the new dimension (validate per-widget)
             for widget in updated_schema.widgets:
                 if widget.type in [WidgetType.BAR_CHART, WidgetType.LINE_CHART,
                                    WidgetType.STACKED_BAR, WidgetType.DONUT_CHART]:
-                    # Replace existing dimensions with new one
-                    widget.data.dimensions = [
-                        DimensionBinding(dimension=new_dimension, sort_by="value", sort_order="desc")
-                    ]
-                    # Update widget title
                     if widget.data.metrics:
                         metric = widget.data.metrics[0].metric
-                        widget.title = f"{get_display_name(metric)} by {new_dimension.title()}"
-                        widget.id = f"breakdown_{metric}_by_{new_dimension}"
+                        # Validate dimension for this widget's metric
+                        validated_dim = _get_fallback_dimension(metric, requested_dimension)
+                        if validated_dim:
+                            widget.data.dimensions = [
+                                DimensionBinding(dimension=validated_dim, sort_by="value", sort_order="desc")
+                            ]
+                            widget.title = f"{get_display_name(metric)} by {validated_dim.title()}"
+                            widget.id = f"breakdown_{metric}_by_{validated_dim}"
+                        else:
+                            logger.warning(f"Cannot change breakdown for '{metric}': no valid dimensions")
                 elif widget.type == WidgetType.DATA_TABLE:
-                    widget.data.dimensions = [
-                        DimensionBinding(dimension=new_dimension, sort_by="value", sort_order="desc")
-                    ]
-                    widget.id = f"table_{new_dimension}"
+                    if widget.data.metrics:
+                        metric = widget.data.metrics[0].metric
+                        validated_dim = _get_fallback_dimension(metric, requested_dimension)
+                        if validated_dim:
+                            widget.data.dimensions = [
+                                DimensionBinding(dimension=validated_dim, sort_by="value", sort_order="desc")
+                            ]
+                            widget.id = f"table_{validated_dim}"
 
             # Update schema title
             if updated_schema.widgets:
@@ -723,9 +834,10 @@ def refine_dashboard_schema(
                     (w for w in updated_schema.widgets if w.type in [WidgetType.BAR_CHART, WidgetType.LINE_CHART]),
                     None
                 )
-                if first_chart and first_chart.data.metrics:
+                if first_chart and first_chart.data.metrics and first_chart.data.dimensions:
                     metric = first_chart.data.metrics[0].metric
-                    updated_schema.title = f"{get_display_name(metric)} by {new_dimension.title()}"
+                    dim = first_chart.data.dimensions[0].dimension
+                    updated_schema.title = f"{get_display_name(metric)} by {dim.title()}"
 
     # Update version and history
     updated_schema.version += 1

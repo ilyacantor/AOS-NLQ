@@ -282,50 +282,64 @@ def detect_visualization_intent(query: str) -> VisualizationRequirements:
 
 def _extract_metrics_from_query(query: str) -> List[str]:
     """
-    Extract metric names from a query.
+    Extract metric names from a query using DCL semantic catalog.
 
-    This is a simplified extraction. In production, this would use Claude
-    for more accurate semantic extraction.
+    Uses DCL's semantic layer to resolve user terms to canonical metric IDs.
+    Falls back to pattern matching if DCL is unavailable.
     """
+    import logging
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+
+    logger = logging.getLogger(__name__)
     metrics = []
     q = query.lower()
 
-    # Common metric patterns - use word boundary matching to avoid false positives
-    # e.g., "ar" should not match inside "comparison" or "quarterly"
-    metric_patterns = {
-        "revenue": ["revenue", "sales", "top line", "bookings"],
-        "gross_margin_pct": ["gross margin", "margin", "gm"],
-        "operating_margin_pct": ["operating margin", "op margin"],
-        "net_income": ["net income", "profit", "bottom line"],
-        "ebitda": ["ebitda"],
-        "burn_rate": ["burn rate", "burn", "cash burn"],
-        "accounts_receivable": ["accounts receivable", "ar", "receivables"],
-        "accounts_payable": ["accounts payable", "ap", "payables"],
-        "pipeline": ["pipeline"],
-        "gross_churn_pct": ["churn", "churn rate", "gross churn"],
-        "nrr": ["nrr", "net retention", "net revenue retention"],
-        "arr": ["arr", "annual recurring revenue"],
-        "headcount": ["headcount", "employees", "staff", "team size"],
-        "win_rate": ["win rate", "close rate"],
-        "quota_attainment": ["quota", "quota attainment", "attainment"],
-        "cac_payback_months": ["cac payback", "payback"],
-        "cac": ["cac", "customer acquisition cost"],
-        "ltv_cac": ["ltv/cac", "ltv cac", "lifetime value"],
-        "magic_number": ["magic number", "efficiency"],
-        "uptime_pct": ["uptime", "availability"],
-        "p1_incidents": ["incidents", "p1", "outages"],
-        "nps": ["nps", "net promoter", "promoter score"],
-        "sales_cycle_days": ["sales cycle", "cycle days", "deal cycle"],
-    }
+    # Get semantic client
+    semantic_client = get_semantic_client()
+    catalog = semantic_client.get_catalog()
 
-    for canonical, patterns in metric_patterns.items():
-        for pattern in patterns:
-            # Use word boundary regex to avoid matching substrings
-            # e.g., "burn" should not match "burn" inside "auburn"
-            if re.search(rf'\b{re.escape(pattern)}\b', q):
-                if canonical not in metrics:
-                    metrics.append(canonical)
-                break
+    # Extract potential metric terms from query using word boundaries
+    # Common patterns: standalone words, phrases like "accounts receivable"
+    words = q.split()
+    matched_indices = set()  # Track which words were already matched
+
+    # Try multi-word phrases first (e.g., "accounts receivable", "gross margin")
+    for i in range(len(words)):
+        if i in matched_indices:
+            continue
+
+        # Try 3-word phrases
+        if i + 2 < len(words):
+            phrase = " ".join(words[i:i+3])
+            metric = semantic_client.resolve_metric(phrase)
+            if metric and metric.id not in metrics:
+                metrics.append(metric.id)
+                matched_indices.update([i, i+1, i+2])
+                logger.debug(f"Resolved '{phrase}' -> '{metric.id}'")
+                continue
+
+        # Try 2-word phrases
+        if i + 1 < len(words):
+            phrase = " ".join(words[i:i+2])
+            metric = semantic_client.resolve_metric(phrase)
+            if metric and metric.id not in metrics:
+                metrics.append(metric.id)
+                matched_indices.update([i, i+1])
+                logger.debug(f"Resolved '{phrase}' -> '{metric.id}'")
+                continue
+
+        # Try single words
+        word = words[i]
+        # Skip common stopwords
+        if word in {'the', 'a', 'an', 'and', 'or', 'by', 'for', 'to', 'in', 'on', 'at',
+                    'show', 'me', 'add', 'compare', 'vs', 'versus', 'with', 'trend',
+                    'chart', 'graph', 'display', 'what', 'is', 'our', 'how', 'much'}:
+            continue
+        metric = semantic_client.resolve_metric(word)
+        if metric and metric.id not in metrics:
+            metrics.append(metric.id)
+            matched_indices.add(i)
+            logger.debug(f"Resolved '{word}' -> '{metric.id}'")
 
     # If no specific metrics found, select based on dashboard type/persona
     if not metrics:
@@ -343,6 +357,13 @@ def _extract_metrics_from_query(query: str) -> List[str]:
         else:
             # Default to revenue for generic requests
             metrics = ["revenue"]
+
+    # Final validation: ensure all returned metrics exist in catalog
+    valid_metrics, errors = semantic_client.validate_metrics(metrics)
+    if errors:
+        for error in errors:
+            logger.warning(f"Metric validation: {error}")
+        metrics = valid_metrics
 
     return metrics
 
