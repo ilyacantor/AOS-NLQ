@@ -66,7 +66,18 @@ def _resolve_widget_data(dashboard: DashboardSchema) -> Dict[str, Any]:
     """Resolve widget data from fact base for a dashboard."""
     fact_base = _get_fact_base()
     resolver = DashboardDataResolver(fact_base)
-    return resolver.resolve_dashboard_data(dashboard, reference_year="2025")
+
+    # Extract filters from widget data bindings (if any widget has filters set)
+    active_filters = {}
+    for widget in dashboard.widgets:
+        if widget.data.filters:
+            active_filters.update(widget.data.filters)
+
+    return resolver.resolve_dashboard_data(
+        dashboard,
+        reference_year="2025",
+        active_filters=active_filters if active_filters else None,
+    )
 
 
 class DashboardQueryRequest(BaseModel):
