@@ -71,26 +71,90 @@ from src.nlq.core.refinement_intent import (
 # =============================================================================
 # In-memory storage for current dashboard state per session
 # In production, this would use Redis or another session store
+import time
+from threading import Lock
+
 _session_dashboards: Dict[str, dict] = {}
+_session_lock = Lock()
+
+# Session TTL in seconds (2 hours)
+SESSION_TTL_SECONDS = 2 * 60 * 60
+# Max sessions to keep in memory
+MAX_SESSIONS = 1000
+# Last cleanup timestamp
+_last_cleanup_time = 0.0
+
+
+def _cleanup_expired_sessions():
+    """Remove expired sessions to prevent memory leaks."""
+    global _last_cleanup_time
+    current_time = time.time()
+
+    # Only cleanup every 5 minutes at most
+    if current_time - _last_cleanup_time < 300:
+        return
+
+    with _session_lock:
+        _last_cleanup_time = current_time
+        expired_sessions = []
+
+        for session_id, session_data in _session_dashboards.items():
+            created_at = session_data.get("created_at", 0)
+            if current_time - created_at > SESSION_TTL_SECONDS:
+                expired_sessions.append(session_id)
+
+        for session_id in expired_sessions:
+            del _session_dashboards[session_id]
+
+        # If still too many sessions, remove oldest ones
+        if len(_session_dashboards) > MAX_SESSIONS:
+            sorted_sessions = sorted(
+                _session_dashboards.items(),
+                key=lambda x: x[1].get("created_at", 0)
+            )
+            sessions_to_remove = len(_session_dashboards) - MAX_SESSIONS
+            for session_id, _ in sorted_sessions[:sessions_to_remove]:
+                del _session_dashboards[session_id]
 
 
 def get_session_dashboard(session_id: str) -> Optional[dict]:
     """Get the current dashboard for a session."""
-    return _session_dashboards.get(session_id)
+    _cleanup_expired_sessions()
+    session_data = _session_dashboards.get(session_id)
+    if session_data:
+        # Update last accessed time
+        session_data["last_accessed"] = time.time()
+        return session_data
+    return None
 
 
 def set_session_dashboard(session_id: str, dashboard: dict, widget_data: dict):
     """Store dashboard state for a session."""
-    _session_dashboards[session_id] = {
-        "dashboard": dashboard,
-        "widget_data": widget_data,
-    }
+    _cleanup_expired_sessions()
+    current_time = time.time()
+    with _session_lock:
+        _session_dashboards[session_id] = {
+            "dashboard": dashboard,
+            "widget_data": widget_data,
+            "created_at": current_time,
+            "last_accessed": current_time,
+        }
 
 
 def clear_session_dashboard(session_id: str):
     """Clear dashboard state for a session."""
-    if session_id in _session_dashboards:
-        del _session_dashboards[session_id]
+    with _session_lock:
+        if session_id in _session_dashboards:
+            del _session_dashboards[session_id]
+
+
+def get_session_stats() -> dict:
+    """Get session storage statistics for monitoring."""
+    return {
+        "total_sessions": len(_session_dashboards),
+        "max_sessions": MAX_SESSIONS,
+        "ttl_seconds": SESSION_TTL_SECONDS,
+    }
 
 
 # =============================================================================
@@ -1473,6 +1537,8 @@ class HealthResponse(BaseModel):
     version: str
     fact_base_loaded: bool
     claude_available: bool
+    session_count: Optional[int] = None
+    max_sessions: Optional[int] = None
 
 
 class SchemaResponse(BaseModel):
@@ -3995,11 +4061,14 @@ async def health() -> HealthResponse:
     except Exception:
         pass
 
+    session_stats = get_session_stats()
     return HealthResponse(
         status="healthy" if fact_base_loaded else "degraded",
         version="0.1.0",
         fact_base_loaded=fact_base_loaded,
         claude_available=claude_available,
+        session_count=session_stats["total_sessions"],
+        max_sessions=session_stats["max_sessions"],
     )
 
 
