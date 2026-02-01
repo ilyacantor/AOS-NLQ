@@ -26,6 +26,11 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "total revenue",
         "net revenue",
         "gross revenue",
+        # Common misspellings
+        "revnue",
+        "reveune",
+        "revennue",
+        "revanue",
     ],
 
     # Cost of Goods Sold
@@ -52,6 +57,14 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "gross margin percent",
         "gm%",
         "gm pct",
+        "gm",
+        # Common misspellings
+        "gross margn",
+        "gross marginn",
+        "gross mragin",
+        "gross margn pct",
+        "gross marginn pct",
+        "gross mragin pct",
     ],
 
     # Operating Expenses (SG&A)
@@ -105,6 +118,11 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "earnings before interest taxes depreciation amortization",
         "earnings before interest",
         "operating cash flow proxy",
+        # Common misspellings
+        "ebitd",
+        "ebidta",
+        "eebitda",
+        "ebita",
     ],
 
     # EBITDA Margin
@@ -237,6 +255,11 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "quota performance",
         "sales attainment",
         "attainment",
+        # Common misspellings
+        "qouta",
+        "quoat",
+        "qouta attainment",
+        "quoat attainment",
     ],
     "sales_quota": [
         "sales target",
@@ -255,6 +278,11 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "pipe",
         "opportunities",
         "deals",
+        # Common misspellings
+        "pieline",
+        "pipleine",
+        "pipline",
+        "pipeine",
     ],
     "qualified_pipeline": [
         "qualified pipe",
@@ -286,6 +314,12 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "customer churn",
         "revenue churn",
         "gross churn",
+        # Common misspellings
+        "chrn",
+        "churnn",
+        "chrun",
+        "chrn pct",
+        "churnn pct",
     ],
     "logo_churn_pct": [
         "logo churn",
@@ -336,12 +370,29 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "hc",
         "fte",
         "full time employees",
+        # Common misspellings
+        "headcont",
+        "heacount",
+        "headcoutn",
+        "headcunt",
     ],
     "attrition_rate": [
-        "attrition",
-        "turnover",
         "turnover rate",
-        "employee turnover",
+        "turnover",
+        "employee turnover rate",
+        "attrition pct",
+        "attrition percent",
+        # Common misspellings
+        "attrtion",
+        "attriton",
+        "attrtion rate",
+        "attriton rate",
+    ],
+    "attrition": [
+        "employee attrition",
+        "people leaving",
+        "departures",
+        "terminations",
     ],
 
     # LTV/CAC
@@ -388,6 +439,284 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "velocity",
         "sprint velocity",
         "team velocity",
+    ],
+
+    # =========================================================================
+    # Additional metrics from fact_base.json (comprehensive coverage)
+    # =========================================================================
+
+    # Financial metrics
+    "amortization": [
+        "amort",
+        "amortization expense",
+    ],
+    "depreciation": [
+        "deprec",
+        "depreciation expense",
+    ],
+    "d_and_a": [
+        "d&a",
+        "depreciation and amortization",
+        "depreciation & amortization",
+    ],
+    "cac": [
+        "customer acquisition cost",
+        "acquisition cost",
+        "cost to acquire",
+    ],
+    "ltv": [
+        "lifetime value",
+        "customer lifetime value",
+        "clv",
+    ],
+    "expansion_revenue": [
+        "expansion rev",
+        "upsell revenue",
+        "expansion",
+    ],
+    "new_logo_revenue": [
+        "new logo rev",
+        "new customer revenue",
+        "new logo",
+    ],
+    "renewal_revenue": [
+        "renewal rev",
+        "renewals",
+        "renewal",
+    ],
+    "churn_pct": [
+        "churn percent",
+        "churn percentage",
+    ],
+
+    # Headcount by department
+    "engineering_headcount": [
+        "engineering hc",
+        "eng headcount",
+        "engineering employees",
+        "engineers",
+    ],
+    "sales_headcount": [
+        "sales hc",
+        "sales employees",
+        "salespeople",
+        "sales reps count",
+    ],
+    "marketing_headcount": [
+        "marketing hc",
+        "marketing employees",
+        "marketers",
+    ],
+    "product_headcount": [
+        "product hc",
+        "product employees",
+        "product managers",
+        "pms",
+    ],
+    "cs_headcount": [
+        "cs hc",
+        "customer success headcount",
+        "customer success employees",
+        "csm count",
+    ],
+    "people_headcount": [
+        "people hc",
+        "hr headcount",
+        "hr employees",
+    ],
+    "finance_headcount": [
+        "finance hc",
+        "finance employees",
+    ],
+    "ga_headcount": [
+        "g&a headcount",
+        "g&a hc",
+        "admin headcount",
+    ],
+
+    # Engineering/Tech metrics
+    "code_coverage_pct": [
+        "code coverage",
+        "test coverage",
+        "coverage",
+    ],
+    "bug_escape_rate": [
+        "bug escape",
+        "escaped bugs",
+        "bug escapes",
+    ],
+    "critical_bugs": [
+        "critical bug count",
+        "p0 bugs",
+        "critical issues",
+    ],
+    "security_vulns": [
+        "security vulnerabilities",
+        "vulnerabilities",
+        "vulns",
+        "security issues",
+    ],
+    "api_requests_millions": [
+        "api requests",
+        "api calls",
+        "api volume",
+    ],
+    "cloud_spend": [
+        "cloud costs",
+        "cloud expenses",
+        "infrastructure spend",
+    ],
+    "cloud_spend_pct_revenue": [
+        "cloud spend percent",
+        "cloud as percent of revenue",
+        "infra spend pct",
+    ],
+    "deployment_success_pct": [
+        "deployment success",
+        "deploy success rate",
+        "successful deployments",
+    ],
+    "lead_time_days": [
+        "lead time",
+        "development lead time",
+        "commit to deploy time",
+    ],
+    "change_failure_rate": [
+        "change failure",
+        "deployment failure rate",
+        "failed deployments",
+    ],
+    "features_shipped": [
+        "features",
+        "shipped features",
+        "releases",
+    ],
+    "story_points": [
+        "story points completed",
+        "points",
+        "sp",
+    ],
+    "engineering_utilization": [
+        "eng utilization",
+        "engineering util",
+        "developer utilization",
+    ],
+    "downtime_hours": [
+        "downtime",
+        "outage hours",
+        "system downtime",
+    ],
+    "p1_incidents": [
+        "p1s",
+        "priority 1 incidents",
+        "critical incidents",
+    ],
+    "p2_incidents": [
+        "p2s",
+        "priority 2 incidents",
+        "high priority incidents",
+    ],
+    "mttr_p1_hours": [
+        "mttr p1",
+        "p1 mttr",
+        "mean time to repair p1",
+    ],
+    "mttr_p2_hours": [
+        "mttr p2",
+        "p2 mttr",
+        "mean time to repair p2",
+    ],
+
+    # Support/CS metrics
+    "support_tickets": [
+        "tickets",
+        "support cases",
+        "cases",
+    ],
+    "support_utilization": [
+        "support util",
+        "support team utilization",
+    ],
+    "first_response_hours": [
+        "first response time",
+        "frt",
+        "initial response time",
+    ],
+    "resolution_hours": [
+        "resolution time",
+        "time to resolution",
+        "ttr",
+    ],
+    "implementation_days": [
+        "implementation time",
+        "onboarding days",
+        "time to implement",
+    ],
+    "time_to_value_days": [
+        "time to value",
+        "ttv",
+        "days to value",
+    ],
+    "ps_utilization": [
+        "professional services utilization",
+        "ps util",
+        "services utilization",
+    ],
+
+    # People/HR metrics
+    "hires": [
+        "new hires",
+        "hiring",
+        "hired",
+    ],
+    "open_roles": [
+        "open positions",
+        "open reqs",
+        "requisitions",
+        "job openings",
+    ],
+    "time_to_fill_days": [
+        "time to fill",
+        "ttf",
+        "hiring time",
+    ],
+    "offer_acceptance_rate": [
+        "offer acceptance",
+        "acceptance rate",
+        "offer accept rate",
+    ],
+    "employee_satisfaction": [
+        "employee sat",
+        "esat",
+        "employee happiness",
+    ],
+    "engagement_score": [
+        "engagement",
+        "employee engagement",
+        "engagement rating",
+    ],
+    "training_hours_per_employee": [
+        "training hours",
+        "training per employee",
+        "learning hours",
+    ],
+
+    # Efficiency metrics
+    "revenue_per_employee": [
+        "rev per employee",
+        "revenue per head",
+        "rpe",
+    ],
+    "cost_per_employee": [
+        "cost per head",
+        "cpe",
+        "employee cost",
+    ],
+    "avg_deal_size": [
+        "average deal size",
+        "deal size",
+        "aov",
+        "average order value",
     ],
 }
 

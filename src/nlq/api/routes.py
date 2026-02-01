@@ -1108,14 +1108,36 @@ def _try_tiered_metric_query_core(question: str, fact_base: FactBase) -> Optiona
     # Strip common prefixes to get to the metric name
     prefixes_to_strip = [
         "what is ", "what's ", "what was ", "whats ",
-        "how much ", "tell me ", "show me ", "get me ",
-        "our ", "the ", "current ",
+        "how much ", "how is ", "how's ", "hows ",
+        "tell me ", "show me ", "get me ", "give me ",
+        "our ", "the ", "current ", "total ",
+        "can you show me ", "can you tell me ",
     ]
     metric_query = q
     for prefix in prefixes_to_strip:
         if metric_query.startswith(prefix):
             metric_query = metric_query[len(prefix):]
     metric_query = metric_query.rstrip("?").strip()
+
+    # Strip period suffixes (e.g., "revenue 2025", "margin this year", "arr q3")
+    period_suffixes = [
+        " 2024", " 2025", " 2026",
+        " this year", " last year", " this quarter", " last quarter",
+        " q1", " q2", " q3", " q4",
+        " ytd", " mtd", " qtd",
+    ]
+    for suffix in period_suffixes:
+        if metric_query.endswith(suffix):
+            metric_query = metric_query[:-len(suffix)].strip()
+
+    # Strip period prefixes (e.g., "2025 revenue", "q3 margin")
+    period_prefixes = [
+        "2024 ", "2025 ", "2026 ",
+        "q1 ", "q2 ", "q3 ", "q4 ",
+    ]
+    for prefix in period_prefixes:
+        if metric_query.startswith(prefix):
+            metric_query = metric_query[len(prefix):].strip()
 
     # Try synonym lookup
     resolved_metric = normalize_metric(metric_query)
