@@ -13,12 +13,13 @@ import { GalaxyLegend } from './GalaxyLegend';
 import { NodeDetailPanel } from './NodeDetailPanel';
 import { NodeTooltip } from './NodeTooltip';
 import { DataTable } from './DataTable';
-import { DashboardModal } from './DashboardModal';
 
 interface GalaxyViewProps {
   data: IntentMapResponse;
   width?: number;
   height?: number;
+  /** Callback when a dashboard query is detected - navigates to dashboard space */
+  onNavigateToDashboard?: (query: string, data: IntentMapResponse) => void;
 }
 
 // Bottom sheet height states
@@ -40,13 +41,13 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   data,
   width = 700,
   height = 700,
+  onNavigateToDashboard,
 }) => {
   const [selectedNode, setSelectedNode] = useState<IntentNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<IntentNode | null>(null);
   const [hoveredPosition, setHoveredPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [nodeStates, setNodeStates] = useState<Map<string, NodeState>>(new Map());
-  const [showDashboardModal, setShowDashboardModal] = useState(false);
 
   // Mobile bottom sheet state
   const [sheetState, setSheetState] = useState<SheetState>('collapsed');
@@ -55,15 +56,14 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const [sheetDragOffset, setSheetDragOffset] = useState<number>(0);
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  // Auto-show modal for dashboard queries
+  // Navigate to dashboard space when dashboard query is detected
   const isDashboard = data.query_type === 'DASHBOARD';
   useEffect(() => {
-    if (isDashboard) {
-      setShowDashboardModal(true);
-    } else {
-      setShowDashboardModal(false);
+    if (isDashboard && onNavigateToDashboard) {
+      // Navigate to dashboard space instead of showing modal
+      onNavigateToDashboard(data.query, data);
     }
-  }, [isDashboard, data.query]);
+  }, [isDashboard, data.query, data, onNavigateToDashboard]);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const animationRef = useRef<number | null>(null);
@@ -650,15 +650,6 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
           />
         )}
       </div>
-
-      {/* Dashboard Modal - for KPI/Dashboard queries */}
-      <DashboardModal
-        isOpen={showDashboardModal}
-        onClose={() => setShowDashboardModal(false)}
-        title={data.persona === 'KPIs' ? '2025 vs 2024 KPIs' : `${data.persona || 'Executive'} Dashboard`}
-        textResponse={data.text_response || ''}
-        nodes={data.nodes}
-      />
     </div>
   );
 };

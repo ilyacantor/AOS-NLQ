@@ -4,6 +4,7 @@ import { RAGLearningPanel, LLMCallCounter, useSessionId } from './components/rag
 import { InsufficientDataPanel } from './components/rag/InsufficientDataPanel'
 import { DashboardRenderer, DashboardSchema } from './components/generated-dashboard'
 import { UserGuide } from './components/UserGuide'
+import { useQueryRouter } from './hooks/useQueryRouter'
 
 async function fetchWithRetry(
   url: string,
@@ -128,6 +129,9 @@ function App() {
   const queryRef = useRef(query)
   queryRef.current = query
 
+  // Query router for unified routing between Galaxy and Dashboard spaces
+  const { routeQuery } = useQueryRouter()
+
   // Load query history from database on mount
   useEffect(() => {
     const loadHistory = async () => {
@@ -246,23 +250,18 @@ function App() {
     }
   }, [hasLoadedDefaultDashboard, viewMode, selectedPersona, generateDashboard])
 
-  // Detect if query is a dashboard command (add/remove/show widgets, build dashboard, etc.)
-  const isDashboardCommand = useCallback((queryText: string): boolean => {
-    const dashboardPatterns = [
-      /\b(add|remove|delete|show|hide|create|insert)\b.*(kpi|card|chart|widget|metric|dashboard)/i,
-      /\bbuild\s+(me\s+)?a?\s*\w*\s*dashboard/i,
-      /\b(make|resize|move|arrange|reorganize)\b.*widget/i,
-      /\badd\s+(a\s+)?(revenue|margin|pipeline|churn|headcount|arr|nrr|cac|ltv)/i,
-    ]
-    return dashboardPatterns.some(pattern => pattern.test(queryText))
-  }, [])
+  // Check if query should route to dashboard (using unified query router)
+  const shouldRouteToDashboard = useCallback((queryText: string): boolean => {
+    const result = routeQuery(queryText, viewMode as 'galaxy' | 'dashboard', !!dashboardSchema)
+    return result.destination === 'dashboard' && result.confidence > 0.7
+  }, [routeQuery, viewMode, dashboardSchema])
 
   // Submit a Galaxy query
   const submitGalaxyQuery = useCallback(async (queryText: string) => {
     if (!queryText.trim()) return
 
-    // Check if this is a dashboard command - route to dashboard
-    if (isDashboardCommand(queryText)) {
+    // Check if this should route to dashboard space (using unified router)
+    if (shouldRouteToDashboard(queryText)) {
       const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
 
       // Add to history first
@@ -367,7 +366,7 @@ function App() {
     }
 
     setIsLoading(false)
-  }, [queryMode, sessionId, isDashboardCommand, dashboardSchema, generateDashboard])
+  }, [queryMode, sessionId, shouldRouteToDashboard, dashboardSchema, generateDashboard])
 
   // Auto-query "2025 results" for Galaxy view on first load
   useEffect(() => {
@@ -406,6 +405,22 @@ function App() {
       setDashboardWidgetData(widgetData)
     }
   }, [])
+
+  // Handle navigation from GalaxyView when it detects a dashboard query
+  // (query_type === 'DASHBOARD' from the intent-map API)
+  const handleNavigateToDashboard = useCallback((queryText: string, _data: IntentMapResponse) => {
+    // Switch to dashboard view and generate the dashboard
+    setViewMode('dashboard')
+    generateDashboard(queryText, true)
+  }, [generateDashboard])
+
+  // Handle navigation from DashboardRenderer when it detects a factual query
+  // (should go to Galaxy space instead of refining the dashboard)
+  const handleNavigateToGalaxy = useCallback((queryText: string) => {
+    // Switch to galaxy view and submit the query
+    setViewMode('galaxy')
+    submitGalaxyQuery(queryText)
+  }, [submitGalaxyQuery])
 
   const hasGalaxyResponse = galaxyResponse !== null
 
@@ -723,6 +738,7 @@ function App() {
                     initialWidgetData={dashboardWidgetData}
                     onDrillDown={handleDashboardDrillDown}
                     onRefinement={handleDashboardRefinement}
+                    onNavigateToGalaxy={handleNavigateToGalaxy}
                     showRefinementInput={true}
                     refinePresets={personaOptions.find(p => p.value === selectedPersona)?.refinePresets || []}
                     persona={selectedPersona}
@@ -741,7 +757,10 @@ function App() {
             {/* Galaxy View */}
             {viewMode === 'galaxy' && hasGalaxyResponse && (
               <div className="h-full overflow-hidden">
-                <GalaxyView data={galaxyResponse} />
+                <GalaxyView
+                  data={galaxyResponse}
+                  onNavigateToDashboard={handleNavigateToDashboard}
+                />
               </div>
             )}
 

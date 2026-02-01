@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import GridLayout from 'react-grid-layout';
+import { useQueryRouter } from '../../hooks/useQueryRouter';
 type LayoutItem = {
   i: string;
   x: number;
@@ -60,6 +61,8 @@ interface DashboardRendererProps {
   onDrillDown?: (query: string) => void;
   /** Callback when dashboard is refined - includes schema and widget data for parent sync */
   onRefinement?: (newSchema: DashboardSchema, widgetData?: Record<string, WidgetData>) => void;
+  /** Callback when a factual query should navigate to Galaxy space */
+  onNavigateToGalaxy?: (query: string) => void;
   /** Show refinement input */
   showRefinementInput?: boolean;
   /** Persona-specific preset refinement suggestions */
@@ -127,10 +130,13 @@ export function DashboardRenderer({
   sourceQuery,
   onDrillDown,
   onRefinement,
+  onNavigateToGalaxy,
   showRefinementInput = true,
   refinePresets = [],
   persona,
 }: DashboardRendererProps) {
+  // Query router for detecting factual queries that should go to Galaxy
+  const { routeQuery } = useQueryRouter();
   const [schema, setSchema] = useState<DashboardSchema | null>(initialSchema || null);
   // Use pre-resolved data from backend if available, otherwise empty (will fetch mock)
   const [widgetData, setWidgetData] = useState<Record<string, WidgetData>>(initialWidgetData || {});
@@ -629,12 +635,23 @@ export function DashboardRenderer({
     }
   }, [refineDashboard]);
 
-  // Handle refinement submit
+  // Handle refinement submit - route to Galaxy if factual, otherwise refine dashboard
   const handleRefinementSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (refinementQuery.trim()) {
-      refineDashboard(refinementQuery.trim());
+    const query = refinementQuery.trim();
+    if (!query) return;
+
+    // Check if this query should go to Galaxy (factual query)
+    const routeResult = routeQuery(query, 'dashboard', !!schema);
+    if (routeResult.destination === 'galaxy' && routeResult.confidence > 0.7 && onNavigateToGalaxy) {
+      // This is a factual query - route to Galaxy space
+      setRefinementQuery('');
+      onNavigateToGalaxy(query);
+      return;
     }
+
+    // Dashboard query - refine the current dashboard
+    refineDashboard(query);
   };
 
   // Handle suggestion click
