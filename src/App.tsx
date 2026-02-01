@@ -46,13 +46,13 @@ const personaOptions: { label: string; value: Persona; query: string; refinePres
     label: 'CFO',
     value: 'CFO',
     query: 'Show me a finance dashboard with revenue KPI, gross margin percent KPI, operating margin trend, net income KPI, and cash breakdown by region',
-    refinePresets: ['Add EBITDA card', 'Show burn rate trend', 'Add AR vs AP comparison', 'Filter to AMER region']
+    refinePresets: ['Add EBITDA card', 'Add AR vs AP comparison', 'Show revenue by region', 'Filter to AMER region']
   },
   {
     label: 'CRO',
     value: 'CRO',
     query: 'Show me a sales dashboard with ARR KPI, pipeline KPI, bookings trend over time, win rate KPI, and quota attainment by rep',
-    refinePresets: ['Add churn rate card', 'Show NRR trend', 'Break down by product', 'Add sales cycle chart']
+    refinePresets: ['Add pipeline by stage', 'Show pipeline by salesperson', 'Add revenue by customer', 'Show NRR trend']
   },
   {
     label: 'COO',

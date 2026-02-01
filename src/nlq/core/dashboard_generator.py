@@ -600,8 +600,9 @@ def refine_dashboard_schema(
     elif "filter" in q or "only" in q:
         # Add filter to data bindings - extract filter value from query
         import re
-        # Match patterns like "filter to AMER", "only EMEA", "filter by region APAC"
-        filter_match = re.search(r"(?:filter\s+(?:to|by)?|only)\s*(?:\w+\s+)?(\b(?:AMER|EMEA|APAC|LATAM|Enterprise|Professional|Team|Starter|Q[1-4])\b)", q, re.IGNORECASE)
+        # Match patterns like "filter to AMER", "only EMEA", "filter to AMER region"
+        # Use non-greedy matching and direct filter value capture
+        filter_match = re.search(r"\b(AMER|EMEA|APAC|LATAM|Enterprise|Professional|Team|Starter|Q[1-4])\b", q, re.IGNORECASE)
         if filter_match:
             filter_value = filter_match.group(1).upper()
             # Determine dimension based on filter value
@@ -630,13 +631,60 @@ def refine_dashboard_schema(
                 widgets_to_keep.append(widget)
         updated_schema.widgets = widgets_to_keep
 
-    elif "comparison" in q or "compare" in q or "last quarter" in q or "prior" in q:
-        # Add comparison to widgets
+    elif ("comparison" in q or "compare" in q or " vs " in q) and len(requirements.metrics) >= 2:
+        # Add a comparison chart for multiple metrics (e.g., "AR vs AP comparison")
+        metrics = requirements.metrics[:2]
+        chart_id = f"comparison_{'_'.join(metrics)}"
+        if not any(w.id == chart_id for w in updated_schema.widgets):
+            max_row = max((w.position.row + w.position.row_span for w in updated_schema.widgets), default=0)
+            updated_schema.widgets.append(Widget(
+                id=chart_id,
+                type=WidgetType.BAR_CHART,
+                title=f"{get_display_name(metrics[0])} vs {get_display_name(metrics[1])}",
+                data=DataBinding(
+                    metrics=[MetricBinding(metric=m, format=_get_format_string(m)) for m in metrics],
+                    time=TimeBinding(period="last 4 quarters", granularity=TimeGranularity.QUARTERLY),
+                ),
+                position=GridPosition(column=1, row=max_row + 1, col_span=6, row_span=3),
+                chart_config=ChartConfig(show_legend=True, show_grid=True, animate=True),
+            ))
+
+    elif "last quarter" in q or "prior" in q:
+        # Add time comparison to existing widgets
         for widget in updated_schema.widgets:
             if widget.data.time:
                 widget.data.time.comparison = "prior_period"
 
-    # Handle "break down by" dimension changes
+    # Handle "add X by Y" or "show X by Y" - add a breakdown chart
+    if (("add" in q or "show" in q) and " by " in q and requirements.metrics):
+        import re
+        # Extract dimension from "by <dimension>" pattern
+        dim_match = re.search(r"\bby\s+(stage|salesperson|rep|customer|region|product|segment|quarter)\b", q, re.IGNORECASE)
+        if dim_match:
+            dimension = dim_match.group(1).lower()
+            # Normalize dimension names
+            if dimension == "salesperson":
+                dimension = "rep"
+
+            metric = requirements.metrics[0]
+            chart_id = f"breakdown_{metric}_by_{dimension}"
+
+            if not any(w.id == chart_id for w in updated_schema.widgets):
+                max_row = max((w.position.row + w.position.row_span for w in updated_schema.widgets), default=0)
+                updated_schema.widgets.append(Widget(
+                    id=chart_id,
+                    type=WidgetType.BAR_CHART,
+                    title=f"{get_display_name(metric)} by {dimension.title()}",
+                    data=DataBinding(
+                        metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
+                        dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
+                        time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+                    ),
+                    position=GridPosition(column=1, row=max_row + 1, col_span=6, row_span=3),
+                    chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
+                ))
+
+    # Handle "break down by" dimension changes (modifies existing charts)
     if "break" in q and "down" in q and "by" in q:
         # Extract new dimension from requirements or query
         new_dimension = None
