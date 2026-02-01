@@ -60,6 +60,8 @@ VISUALIZATION_TRIGGERS = {
     "graph": 0.95,
     "plot": 0.95,
     "dashboard": 0.99,
+    "kpis": 0.95,
+    "kpi": 0.95,
     "display": 0.85,
     "see": 0.7,
     "view": 0.75,
@@ -284,7 +286,8 @@ def _extract_metrics_from_query(query: str) -> List[str]:
     metrics = []
     q = query.lower()
 
-    # Common metric patterns
+    # Common metric patterns - use word boundary matching to avoid false positives
+    # e.g., "ar" should not match inside "comparison" or "quarterly"
     metric_patterns = {
         "revenue": ["revenue", "sales", "top line", "bookings"],
         "gross_margin_pct": ["gross margin", "margin", "gm"],
@@ -313,7 +316,9 @@ def _extract_metrics_from_query(query: str) -> List[str]:
 
     for canonical, patterns in metric_patterns.items():
         for pattern in patterns:
-            if pattern in q:
+            # Use word boundary regex to avoid matching substrings
+            # e.g., "burn" should not match "burn" inside "auburn"
+            if re.search(rf'\b{re.escape(pattern)}\b', q):
                 if canonical not in metrics:
                     metrics.append(canonical)
                 break
