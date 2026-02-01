@@ -412,6 +412,11 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
     "magic_number": [
         "magic number",
         "sales efficiency",
+        "efficiency",
+        "effective",
+        "effectiveness",
+        "how effective",
+        "are we effective",
     ],
 
     # Burn Multiple

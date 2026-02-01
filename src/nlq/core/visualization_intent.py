@@ -62,6 +62,10 @@ VISUALIZATION_TRIGGERS = {
     "dashboard": 0.99,
     "kpis": 0.95,
     "kpi": 0.95,
+    "results": 0.9,  # "2025 results" -> wants overview
+    "performance": 0.85,  # "Q3 performance" -> wants overview
+    "overview": 0.95,
+    "summary": 0.9,
     "display": 0.85,
     "see": 0.7,
     "view": 0.75,

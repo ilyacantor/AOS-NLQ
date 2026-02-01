@@ -1119,6 +1119,15 @@ def _try_tiered_metric_query_core(question: str, fact_base: FactBase) -> Optiona
             metric_query = metric_query[len(prefix):]
     metric_query = metric_query.rstrip("?").strip()
 
+    # Strip conversational suffixes (e.g., "how's pipeline looking" -> "pipeline")
+    conversational_suffixes = [
+        " looking", " doing", " going", " trending", " performing",
+        " look", " now", " today", " currently",
+    ]
+    for suffix in conversational_suffixes:
+        if metric_query.endswith(suffix):
+            metric_query = metric_query[:-len(suffix)].strip()
+
     # Strip period suffixes (e.g., "revenue 2025", "margin this year", "arr q3")
     period_suffixes = [
         " 2024", " 2025", " 2026",
