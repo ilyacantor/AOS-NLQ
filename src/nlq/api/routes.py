@@ -1095,7 +1095,8 @@ def _try_simple_metric_query_core(question: str, fact_base: FactBase) -> Optiona
     for pattern, (metric, unit) in _SIMPLE_METRIC_PATTERNS.items():
         if _re_simple.search(pattern, q, _re_simple.IGNORECASE):
             # Found a matching pattern, query fact base directly
-            value = fact_base.query(metric, "2025")
+            # Use query_annual to aggregate quarterly data for metrics not in annual section
+            value = fact_base.query_annual(metric, 2025)
             if value is None:
                 return None  # Metric not found, let normal flow handle it
 
@@ -2222,6 +2223,13 @@ async def query(request: NLQRequest) -> NLQResponse:
             if people_response:
                 return people_response
 
+        # =================================================================
+        # SIMPLE METRIC QUERIES - Handle "what is X?" queries early (no Claude needed)
+        # =================================================================
+        simple_result = _try_simple_metric_query(request.question, fact_base)
+        if simple_result:
+            return simple_result
+
         # Check for dashboard/report queries (doesn't need Claude API)
         # NOTE: For visual dashboard requests, we let the visualization intent handler below
         # generate proper dashboard widgets. Only text-mode dashboard summaries go through the old handler.
@@ -2409,13 +2417,6 @@ async def query(request: NLQRequest) -> NLQResponse:
                 clarification,
                 fact_base,
             )
-
-        # =================================================================
-        # SIMPLE METRIC FALLBACK - Handle direct metric queries without Claude
-        # =================================================================
-        simple_result = _try_simple_metric_query(request.question, fact_base)
-        if simple_result:
-            return simple_result
 
         # Set up components
         reference_date = request.reference_date or date.today()
@@ -2660,6 +2661,14 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 )
 
         # =================================================================
+        # SIMPLE METRIC QUERIES - Handle direct questions like "what's revenue?"
+        # (Must be early to catch simple lookups before other handlers)
+        # =================================================================
+        simple_response = _try_simple_metric_query_galaxy(request.question, fact_base)
+        if simple_response:
+            return simple_response
+
+        # =================================================================
         # MISSING DATA CHECK - Gracefully handle non-existent data queries
         # =================================================================
         missing_data_response = _check_missing_data_galaxy(request.question)
@@ -2672,13 +2681,6 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         guided_response = _try_guided_discovery_galaxy(request.question)
         if guided_response:
             return guided_response
-
-        # =================================================================
-        # SIMPLE METRIC QUERIES - Handle direct questions like "what's revenue?"
-        # =================================================================
-        simple_response = _try_simple_metric_query_galaxy(request.question, fact_base)
-        if simple_response:
-            return simple_response
 
         # Check for dashboard/report queries (doesn't need Claude API)
         if _is_dashboard_query(request.question):
