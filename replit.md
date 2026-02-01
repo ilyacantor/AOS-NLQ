@@ -165,6 +165,12 @@ When Supabase credentials are not configured:
 
 ---
 
+## Recent Changes (2026-02-01)
+- **Added API retry logic**: Frontend now retries failed API calls up to 3 times with increasing delays (500ms, 1000ms, 1500ms) to handle backend startup race conditions
+- **Fixed dimension pattern**: Added "by sales stage" to DIMENSION_PATTERNS so queries like "show pipeline by sales stage" work correctly
+- **Fixed percentage metric aggregation**: Dimensional breakdown data now correctly averages percentage metrics (win_rate, margin, churn, etc.) instead of summing them
+- **Implemented Edit Mode toggle**: Dashboard widgets are now clickable/drillable by default; users must click "Edit" to enable drag/resize mode, eliminating the conflict between drag and click interactions
+
 ## Recent Changes (2026-01-29)
 - **Fixed Supabase persistence connection**: Resolved import path mismatch between `src.nlq...` and `nlq...` paths that caused separate module globals
 - **Fixed SUPABASE_API_URL preference**: Both `supabase_persistence.py` and `rag_learning_log.py` now correctly prefer SUPABASE_API_URL over SUPABASE_URL (which may be PostgreSQL connection string)
