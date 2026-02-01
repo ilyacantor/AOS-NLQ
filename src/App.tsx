@@ -5,6 +5,27 @@ import { InsufficientDataPanel } from './components/rag/InsufficientDataPanel'
 import { DashboardRenderer, DashboardSchema } from './components/generated-dashboard'
 import { UserGuide } from './components/UserGuide'
 
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3,
+  baseDelay = 500
+): Promise<Response> {
+  let lastError: Error | null = null
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options)
+      return response
+    } catch (error) {
+      lastError = error as Error
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, baseDelay * (attempt + 1)))
+      }
+    }
+  }
+  throw lastError
+}
+
 interface QueryHistoryItem {
   id: string
   query: string
@@ -14,9 +35,9 @@ interface QueryHistoryItem {
   count: number
 }
 
-type ViewMode = 'galaxy' | 'dashboard'
+type ViewMode = 'galaxy' | 'dashboard' | 'guide'
 type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO'
-type PanelTab = 'History' | 'Learning' | 'Data Gaps' | 'Debug'
+type PanelTab = 'History' | 'Learning' | 'Data Gaps'
 type QueryMode = 'static' | 'ai'
 
 const personaOptions: { label: string; value: Persona; query: string; refinePresets: string[] }[] = [
@@ -59,10 +80,8 @@ const quickActions = [
   'how\'s pipeline looking',
   'churn?',
   'are we efficient',
-  'magic number',
   'platform stable?',
   'how\'s velocity',
-  'who is the CEO',
   'pto days',
   '401k match',
 ]
@@ -93,7 +112,7 @@ function App() {
   const [galaxyResponse, setGalaxyResponse] = useState<IntentMapResponse | null>(null)
   const [lastDuration, setLastDuration] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [showGuide, setShowGuide] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Dashboard state - always use DashboardRenderer
   const [dashboardSchema, setDashboardSchema] = useState<DashboardSchema | null>(null)
@@ -146,7 +165,7 @@ function App() {
 
       if (isBuildRequest || !dashboardSchema) {
         // Generate new dashboard - correct endpoint is /query/dashboard
-        const res = await fetch('/api/v1/query/dashboard', {
+        const res = await fetchWithRetry('/api/v1/query/dashboard', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -176,7 +195,7 @@ function App() {
         }
       } else {
         // Refine existing dashboard
-        const res = await fetch('/api/v1/dashboard/refine', {
+        const res = await fetchWithRetry('/api/v1/dashboard/refine', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -227,9 +246,73 @@ function App() {
     }
   }, [hasLoadedDefaultDashboard, viewMode, selectedPersona, generateDashboard])
 
+  // Detect if query is a dashboard command (add/remove/show widgets, build dashboard, etc.)
+  const isDashboardCommand = useCallback((queryText: string): boolean => {
+    const dashboardPatterns = [
+      /\b(add|remove|delete|show|hide|create|insert)\b.*(kpi|card|chart|widget|metric|dashboard)/i,
+      /\bbuild\s+(me\s+)?a?\s*\w*\s*dashboard/i,
+      /\b(make|resize|move|arrange|reorganize)\b.*widget/i,
+      /\badd\s+(a\s+)?(revenue|margin|pipeline|churn|headcount|arr|nrr|cac|ltv)/i,
+    ]
+    return dashboardPatterns.some(pattern => pattern.test(queryText))
+  }, [])
+
   // Submit a Galaxy query
   const submitGalaxyQuery = useCallback(async (queryText: string) => {
     if (!queryText.trim()) return
+
+    // Check if this is a dashboard command - route to dashboard
+    if (isDashboardCommand(queryText)) {
+      const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+
+      // Add to history first
+      const newItem: QueryHistoryItem = {
+        id: Date.now().toString(),
+        query: queryText,
+        timestamp,
+        duration: '',
+        tag: 'DASHBOARD',
+        count: 1,
+      }
+      setQueryHistory(prev => aggregateHistory([newItem, ...prev]))
+      setQuery('')
+
+      // Switch to dashboard and trigger refinement or generation
+      setViewMode('dashboard')
+
+      // If we have an existing dashboard, refine it; otherwise generate new
+      if (dashboardSchema) {
+        // Trigger refinement via the dashboard API
+        try {
+          const startTime = performance.now()
+          const res = await fetchWithRetry('/api/v1/dashboard/refine', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              dashboard_id: dashboardSchema.id,
+              refinement_query: queryText,
+              conversation_id: sessionId
+            })
+          })
+          const data = await res.json()
+          const duration = Math.round(performance.now() - startTime)
+          setLastDuration(`${duration}ms`)
+
+          if (data.success && data.dashboard) {
+            setDashboardSchema(data.dashboard)
+            if (data.widget_data) {
+              setDashboardWidgetData(data.widget_data)
+            }
+          }
+        } catch (error) {
+          console.error('Dashboard refinement failed:', error)
+        }
+      } else {
+        // Generate new dashboard
+        generateDashboard(queryText, true)
+      }
+      return
+    }
 
     setIsLoading(true)
     setQuery('')
@@ -238,7 +321,7 @@ function App() {
     const startTime = performance.now()
 
     try {
-      const res = await fetch('/api/v1/intent-map', {
+      const res = await fetchWithRetry('/api/v1/intent-map', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -284,7 +367,7 @@ function App() {
     }
 
     setIsLoading(false)
-  }, [queryMode, sessionId])
+  }, [queryMode, sessionId, isDashboardCommand, dashboardSchema, generateDashboard])
 
   // Auto-query "2025 results" for Galaxy view on first load
   useEffect(() => {
@@ -326,20 +409,18 @@ function App() {
   return (
     <div className="h-screen bg-slate-950 flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-slate-800">
-        <div className="flex items-center gap-3">
+      <header className="border-b border-slate-800">
+        {/* Mobile Header Row */}
+        <div className="flex items-center justify-between px-4 py-3 md:hidden">
           <div className="flex items-center gap-2">
-            <span className="text-cyan-400 text-2xl font-bold">NLQ</span>
-            <span className="text-slate-300 text-lg font-normal">Natural Language Query</span>
+            <span className="text-cyan-400 text-xl font-bold">NLQ</span>
           </div>
-
-          {/* View Mode Toggle */}
-          <div className="flex items-center gap-2 ml-8">
-            <span className="text-slate-500 text-sm">View:</span>
+          <div className="flex items-center gap-2">
+            {/* View Mode Toggle - Compact for mobile */}
             <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-1">
               <button
                 onClick={() => setViewMode('galaxy')}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                className={`min-h-[44px] min-w-[44px] px-2 rounded-md text-xs font-medium transition-colors ${
                   viewMode === 'galaxy'
                     ? 'bg-slate-700 text-white'
                     : 'text-slate-400 hover:text-slate-200'
@@ -349,70 +430,186 @@ function App() {
               </button>
               <button
                 onClick={() => setViewMode('dashboard')}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                className={`min-h-[44px] min-w-[44px] px-2 rounded-md text-xs font-medium transition-colors ${
                   viewMode === 'dashboard'
                     ? 'bg-slate-700 text-white'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Dashboard
+                Dash
               </button>
               <button
-                onClick={() => setShowGuide(true)}
-                className="px-4 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-cyan-400 transition-colors"
-                title="User Guide"
+                onClick={() => setViewMode('guide')}
+                className={`min-h-[44px] min-w-[44px] px-2 rounded-md text-xs font-medium transition-colors ${
+                  viewMode === 'guide'
+                    ? 'bg-slate-700 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
-                User Guide
+                Guide
               </button>
             </div>
+            {/* Hamburger Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="min-h-[44px] min-w-[44px] p-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors"
+              aria-label="Toggle menu"
+            >
+              <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {mobileMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 text-slate-500 text-sm">
-          {/* Static/AI Mode Toggle */}
-          <div className="flex items-center gap-2">
-            <span className="text-slate-500 text-xs">Mode:</span>
-            <div className="flex items-center bg-slate-900 rounded-lg p-0.5">
+        {/* Mobile Menu Dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden px-4 pb-4 bg-slate-900/95 border-t border-slate-800">
+            <div className="flex flex-col gap-3 pt-3">
+              {/* Mode Toggle */}
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 text-sm">Mode:</span>
+                <div className="flex items-center bg-slate-800 rounded-lg p-1">
+                  <button
+                    onClick={() => setQueryMode('static')}
+                    className={`min-h-[44px] px-4 rounded-md text-sm font-medium transition-colors ${
+                      queryMode === 'static'
+                        ? 'bg-amber-600 text-white'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    Static
+                  </button>
+                  <button
+                    onClick={() => setQueryMode('ai')}
+                    className={`min-h-[44px] px-4 rounded-md text-sm font-medium transition-colors ${
+                      queryMode === 'ai'
+                        ? 'bg-emerald-600 text-white'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    AI
+                  </button>
+                </div>
+              </div>
+              {/* User Guide & Stats */}
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => { setViewMode('guide'); setMobileMenuOpen(false); }}
+                  className={`min-h-[44px] px-4 py-2 rounded-lg transition-colors ${
+                    viewMode === 'guide'
+                      ? 'bg-slate-700 text-white'
+                      : 'bg-slate-800 text-cyan-400 hover:bg-slate-700'
+                  }`}
+                >
+                  User Guide
+                </button>
+                <div className="flex items-center gap-3 text-slate-500 text-sm">
+                  <LLMCallCounter />
+                  {lastDuration && <span>{lastDuration}</span>}
+                </div>
+              </div>
+              {/* History Panel Toggle */}
               <button
-                onClick={() => setQueryMode('static')}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  queryMode === 'static'
-                    ? 'bg-amber-600 text-white'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
+                onClick={() => { setSidebarOpen(!sidebarOpen); setMobileMenuOpen(false); }}
+                className="min-h-[44px] px-4 py-2 bg-slate-800 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors text-left"
               >
-                Static
-              </button>
-              <button
-                onClick={() => setQueryMode('ai')}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  queryMode === 'ai'
-                    ? 'bg-emerald-600 text-white'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                AI
+                {sidebarOpen ? 'Hide' : 'Show'} History Panel
               </button>
             </div>
           </div>
-          <LLMCallCounter />
-          {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
+        )}
+
+        {/* Desktop Header Row */}
+        <div className="hidden md:flex items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-cyan-400 text-2xl font-bold">NLQ</span>
+              <span className="text-slate-300 text-lg font-normal hidden lg:inline">Natural Language Query</span>
+            </div>
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-2 ml-8">
+              <span className="text-slate-500 text-sm hidden lg:inline">View:</span>
+              <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('galaxy')}
+                  className={`min-h-[44px] px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === 'galaxy'
+                      ? 'bg-slate-700 text-white'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Galaxy
+                </button>
+                <button
+                  onClick={() => setViewMode('dashboard')}
+                  className={`min-h-[44px] px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === 'dashboard'
+                      ? 'bg-slate-700 text-white'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={() => setViewMode('guide')}
+                  className={`min-h-[44px] px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === 'guide'
+                      ? 'bg-slate-700 text-white'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  User Guide
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 text-slate-500 text-sm">
+            {/* Static/AI Mode Toggle */}
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 text-xs">Mode:</span>
+              <div className="flex items-center bg-slate-900 rounded-lg p-0.5">
+                <button
+                  onClick={() => setQueryMode('static')}
+                  className={`min-h-[44px] px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                    queryMode === 'static'
+                      ? 'bg-amber-600 text-white'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Static
+                </button>
+                <button
+                  onClick={() => setQueryMode('ai')}
+                  className={`min-h-[44px] px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                    queryMode === 'ai'
+                      ? 'bg-emerald-600 text-white'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  AI
+                </button>
+              </div>
+            </div>
+            <LLMCallCounter />
+            {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
+          </div>
         </div>
       </header>
 
-      {/* User Guide Page */}
-      {showGuide && (
-        <UserGuide onClose={() => setShowGuide(false)} />
-      )}
-
       {/* Main Content Area */}
-      {!showGuide && (
       <div className="flex flex-1 overflow-hidden relative">
         {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-hidden">
           {/* Query Input Section - Only shown in Galaxy view */}
           {viewMode === 'galaxy' && (
-            <div className="flex flex-col items-center pt-6 pb-4 px-8">
+            <div className="flex flex-col items-center pt-4 pb-3 px-6">
               <div className="w-full max-w-2xl">
                 <div className="relative">
                   <input
@@ -420,12 +617,12 @@ function App() {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Ask any question, use a preset from below, or just say hi"
-                    className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-lg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
+                    placeholder="Ask any question, use a preset below, or just say hi..."
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
                   />
                   {isLoading && (
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                      <svg className="w-5 h-5 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <svg className="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
@@ -434,17 +631,24 @@ function App() {
                 </div>
               </div>
 
-              {/* Quick Action Buttons */}
-              <div className="flex flex-wrap justify-center items-center gap-2 mt-4 max-w-3xl">
-                {quickActions.map((action) => (
-                  <button
-                    key={action}
-                    onClick={() => submitGalaxyQuery(action)}
-                    className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-xs hover:bg-slate-700 hover:border-slate-600 transition-colors"
-                  >
-                    {action}
-                  </button>
-                ))}
+              {/* Quick Action Buttons - Horizontally scrollable with fade edges */}
+              <div className="relative w-full max-w-2xl mt-3">
+                {/* Left fade edge */}
+                <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-slate-950 to-transparent z-10 pointer-events-none" />
+                {/* Right fade edge */}
+                <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-slate-950 to-transparent z-10 pointer-events-none" />
+                {/* Scrollable container */}
+                <div className="flex items-center gap-2 overflow-x-auto px-6 py-1 scrollbar-hide">
+                  {quickActions.map((action) => (
+                    <button
+                      key={action}
+                      onClick={() => submitGalaxyQuery(action)}
+                      className="flex-shrink-0 px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors whitespace-nowrap"
+                    >
+                      {action}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -454,19 +658,41 @@ function App() {
             {/* Dashboard View - Always uses DashboardRenderer with full controls */}
             {viewMode === 'dashboard' && (
               <div className="h-full overflow-hidden flex flex-col">
-                {/* Dashboard Header with Persona Selector */}
-                <div className="flex-shrink-0 px-6 py-3 border-b border-slate-800 bg-slate-900/50">
-                  <div className="flex items-center justify-between">
-                    {/* Persona Quick Select */}
-                    <div className="flex items-center gap-2">
+                {/* Dashboard Header with Persona Selector - Compact on mobile */}
+                <div className="flex-shrink-0 px-4 md:px-6 py-2 md:py-3 border-b border-slate-800 bg-slate-900/50">
+                  <div className="flex items-center justify-between gap-2">
+                    {/* Mobile: Dropdown selector */}
+                    <div className="md:hidden flex items-center gap-2">
+                      <select
+                        value={selectedPersona}
+                        onChange={(e) => handlePersonaSelect(e.target.value as Persona)}
+                        disabled={isGeneratingDashboard}
+                        className="min-h-[36px] px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-cyan-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500/50 disabled:opacity-50"
+                      >
+                        {personaOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label} Dashboard
+                          </option>
+                        ))}
+                      </select>
+                      {isGeneratingDashboard && (
+                        <svg className="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                      )}
+                    </div>
+
+                    {/* Desktop: Button tabs */}
+                    <div className="hidden md:flex items-center gap-2">
                       <span className="text-slate-500 text-xs">Quick Load:</span>
-                      <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
+                      <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-1">
                         {personaOptions.map((option) => (
                           <button
                             key={option.value}
                             onClick={() => handlePersonaSelect(option.value)}
                             disabled={isGeneratingDashboard}
-                            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors disabled:opacity-50 ${
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-50 ${
                               selectedPersona === option.value
                                 ? 'bg-cyan-600 text-white'
                                 : 'text-slate-400 hover:text-slate-200'
@@ -478,10 +704,10 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Help Text - Prominent Banner */}
-                    <div className="px-4 py-2 bg-cyan-900/30 border border-cyan-700/50 rounded-lg">
-                      <p className="text-cyan-300 text-sm font-medium">
-                        💡 Drag to rearrange • Resize from corners • Use chatbox to refine
+                    {/* Help Text - Desktop only */}
+                    <div className="hidden lg:block px-3 py-1.5 bg-cyan-900/30 border border-cyan-700/50 rounded-lg">
+                      <p className="text-cyan-300 text-xs">
+                        💡 Drag to rearrange • Resize corners • Chatbox to refine
                       </p>
                     </div>
                   </div>
@@ -496,6 +722,7 @@ function App() {
                     onRefinement={handleDashboardRefinement}
                     showRefinementInput={true}
                     refinePresets={personaOptions.find(p => p.value === selectedPersona)?.refinePresets || []}
+                    persona={selectedPersona}
                   />
                 </div>
 
@@ -521,13 +748,18 @@ function App() {
                 <p>Enter a query above to see results</p>
               </div>
             )}
+
+            {/* User Guide View */}
+            {viewMode === 'guide' && (
+              <UserGuide />
+            )}
           </div>
         </main>
 
-        {/* Hamburger Toggle Button */}
+        {/* Sidebar Toggle Button - Desktop only */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-slate-800 border border-slate-700 rounded-l-lg hover:bg-slate-700 transition-colors"
+          className="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 z-10 min-h-[44px] min-w-[44px] p-2 bg-slate-800 border border-slate-700 rounded-l-lg hover:bg-slate-700 transition-colors"
           style={{ right: sidebarOpen ? '283px' : '0' }}
         >
           <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -539,15 +771,45 @@ function App() {
           </svg>
         </button>
 
-        {/* Right Sidebar */}
-        <aside className={`${sidebarOpen ? 'w-[283px]' : 'w-0 overflow-hidden'} border-l border-slate-800 flex flex-col bg-slate-900/30 transition-all duration-300`}>
+        {/* Mobile Sidebar Backdrop */}
+        {sidebarOpen && (
+          <div
+            className="md:hidden fixed inset-0 bg-black/50 z-30"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Right Sidebar - Full overlay on mobile, fixed width on desktop */}
+        <aside className={`
+          fixed md:relative right-0 top-0 h-full z-40 md:z-auto
+          w-[85vw] max-w-[320px]
+          border-l border-slate-800 flex flex-col bg-slate-900 md:bg-slate-900/30
+          transition-all duration-300
+          ${sidebarOpen
+            ? 'translate-x-0 md:w-[283px]'
+            : 'translate-x-full md:translate-x-0 md:w-0 md:overflow-hidden'
+          }
+        `}>
+          {/* Mobile Close Button */}
+          <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-slate-800">
+            <span className="text-slate-300 font-medium">Panel</span>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="min-h-[44px] min-w-[44px] p-2 text-slate-400 hover:text-white transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
           {/* Panel Tabs */}
-          <div className="flex border-b border-slate-800">
-            {(['History', 'Learning', 'Data Gaps', 'Debug'] as PanelTab[]).map((tab) => (
+          <div className="flex border-b border-slate-800 overflow-x-auto">
+            {(['History', 'Learning', 'Data Gaps'] as PanelTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setPanelTab(tab)}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
+                className={`flex-1 min-h-[44px] px-3 md:px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
                   panelTab === tab
                     ? 'text-white border-b-2 border-cyan-400 bg-slate-900/50'
                     : 'text-slate-400 hover:text-slate-200'
@@ -608,27 +870,9 @@ function App() {
               />
             )}
 
-            {panelTab === 'Debug' && (
-              <div className="p-3">
-                {galaxyResponse && (
-                  <div className="text-xs font-mono">
-                    <div className="text-slate-400 mb-2">IntentMapResponse:</div>
-                    <pre className="text-slate-500 whitespace-pre-wrap break-words overflow-x-auto">
-                      {JSON.stringify(galaxyResponse, null, 2)}
-                    </pre>
-                  </div>
-                )}
-                {!galaxyResponse && (
-                  <div className="text-slate-500 text-sm text-center py-8">
-                    Run a query to see debug data
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </aside>
       </div>
-      )}
     </div>
   )
 }

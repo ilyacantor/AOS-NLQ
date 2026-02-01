@@ -26,20 +26,20 @@ export const GalaxyHeader: React.FC<GalaxyHeaderProps> = ({
                        'text-red-400';
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-slate-900/50 border-b border-slate-800">
-      <div className="flex items-center gap-6 text-sm">
-        <span className="text-slate-400">
-          Confidence: <span className={`font-semibold ${confColor}`}>{confPercent}%</span>
+    <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900/50 border-b border-slate-800">
+      <div className="flex items-center gap-3 md:gap-4 text-xs">
+        <span className="text-slate-500">
+          Conf: <span className={`font-medium ${confColor}`}>{confPercent}%</span>
         </span>
-        <span className="text-slate-400">
-          Quality: <span className={`font-semibold ${qualityColor}`}>{qualityPercent}%</span>
+        <span className="text-slate-500">
+          Qual: <span className={`font-medium ${qualityColor}`}>{qualityPercent}%</span>
         </span>
-        <span className="text-slate-400">
-          <span className="text-white font-semibold">{nodeCount}</span> nodes
+        <span className="text-slate-500">
+          <span className="text-slate-300 font-medium">{nodeCount}</span> nodes
         </span>
       </div>
       {query && (
-        <div className="text-sm text-slate-500 truncate max-w-md">
+        <div className="hidden md:block text-xs text-slate-600 truncate max-w-xs">
           "{query}"
         </div>
       )}

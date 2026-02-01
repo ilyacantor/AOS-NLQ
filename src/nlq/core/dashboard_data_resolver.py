@@ -107,8 +107,14 @@ class DashboardDataResolver:
 
         metric = metrics[0].metric
 
-        # Get current value
+        # Get current value - try quarterly first, then annual aggregation
         value = self.fact_base.query(metric, reference_year)
+        if value is None:
+            # Try annual aggregation from quarters
+            try:
+                value = self.fact_base.query_annual(metric, int(reference_year))
+            except (ValueError, TypeError):
+                pass
 
         if value is None:
             return {
@@ -122,6 +128,11 @@ class DashboardDataResolver:
         # Get prior year for trend
         prior_year = str(int(reference_year) - 1)
         prior_value = self.fact_base.query(metric, prior_year)
+        if prior_value is None:
+            try:
+                prior_value = self.fact_base.query_annual(metric, int(prior_year))
+            except (ValueError, TypeError):
+                pass
         if prior_value is not None:
             prior_value = self._apply_filter_ratio(prior_value, filters)
 
@@ -463,13 +474,49 @@ class DashboardDataResolver:
         try:
             raw_data = self.fact_base._raw_data
             if breakdown_key in raw_data:
-                yearly_data = raw_data[breakdown_key]
-                if reference_year in yearly_data:
-                    return yearly_data[reference_year]
+                dim_data = raw_data[breakdown_key]
+                
+                # Check if it's keyed by year (old format) or by quarter (new format)
+                if reference_year in dim_data:
+                    return dim_data[reference_year]
+                
+                # Try quarterly keys - aggregate all quarters for the year
+                quarterly_keys = [f"{reference_year}-Q{q}" for q in range(1, 5)]
+                aggregated = {}
+                counts = {}
+                found_quarters = 0
+                
+                # Check if this is a percentage/rate metric (should average, not sum)
+                is_percentage_metric = any(
+                    term in metric.lower() 
+                    for term in ["_pct", "_rate", "_percent", "margin", "ratio", "win_rate", "churn", "nrr", "attainment"]
+                )
+                
+                for qkey in quarterly_keys:
+                    if qkey in dim_data:
+                        quarter_data = dim_data[qkey]
+                        found_quarters += 1
+                        if isinstance(quarter_data, dict):
+                            for label, value in quarter_data.items():
+                                if isinstance(value, (int, float)):
+                                    aggregated[label] = aggregated.get(label, 0) + value
+                                    counts[label] = counts.get(label, 0) + 1
+                
+                if found_quarters > 0 and aggregated:
+                    # For percentage metrics, return average instead of sum
+                    if is_percentage_metric:
+                        return {label: val / counts[label] for label, val in aggregated.items()}
+                    return aggregated
+                
+                # Try getting most recent quarter of the year
+                for qkey in reversed(quarterly_keys):
+                    if qkey in dim_data:
+                        return dim_data[qkey]
+                
                 # Try without year for non-time-series breakdowns
-                if isinstance(yearly_data, dict) and not any(k.isdigit() for k in yearly_data.keys()):
-                    return yearly_data
-        except AttributeError:
+                if isinstance(dim_data, dict) and not any(k.isdigit() for k in str(list(dim_data.keys())[0]) if dim_data):
+                    return dim_data
+        except (AttributeError, IndexError, KeyError):
             pass
 
         return None

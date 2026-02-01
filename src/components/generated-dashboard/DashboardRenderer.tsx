@@ -28,6 +28,7 @@ import {
   DashboardRefinementResponse,
 } from '../../types/generated-dashboard';
 import { WidgetRenderer } from './WidgetRenderer';
+import { ScenarioModelingPanel } from '../dashboard/shared/ScenarioModelingPanel';
 
 // Storage keys
 const SAVED_DASHBOARDS_KEY = 'aos_saved_dashboards';
@@ -63,6 +64,8 @@ interface DashboardRendererProps {
   showRefinementInput?: boolean;
   /** Persona-specific preset refinement suggestions */
   refinePresets?: string[];
+  /** Current persona (for showing what-if panel) */
+  persona?: 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO' | string;
 }
 
 // =============================================================================
@@ -126,6 +129,7 @@ export function DashboardRenderer({
   onRefinement,
   showRefinementInput = true,
   refinePresets = [],
+  persona,
 }: DashboardRendererProps) {
   const [schema, setSchema] = useState<DashboardSchema | null>(initialSchema || null);
   // Use pre-resolved data from backend if available, otherwise empty (will fetch mock)
@@ -137,6 +141,21 @@ export function DashboardRenderer({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isRefining, setIsRefining] = useState(false);
   const [refinementMessage, setRefinementMessage] = useState<string | null>(null);
+
+  // Scenario modeling panel state (CFO only)
+  const [scenarioOpen, setScenarioOpen] = useState(false);
+  
+  // Edit mode - when true, widgets are draggable; when false, widgets are drillable/clickable
+  const [editMode, setEditMode] = useState(false);
+  const baseMetrics = useMemo(() => ({
+    revenue: 150000000,
+    revenueGrowthPct: 18,
+    grossMarginPct: 65,
+    operatingMarginPct: 30,
+    netIncomePct: 22,
+    headcount: 350,
+    opex: 45000000,
+  }), []);
 
   // Drag and drop state - use a map keyed by widget ID for stable position storage
   // Edit mode is always enabled (drag/resize always available)
@@ -570,12 +589,39 @@ export function DashboardRenderer({
 
   // Handle widget click (drill-down)
   const handleWidgetClick = useCallback((widget: Widget, value?: string) => {
+    // Check for explicit drill_down interaction first
     const drillDown = widget.interactions.find(i => i.type === 'drill_down' && i.enabled);
     if (drillDown?.drill_down && onDrillDown) {
       const query = drillDown.drill_down.query_template.replace('{value}', value || '');
       onDrillDown(query);
+      return;
     }
-  }, [onDrillDown]);
+    
+    // For KPIs: add quarterly trend chart inline (stay in dashboard view)
+    if (widget.type === 'kpi_card') {
+      const metric = value || widget.data.metrics[0]?.metric || widget.title;
+      const refinementQuery = `Add a quarterly trend chart for ${metric}`;
+      refineDashboard(refinementQuery);
+      return;
+    }
+    
+    // For charts, if a value was clicked, drill into that dimension value
+    if (value && onDrillDown) {
+      const metric = widget.data.metrics[0]?.metric || 'data';
+      const query = `Show me ${metric} for ${value}`;
+      onDrillDown(query);
+    }
+  }, [onDrillDown, refineDashboard]);
+
+  // Handle KPI double-click to show time-based chart
+  const handleKPIDoubleClick = useCallback((widget: Widget) => {
+    const metric = widget.data.metrics[0]?.metric;
+    if (metric) {
+      // Trigger refinement to add a trend chart for this metric
+      const refinementQuery = `Add a quarterly trend chart for ${widget.title || metric}`;
+      refineDashboard(refinementQuery);
+    }
+  }, [refineDashboard]);
 
   // Handle refinement submit
   const handleRefinementSubmit = (e: React.FormEvent) => {
@@ -601,117 +647,124 @@ export function DashboardRenderer({
 
   const rowHeight = schema?.layout.row_height || 80;
 
+  // State for mobile menu
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+
   return (
     <div className="h-full flex flex-col bg-slate-950">
-      {/* Dashboard Header */}
+      {/* Dashboard Header - Compact on mobile */}
       {schema && (
-        <div className="px-6 py-4 border-b border-slate-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-white">{schema.title}</h2>
-              {schema.description && (
-                <p className="text-sm text-slate-400 mt-1">{schema.description}</p>
+        <div className="px-4 md:px-6 py-2 md:py-3 border-b border-slate-800">
+          <div className="flex items-center justify-between gap-2">
+            {/* Title - compact on mobile */}
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base md:text-lg font-semibold text-white truncate">{schema.title}</h2>
+            </div>
+
+            {/* Mobile: Single menu button */}
+            <div className="md:hidden relative">
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
+              >
+                ⋮ Edit
+              </button>
+              {showMobileMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowMobileMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+                    <button onClick={() => { setEditMode(!editMode); setShowMobileMenu(false); }} className={`w-full px-4 py-2 text-left text-sm hover:bg-slate-700 ${editMode ? 'text-amber-300' : 'text-slate-300'}`}>
+                      {editMode ? '✓ Edit Mode' : '⊞ Edit Layout'}
+                    </button>
+                    {persona === 'CFO' && (
+                      <button onClick={() => { setScenarioOpen(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-cyan-300 hover:bg-slate-700">📊 What-If</button>
+                    )}
+                    <button onClick={() => { handleAutoArrange(); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">⊞ Auto Arrange</button>
+                    <button onClick={() => { setSaveName(schema.title); setShowSaveModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">💾 Save</button>
+                    <button onClick={() => { setTemplateName(schema.title + ' Template'); setShowTemplateModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">📋 Template</button>
+                    <button onClick={() => { setShowLoadModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">📂 Load</button>
+                    <hr className="my-1 border-slate-700" />
+                    <button onClick={() => { handleReset(); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-slate-700">✕ Reset</button>
+                  </div>
+                </>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              {/* Auto-arrange Button */}
-              <button
-                onClick={handleAutoArrange}
-                className="px-3 py-1.5 bg-cyan-900/50 text-cyan-300 rounded-lg text-sm hover:bg-cyan-800/60 transition-colors"
-                title="Remove gaps and arrange widgets neatly"
-              >
-                ⊞ Auto
-              </button>
 
-              {/* Save Button */}
+            {/* Desktop: Button bar */}
+            <div className="hidden md:flex items-center gap-2">
               <button
-                onClick={() => {
-                  setSaveName(schema.title);
-                  setShowSaveModal(true);
-                }}
-                className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
+                onClick={() => setEditMode(!editMode)}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${editMode ? 'bg-amber-600 text-white hover:bg-amber-500' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                title={editMode ? 'Exit edit mode to click/drill widgets' : 'Enter edit mode to drag/resize widgets'}
               >
-                💾 Save
+                {editMode ? '✓ Editing' : '✎ Edit'}
               </button>
-
-              {/* Save as Template Button */}
-              <button
-                onClick={() => {
-                  setTemplateName(schema.title + ' Template');
-                  setShowTemplateModal(true);
-                }}
-                className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
-              >
-                📋 Template
-              </button>
-
-              {/* Load Button */}
-              <button
-                onClick={() => setShowLoadModal(true)}
-                className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
-              >
-                📂 Load
-              </button>
-
-              {/* Reset Button */}
-              <button
-                onClick={handleReset}
-                className="px-3 py-1.5 bg-red-900/50 text-red-300 rounded-lg text-sm hover:bg-red-900/70 transition-colors"
-              >
-                ✕ Reset
-              </button>
+              {persona === 'CFO' && (
+                <button
+                  onClick={() => setScenarioOpen(true)}
+                  className="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-500 transition-colors"
+                  title="What-If Scenario Modeling"
+                >
+                  📊 What-If
+                </button>
+              )}
+              <button onClick={handleAutoArrange} className="px-3 py-1.5 bg-cyan-900/50 text-cyan-300 rounded-lg text-sm hover:bg-cyan-800/60 transition-colors" title="Remove gaps and arrange widgets neatly">⊞ Auto</button>
+              <button onClick={() => { setSaveName(schema.title); setShowSaveModal(true); }} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">💾 Save</button>
+              <button onClick={() => { setTemplateName(schema.title + ' Template'); setShowTemplateModal(true); }} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">📋 Template</button>
+              <button onClick={() => setShowLoadModal(true)} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">📂 Load</button>
+              <button onClick={handleReset} className="px-3 py-1.5 bg-red-900/50 text-red-300 rounded-lg text-sm hover:bg-red-900/70 transition-colors">✕ Reset</button>
             </div>
           </div>
 
           {/* Success message */}
           {saveSuccess && (
-            <div className="mt-2 px-3 py-2 bg-green-900/30 border border-green-700/50 rounded-lg text-sm text-green-300">
+            <div className="mt-2 px-3 py-1.5 bg-green-900/30 border border-green-700/50 rounded-lg text-xs md:text-sm text-green-300">
               {saveSuccess}
             </div>
           )}
         </div>
       )}
 
-      {/* Refinement Input - At top of dashboard */}
+      {/* Refinement Input - Compact on mobile */}
       {schema && showRefinementInput && (
-        <div className="px-6 py-4 border-b border-slate-800 bg-slate-900/50">
-          <form onSubmit={handleRefinementSubmit} className="flex gap-3">
+        <div className="px-4 md:px-6 py-2 md:py-3 border-b border-slate-800 bg-slate-900/50">
+          <form onSubmit={handleRefinementSubmit} className="flex gap-2">
             <input
               type="text"
               value={refinementQuery}
               onChange={(e) => setRefinementQuery(e.target.value)}
-              placeholder="Refine this dashboard... (e.g., 'Add a pipeline KPI', 'Make that a bar chart')"
-              className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+              placeholder="Refine dashboard..."
+              className="flex-1 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
               disabled={isRefining}
             />
             <button
               type="submit"
               disabled={isRefining || !refinementQuery.trim()}
-              className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
             >
-              {isRefining ? 'Refining...' : 'Refine'}
+              {isRefining ? '...' : 'Go'}
             </button>
           </form>
 
           {/* Refinement Message */}
           {refinementMessage && (
-            <div className="mt-3 px-4 py-2 bg-green-900/30 border border-green-700/50 rounded-lg">
-              <p className="text-green-300 text-sm">
+            <div className="mt-2 px-3 py-1.5 bg-green-900/30 border border-green-700/50 rounded-lg">
+              <p className="text-green-300 text-xs">
                 ✓ {refinementMessage}
               </p>
             </div>
           )}
 
-          {/* Preset Refinements */}
+          {/* Preset Refinements - Hidden on mobile, horizontal scroll on tablet+ */}
           {refinePresets.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              <span className="text-slate-500 text-xs py-1">Try:</span>
+            <div className="hidden md:flex items-center gap-2 mt-2 overflow-x-auto">
+              <span className="text-slate-500 text-xs py-1 flex-shrink-0">Try:</span>
               {refinePresets.map((preset, i) => (
                 <button
                   key={i}
                   onClick={() => refineDashboard(preset)}
                   disabled={isRefining}
-                  className="px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors disabled:opacity-50"
+                  className="flex-shrink-0 px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors disabled:opacity-50 whitespace-nowrap"
                 >
                   {preset}
                 </button>
@@ -719,9 +772,9 @@ export function DashboardRenderer({
             </div>
           )}
 
-          {/* Dynamic Suggestions from API */}
+          {/* Dynamic Suggestions from API - Desktop only */}
           {suggestions.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="hidden md:flex flex-wrap gap-2 mt-2">
               {suggestions.map((suggestion, i) => (
                 <button
                   key={i}
@@ -734,9 +787,9 @@ export function DashboardRenderer({
             </div>
           )}
 
-          {/* Refinement History */}
+          {/* Refinement History - Desktop only */}
           {schema.refinement_history.length > 0 && (
-            <div className="mt-3 text-xs text-slate-500">
+            <div className="hidden md:block mt-2 text-xs text-slate-500">
               <span>Refinements: </span>
               {schema.refinement_history.map((r, i) => (
                 <span key={i}>
@@ -796,8 +849,8 @@ export function DashboardRenderer({
             rowHeight={rowHeight}
             width={containerWidth}
             onLayoutChange={handleLayoutChange as any}
-            isDraggable={true}
-            isResizable={true}
+            isDraggable={editMode}
+            isResizable={editMode}
             margin={[schema.layout.gap, schema.layout.gap]}
             containerPadding={[0, 0]}
             compactType={null}
@@ -811,7 +864,8 @@ export function DashboardRenderer({
                 <WidgetRenderer
                   widget={widget}
                   data={widgetData[widget.id] || { loading: true }}
-                  onClick={(value) => handleWidgetClick(widget, value)}
+                  onClick={editMode ? undefined : (value) => handleWidgetClick(widget, value)}
+                  onDoubleClick={editMode ? undefined : handleKPIDoubleClick}
                   rowHeight={rowHeight}
                 />
               </div>
@@ -977,6 +1031,19 @@ export function DashboardRenderer({
           onDelete={(id, type) => {
             if (type === 'dashboard') deleteSavedDashboard(id);
             else deleteSavedTemplate(id);
+          }}
+        />
+      )}
+
+      {/* Scenario Modeling Panel - CFO only */}
+      {persona === 'CFO' && (
+        <ScenarioModelingPanel
+          isOpen={scenarioOpen}
+          onToggle={() => setScenarioOpen(!scenarioOpen)}
+          baseMetrics={baseMetrics}
+          onApply={(adjustments) => {
+            console.log('Scenario adjustments applied:', adjustments);
+            setScenarioOpen(false);
           }}
         />
       )}

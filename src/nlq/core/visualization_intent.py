@@ -146,6 +146,7 @@ DIMENSION_PATTERNS = {
     "by stage": "stage",
     "by pipeline stage": "stage",
     "by deal stage": "stage",
+    "by sales stage": "stage",
     "by quarter": "quarter",
     "by month": "month",
     "by year": "year",

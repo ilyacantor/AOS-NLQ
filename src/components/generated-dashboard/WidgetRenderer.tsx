@@ -5,6 +5,7 @@
  * the appropriate visualization component (chart, KPI, table, etc.)
  */
 
+import { useRef, useCallback } from 'react';
 import { Widget, WidgetData } from '../../types/generated-dashboard';
 import {
   LineChart,
@@ -28,6 +29,7 @@ interface WidgetRendererProps {
   widget: Widget;
   data: WidgetData;
   onClick?: (value?: string) => void;
+  onDoubleClick?: (widget: Widget) => void;
   rowHeight: number;
 }
 
@@ -42,7 +44,7 @@ const CHART_COLORS = [
   '#EAB308', // Yellow
 ];
 
-export function WidgetRenderer({ widget, data, onClick, rowHeight }: WidgetRendererProps) {
+export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight }: WidgetRendererProps) {
   // Calculate widget dimensions
   const height = widget.position.row_span * rowHeight - 16; // Account for gap
 
@@ -51,6 +53,39 @@ export function WidgetRenderer({ widget, data, onClick, rowHeight }: WidgetRende
     gridColumn: `${widget.position.column} / span ${widget.position.col_span}`,
     gridRow: `${widget.position.row} / span ${widget.position.row_span}`,
   };
+
+  // Handle click vs double-click for KPI cards
+  const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isKPI = widget.type === 'kpi_card';
+  const isChart = ['line_chart', 'bar_chart', 'area_chart', 'pie_chart', 'donut_chart', 'stacked_bar'].includes(widget.type);
+  const isClickable = isKPI || isChart || widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
+
+  // Single click handler - KPIs always clickable, charts pass clicked value
+  const handleClick = useCallback((clickedValue?: string) => {
+    if (!onClick) return;
+    
+    if (isKPI) {
+      // For KPIs, pass the metric name for drill-down
+      const metricName = widget.data.metrics[0]?.metric || widget.title;
+      onClick(metricName);
+    } else if (isChart && clickedValue) {
+      // For charts, pass the clicked value (e.g., bar label)
+      onClick(clickedValue);
+    } else if (isClickable) {
+      onClick(clickedValue);
+    }
+  }, [isKPI, isChart, isClickable, onClick, widget]);
+
+  // Native double-click handler - cancels pending single-click
+  const handleDoubleClick = useCallback(() => {
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+    }
+    if (isKPI && onDoubleClick) {
+      onDoubleClick(widget);
+    }
+  }, [isKPI, widget, onDoubleClick]);
 
   // Loading state
   if (data.loading) {
@@ -75,15 +110,14 @@ export function WidgetRenderer({ widget, data, onClick, rowHeight }: WidgetRende
   // Render based on widget type
   const content = renderWidgetContent(widget, data, onClick, height);
 
-  // Check if widget has drill-down interaction
-  const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
-
   return (
     <div
       className={`h-full bg-slate-900 border border-slate-800 rounded-xl overflow-hidden ${
-        hasDrillDown ? 'cursor-pointer hover:border-cyan-500/50 transition-colors' : ''
+        isClickable ? 'cursor-pointer hover:border-cyan-500/50 transition-colors' : ''
       }`}
-      onClick={() => hasDrillDown && onClick?.()}
+      onClick={() => handleClick()}
+      onDoubleClick={handleDoubleClick}
+      title={isKPI ? 'Click to drill down, double-click for trend' : undefined}
     >
       {content}
     </div>
@@ -106,7 +140,7 @@ function renderWidgetContent(
     case 'horizontal_bar':
       return <HorizontalBarContent widget={widget} data={data} height={height} onClick={onClick} />;
     case 'area_chart':
-      return <AreaChartContent widget={widget} data={data} height={height} />;
+      return <AreaChartContent widget={widget} data={data} height={height} onClick={onClick} />;
     case 'donut_chart':
       return <DonutChartContent widget={widget} data={data} height={height} onClick={onClick} />;
     case 'stacked_bar':
@@ -181,7 +215,7 @@ function LineChartContent({
   widget,
   data,
   height,
-  onClick: _onClick,
+  onClick,
 }: {
   widget: Widget;
   data: WidgetData;
@@ -190,13 +224,21 @@ function LineChartContent({
 }) {
   const chartData = data.series?.[0]?.data || [];
   const showLegend = widget.chart_config?.show_legend && (data.series?.length || 0) > 1;
+  const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
   return (
     <div className="p-4 h-full flex flex-col">
       <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
       <div className="flex-1" style={{ minHeight: height - 80 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData}>
+          <LineChart 
+            data={chartData}
+            onClick={(e) => {
+              if (hasDrillDown && e?.activeLabel) {
+                onClick?.(String(e.activeLabel));
+              }
+            }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
             <XAxis
               dataKey="label"
@@ -214,6 +256,7 @@ function LineChartContent({
                 borderRadius: '8px',
               }}
               labelStyle={{ color: '#f1f5f9' }}
+              cursor={hasDrillDown ? { stroke: '#0BCAD9', strokeWidth: 2 } : undefined}
             />
             {showLegend && <Legend />}
             {data.series?.map((series, i) => (
@@ -226,7 +269,7 @@ function LineChartContent({
                 stroke={series.color || CHART_COLORS[i % CHART_COLORS.length]}
                 strokeWidth={2}
                 dot={{ r: 4, fill: series.color || CHART_COLORS[i % CHART_COLORS.length] }}
-                activeDot={{ r: 6 }}
+                activeDot={hasDrillDown ? { r: 8, stroke: '#0BCAD9', strokeWidth: 2, cursor: 'pointer' } : { r: 6 }}
               />
             ))}
           </LineChart>
@@ -360,19 +403,29 @@ function AreaChartContent({
   widget,
   data,
   height,
+  onClick,
 }: {
   widget: Widget;
   data: WidgetData;
   height: number;
+  onClick?: (value?: string) => void;
 }) {
   const chartData = data.series?.[0]?.data || [];
+  const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
   return (
     <div className="p-4 h-full flex flex-col">
       <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
       <div className="flex-1" style={{ minHeight: height - 80 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData}>
+          <AreaChart 
+            data={chartData}
+            onClick={(e) => {
+              if (hasDrillDown && e?.activeLabel) {
+                onClick?.(String(e.activeLabel));
+              }
+            }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
             <XAxis
               dataKey="label"
@@ -390,6 +443,7 @@ function AreaChartContent({
                 borderRadius: '8px',
               }}
               labelStyle={{ color: '#f1f5f9' }}
+              cursor={hasDrillDown ? { stroke: '#0BCAD9', strokeWidth: 2 } : undefined}
             />
             <Area
               type="monotone"
@@ -398,6 +452,7 @@ function AreaChartContent({
               fill="#0BCAD9"
               fillOpacity={0.2}
               strokeWidth={2}
+              activeDot={hasDrillDown ? { r: 8, stroke: '#0BCAD9', strokeWidth: 2, cursor: 'pointer' } : undefined}
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -474,7 +529,7 @@ function StackedBarContent({
   widget,
   data,
   height,
-  onClick: _onClick,
+  onClick,
 }: {
   widget: Widget;
   data: WidgetData;
@@ -490,13 +545,21 @@ function StackedBarContent({
     });
     return point;
   });
+  const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
   return (
     <div className="p-4 h-full flex flex-col">
       <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
       <div className="flex-1" style={{ minHeight: height - 80 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData}>
+          <BarChart 
+            data={chartData}
+            onClick={(e) => {
+              if (hasDrillDown && e?.activeLabel) {
+                onClick?.(String(e.activeLabel));
+              }
+            }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
             <XAxis
               dataKey="category"
@@ -514,6 +577,7 @@ function StackedBarContent({
                 borderRadius: '8px',
               }}
               labelStyle={{ color: '#f1f5f9' }}
+              cursor={hasDrillDown ? { fill: 'rgba(11, 202, 217, 0.1)' } : undefined}
             />
             <Legend
               formatter={(value) => <span className="text-slate-300 text-xs">{value}</span>}
@@ -525,6 +589,7 @@ function StackedBarContent({
                 stackId="stack"
                 fill={series.color || CHART_COLORS[i % CHART_COLORS.length]}
                 radius={i === (data.series?.length || 0) - 1 ? [4, 4, 0, 0] : undefined}
+                cursor={hasDrillDown ? 'pointer' : undefined}
               />
             ))}
           </BarChart>

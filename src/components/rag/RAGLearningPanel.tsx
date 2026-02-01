@@ -3,9 +3,14 @@
  *
  * Displays the RAG learning log in an elegant scrollable panel.
  * Shows what the system has learned with timestamps and status indicators.
+ * Stats are cumulative across sessions (stored in localStorage).
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+
+// localStorage key for cumulative stats
+const CUMULATIVE_STATS_KEY = 'aos_rag_cumulative_stats';
+const SEEN_ENTRIES_KEY = 'aos_rag_seen_entries';
 
 interface LearningLogEntry {
   id: string;
@@ -28,6 +33,14 @@ interface LearningStats {
   supabase_connected: boolean;
 }
 
+interface CumulativeStats {
+  total_queries: number;
+  queries_learned: number;
+  from_cache: number;
+  from_llm: number;
+  last_updated: string;
+}
+
 interface RAGLearningPanelProps {
   /** Refresh interval in milliseconds (0 to disable auto-refresh) */
   refreshInterval?: number;
@@ -35,6 +48,65 @@ interface RAGLearningPanelProps {
   maxEntries?: number;
   /** Filter by persona */
   persona?: string;
+}
+
+/**
+ * Load cumulative stats from localStorage
+ */
+function loadCumulativeStats(): CumulativeStats {
+  try {
+    const data = localStorage.getItem(CUMULATIVE_STATS_KEY);
+    if (data) {
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.warn('Failed to load cumulative stats:', e);
+  }
+  return {
+    total_queries: 0,
+    queries_learned: 0,
+    from_cache: 0,
+    from_llm: 0,
+    last_updated: new Date().toISOString(),
+  };
+}
+
+/**
+ * Save cumulative stats to localStorage
+ */
+function saveCumulativeStats(stats: CumulativeStats): void {
+  try {
+    localStorage.setItem(CUMULATIVE_STATS_KEY, JSON.stringify(stats));
+  } catch (e) {
+    console.warn('Failed to save cumulative stats:', e);
+  }
+}
+
+/**
+ * Load seen entry IDs from localStorage
+ */
+function loadSeenEntries(): Set<string> {
+  try {
+    const data = localStorage.getItem(SEEN_ENTRIES_KEY);
+    if (data) {
+      return new Set(JSON.parse(data));
+    }
+  } catch (e) {
+    console.warn('Failed to load seen entries:', e);
+  }
+  return new Set();
+}
+
+/**
+ * Save seen entry IDs to localStorage (keep last 1000 to prevent unbounded growth)
+ */
+function saveSeenEntries(entries: Set<string>): void {
+  try {
+    const arr = Array.from(entries).slice(-1000);
+    localStorage.setItem(SEEN_ENTRIES_KEY, JSON.stringify(arr));
+  } catch (e) {
+    console.warn('Failed to save seen entries:', e);
+  }
 }
 
 /**
@@ -83,11 +155,17 @@ export const RAGLearningPanel: React.FC<RAGLearningPanelProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Use refs to track cumulative stats and seen entries across renders
+  const cumulativeStatsRef = useRef<CumulativeStats>(loadCumulativeStats());
+  const seenEntriesRef = useRef<Set<string>>(loadSeenEntries());
+
   const fetchData = useCallback(async () => {
     try {
-      // Use DB endpoint for persistent history that survives server restarts
+      // Fetch ALL entries from DB to get accurate cumulative stats
+      // Use a high limit to capture all historical data for seeding
       const url = new URL('/api/v1/rag/learning/log/db', window.location.origin);
-      url.searchParams.set('limit', maxEntries.toString());
+      // Fetch more entries for accurate cumulative stats, but only display maxEntries
+      url.searchParams.set('limit', '500');
       if (persona) {
         url.searchParams.set('persona', persona);
       }
@@ -99,7 +177,7 @@ export const RAGLearningPanel: React.FC<RAGLearningPanelProps> = ({
 
       const data = await response.json();
       // DB endpoint returns entries in a different format - map to UI format
-      const dbEntries = (data.entries || []).map((e: any) => ({
+      const allDbEntries = (data.entries || []).map((e: any) => ({
         id: e.id,
         // Create description from query + context
         description: e.message || `"${e.query}" ${e.learned ? 'learned' : 'processed'}`,
@@ -112,19 +190,72 @@ export const RAGLearningPanel: React.FC<RAGLearningPanelProps> = ({
         similarity: e.similarity,
         llm_confidence: e.llm_confidence,
       }));
-      setEntries(dbEntries);
-      
-      // Calculate stats from entries since DB endpoint doesn't include them
-      const totalQueries = dbEntries.length;
-      const fromCache = dbEntries.filter((e: any) => e.source === 'cache').length;
-      const fromLlm = dbEntries.filter((e: any) => e.source === 'llm').length;
-      const queriesLearned = dbEntries.filter((e: any) => e.learned).length;
+
+      // Only display the most recent maxEntries
+      setEntries(allDbEntries.slice(0, maxEntries));
+
+      // Check if we need to seed cumulative stats (first load or empty localStorage)
+      const isFirstLoad = cumulativeStatsRef.current.total_queries === 0 && seenEntriesRef.current.size === 0;
+
+      if (isFirstLoad && allDbEntries.length > 0) {
+        // Seed cumulative stats from all existing DB entries
+        for (const entry of allDbEntries) {
+          seenEntriesRef.current.add(entry.id);
+          cumulativeStatsRef.current.total_queries += 1;
+          if (entry.learned) {
+            cumulativeStatsRef.current.queries_learned += 1;
+          }
+          if (entry.source === 'cache') {
+            cumulativeStatsRef.current.from_cache += 1;
+          }
+          if (entry.source === 'llm') {
+            cumulativeStatsRef.current.from_llm += 1;
+          }
+        }
+        cumulativeStatsRef.current.last_updated = new Date().toISOString();
+        saveCumulativeStats(cumulativeStatsRef.current);
+        saveSeenEntries(seenEntriesRef.current);
+      } else {
+        // Update cumulative stats with new entries we haven't seen before
+        let statsUpdated = false;
+        for (const entry of allDbEntries) {
+          if (!seenEntriesRef.current.has(entry.id)) {
+            // This is a new entry - add to cumulative stats
+            seenEntriesRef.current.add(entry.id);
+            cumulativeStatsRef.current.total_queries += 1;
+            if (entry.learned) {
+              cumulativeStatsRef.current.queries_learned += 1;
+            }
+            if (entry.source === 'cache') {
+              cumulativeStatsRef.current.from_cache += 1;
+            }
+            if (entry.source === 'llm') {
+              cumulativeStatsRef.current.from_llm += 1;
+            }
+            statsUpdated = true;
+          }
+        }
+
+        // Save updated cumulative stats if changed
+        if (statsUpdated) {
+          cumulativeStatsRef.current.last_updated = new Date().toISOString();
+          saveCumulativeStats(cumulativeStatsRef.current);
+          saveSeenEntries(seenEntriesRef.current);
+        }
+      }
+
+      // Use cumulative stats for display
+      const cumStats = cumulativeStatsRef.current;
+      const totalQueries = cumStats.total_queries;
+      const fromCache = cumStats.from_cache;
+      const queriesLearned = cumStats.queries_learned;
+
       setStats({
         total_queries: totalQueries,
-        successful_queries: dbEntries.filter((e: any) => e.success).length,
+        successful_queries: totalQueries, // Assume all counted are successful
         queries_learned: queriesLearned,
         from_cache: fromCache,
-        from_llm: fromLlm,
+        from_llm: cumStats.from_llm,
         cache_hit_rate: totalQueries > 0 ? fromCache / totalQueries : 0,
         learning_rate: totalQueries > 0 ? queriesLearned / totalQueries : 0,
         supabase_connected: true,
@@ -160,9 +291,12 @@ export const RAGLearningPanel: React.FC<RAGLearningPanelProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Stats Header */}
+      {/* Stats Header - Cumulative (persists across sessions) */}
       {stats && (
         <div className="p-3 border-b border-slate-800 bg-slate-900/50">
+          <div className="text-[9px] text-slate-600 uppercase tracking-wider text-center mb-2">
+            Cumulative Stats (All Time)
+          </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div>
               <div className="text-lg font-semibold text-cyan-400">
