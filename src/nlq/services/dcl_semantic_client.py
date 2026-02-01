@@ -452,10 +452,16 @@ class DCLSemanticClient:
             metric_id = catalog.alias_to_metric[normalized]
             return catalog.metrics.get(metric_id)
 
-        # Try fuzzy match on aliases
+        # Try fuzzy match on aliases - require minimum length to avoid false positives
+        # e.g., "cu" shouldn't match "customer" -> cac
+        min_fuzzy_length = 3
         for alias, metric_id in catalog.alias_to_metric.items():
-            if normalized in alias or alias in normalized:
-                return catalog.metrics.get(metric_id)
+            # Only fuzzy match if both terms are long enough
+            if len(normalized) >= min_fuzzy_length and len(alias) >= min_fuzzy_length:
+                # Require the shorter one to be a substantial substring (>50% overlap)
+                shorter, longer = (normalized, alias) if len(normalized) <= len(alias) else (alias, normalized)
+                if shorter in longer and len(shorter) >= len(longer) * 0.5:
+                    return catalog.metrics.get(metric_id)
 
         return None
 

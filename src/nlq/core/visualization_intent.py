@@ -55,6 +55,7 @@ class VisualizationRequirements:
 VISUALIZATION_TRIGGERS = {
     # Strong triggers - definitely want a visualization
     "show me": 0.9,
+    "show": 0.8,  # "show revenue by region"
     "visualize": 0.95,
     "chart": 0.95,
     "graph": 0.95,
@@ -86,6 +87,11 @@ VISUALIZATION_TRIGGERS = {
     "vs": 0.7,
     "versus": 0.75,
     "against": 0.7,
+    # Conversational metric queries - imply wanting to see the data
+    "looking": 0.75,  # "how's pipeline looking"
+    "how's": 0.7,  # "how's revenue"
+    "how is": 0.7,  # "how is pipeline"
+    "doing": 0.7,  # "how's revenue doing"
 }
 
 # Answer triggers - just want a simple answer
@@ -304,6 +310,7 @@ def _extract_metrics_from_query(query: str) -> List[str]:
     Falls back to pattern matching if DCL is unavailable.
     """
     import logging
+    import re
     from src.nlq.services.dcl_semantic_client import get_semantic_client
 
     logger = logging.getLogger(__name__)
@@ -313,6 +320,13 @@ def _extract_metrics_from_query(query: str) -> List[str]:
     # Get semantic client
     semantic_client = get_semantic_client()
     catalog = semantic_client.get_catalog()
+
+    # Identify dimension words (words after "by") to exclude from metric extraction
+    # e.g., "revenue by customer" -> "customer" is a dimension, not a metric
+    dimension_words = set()
+    by_match = re.search(r'\bby\s+(\w+)', q)
+    if by_match:
+        dimension_words.add(by_match.group(1))
 
     # Extract potential metric terms from query using word boundaries
     # Common patterns: standalone words, phrases like "accounts receivable"
@@ -350,6 +364,9 @@ def _extract_metrics_from_query(query: str) -> List[str]:
         if word in {'the', 'a', 'an', 'and', 'or', 'by', 'for', 'to', 'in', 'on', 'at',
                     'show', 'me', 'add', 'compare', 'vs', 'versus', 'with', 'trend',
                     'chart', 'graph', 'display', 'what', 'is', 'our', 'how', 'much'}:
+            continue
+        # Skip dimension words (words after "by")
+        if word in dimension_words:
             continue
         metric = semantic_client.resolve_metric(word)
         if metric and metric.id not in metrics:
