@@ -58,8 +58,8 @@ interface DashboardRendererProps {
   sourceQuery?: string;
   /** Callback when a drill-down is triggered */
   onDrillDown?: (query: string) => void;
-  /** Callback when dashboard is refined */
-  onRefinement?: (newSchema: DashboardSchema) => void;
+  /** Callback when dashboard is refined - includes schema and widget data for parent sync */
+  onRefinement?: (newSchema: DashboardSchema, widgetData?: Record<string, WidgetData>) => void;
   /** Show refinement input */
   showRefinementInput?: boolean;
   /** Persona-specific preset refinement suggestions */
@@ -529,14 +529,20 @@ export function DashboardRenderer({
         const widgetCountChanged = oldWidgetCount !== newWidgetCount;
 
         setSchema(data.dashboard);
-        onRefinement?.(data.dashboard);
-        
+
         // Use pre-resolved widget data from backend if available
+        const newWidgetData = data.widget_data && Object.keys(data.widget_data).length > 0
+          ? data.widget_data
+          : widgetData;  // Keep existing widget data if no new data
+
         if (data.widget_data && Object.keys(data.widget_data).length > 0) {
           setWidgetData(data.widget_data);
         } else {
           fetchWidgetData(data.dashboard);
         }
+
+        // Notify parent with both schema and widget data for state synchronization
+        onRefinement?.(data.dashboard, newWidgetData);
 
         // Show appropriate message based on what actually changed
         const widgetsAdded = newWidgetCount > oldWidgetCount;

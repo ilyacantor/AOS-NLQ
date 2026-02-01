@@ -399,9 +399,12 @@ function App() {
   }, [submitGalaxyQuery])
 
   // Handle dashboard refinement from DashboardRenderer
-  const handleDashboardRefinement = useCallback((newSchema: DashboardSchema) => {
+  // Keeps App.tsx state in sync with DashboardRenderer's internal state
+  const handleDashboardRefinement = useCallback((newSchema: DashboardSchema, widgetData?: Record<string, any>) => {
     setDashboardSchema(newSchema)
-    setDashboardWidgetData({})
+    if (widgetData) {
+      setDashboardWidgetData(widgetData)
+    }
   }, [])
 
   const hasGalaxyResponse = galaxyResponse !== null
