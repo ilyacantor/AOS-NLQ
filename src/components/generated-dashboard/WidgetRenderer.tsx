@@ -57,20 +57,24 @@ export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight
   // Handle click vs double-click for KPI cards
   const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isKPI = widget.type === 'kpi_card';
-  const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
+  const isChart = ['line_chart', 'bar_chart', 'area_chart', 'pie_chart', 'donut_chart', 'stacked_bar'].includes(widget.type);
+  const isClickable = isKPI || isChart || widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
-  // Single click handler - delayed to allow double-click to cancel
-  const handleClick = useCallback(() => {
-    if (isKPI && onDoubleClick) {
-      // For KPIs, delay single-click to allow double-click detection
-      clickTimeoutRef.current = setTimeout(() => {
-        clickTimeoutRef.current = null;
-        if (hasDrillDown) onClick?.();
-      }, 300);
-    } else if (hasDrillDown) {
-      onClick?.();
+  // Single click handler - KPIs always clickable, charts pass clicked value
+  const handleClick = useCallback((clickedValue?: string) => {
+    if (!onClick) return;
+    
+    if (isKPI) {
+      // For KPIs, pass the metric name for drill-down
+      const metricName = widget.data.metrics[0]?.metric || widget.title;
+      onClick(metricName);
+    } else if (isChart && clickedValue) {
+      // For charts, pass the clicked value (e.g., bar label)
+      onClick(clickedValue);
+    } else if (isClickable) {
+      onClick(clickedValue);
     }
-  }, [isKPI, hasDrillDown, onClick, onDoubleClick]);
+  }, [isKPI, isChart, isClickable, onClick, widget]);
 
   // Native double-click handler - cancels pending single-click
   const handleDoubleClick = useCallback(() => {
@@ -109,11 +113,11 @@ export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight
   return (
     <div
       className={`h-full bg-slate-900 border border-slate-800 rounded-xl overflow-hidden ${
-        hasDrillDown || isKPI ? 'cursor-pointer hover:border-cyan-500/50 transition-colors' : ''
+        isClickable ? 'cursor-pointer hover:border-cyan-500/50 transition-colors' : ''
       }`}
-      onClick={handleClick}
+      onClick={() => handleClick()}
       onDoubleClick={handleDoubleClick}
-      title={isKPI ? 'Double-click to view trend chart' : undefined}
+      title={isKPI ? 'Click to drill down, double-click for trend' : undefined}
     >
       {content}
     </div>

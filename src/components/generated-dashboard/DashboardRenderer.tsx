@@ -589,9 +589,28 @@ export function DashboardRenderer({
 
   // Handle widget click (drill-down)
   const handleWidgetClick = useCallback((widget: Widget, value?: string) => {
+    if (!onDrillDown) return;
+    
+    // Check for explicit drill_down interaction first
     const drillDown = widget.interactions.find(i => i.type === 'drill_down' && i.enabled);
-    if (drillDown?.drill_down && onDrillDown) {
+    if (drillDown?.drill_down) {
       const query = drillDown.drill_down.query_template.replace('{value}', value || '');
+      onDrillDown(query);
+      return;
+    }
+    
+    // For KPIs without explicit drill_down, generate a natural query
+    if (widget.type === 'kpi_card') {
+      const metric = value || widget.data.metrics[0]?.metric || widget.title;
+      const query = `Show me ${metric} trend by quarter`;
+      onDrillDown(query);
+      return;
+    }
+    
+    // For charts, if a value was clicked, drill into that value
+    if (value) {
+      const metric = widget.data.metrics[0]?.metric || 'data';
+      const query = `Show me ${metric} for ${value}`;
       onDrillDown(query);
     }
   }, [onDrillDown]);
