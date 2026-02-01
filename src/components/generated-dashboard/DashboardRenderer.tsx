@@ -589,31 +589,29 @@ export function DashboardRenderer({
 
   // Handle widget click (drill-down)
   const handleWidgetClick = useCallback((widget: Widget, value?: string) => {
-    if (!onDrillDown) return;
-    
     // Check for explicit drill_down interaction first
     const drillDown = widget.interactions.find(i => i.type === 'drill_down' && i.enabled);
-    if (drillDown?.drill_down) {
+    if (drillDown?.drill_down && onDrillDown) {
       const query = drillDown.drill_down.query_template.replace('{value}', value || '');
       onDrillDown(query);
       return;
     }
     
-    // For KPIs without explicit drill_down, generate a natural query
+    // For KPIs: add quarterly trend chart inline (stay in dashboard view)
     if (widget.type === 'kpi_card') {
       const metric = value || widget.data.metrics[0]?.metric || widget.title;
-      const query = `Show me ${metric} trend by quarter`;
-      onDrillDown(query);
+      const refinementQuery = `Add a quarterly trend chart for ${metric}`;
+      refineDashboard(refinementQuery);
       return;
     }
     
-    // For charts, if a value was clicked, drill into that value
-    if (value) {
+    // For charts, if a value was clicked, drill into that dimension value
+    if (value && onDrillDown) {
       const metric = widget.data.metrics[0]?.metric || 'data';
       const query = `Show me ${metric} for ${value}`;
       onDrillDown(query);
     }
-  }, [onDrillDown]);
+  }, [onDrillDown, refineDashboard]);
 
   // Handle KPI double-click to show time-based chart
   const handleKPIDoubleClick = useCallback((widget: Widget) => {
