@@ -23,6 +23,8 @@ DISPLAY_NAMES = {
     "gross_margin_pct": "Gross Margin",
     "operating_margin_pct": "Operating Margin",
     "net_income_pct": "Net Margin",
+    "ebitda": "EBITDA",
+    "ebitda_margin_pct": "EBITDA Margin",
 
     # Growth
     "bookings": "Bookings",
@@ -82,6 +84,8 @@ METRIC_DOMAINS = {
     "gross_margin_pct": Domain.FINANCE,
     "operating_margin_pct": Domain.FINANCE,
     "net_income_pct": Domain.FINANCE,
+    "ebitda": Domain.FINANCE,
+    "ebitda_margin_pct": Domain.FINANCE,
     "cash": Domain.FINANCE,
     "ar": Domain.FINANCE,
     "ap": Domain.FINANCE,

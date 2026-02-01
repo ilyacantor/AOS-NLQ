@@ -1076,6 +1076,8 @@ _SIMPLE_METRIC_PATTERNS = {
     r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bcustomer(?:s| count)?\b": ("customer_count", "count"),
     r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bnet income\b": ("net_income", "USD millions"),
     r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bquota\b": ("quota_attainment", "%"),
+    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bebitda\b": ("ebitda", "USD millions"),
+    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bebitda margin\b": ("ebitda_margin_pct", "%"),
 }
 
 import re as _re_simple

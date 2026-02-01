@@ -134,6 +134,22 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         is_derived=True
     ),
 
+    # EBITDA
+    "ebitda": MetricDefinition(
+        name="ebitda",
+        display_name="EBITDA",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Earnings before interest, taxes, depreciation and amortization"
+    ),
+    "ebitda_margin_pct": MetricDefinition(
+        name="ebitda_margin_pct",
+        display_name="EBITDA Margin %",
+        metric_type=MetricType.PERCENTAGE,
+        unit="%",
+        description="EBITDA as percentage of revenue"
+    ),
+
     # Balance Sheet - Assets
     "cash": MetricDefinition(
         name="cash",
@@ -729,6 +745,7 @@ METRIC_PERSONAS = {
     "deferred_revenue": "CFO", "unbilled_revenue": "CFO",
     "retained_earnings": "CFO", "stockholders_equity": "CFO",
     "total_current_assets": "CFO", "current_liabilities": "CFO", "ppe": "CFO",
+    "ebitda": "CFO", "ebitda_margin_pct": "CFO",
 
     # CRO metrics
     "bookings": "CRO", "arr": "CRO", "pipeline": "CRO",

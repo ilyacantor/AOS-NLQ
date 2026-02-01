@@ -99,6 +99,22 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "ebit margin",
     ],
 
+    # EBITDA
+    "ebitda": [
+        "ebitda",
+        "earnings before interest taxes depreciation amortization",
+        "earnings before interest",
+        "operating cash flow proxy",
+    ],
+
+    # EBITDA Margin
+    "ebitda_margin_pct": [
+        "ebitda margin",
+        "ebitda margin %",
+        "ebitda margin percent",
+        "ebitda pct",
+    ],
+
     # Net Income
     "net_income": [
         "profit",
