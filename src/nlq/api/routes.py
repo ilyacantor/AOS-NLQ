@@ -1059,83 +1059,151 @@ class SchemaResponse(BaseModel):
 
 
 # =============================================================================
-# SIMPLE METRIC QUERY FALLBACK - Handle direct metric queries without Claude
+# TIERED METRIC QUERY - Embedding-based metric lookup (replaces regex patterns)
 # =============================================================================
-
-# Patterns for direct metric extraction
-_SIMPLE_METRIC_PATTERNS = {
-    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\brevenue\b": ("revenue", "USD millions"),
-    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bpipeline\b": ("pipeline", "USD millions"),
-    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bwin[ _]?rate\b": ("win_rate", "%"),
-    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bmargin\b": ("gross_margin_pct", "%"),
-    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bchurn\b": ("gross_churn_pct", "%"),
-    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bnrr\b": ("nrr", "%"),
-    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bnet retention\b": ("nrr", "%"),
-    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bheadcount\b": ("headcount", "count"),
-    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\barr\b": ("arr", "USD millions"),
-    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bcustomer(?:s| count)?\b": ("customer_count", "count"),
-    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bnet income\b": ("net_income", "USD millions"),
-    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bquota\b": ("quota_attainment", "%"),
-    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bebitda\b": ("ebitda", "USD millions"),
-    r"\b(?:what(?:'s| is| was)?|how much|tell me)\b.*\bebitda margin\b": ("ebitda_margin_pct", "%"),
-}
+#
+# Tier 1: FREE (no API calls)
+#   - Exact metric match via synonyms
+#   - RAG cache hit (handled elsewhere)
+#
+# Tier 2: CHEAP (~$0.0001/query)
+#   - Embedding-based metric classification
+#
+# Tier 3: EXPENSIVE (~$0.003+/query)
+#   - Full LLM parse (falls through to Claude)
+#
+# This replaces the old _SIMPLE_METRIC_PATTERNS regex approach which:
+# - Didn't scale (required manual pattern maintenance)
+# - Only worked for specific phrasings ("what is X" but not just "X")
+# =============================================================================
 
 import re as _re_simple
 
+# Import tiered intent components
+from src.nlq.services.tiered_intent import detect_complexity, QueryComplexity
+from src.nlq.knowledge.synonyms import normalize_metric
 
-def _try_simple_metric_query_core(question: str, fact_base: FactBase) -> Optional[SimpleMetricResult]:
-    """
-    Core logic for simple metric queries - shared between /query and /query/galaxy.
 
-    Handles queries like "what's our revenue?" without needing Claude.
-    Returns None if the query doesn't match simple patterns.
+def _try_tiered_metric_query_core(question: str, fact_base: FactBase) -> Optional[SimpleMetricResult]:
     """
+    Core logic for tiered metric queries - uses embedding-based lookup.
+
+    Replaces the old regex-based _try_simple_metric_query_core.
+
+    Strategy:
+    1. Detect if query is complex (comparison, trend, breakdown) -> skip, let LLM handle
+    2. Try exact metric match via synonyms (FREE)
+    3. Try embedding-based lookup (CHEAP, ~$0.0001)
+    4. Return None to fall through to LLM (EXPENSIVE)
+    """
+    # Step 1: Check complexity - complex queries need LLM
+    complexity = detect_complexity(question)
+    if complexity in (QueryComplexity.COMPARISON, QueryComplexity.TREND,
+                      QueryComplexity.BREAKDOWN, QueryComplexity.COMPLEX):
+        return None  # Let LLM handle complex queries
+
     q = question.lower().strip()
 
-    for pattern, (metric, unit) in _SIMPLE_METRIC_PATTERNS.items():
-        if _re_simple.search(pattern, q, _re_simple.IGNORECASE):
-            # Found a matching pattern, query fact base directly
-            # Use query_annual to aggregate quarterly data for metrics not in annual section
-            value = fact_base.query_annual(metric, 2025)
-            if value is None:
-                return None  # Metric not found, let normal flow handle it
+    # Step 2: Try exact metric match via synonyms (FREE - no API call)
+    # Strip common prefixes to get to the metric name
+    prefixes_to_strip = [
+        "what is ", "what's ", "what was ", "whats ",
+        "how much ", "tell me ", "show me ", "get me ",
+        "our ", "the ", "current ",
+    ]
+    metric_query = q
+    for prefix in prefixes_to_strip:
+        if metric_query.startswith(prefix):
+            metric_query = metric_query[len(prefix):]
+    metric_query = metric_query.rstrip("?").strip()
 
-            # Format the value nicely
-            display_name = get_display_name(metric)
-            if unit == "USD millions":
-                formatted = f"${round(value, 1)}M"
-                answer = f"{display_name} for 2025 is {formatted}"
-            elif unit == "%":
-                formatted = f"{round(value, 1)}%"
-                answer = f"{display_name} for 2025 is {formatted}"
-            elif unit == "count":
-                formatted = f"{int(value):,}"
-                answer = f"{display_name} for 2025 is {formatted}"
-            else:
-                formatted = str(round(value, 1))
-                answer = f"{display_name} for 2025 is {formatted}"
+    # Try synonym lookup
+    resolved_metric = normalize_metric(metric_query)
+    if resolved_metric:
+        return _build_simple_metric_result(resolved_metric, fact_base)
 
-            return SimpleMetricResult(
-                metric=metric,
-                value=value,
-                formatted_value=formatted,
-                unit=unit,
-                display_name=display_name,
-                domain=determine_domain(metric),
-                answer=answer,
-            )
+    # Also try the original query in case it's already a metric name
+    resolved_metric = normalize_metric(q.rstrip("?").strip())
+    if resolved_metric:
+        return _build_simple_metric_result(resolved_metric, fact_base)
+
+    # Step 3: Try embedding-based lookup (CHEAP - ~$0.0001)
+    # Only do this if we have the embedding index available
+    try:
+        from src.nlq.services.metric_embedding_index import get_metric_embedding_index
+        import asyncio
+
+        metric_index = get_metric_embedding_index()
+        if metric_index.is_initialized:
+            # Run async lookup synchronously
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Already in async context - can't use run_until_complete
+                    # Fall through to LLM
+                    pass
+                else:
+                    result = loop.run_until_complete(metric_index.lookup(question))
+                    if result and result.is_high_confidence:
+                        return _build_simple_metric_result(result.canonical_metric, fact_base)
+            except RuntimeError:
+                # No event loop, create one
+                result = asyncio.run(metric_index.lookup(question))
+                if result and result.is_high_confidence:
+                    return _build_simple_metric_result(result.canonical_metric, fact_base)
+    except ImportError:
+        pass  # Embedding index not available, fall through
+    except Exception as e:
+        logger.warning(f"Embedding lookup failed: {e}")
 
     return None  # No match, let normal flow handle it
+
+
+def _build_simple_metric_result(metric: str, fact_base: FactBase) -> Optional[SimpleMetricResult]:
+    """Build a SimpleMetricResult for a resolved metric."""
+    # Use query_annual to aggregate quarterly data for metrics not in annual section
+    value = fact_base.query_annual(metric, 2025)
+    if value is None:
+        return None
+
+    # Get metric metadata
+    display_name = get_display_name(metric)
+    unit = get_metric_unit(metric)
+
+    # Format the value
+    if unit in ("USD millions", "USD", "$"):
+        formatted = f"${round(value, 1)}M"
+        answer = f"{display_name} for 2025 is {formatted}"
+    elif unit == "%":
+        formatted = f"{round(value, 1)}%"
+        answer = f"{display_name} for 2025 is {formatted}"
+    elif unit in ("count", ""):
+        formatted = f"{int(value):,}"
+        answer = f"{display_name} for 2025 is {formatted}"
+    else:
+        formatted = str(round(value, 1))
+        answer = f"{display_name} for 2025 is {formatted}"
+
+    return SimpleMetricResult(
+        metric=metric,
+        value=value,
+        formatted_value=formatted,
+        unit=unit or "USD millions",
+        display_name=display_name,
+        domain=determine_domain(metric),
+        answer=answer,
+    )
 
 
 def _try_simple_metric_query(question: str, fact_base: FactBase) -> Optional[NLQResponse]:
     """
     Try to answer a simple metric query directly from fact base.
 
-    Handles queries like "what's our revenue?" without needing Claude.
-    Returns None if the query doesn't match simple patterns.
+    Uses tiered approach: exact match -> embedding lookup -> fall through to LLM.
+    Handles queries like "ebitda", "what's our revenue?", "GM" without Claude.
+    Returns None if no confident match found.
     """
-    result = _try_simple_metric_query_core(question, fact_base)
+    result = _try_tiered_metric_query_core(question, fact_base)
     if result:
         return simple_metric_to_nlq_response(result)
 
@@ -1240,10 +1308,11 @@ def _try_simple_metric_query_galaxy(question: str, fact_base: FactBase) -> Optio
     """
     Try to answer a simple metric query directly from fact base for Galaxy mode.
 
-    Handles queries like "what's our revenue?" without needing Claude.
-    Returns None if the query doesn't match simple patterns.
+    Uses tiered approach: exact match -> embedding lookup -> fall through to LLM.
+    Handles queries like "ebitda", "what's our revenue?", "GM" without Claude.
+    Returns None if no confident match found.
     """
-    result = _try_simple_metric_query_core(question, fact_base)
+    result = _try_tiered_metric_query_core(question, fact_base)
     if result:
         return simple_metric_to_galaxy_response(result, question)
     return None
