@@ -378,12 +378,64 @@ class DCLSemanticClient:
         """
         Find metric by name or alias.
 
+        Uses DCL's resolution endpoint when available, falls back to local matching.
+
         Args:
             user_term: What the user said (e.g., "AR", "accounts receivable", "revenue")
 
         Returns:
             MetricDefinition if found, None otherwise
         """
+        if not user_term:
+            return None
+
+        # Try DCL resolution endpoint first (if configured)
+        if self.dcl_url:
+            try:
+                result = self._resolve_metric_via_dcl(user_term)
+                if result:
+                    return result
+            except Exception as e:
+                logger.debug(f"DCL metric resolution failed for '{user_term}': {e}")
+
+        # Fall back to local catalog resolution
+        return self._resolve_metric_locally(user_term)
+
+    def _resolve_metric_via_dcl(self, user_term: str) -> Optional[MetricDefinition]:
+        """Call DCL's metric resolution endpoint."""
+        if not self._http_client:
+            self._http_client = httpx.Client(timeout=5.0)
+
+        try:
+            response = self._http_client.get(
+                f"{self.dcl_url}/api/dcl/semantic-export/resolve/metric",
+                params={"q": user_term}
+            )
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+
+            data = response.json()
+            # Parse DCL's response into our MetricDefinition
+            return MetricDefinition(
+                id=data["id"],
+                display_name=data.get("display_name", data["id"]),
+                aliases=data.get("aliases", []),
+                unit=data.get("unit", ""),
+                allowed_dimensions=data.get("allowed_dims", []),
+                allowed_grains=data.get("allowed_grains", ["quarterly"]),
+                domain=data.get("domain", ""),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code != 404:
+                logger.warning(f"DCL metric resolution error: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"DCL metric resolution failed: {e}")
+            return None
+
+    def _resolve_metric_locally(self, user_term: str) -> Optional[MetricDefinition]:
+        """Resolve metric using local catalog."""
         catalog = self.get_catalog()
         normalized = user_term.lower().strip()
 
@@ -398,6 +450,35 @@ class DCLSemanticClient:
                 return catalog.metrics.get(metric_id)
 
         return None
+
+    def resolve_entity(self, user_term: str) -> Optional[Dict[str, Any]]:
+        """
+        Resolve an entity name (e.g., customer, rep) via DCL.
+
+        Args:
+            user_term: What the user said (e.g., "Acme Corp", "John Smith")
+
+        Returns:
+            Entity definition dict if found, None otherwise
+        """
+        if not user_term or not self.dcl_url:
+            return None
+
+        if not self._http_client:
+            self._http_client = httpx.Client(timeout=5.0)
+
+        try:
+            response = self._http_client.get(
+                f"{self.dcl_url}/api/dcl/semantic-export/resolve/entity",
+                params={"q": user_term}
+            )
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.debug(f"DCL entity resolution failed for '{user_term}': {e}")
+            return None
 
     def validate_dimension(self, metric_id: str, dimension: str) -> Tuple[bool, Optional[str]]:
         """
