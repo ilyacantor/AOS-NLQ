@@ -71,14 +71,23 @@ class DCLSemanticClient:
     Client for fetching and querying DCL's semantic catalog.
 
     Provides metric resolution and dimension validation with caching.
-    Falls back to local catalog if DCL is unavailable.
+
+    Mode selection:
+    - If DCL_API_URL is set: Fetches from DCL's /api/dcl/semantic-export endpoint
+    - If DCL_API_URL is not set: Uses local fact_base.json (local dev mode)
     """
 
     def __init__(self, dcl_base_url: Optional[str] = None):
-        self.dcl_url = dcl_base_url or os.environ.get("DCL_API_URL", "")
+        self.dcl_url = dcl_base_url or os.environ.get("DCL_API_URL")
         self._catalog: Optional[SemanticCatalog] = None
         self._cache_time: float = 0
         self._http_client: Optional[httpx.Client] = None
+        self._mode: str = "dcl" if self.dcl_url else "local"
+
+        if self.dcl_url:
+            logger.info(f"DCL semantic client initialized - DCL mode (endpoint: {self.dcl_url})")
+        else:
+            logger.info("DCL semantic client initialized - LOCAL DEV mode (using fact_base.json)")
 
     @property
     def catalog(self) -> SemanticCatalog:
@@ -103,23 +112,26 @@ class DCLSemanticClient:
             and current_time - self._cache_time < CACHE_TTL_SECONDS):
             return self._catalog
 
-        # Try to fetch from DCL
+        # Try to fetch from DCL if configured
         if self.dcl_url:
             try:
                 catalog = self._fetch_from_dcl()
                 if catalog:
                     self._catalog = catalog
                     self._cache_time = current_time
-                    logger.info("Loaded semantic catalog from DCL")
+                    logger.info(f"Loaded semantic catalog from DCL ({len(catalog.metrics)} metrics)")
                     return catalog
             except Exception as e:
-                logger.warning(f"Failed to fetch from DCL: {e}, using local catalog")
+                logger.warning(f"DCL fetch failed: {e} - falling back to local fact_base.json")
 
-        # Fall back to local catalog
+        # Local dev mode or DCL fallback
+        if not self.dcl_url:
+            logger.debug("Using local fact_base.json (DCL_API_URL not set)")
+
         catalog = self._build_local_catalog()
         self._catalog = catalog
         self._cache_time = current_time
-        logger.info("Built semantic catalog from local fact_base")
+        logger.info(f"Built semantic catalog from local fact_base ({len(catalog.metrics)} metrics)")
         return catalog
 
     def _fetch_from_dcl(self) -> Optional[SemanticCatalog]:
