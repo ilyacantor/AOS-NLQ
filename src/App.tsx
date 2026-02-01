@@ -5,6 +5,27 @@ import { InsufficientDataPanel } from './components/rag/InsufficientDataPanel'
 import { DashboardRenderer, DashboardSchema } from './components/generated-dashboard'
 import { UserGuide } from './components/UserGuide'
 
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3,
+  baseDelay = 500
+): Promise<Response> {
+  let lastError: Error | null = null
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options)
+      return response
+    } catch (error) {
+      lastError = error as Error
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, baseDelay * (attempt + 1)))
+      }
+    }
+  }
+  throw lastError
+}
+
 interface QueryHistoryItem {
   id: string
   query: string
@@ -144,7 +165,7 @@ function App() {
 
       if (isBuildRequest || !dashboardSchema) {
         // Generate new dashboard - correct endpoint is /query/dashboard
-        const res = await fetch('/api/v1/query/dashboard', {
+        const res = await fetchWithRetry('/api/v1/query/dashboard', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -174,7 +195,7 @@ function App() {
         }
       } else {
         // Refine existing dashboard
-        const res = await fetch('/api/v1/dashboard/refine', {
+        const res = await fetchWithRetry('/api/v1/dashboard/refine', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -264,7 +285,7 @@ function App() {
         // Trigger refinement via the dashboard API
         try {
           const startTime = performance.now()
-          const res = await fetch('/api/v1/dashboard/refine', {
+          const res = await fetchWithRetry('/api/v1/dashboard/refine', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -300,7 +321,7 @@ function App() {
     const startTime = performance.now()
 
     try {
-      const res = await fetch('/api/v1/intent-map', {
+      const res = await fetchWithRetry('/api/v1/intent-map', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
