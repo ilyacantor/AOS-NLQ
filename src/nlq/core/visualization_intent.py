@@ -208,12 +208,28 @@ def detect_visualization_intent(query: str) -> VisualizationRequirements:
             chart_hint = hint
             break
 
-    # Detect dimensions
+    # Detect dimensions using DCL semantic client
     dimensions = []
-    for pattern, dim in DIMENSION_PATTERNS.items():
-        if pattern in q:
-            if dim not in ["quarter", "month", "year", "week"]:
-                dimensions.append(dim)
+    try:
+        from src.nlq.services.dcl_semantic_client import get_semantic_client
+        semantic_client = get_semantic_client()
+
+        # Extract "by X" patterns and resolve through DCL
+        by_match = re.search(r"\bby\s+(\w+(?:\s+\w+)?)", q)
+        if by_match:
+            dim_term = by_match.group(1)
+            resolved_dim = semantic_client.resolve_dimension(dim_term)
+            if resolved_dim and resolved_dim not in ["quarter", "month", "year", "week"]:
+                dimensions.append(resolved_dim)
+    except Exception:
+        pass
+
+    # Fallback to pattern matching if DCL didn't find anything
+    if not dimensions:
+        for pattern, dim in DIMENSION_PATTERNS.items():
+            if pattern in q:
+                if dim not in ["quarter", "month", "year", "week"]:
+                    dimensions.append(dim)
 
     # Detect time dimension
     time_dimension = any(t in q for t in ["over time", "trend", "by quarter", "by month", "by year", "by week", "daily", "weekly", "monthly", "quarterly", "yearly"])

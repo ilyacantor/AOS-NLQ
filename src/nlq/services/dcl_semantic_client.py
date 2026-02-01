@@ -426,6 +426,71 @@ class DCLSemanticClient:
         metric = catalog.metrics.get(metric_id)
         return metric.allowed_dimensions if metric else []
 
+    def resolve_dimension(self, user_term: str) -> Optional[str]:
+        """
+        Resolve a user-provided dimension term to its canonical name.
+
+        Handles aliases like "sales rep" -> "rep", "salesperson" -> "rep".
+
+        Args:
+            user_term: User-provided dimension term
+
+        Returns:
+            Canonical dimension name, or None if not recognized
+        """
+        if not user_term:
+            return None
+
+        term = user_term.lower().strip()
+
+        # Common dimension aliases
+        dimension_aliases = {
+            "sales rep": "rep",
+            "salesperson": "rep",
+            "sales representative": "rep",
+            "representative": "rep",
+            "account exec": "rep",
+            "ae": "rep",
+            "territory": "region",
+            "area": "region",
+            "geo": "region",
+            "geography": "region",
+            "product line": "product",
+            "sku": "product",
+            "client": "customer",
+            "account": "customer",
+            "pipeline stage": "stage",
+            "deal stage": "stage",
+            "sales stage": "stage",
+            "funnel stage": "stage",
+            "market segment": "segment",
+            "vertical": "segment",
+            "industry": "segment",
+        }
+
+        # Check aliases first
+        if term in dimension_aliases:
+            return dimension_aliases[term]
+
+        # Check if it's already a canonical dimension name
+        catalog = self.get_catalog()
+        all_dims = set()
+        for metric in catalog.metrics.values():
+            all_dims.update(metric.allowed_dimensions)
+
+        if term in all_dims:
+            return term
+
+        return None
+
+    def get_all_dimensions(self) -> List[str]:
+        """Return list of all known dimension names across all metrics."""
+        catalog = self.get_catalog()
+        all_dims = set()
+        for metric in catalog.metrics.values():
+            all_dims.update(metric.allowed_dimensions)
+        return sorted(all_dims)
+
     def get_all_metrics(self) -> List[str]:
         """Return list of all available metric IDs."""
         return list(self.get_catalog().metrics.keys())

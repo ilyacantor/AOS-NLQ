@@ -215,7 +215,30 @@ def _extract_chart_type(query: str) -> Optional[str]:
 
 
 def _extract_metric(query: str) -> Optional[str]:
-    """Extract a metric name from a query."""
+    """Extract a metric name from a query using DCL semantic client."""
+    try:
+        from src.nlq.services.dcl_semantic_client import get_semantic_client
+        semantic_client = get_semantic_client()
+
+        # Try to find a metric in the query
+        words = query.lower().split()
+        for i in range(len(words)):
+            # Try 2-word phrases
+            if i + 1 < len(words):
+                phrase = " ".join(words[i:i+2])
+                resolved = semantic_client.resolve_metric(phrase)
+                if resolved:
+                    return resolved.id
+
+            # Try single words
+            resolved = semantic_client.resolve_metric(words[i])
+            if resolved:
+                return resolved.id
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"DCL metric extraction failed, using legacy patterns: {e}")
+
+    # Legacy fallback - use pattern matching
     for pattern, metric in METRIC_PATTERNS.items():
         if re.search(pattern, query, re.IGNORECASE):
             return metric

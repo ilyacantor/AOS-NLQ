@@ -777,6 +777,8 @@ def normalize_metric(raw_metric: str) -> str:
     """
     Convert a metric synonym to its canonical name.
 
+    Uses DCL semantic client for resolution, with fallback to legacy lookup.
+
     Args:
         raw_metric: User-provided metric name (may be synonym)
 
@@ -792,6 +794,19 @@ def normalize_metric(raw_metric: str) -> str:
     if not raw_metric:
         return raw_metric
 
+    # Try DCL semantic client first (single source of truth)
+    try:
+        from src.nlq.services.dcl_semantic_client import get_semantic_client
+        semantic_client = get_semantic_client()
+        resolved = semantic_client.resolve_metric(raw_metric)
+        if resolved:
+            return resolved.id
+    except Exception as e:
+        # DCL unavailable - fall back to legacy lookup
+        import logging
+        logging.getLogger(__name__).warning(f"DCL semantic client unavailable, using legacy lookup: {e}")
+
+    # Legacy fallback - use static lookup
     key = raw_metric.lower().strip()
     return _METRIC_REVERSE_LOOKUP.get(key, raw_metric.lower().replace(" ", "_"))
 
