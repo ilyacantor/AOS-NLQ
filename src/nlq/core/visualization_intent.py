@@ -288,18 +288,27 @@ def _extract_metrics_from_query(query: str) -> List[str]:
     metric_patterns = {
         "revenue": ["revenue", "sales", "top line", "bookings"],
         "gross_margin_pct": ["gross margin", "margin", "gm"],
+        "operating_margin_pct": ["operating margin", "op margin"],
         "net_income": ["net income", "profit", "bottom line"],
+        "ebitda": ["ebitda"],
+        "burn_rate": ["burn rate", "burn", "cash burn"],
+        "accounts_receivable": ["accounts receivable", "ar", "receivables"],
+        "accounts_payable": ["accounts payable", "ap", "payables"],
         "pipeline": ["pipeline"],
         "gross_churn_pct": ["churn", "churn rate", "gross churn"],
         "nrr": ["nrr", "net retention", "net revenue retention"],
+        "arr": ["arr", "annual recurring revenue"],
         "headcount": ["headcount", "employees", "staff", "team size"],
         "win_rate": ["win rate", "close rate"],
         "quota_attainment": ["quota", "quota attainment", "attainment"],
         "cac_payback_months": ["cac payback", "payback"],
+        "cac": ["cac", "customer acquisition cost"],
         "ltv_cac": ["ltv/cac", "ltv cac", "lifetime value"],
         "magic_number": ["magic number", "efficiency"],
         "uptime_pct": ["uptime", "availability"],
         "p1_incidents": ["incidents", "p1", "outages"],
+        "nps": ["nps", "net promoter", "promoter score"],
+        "sales_cycle_days": ["sales cycle", "cycle days", "deal cycle"],
     }
 
     for canonical, patterns in metric_patterns.items():

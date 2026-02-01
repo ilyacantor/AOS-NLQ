@@ -147,6 +147,7 @@ export function DashboardRenderer({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isRefining, setIsRefining] = useState(false);
   const [refinementMessage, setRefinementMessage] = useState<string | null>(null);
+  const refinementTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Scenario modeling panel state (CFO only)
   const [scenarioOpen, setScenarioOpen] = useState(false);
@@ -203,6 +204,15 @@ export function DashboardRenderer({
     updateWidth();
     window.addEventListener('resize', updateWidth);
     return () => window.removeEventListener('resize', updateWidth);
+  }, []);
+
+  // Cleanup refinement message timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (refinementTimeoutRef.current) {
+        clearTimeout(refinementTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Initialize with pre-resolved data if provided (from /v1/query endpoint)
@@ -550,10 +560,16 @@ export function DashboardRenderer({
         // Notify parent with both schema and widget data for state synchronization
         onRefinement?.(data.dashboard, newWidgetData);
 
+        // Clear any existing message timeout
+        if (refinementTimeoutRef.current) {
+          clearTimeout(refinementTimeoutRef.current);
+          refinementTimeoutRef.current = null;
+        }
+
         // Show appropriate message based on what actually changed
         const widgetsAdded = newWidgetCount > oldWidgetCount;
         const widgetsRemoved = newWidgetCount < oldWidgetCount;
-        
+
         if (widgetsAdded) {
           const added = newWidgetCount - oldWidgetCount;
           setRefinementMessage(`Added ${added} widget${added > 1 ? 's' : ''} to dashboard`);
@@ -565,11 +581,27 @@ export function DashboardRenderer({
         } else if (widgetCountChanged) {
           setRefinementMessage(`Dashboard updated (${newWidgetCount} widgets)`);
         } else {
-          setRefinementMessage('Refinement processed - some requests may require data not currently available');
+          // No visible changes - log to data gaps instead of showing confusing message
+          try {
+            fetch('/api/v1/rag/learning/log', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                query: query,
+                source: 'dashboard_refinement',
+                insufficient_data: true,
+                details: 'Requested refinement could not be applied - metric or chart type may not be available',
+              }),
+            });
+          } catch {
+            // Ignore logging errors
+          }
+          // Don't show a message - silent fail is better than confusing user
+          setRefinementMessage(null);
         }
-        
-        // Clear message after 5 seconds
-        setTimeout(() => setRefinementMessage(null), 5000);
+
+        // Clear message after 4 seconds (if one was set)
+        refinementTimeoutRef.current = setTimeout(() => setRefinementMessage(null), 4000);
       } else {
         setError(data.error || 'Failed to refine dashboard');
       }

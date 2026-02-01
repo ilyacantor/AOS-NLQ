@@ -523,8 +523,45 @@ def refine_dashboard_schema(
     # Make a copy of the schema
     updated_schema = current_schema.model_copy(deep=True)
 
-    # Common refinements
-    if "add" in q and any(m in q for m in ["kpi", "card", "metric"]):
+    # Check for trend chart request (e.g., "Add a quarterly trend chart for Revenue" or "Show burn rate trend")
+    if ("trend" in q or "over time" in q) and any(w in q for w in ["add", "show", "display"]):
+        # Add a trend chart for the requested metric
+        metrics_to_chart = requirements.metrics if requirements.metrics else []
+
+        # Also try to extract metric from common patterns like "trend chart for revenue"
+        if not metrics_to_chart:
+            import re
+            metric_match = re.search(r"(?:trend|chart|over time)\s+(?:for|of)\s+(\w+)", q)
+            if metric_match:
+                metrics_to_chart = [metric_match.group(1).lower()]
+
+        for metric in metrics_to_chart:
+            # Check if we already have a trend chart for this metric
+            trend_id = f"trend_{metric}"
+            if not any(w.id == trend_id for w in updated_schema.widgets):
+                # Find next available position
+                max_row = max((w.position.row + w.position.row_span for w in updated_schema.widgets), default=0)
+
+                granularity_str = "quarterly"
+                if "monthly" in q:
+                    granularity_str = "monthly"
+                elif "yearly" in q or "annual" in q:
+                    granularity_str = "yearly"
+
+                updated_schema.widgets.append(Widget(
+                    id=trend_id,
+                    type=WidgetType.LINE_CHART,
+                    title=f"{get_display_name(metric)} Over Time",
+                    data=DataBinding(
+                        metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
+                        time=TimeBinding(period="last 8 quarters", granularity=TimeGranularity(granularity_str)),
+                    ),
+                    position=GridPosition(column=1, row=max_row + 1, col_span=6, row_span=3),
+                    chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
+                ))
+
+    # Common refinements - Add KPI card
+    elif "add" in q and any(m in q for m in ["kpi", "card", "metric"]):
         # Add a new KPI card
         for metric in requirements.metrics:
             if not any(w.id == f"kpi_{metric}" for w in updated_schema.widgets):
@@ -560,13 +597,25 @@ def refine_dashboard_schema(
             if widget.type in [WidgetType.BAR_CHART, WidgetType.DONUT_CHART]:
                 widget.type = WidgetType.LINE_CHART
 
-    elif "filter" in q or "only show" in q:
-        # Add filter to data bindings
-        for dim in requirements.filter_dimensions or requirements.dimensions:
+    elif "filter" in q or "only" in q:
+        # Add filter to data bindings - extract filter value from query
+        import re
+        # Match patterns like "filter to AMER", "only EMEA", "filter by region APAC"
+        filter_match = re.search(r"(?:filter\s+(?:to|by)?|only)\s*(?:\w+\s+)?(\b(?:AMER|EMEA|APAC|LATAM|Enterprise|Professional|Team|Starter|Q[1-4])\b)", q, re.IGNORECASE)
+        if filter_match:
+            filter_value = filter_match.group(1).upper()
+            # Determine dimension based on filter value
+            filter_dim = "region"
+            if filter_value in ["ENTERPRISE", "PROFESSIONAL", "TEAM", "STARTER"]:
+                filter_dim = "product"
+                filter_value = filter_value.title()
+            elif filter_value.startswith("Q"):
+                filter_dim = "quarter"
+
+            # Add filter to all widgets
             for widget in updated_schema.widgets:
-                if dim not in widget.data.filters:
-                    # Would need to extract filter value from query
-                    pass
+                widget.data.filters[filter_dim] = filter_value
+            updated_schema.title = f"{updated_schema.title} - {filter_value}"
 
     elif "remove" in q or "delete" in q:
         # Remove widgets matching criteria
