@@ -366,8 +366,9 @@ async def get_rag_status(
         cache = get_cache_service()
         if cache:
             cache_stats = cache.get_stats()
-    except:
-        pass
+    except Exception:
+        # Cache stats are non-critical, continue with default
+        cache_stats = {"available": False, "error": "Failed to retrieve cache stats"}
 
     return {
         "session": session_stats,

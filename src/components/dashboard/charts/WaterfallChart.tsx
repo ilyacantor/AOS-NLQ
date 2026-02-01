@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatCurrency } from '../../../utils/formatters';
 
 interface WaterfallChartProps {
   data: Array<{
@@ -61,14 +62,6 @@ const WaterfallChart: React.FC<WaterfallChartProps> = ({
     return { bars, maxValue, minValue };
   }, [data]);
 
-  const formatValue = (value: number): string => {
-    if (Math.abs(value) >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    } else if (Math.abs(value) >= 1000) {
-      return `$${(value / 1000).toFixed(0)}K`;
-    }
-    return `$${value.toFixed(0)}`;
-  };
 
   if (loading) {
     return (
@@ -183,7 +176,7 @@ const WaterfallChart: React.FC<WaterfallChartProps> = ({
                 className="fill-slate-300 text-[3px] font-medium"
               >
                 {bar.type === 'decrease' ? '-' : ''}
-                {formatValue(bar.value)}
+                {formatCurrency(bar.value)}
               </text>
 
               {/* X-axis label */}
@@ -233,7 +226,7 @@ const WaterfallChart: React.FC<WaterfallChartProps> = ({
             {bars[hoveredIndex].label}
           </p>
           <p className="text-sm text-slate-300">
-            {formatValue(bars[hoveredIndex].value)}
+            {formatCurrency(bars[hoveredIndex].value)}
           </p>
         </div>
       )}

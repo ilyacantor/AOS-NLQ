@@ -518,7 +518,7 @@ class QueryCacheService:
         if isinstance(filters, str):
             try:
                 filters = json.loads(filters)
-            except:
+            except (json.JSONDecodeError, TypeError, ValueError):
                 filters = {}
 
         return {

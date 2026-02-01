@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatCurrency } from '../../../utils/formatters';
 
 interface DonutChartProps {
   data: Array<{
@@ -45,14 +46,6 @@ const DonutChart: React.FC<DonutChartProps> = ({
     return { segments, total };
   }, [data]);
 
-  const formatValue = (value: number): string => {
-    if (Math.abs(value) >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    } else if (Math.abs(value) >= 1000) {
-      return `$${(value / 1000).toFixed(0)}K`;
-    }
-    return `$${value.toFixed(0)}`;
-  };
 
   const polarToCartesian = (
     centerX: number,
@@ -226,7 +219,7 @@ const DonutChart: React.FC<DonutChartProps> = ({
             textAnchor="middle"
             className="fill-white text-[6px] font-bold"
           >
-            {formatValue(total)}
+            {formatCurrency(total)}
           </text>
         </svg>
       </div>
@@ -261,7 +254,7 @@ const DonutChart: React.FC<DonutChartProps> = ({
             {segments[hoveredIndex].label}
           </p>
           <p className="text-lg font-bold text-white">
-            {formatValue(segments[hoveredIndex].value)}
+            {formatCurrency(segments[hoveredIndex].value)}
           </p>
           <p className="text-xs text-slate-400">
             {segments[hoveredIndex].percentage.toFixed(1)}% of total

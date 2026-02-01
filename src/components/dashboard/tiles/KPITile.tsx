@@ -3,6 +3,7 @@ import { TrendIndicator } from '../shared/TrendIndicator';
 import { StatusBadge } from '../shared/StatusBadge';
 import { ConfidenceIndicator } from '../shared/ConfidenceIndicator';
 import { Sparkline } from '../shared/Sparkline';
+import { formatValue } from '../../../utils/formatters';
 
 interface KPITileProps {
   label: string;
@@ -24,56 +25,6 @@ interface KPITileProps {
   onChat?: (query: string) => void;
   chatQuery?: string;
 }
-
-/**
- * Formats a number value based on the specified format type
- */
-const formatValue = (
-  value: number | string,
-  format: KPITileProps['format'],
-  suffix?: string
-): string => {
-  if (typeof value === 'string') {
-    return suffix ? `${value}${suffix}` : value;
-  }
-
-  let formattedValue: string;
-
-  switch (format) {
-    case 'currency':
-      if (Math.abs(value) >= 1_000_000_000) {
-        formattedValue = `$${(value / 1_000_000_000).toFixed(1)}B`;
-      } else if (Math.abs(value) >= 1_000_000) {
-        formattedValue = `$${(value / 1_000_000).toFixed(1)}M`;
-      } else if (Math.abs(value) >= 1_000) {
-        formattedValue = `$${(value / 1_000).toFixed(0)}K`;
-      } else {
-        formattedValue = `$${value.toFixed(0)}`;
-      }
-      break;
-
-    case 'percent':
-      formattedValue = `${value.toFixed(1)}%`;
-      break;
-
-    case 'months':
-      formattedValue = `${Math.round(value)} month${Math.round(value) !== 1 ? 's' : ''}`;
-      break;
-
-    case 'number':
-    default:
-      if (Math.abs(value) >= 1_000_000) {
-        formattedValue = `${(value / 1_000_000).toFixed(1)}M`;
-      } else if (Math.abs(value) >= 1_000) {
-        formattedValue = `${(value / 1_000).toFixed(1)}K`;
-      } else {
-        formattedValue = value.toLocaleString();
-      }
-      break;
-  }
-
-  return suffix ? `${formattedValue}${suffix}` : formattedValue;
-};
 
 /**
  * Loading skeleton component for the KPI tile
@@ -118,7 +69,7 @@ export const KPITile: React.FC<KPITileProps> = ({
     return <LoadingSkeleton />;
   }
 
-  const formattedValue = formatValue(value, format, suffix);
+  const formattedValue = formatValue(value, { format, suffix });
 
   return (
     <div

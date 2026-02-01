@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatCurrency } from '../../../utils/formatters';
 
 interface StackedBarChartProps {
   data: Array<{
@@ -72,14 +73,6 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
     return { bars, maxValue, segmentLabels, segmentColors };
   }, [data]);
 
-  const formatValue = (value: number): string => {
-    if (Math.abs(value) >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    } else if (Math.abs(value) >= 1000) {
-      return `$${(value / 1000).toFixed(0)}K`;
-    }
-    return `$${value.toFixed(0)}`;
-  };
 
   if (loading) {
     return (
@@ -158,7 +151,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
                 dominantBaseline="middle"
                 className="fill-slate-500 text-[2.5px]"
               >
-                {formatValue((maxValue * pct) / 100)}
+                {formatCurrency((maxValue * pct) / 100)}
               </text>
             </g>
           );
@@ -224,7 +217,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
                 textAnchor="middle"
                 className="fill-slate-300 text-[3px] font-medium"
               >
-                {formatValue(bar.total)}
+                {formatCurrency(bar.total)}
               </text>
 
               {/* X-axis label */}
@@ -275,7 +268,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
               {bars[hoveredBar.barIndex].label}
             </span>
             <span className="text-sm text-slate-400">
-              Total: {formatValue(bars[hoveredBar.barIndex].total)}
+              Total: {formatCurrency(bars[hoveredBar.barIndex].total)}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -293,7 +286,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
                   style={{ backgroundColor: seg.color }}
                 />
                 <span className="text-xs">
-                  {seg.label}: {formatValue(seg.value)} ({seg.percentage.toFixed(1)}%)
+                  {seg.label}: {formatCurrency(seg.value)} ({seg.percentage.toFixed(1)}%)
                 </span>
               </div>
             ))}

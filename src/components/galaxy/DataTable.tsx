@@ -1,5 +1,6 @@
 import React from 'react';
 import { IntentNode } from './types';
+import { formatValue } from '../../utils/formatters';
 
 interface DataTableProps {
   nodes: IntentNode[];
@@ -83,7 +84,7 @@ export const DataTable: React.FC<DataTableProps> = ({ nodes, title }) => {
                     </td>
                     <td className="px-3 py-2 text-right">
                       <span className="text-white font-medium">
-                        {node.formatted_value || formatValue(node.value, node.unit)}
+                        {node.formatted_value || formatValue(node.value, { unit: node.unit })}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-center">
@@ -112,15 +113,3 @@ export const DataTable: React.FC<DataTableProps> = ({ nodes, title }) => {
   );
 };
 
-function formatValue(value: number | string | null | undefined, unit?: string): string {
-  if (value === null || value === undefined) return '-';
-
-  if (typeof value === 'number') {
-    if (unit === '%') return `${value.toFixed(1)}%`;
-    if (unit === '$M' || unit === 'USD_MILLIONS') return `$${value.toFixed(1)}M`;
-    if (unit === '$' || unit === 'USD') return `$${value.toLocaleString()}`;
-    return value.toLocaleString();
-  }
-
-  return String(value);
-}

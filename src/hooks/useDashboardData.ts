@@ -11,6 +11,7 @@ import {
   isChartTile,
   isInsightsTile,
 } from '../types/dashboard';
+import { formatValue } from '../utils/formatters';
 
 /**
  * Static CFO dashboard data - precomputed for instant load
@@ -831,7 +832,8 @@ function transformApiResponseToTileData(
   if (response.answer) {
     formattedValue = response.answer;
   } else if (response.value !== undefined) {
-    formattedValue = formatValue(response.value, response.unit, tile);
+    const format = isKPITile(tile) ? tile.kpi.format : undefined;
+    formattedValue = formatValue(response.value, { format, unit: response.unit });
   }
 
   // Build insights array if this is an insights tile
@@ -855,56 +857,6 @@ function transformApiResponseToTileData(
   };
 }
 
-/**
- * Format a numeric value based on unit and tile configuration
- */
-function formatValue(
-  value: number | string,
-  unit: string | undefined,
-  tile: TileConfig
-): string {
-  if (typeof value === 'string') {
-    return value;
-  }
-
-  // Determine format from tile config
-  let format = 'number';
-  if (isKPITile(tile)) {
-    format = tile.kpi.format;
-  }
-
-  switch (format) {
-    case 'currency':
-      if (Math.abs(value) >= 1_000_000_000) {
-        return `$${(value / 1_000_000_000).toFixed(1)}B`;
-      } else if (Math.abs(value) >= 1_000_000) {
-        return `$${(value / 1_000_000).toFixed(1)}M`;
-      } else if (Math.abs(value) >= 1_000) {
-        return `$${(value / 1_000).toFixed(0)}K`;
-      }
-      return `$${value.toFixed(0)}`;
-
-    case 'percent':
-      return `${value.toFixed(1)}%`;
-
-    case 'months':
-      return `${Math.round(value)} month${Math.round(value) !== 1 ? 's' : ''}`;
-
-    default:
-      if (unit === '%') {
-        return `${value.toFixed(1)}%`;
-      }
-      if (unit === '$' || unit === 'currency') {
-        return formatValue(value, undefined, { ...tile, kpi: { ...tile.kpi!, format: 'currency' } } as TileConfig);
-      }
-      if (Math.abs(value) >= 1_000_000) {
-        return `${(value / 1_000_000).toFixed(1)}M`;
-      } else if (Math.abs(value) >= 1_000) {
-        return `${(value / 1_000).toFixed(1)}K`;
-      }
-      return value.toLocaleString();
-  }
-}
 
 /**
  * Create an empty tile data object for loading/initial state

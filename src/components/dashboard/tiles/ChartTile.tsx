@@ -2,6 +2,7 @@ import React from 'react';
 import { ChartType } from '../../../types/dashboard';
 import ExternalStackedBarChart from '../charts/StackedBarChart';
 import PredictiveLineChart from '../charts/PredictiveLineChart';
+import { formatCurrency, formatNumber } from '../../../utils/formatters';
 
 /**
  * Props for the ChartTile component
@@ -326,12 +327,6 @@ const WaterfallChart: React.FC<{
     return padding.top + ((maxValue - value) / range) * (chartHeight - padding.top - padding.bottom);
   };
 
-  const formatValue = (value: number): string => {
-    const absValue = Math.abs(value);
-    if (absValue >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-    if (absValue >= 1000) return `$${(value / 1000).toFixed(0)}K`;
-    return `$${value.toFixed(0)}`;
-  };
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -382,7 +377,7 @@ const WaterfallChart: React.FC<{
                 className="fill-slate-300 font-medium"
                 style={{ fontSize: '2.5px' }}
               >
-                {bar.type === 'decrease' ? '-' : ''}{formatValue(Math.abs(bar.value))}
+                {bar.type === 'decrease' ? '-' : ''}{formatCurrency(Math.abs(bar.value))}
               </text>
 
               {/* X-axis label */}
@@ -420,19 +415,6 @@ const WaterfallChart: React.FC<{
 };
 
 
-/**
- * Format a number for display
- */
-function formatNumber(value: number): string {
-  if (Math.abs(value) >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(1)}B`;
-  } else if (Math.abs(value) >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(1)}M`;
-  } else if (Math.abs(value) >= 1_000) {
-    return `${(value / 1_000).toFixed(1)}K`;
-  }
-  return value.toLocaleString();
-}
 
 /**
  * Normalize data from various formats to a standard format
@@ -656,7 +638,10 @@ export const ChartTile: React.FC<ChartTileProps> = ({
         <h3 className="text-slate-200 font-semibold text-sm">{title}</h3>
         {onChat && chatQuery && (
           <button
-            onClick={() => onChat(chatQuery)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onChat(chatQuery);
+            }}
             className="
               px-3
               py-1.5

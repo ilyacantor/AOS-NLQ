@@ -11,6 +11,7 @@ import {
   ComposedChart,
   ReferenceLine,
 } from 'recharts';
+import { formatNumber } from '../../../utils/formatters';
 
 const COLORS = {
   primary: '#0bcad9',
@@ -38,17 +39,6 @@ interface CombinedDataPoint {
   isForecast: boolean;
 }
 
-const formatValue = (value: number): string => {
-  if (Math.abs(value) >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(1)}B`;
-  } else if (Math.abs(value) >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(1)}M`;
-  } else if (Math.abs(value) >= 1_000) {
-    return `${(value / 1_000).toFixed(1)}K`;
-  }
-  return value.toLocaleString();
-};
-
 interface CustomTooltipProps {
   active?: boolean;
   payload?: Array<{
@@ -75,7 +65,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label, m
         <div className="flex items-center gap-2 mb-1">
           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.primary }} />
           <span className="text-slate-300 text-sm">
-            {metricName || 'Actual'}: <span className="font-semibold text-white">{formatValue(historicalValue)}</span>
+            {metricName || 'Actual'}: <span className="font-semibold text-white">{formatNumber(historicalValue)}</span>
           </span>
         </div>
       )}
@@ -83,7 +73,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label, m
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.prediction }} />
           <span className="text-slate-300 text-sm">
-            Forecast: <span className="font-semibold text-white">{formatValue(forecastValue)}</span>
+            Forecast: <span className="font-semibold text-white">{formatNumber(forecastValue)}</span>
           </span>
           {confidence !== undefined && (
             <span className="text-slate-500 text-xs ml-2">
@@ -265,7 +255,7 @@ export const PredictiveLineChart: React.FC<PredictiveLineChartProps> = ({
             tick={{ fill: '#94a3b8', fontSize: 12 }}
             tickLine={{ stroke: '#475569' }}
             axisLine={{ stroke: '#475569' }}
-            tickFormatter={formatValue}
+            tickFormatter={formatNumber}
           />
 
           <Tooltip content={<CustomTooltip metricName={metricName} />} />

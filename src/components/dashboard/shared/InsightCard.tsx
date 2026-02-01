@@ -170,7 +170,10 @@ export const InsightCard: React.FC<InsightCardProps> = ({
 
         {/* Ask NLQ Button */}
         <button
-          onClick={() => onClick(query)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick(query);
+          }}
           className="flex-shrink-0 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
           title="Ask NLQ to drill down into this insight"
         >

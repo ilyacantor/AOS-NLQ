@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatCurrency } from '../../../utils/formatters';
 
 interface HorizontalBarChartProps {
   data: Array<{
@@ -40,14 +41,6 @@ const HorizontalBarChart: React.FC<HorizontalBarChartProps> = ({
     return { bars, maxValue };
   }, [data, maxBars]);
 
-  const formatValue = (value: number): string => {
-    if (Math.abs(value) >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    } else if (Math.abs(value) >= 1000) {
-      return `$${(value / 1000).toFixed(0)}K`;
-    }
-    return `$${value.toFixed(0)}`;
-  };
 
   if (loading) {
     return (
@@ -118,7 +111,7 @@ const HorizontalBarChart: React.FC<HorizontalBarChartProps> = ({
                   {/* Value label inside bar if there's enough space */}
                   {bar.percentage > 30 && (
                     <span className="text-xs font-medium text-white px-2 truncate">
-                      {formatValue(bar.value)}
+                      {formatCurrency(bar.value)}
                     </span>
                   )}
                 </div>
@@ -129,7 +122,7 @@ const HorizontalBarChart: React.FC<HorizontalBarChartProps> = ({
                     className="absolute top-1/2 transform -translate-y-1/2 text-xs font-medium text-slate-300 px-2"
                     style={{ left: `${Math.max(bar.percentage, 2) + 1}%` }}
                   >
-                    {formatValue(bar.value)}
+                    {formatCurrency(bar.value)}
                   </span>
                 )}
               </div>
@@ -161,13 +154,13 @@ const HorizontalBarChart: React.FC<HorizontalBarChartProps> = ({
         <span>
           Total:{' '}
           <span className="text-white font-medium">
-            {formatValue(data.reduce((sum, item) => sum + item.value, 0))}
+            {formatCurrency(data.reduce((sum, item) => sum + item.value, 0))}
           </span>
         </span>
         <span>
           Avg:{' '}
           <span className="text-white font-medium">
-            {formatValue(
+            {formatCurrency(
               data.reduce((sum, item) => sum + item.value, 0) / data.length
             )}
           </span>
