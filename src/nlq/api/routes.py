@@ -69,6 +69,24 @@ from src.nlq.core.refinement_intent import (
 # People/HR query handling (extracted to separate module)
 from src.nlq.api.people_queries import is_people_query, handle_people_query
 
+# Shared query helpers (consolidates /query and /query/galaxy logic)
+from src.nlq.api.query_helpers import (
+    SimpleMetricResult,
+    GuidedDiscoveryResult,
+    MissingDataResult,
+    determine_domain,
+    determine_domain_from_name,
+    simple_metric_to_nlq_response,
+    simple_metric_to_galaxy_response,
+    guided_discovery_to_nlq_response,
+    guided_discovery_to_galaxy_response,
+    missing_data_to_nlq_response,
+    missing_data_to_galaxy_response,
+    people_response_to_galaxy,
+    off_topic_to_nlq_response,
+    off_topic_to_galaxy_response,
+)
+
 # =============================================================================
 # SESSION-BASED DASHBOARD STATE
 # =============================================================================
@@ -1063,9 +1081,9 @@ _SIMPLE_METRIC_PATTERNS = {
 import re as _re_simple
 
 
-def _try_simple_metric_query(question: str, fact_base: FactBase) -> Optional[NLQResponse]:
+def _try_simple_metric_query_core(question: str, fact_base: FactBase) -> Optional[SimpleMetricResult]:
     """
-    Try to answer a simple metric query directly from fact base.
+    Core logic for simple metric queries - shared between /query and /query/galaxy.
 
     Handles queries like "what's our revenue?" without needing Claude.
     Returns None if the query doesn't match simple patterns.
@@ -1094,17 +1112,29 @@ def _try_simple_metric_query(question: str, fact_base: FactBase) -> Optional[NLQ
                 formatted = str(round(value, 1))
                 answer = f"{display_name} for 2025 is {formatted}"
 
-            return NLQResponse(
-                success=True,
-                answer=answer,
+            return SimpleMetricResult(
+                metric=metric,
                 value=value,
+                formatted_value=formatted,
                 unit=unit,
-                confidence=0.95,
-                parsed_intent="POINT_QUERY",
-                resolved_metric=metric,
-                resolved_period="2025",
-                response_type="text",
+                display_name=display_name,
+                domain=determine_domain(metric),
+                answer=answer,
             )
+
+    return None  # No match, let normal flow handle it
+
+
+def _try_simple_metric_query(question: str, fact_base: FactBase) -> Optional[NLQResponse]:
+    """
+    Try to answer a simple metric query directly from fact base.
+
+    Handles queries like "what's our revenue?" without needing Claude.
+    Returns None if the query doesn't match simple patterns.
+    """
+    result = _try_simple_metric_query_core(question, fact_base)
+    if result:
+        return simple_metric_to_nlq_response(result)
 
     return None  # No match, let normal flow handle it
 
@@ -1129,28 +1159,35 @@ _GUIDED_DISCOVERY_DOMAINS = {
 }
 
 
+def _try_guided_discovery_core(question: str) -> Optional[GuidedDiscoveryResult]:
+    """
+    Core logic for guided discovery queries - shared between /query and /query/galaxy.
+
+    Returns available metrics for the requested domain.
+    """
+    q = question.lower().strip()
+
+    for domain_name, config in _GUIDED_DISCOVERY_DOMAINS.items():
+        if _re_simple.search(config["pattern"], q, _re_simple.IGNORECASE):
+            return GuidedDiscoveryResult(
+                domain_name=domain_name,
+                domain=determine_domain_from_name(domain_name),
+                metrics=config["metrics"],
+                response_text=config["response"],
+            )
+
+    return None
+
+
 def _try_guided_discovery(question: str) -> Optional[NLQResponse]:
     """
     Handle guided discovery queries like "what can you show me about customers?"
 
     Returns available metrics for the requested domain.
     """
-    q = question.lower().strip()
-
-    for domain, config in _GUIDED_DISCOVERY_DOMAINS.items():
-        if _re_simple.search(config["pattern"], q, _re_simple.IGNORECASE):
-            return NLQResponse(
-                success=True,
-                answer=config["response"],
-                value=None,
-                unit=None,
-                confidence=0.9,
-                parsed_intent="GUIDED_DISCOVERY",
-                resolved_metric=None,
-                resolved_period=None,
-                response_type="text",
-            )
-
+    result = _try_guided_discovery_core(question)
+    if result:
+        return guided_discovery_to_nlq_response(result)
     return None
 
 
@@ -1166,28 +1203,33 @@ _MISSING_DATA_PATTERNS = [
 ]
 
 
+_MISSING_DATA_RESPONSE = "I don't have data for that. I can help you with metrics like revenue, pipeline, win rate, customer count, margins, and other standard business metrics. What would you like to explore?"
+
+
+def _check_missing_data_core(question: str) -> Optional[MissingDataResult]:
+    """
+    Core logic for missing data check - shared between /query and /query/galaxy.
+
+    Returns result if query is about non-existent data.
+    """
+    q = question.lower().strip()
+
+    for pattern in _MISSING_DATA_PATTERNS:
+        if _re_simple.search(pattern, q, _re_simple.IGNORECASE):
+            return MissingDataResult(response_text=_MISSING_DATA_RESPONSE)
+
+    return None
+
+
 def _check_missing_data(question: str) -> Optional[NLQResponse]:
     """
     Check if a query is asking about non-existent data.
 
     Returns a graceful error response for queries about data we don't have.
     """
-    q = question.lower().strip()
-
-    for pattern in _MISSING_DATA_PATTERNS:
-        if _re_simple.search(pattern, q, _re_simple.IGNORECASE):
-            return NLQResponse(
-                success=True,
-                answer="I don't have data for that. I can help you with metrics like revenue, pipeline, win rate, customer count, margins, and other standard business metrics. What would you like to explore?",
-                value=None,
-                unit=None,
-                confidence=0.8,
-                parsed_intent="MISSING_DATA",
-                resolved_metric=None,
-                resolved_period=None,
-                response_type="text",
-            )
-
+    result = _check_missing_data_core(question)
+    if result:
+        return missing_data_to_nlq_response(result)
     return None
 
 
@@ -1198,69 +1240,10 @@ def _try_simple_metric_query_galaxy(question: str, fact_base: FactBase) -> Optio
     Handles queries like "what's our revenue?" without needing Claude.
     Returns None if the query doesn't match simple patterns.
     """
-    q = question.lower().strip()
-
-    for pattern, (metric, unit) in _SIMPLE_METRIC_PATTERNS.items():
-        if _re_simple.search(pattern, q, _re_simple.IGNORECASE):
-            # Found a matching pattern, query fact base directly
-            value = fact_base.query(metric, "2025")
-            if value is None:
-                return None  # Metric not found, let normal flow handle it
-
-            # Format the value nicely
-            display_name = get_display_name(metric)
-            if unit == "USD millions":
-                formatted = f"${round(value, 1)}M"
-                answer = f"{display_name} for 2025 is {formatted}"
-            elif unit == "%":
-                formatted = f"{round(value, 1)}%"
-                answer = f"{display_name} for 2025 is {formatted}"
-            elif unit == "count":
-                formatted = f"{int(value):,}"
-                answer = f"{display_name} for 2025 is {formatted}"
-            else:
-                formatted = str(round(value, 1))
-                answer = f"{display_name} for 2025 is {formatted}"
-
-            # Determine domain from metric
-            domain = Domain.FINANCE
-            if metric in ["pipeline", "win_rate", "quota_attainment", "sales_cycle_days"]:
-                domain = Domain.GROWTH
-            elif metric in ["headcount"]:
-                domain = Domain.PEOPLE
-            elif metric in ["customer_count", "nrr", "gross_churn_pct"]:
-                domain = Domain.OPS
-
-            return IntentMapResponse(
-                query=question,
-                query_type="POINT_QUERY",
-                ambiguity_type=None,
-                persona="CFO",
-                overall_confidence=0.95,
-                overall_data_quality=1.0,
-                node_count=1,
-                nodes=[IntentNode(
-                    id=f"{metric}_1",
-                    metric=metric,
-                    display_name=display_name,
-                    match_type=MatchType.EXACT,
-                    domain=domain,
-                    confidence=0.95,
-                    data_quality=1.0,
-                    freshness="0h",
-                    value=value,
-                    formatted_value=formatted,
-                    period="2025",
-                    semantic_label="Direct Answer",
-                )],
-                primary_node_id=f"{metric}_1",
-                primary_answer=answer,
-                text_response=answer,
-                needs_clarification=False,
-                clarification_prompt=None,
-            )
-
-    return None  # No match, let normal flow handle it
+    result = _try_simple_metric_query_core(question, fact_base)
+    if result:
+        return simple_metric_to_galaxy_response(result, question)
+    return None
 
 
 def _try_guided_discovery_galaxy(question: str) -> Optional[IntentMapResponse]:
@@ -1269,51 +1252,9 @@ def _try_guided_discovery_galaxy(question: str) -> Optional[IntentMapResponse]:
 
     Returns available metrics for the requested domain.
     """
-    q = question.lower().strip()
-
-    for domain_name, config in _GUIDED_DISCOVERY_DOMAINS.items():
-        if _re_simple.search(config["pattern"], q, _re_simple.IGNORECASE):
-            # Create nodes for each available metric in this domain
-            nodes = []
-            domain = Domain.FINANCE
-            if domain_name == "customer":
-                domain = Domain.OPS
-            elif domain_name == "sales":
-                domain = Domain.GROWTH
-
-            for i, metric in enumerate(config["metrics"]):
-                display_name = get_display_name(metric)
-                nodes.append(IntentNode(
-                    id=f"discovery_{metric}",
-                    metric=metric,
-                    display_name=display_name,
-                    match_type=MatchType.POTENTIAL,
-                    domain=domain,
-                    confidence=0.85,
-                    data_quality=1.0,
-                    freshness="0h",
-                    value=None,
-                    formatted_value=None,
-                    period="2025",
-                    semantic_label="Available Metric",
-                ))
-
-            return IntentMapResponse(
-                query=question,
-                query_type="GUIDED_DISCOVERY",
-                ambiguity_type=None,
-                persona="CFO",
-                overall_confidence=0.9,
-                overall_data_quality=1.0,
-                node_count=len(nodes),
-                nodes=nodes,
-                primary_node_id=nodes[0].id if nodes else None,
-                primary_answer=config["response"],
-                text_response=config["response"],
-                needs_clarification=False,
-                clarification_prompt=None,
-            )
-
+    result = _try_guided_discovery_core(question)
+    if result:
+        return guided_discovery_to_galaxy_response(result, question)
     return None
 
 
@@ -1323,26 +1264,9 @@ def _check_missing_data_galaxy(question: str) -> Optional[IntentMapResponse]:
 
     Returns a graceful error response for queries about data we don't have.
     """
-    q = question.lower().strip()
-
-    for pattern in _MISSING_DATA_PATTERNS:
-        if _re_simple.search(pattern, q, _re_simple.IGNORECASE):
-            return IntentMapResponse(
-                query=question,
-                query_type="MISSING_DATA",
-                ambiguity_type=None,
-                persona="CFO",
-                overall_confidence=0.8,
-                overall_data_quality=0.0,
-                node_count=0,
-                nodes=[],
-                primary_node_id=None,
-                primary_answer="I don't have data for that. I can help you with metrics like revenue, pipeline, win rate, customer count, margins, and other standard business metrics. What would you like to explore?",
-                text_response="I don't have data for that. I can help you with metrics like revenue, pipeline, win rate, customer count, margins, and other standard business metrics. What would you like to explore?",
-                needs_clarification=False,
-                clarification_prompt=None,
-            )
-
+    result = _check_missing_data_core(question)
+    if result:
+        return missing_data_to_galaxy_response(result, question)
     return None
 
 
