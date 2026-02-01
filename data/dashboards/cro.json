@@ -1,0 +1,155 @@
+{
+  "persona": "CRO",
+  "description": "Revenue dashboard with bookings, pipeline, win rates, and sales metrics",
+  "tiles": {
+    "kpi-bookings": {
+      "value": 57.5,
+      "formattedValue": "$57.5M",
+      "trend": {
+        "direction": "up",
+        "percentChange": 22,
+        "comparisonPeriod": "vs 2024",
+        "positiveIsGood": true
+      },
+      "sparklineData": [
+        { "period": "Q1 24", "value": 11.2 },
+        { "period": "Q2 24", "value": 11.8 },
+        { "period": "Q3 24", "value": 12.1 },
+        { "period": "Q4 24", "value": 14.4 }
+      ],
+      "status": "healthy",
+      "confidence": 0.95
+    },
+    "kpi-pipeline": {
+      "value": 145,
+      "formattedValue": "$145M",
+      "trend": {
+        "direction": "up",
+        "percentChange": 18,
+        "comparisonPeriod": "vs 2024",
+        "positiveIsGood": true
+      },
+      "sparklineData": [
+        { "period": "Q1 24", "value": 98 },
+        { "period": "Q2 24", "value": 108 },
+        { "period": "Q3 24", "value": 125 },
+        { "period": "Q4 24", "value": 145 }
+      ],
+      "status": "healthy",
+      "confidence": 0.92
+    },
+    "kpi-win-rate": {
+      "value": 32,
+      "formattedValue": "32%",
+      "trend": {
+        "direction": "up",
+        "percentChange": 3.5,
+        "comparisonPeriod": "vs 2024",
+        "positiveIsGood": true
+      },
+      "sparklineData": [
+        { "period": "Q1 24", "value": 28 },
+        { "period": "Q2 24", "value": 29 },
+        { "period": "Q3 24", "value": 30 },
+        { "period": "Q4 24", "value": 32 }
+      ],
+      "status": "healthy",
+      "confidence": 0.90
+    },
+    "kpi-nrr": {
+      "value": 118,
+      "formattedValue": "118%",
+      "trend": {
+        "direction": "up",
+        "percentChange": 5,
+        "comparisonPeriod": "vs 2024",
+        "positiveIsGood": true
+      },
+      "sparklineData": [
+        { "period": "Q1 24", "value": 112 },
+        { "period": "Q2 24", "value": 114 },
+        { "period": "Q3 24", "value": 116 },
+        { "period": "Q4 24", "value": 118 }
+      ],
+      "status": "healthy",
+      "confidence": 0.94
+    },
+    "chart-pipeline-velocity": {
+      "value": null,
+      "formattedValue": "",
+      "rawData": {
+        "chartData": [
+          { "label": "2024", "value": 47.0, "type": "total" },
+          { "label": "New Logo", "value": 12.5, "type": "increase" },
+          { "label": "Expansion", "value": 5.2, "type": "increase" },
+          { "label": "Churn", "value": -4.8, "type": "decrease" },
+          { "label": "Contraction", "value": -2.4, "type": "decrease" },
+          { "label": "2025", "value": 57.5, "type": "total" }
+        ]
+      },
+      "status": "healthy",
+      "confidence": 0.92
+    },
+    "panel-revenue-insights": {
+      "value": null,
+      "formattedValue": "",
+      "insights": [
+        { "id": "1", "type": "positive", "text": "Enterprise deals up 35% QoQ", "query": "Show enterprise deal analysis" },
+        { "id": "2", "type": "warning", "text": "Mid-market churn elevated", "query": "What is causing mid-market churn?" },
+        { "id": "3", "type": "positive", "text": "NRR at all-time high 118%", "query": "What is driving NRR improvement?" },
+        { "id": "4", "type": "improving", "text": "Sales cycle down 12 days", "query": "What reduced the sales cycle?" },
+        { "id": "5", "type": "positive", "text": "Q4 pipeline 2.5x coverage", "query": "Show Q4 pipeline breakdown" }
+      ],
+      "status": "healthy",
+      "confidence": 0.88
+    },
+    "chart-churn-radar": {
+      "value": null,
+      "formattedValue": "",
+      "rawData": {
+        "chartData": [
+          { "label": "Enterprise", "value": 2.1 },
+          { "label": "Mid-Market", "value": 8.5 },
+          { "label": "SMB", "value": 12.3 },
+          { "label": "Startup", "value": 18.2 }
+        ]
+      },
+      "status": "caution",
+      "confidence": 0.90
+    },
+    "chart-win-rate-segment": {
+      "value": null,
+      "formattedValue": "",
+      "rawData": {
+        "chartData": [
+          { "label": "Enterprise", "value": 42, "size": 28.5 },
+          { "label": "Mid-Market", "value": 35, "size": 15.2 },
+          { "label": "SMB", "value": 28, "size": 9.8 },
+          { "label": "Startup", "value": 22, "size": 4.0 }
+        ]
+      },
+      "status": "healthy",
+      "confidence": 0.91
+    },
+    "chart-quota-attainment": {
+      "value": null,
+      "formattedValue": "",
+      "rawData": {
+        "chartData": [
+          { "label": "Q1", "segments": [{ "label": "Attained", "value": 92 }, { "label": "Gap", "value": 8 }] },
+          { "label": "Q2", "segments": [{ "label": "Attained", "value": 98 }, { "label": "Gap", "value": 2 }] },
+          { "label": "Q3", "segments": [{ "label": "Attained", "value": 105 }, { "label": "Gap", "value": 0 }] },
+          { "label": "Q4", "segments": [{ "label": "Attained", "value": 96 }, { "label": "Gap", "value": 4 }] }
+        ]
+      },
+      "status": "healthy",
+      "confidence": 0.94
+    },
+    "nlq-input": {
+      "value": null,
+      "formattedValue": "",
+      "status": "healthy",
+      "confidence": 1
+    }
+  }
+}
