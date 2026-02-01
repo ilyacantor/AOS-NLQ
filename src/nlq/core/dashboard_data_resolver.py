@@ -483,7 +483,14 @@ class DashboardDataResolver:
                 # Try quarterly keys - aggregate all quarters for the year
                 quarterly_keys = [f"{reference_year}-Q{q}" for q in range(1, 5)]
                 aggregated = {}
+                counts = {}
                 found_quarters = 0
+                
+                # Check if this is a percentage/rate metric (should average, not sum)
+                is_percentage_metric = any(
+                    term in metric.lower() 
+                    for term in ["_pct", "_rate", "_percent", "margin", "ratio", "win_rate", "churn", "nrr", "attainment"]
+                )
                 
                 for qkey in quarterly_keys:
                     if qkey in dim_data:
@@ -493,8 +500,12 @@ class DashboardDataResolver:
                             for label, value in quarter_data.items():
                                 if isinstance(value, (int, float)):
                                     aggregated[label] = aggregated.get(label, 0) + value
+                                    counts[label] = counts.get(label, 0) + 1
                 
                 if found_quarters > 0 and aggregated:
+                    # For percentage metrics, return average instead of sum
+                    if is_percentage_metric:
+                        return {label: val / counts[label] for label, val in aggregated.items()}
                     return aggregated
                 
                 # Try getting most recent quarter of the year

@@ -144,6 +144,9 @@ export function DashboardRenderer({
 
   // Scenario modeling panel state (CFO only)
   const [scenarioOpen, setScenarioOpen] = useState(false);
+  
+  // Edit mode - when true, widgets are draggable; when false, widgets are drillable/clickable
+  const [editMode, setEditMode] = useState(false);
   const baseMetrics = useMemo(() => ({
     revenue: 150000000,
     revenueGrowthPct: 18,
@@ -653,6 +656,9 @@ export function DashboardRenderer({
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowMobileMenu(false)} />
                   <div className="absolute right-0 top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+                    <button onClick={() => { setEditMode(!editMode); setShowMobileMenu(false); }} className={`w-full px-4 py-2 text-left text-sm hover:bg-slate-700 ${editMode ? 'text-amber-300' : 'text-slate-300'}`}>
+                      {editMode ? '✓ Edit Mode' : '⊞ Edit Layout'}
+                    </button>
                     {persona === 'CFO' && (
                       <button onClick={() => { setScenarioOpen(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-cyan-300 hover:bg-slate-700">📊 What-If</button>
                     )}
@@ -669,6 +675,13 @@ export function DashboardRenderer({
 
             {/* Desktop: Button bar */}
             <div className="hidden md:flex items-center gap-2">
+              <button
+                onClick={() => setEditMode(!editMode)}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${editMode ? 'bg-amber-600 text-white hover:bg-amber-500' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                title={editMode ? 'Exit edit mode to click/drill widgets' : 'Enter edit mode to drag/resize widgets'}
+              >
+                {editMode ? '✓ Editing' : '✎ Edit'}
+              </button>
               {persona === 'CFO' && (
                 <button
                   onClick={() => setScenarioOpen(true)}
@@ -819,8 +832,8 @@ export function DashboardRenderer({
             rowHeight={rowHeight}
             width={containerWidth}
             onLayoutChange={handleLayoutChange as any}
-            isDraggable={true}
-            isResizable={true}
+            isDraggable={editMode}
+            isResizable={editMode}
             margin={[schema.layout.gap, schema.layout.gap]}
             containerPadding={[0, 0]}
             compactType={null}
@@ -834,8 +847,8 @@ export function DashboardRenderer({
                 <WidgetRenderer
                   widget={widget}
                   data={widgetData[widget.id] || { loading: true }}
-                  onClick={(value) => handleWidgetClick(widget, value)}
-                  onDoubleClick={handleKPIDoubleClick}
+                  onClick={editMode ? undefined : (value) => handleWidgetClick(widget, value)}
+                  onDoubleClick={editMode ? undefined : handleKPIDoubleClick}
                   rowHeight={rowHeight}
                 />
               </div>
