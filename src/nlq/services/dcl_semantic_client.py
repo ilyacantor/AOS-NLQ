@@ -152,6 +152,14 @@ class DCLSemanticClient:
         """Parse DCL's semantic-export response into our catalog format."""
         catalog = SemanticCatalog()
 
+        # Log mode information from DCL
+        mode_info = data.get("mode", {})
+        if mode_info:
+            data_mode = mode_info.get("data_mode", "unknown")
+            run_mode = mode_info.get("run_mode", "unknown")
+            last_updated = mode_info.get("last_updated", "")
+            logger.info(f"DCL mode: {data_mode}/{run_mode} (updated: {last_updated})")
+
         # Parse metrics
         for metric_data in data.get("metrics", []):
             metric = MetricDefinition(
