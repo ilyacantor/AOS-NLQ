@@ -11,7 +11,7 @@ Never return empty results silently - always provide appropriate error codes.
 """
 
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from src.nlq.core.confidence import ConfidenceCalculator, bounded_confidence
 from src.nlq.knowledge.fact_base import FactBase
@@ -38,6 +38,24 @@ class QueryExecutor:
         self.fact_base = fact_base
         self.claude_client = claude_client
         self.confidence_calculator = ConfidenceCalculator()
+
+    def _is_year_period(self, period: str) -> bool:
+        """Check if a period string represents a full year (e.g., '2025' vs '2025-Q1')."""
+        if not period:
+            return False
+        # A year period is exactly 4 digits with no quarter suffix
+        return period.isdigit() and len(period) == 4
+
+    def _smart_query(self, metric: str, period: str) -> Any:
+        """
+        Query the fact base, using query_annual() for year periods to aggregate quarterly data.
+
+        This is the proper way to handle metrics that only exist in quarterly data
+        (like EBITDA) when the user asks for annual values.
+        """
+        if self._is_year_period(period):
+            return self.fact_base.query_annual(metric, int(period))
+        return self.fact_base.query(metric, period)
 
     def execute(self, parsed_query: ParsedQuery) -> QueryResult:
         """
@@ -106,7 +124,8 @@ class QueryExecutor:
                 confidence=0.0
             )
 
-        result = self.fact_base.query(
+        # Use _smart_query to handle annual periods by aggregating quarterly data
+        result = self._smart_query(
             parsed_query.metric,
             parsed_query.resolved_period
         )
@@ -143,8 +162,8 @@ class QueryExecutor:
                 confidence=0.0
             )
 
-        # Get values for both periods
-        value1 = self.fact_base.query(
+        # Get values for both periods (use _smart_query to aggregate quarterly data for annual periods)
+        value1 = self._smart_query(
             parsed_query.metric,
             parsed_query.resolved_period
         )
@@ -157,7 +176,7 @@ class QueryExecutor:
                 confidence=0.0
             )
 
-        value2 = self.fact_base.query(
+        value2 = self._smart_query(
             parsed_query.metric,
             parsed_query.comparison_period
         )
@@ -323,10 +342,10 @@ class QueryExecutor:
                 confidence=0.0
             )
 
-        # Get values for all metrics we have data for
+        # Get values for all metrics we have data for (use _smart_query for annual aggregation)
         breakdown = {}
         for metric in breakdown_metrics:
-            value = self.fact_base.query(metric, period)
+            value = self._smart_query(metric, period)
             if value is not None:
                 breakdown[metric] = value
 
@@ -335,14 +354,14 @@ class QueryExecutor:
         if not breakdown:
             fallback_metrics = ["revenue", "gross_margin_pct", "operating_profit", "arr"]
             for metric in fallback_metrics:
-                value = self.fact_base.query(metric, period)
+                value = self._smart_query(metric, period)
                 if value is not None:
                     breakdown[metric] = value
                     break  # Just need one to show something useful
 
         # Still nothing? Try the primary metric itself
         if not breakdown and parsed_query.metric:
-            value = self.fact_base.query(parsed_query.metric, period)
+            value = self._smart_query(parsed_query.metric, period)
             if value is not None:
                 breakdown[parsed_query.metric] = value
 
