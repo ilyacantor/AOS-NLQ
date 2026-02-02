@@ -156,8 +156,8 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
       zoomControl: true,
     });
 
-    // Set solid ocean background via CSS
-    mapContainerRef.current.style.backgroundColor = '#0c1929';
+    // Set solid ocean background via CSS - bright ocean blue
+    mapContainerRef.current.style.backgroundColor = '#1e6091';
 
     mapRef.current = map;
 
@@ -257,15 +257,15 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
 
       const color = REGION_COLORS[regionKey] || '#64748b';
 
-      // Scale radius: min 20, max 60 based on value proportion
+      // Scale radius: min 10, max 28 based on value proportion (smaller, cleaner)
       const proportion = r.value / maxValue;
-      const radius = 20 + (proportion * 40);
+      const radius = 10 + (proportion * 18);
 
-      // Create circle marker
+      // Create circle marker - fully opaque
       const circle = L.circleMarker(center, {
         radius: radius,
         fillColor: color,
-        fillOpacity: 0.85,
+        fillOpacity: 1.0,
         color: '#ffffff',
         weight: 2,
         className: 'revenue-bubble',
