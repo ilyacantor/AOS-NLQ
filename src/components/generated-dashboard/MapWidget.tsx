@@ -256,11 +256,11 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
       const proportion = r.value / maxValue;
       const radius = 10 + (proportion * 18);
 
-      // Create circle marker - 50% transparent
+      // Create circle marker - 30% opacity (more transparent)
       const circle = L.circleMarker(center, {
         radius: radius,
         fillColor: color,
-        fillOpacity: 0.5,
+        fillOpacity: 0.3,
         color: '#ffffff',
         weight: 2,
         className: 'revenue-bubble',
