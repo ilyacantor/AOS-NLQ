@@ -404,20 +404,12 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               />
               <text
                 textAnchor="middle"
-                dy="-0.2em"
+                dy="0.35em"
                 fill="#fff"
                 fontSize="14"
                 fontWeight="bold"
               >
                 {data.persona || 'CFO'}
-              </text>
-              <text
-                textAnchor="middle"
-                dy="1.2em"
-                fill="#64748b"
-                fontSize="10"
-              >
-                PERSONA
               </text>
             </g>
 
@@ -495,7 +487,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                     {Math.round(node.confidence * 100)}%
                   </text>
 
-                  {/* Label below node */}
+                  {/* Label below node - just the metric name */}
                   <text
                     y={radius + 16}
                     textAnchor="middle"
@@ -504,18 +496,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                     fontWeight="500"
                     style={{ pointerEvents: 'none' }}
                   >
-                    {node.semantic_label}: {node.display_name}
-                  </text>
-
-                  {/* Secondary label */}
-                  <text
-                    y={radius + 28}
-                    textAnchor="middle"
-                    fill="#64748b"
-                    fontSize="9"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {isPrimary ? 'PRIMARY' : node.match_type.toUpperCase()}
+                    {node.display_name}
                   </text>
                 </g>
               );
