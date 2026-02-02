@@ -1,10 +1,10 @@
 /**
- * MapWidget.tsx
- * Real world map using embedded SVG paths - NO EXTERNAL DEPENDENCIES
- * Works with React 19
+ * MapWidget - Geographic revenue visualization with actual world map
+ *
+ * Shows revenue distribution on a proper world map (AMER, EMEA, APAC, LATAM)
  */
 
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Widget, WidgetData } from '../../types/generated-dashboard';
 
 interface MapWidgetProps {
@@ -14,109 +14,78 @@ interface MapWidgetProps {
   onClick?: (value?: string) => void;
 }
 
-interface RegionData {
-  region: string;
-  value: number;
-  percentage?: number;
-}
-
-// Simplified but recognizable continent/region paths
-const REGION_PATHS: Record<string, { paths: string[]; label: string; labelPos: [number, number] }> = {
+// Simplified but recognizable continent paths (viewBox 0 0 1000 500)
+const REGION_PATHS: Record<string, { paths: string[]; labelX: number; labelY: number }> = {
   AMER: {
-    label: 'Americas',
-    labelPos: [150, 280],
+    // North America + South America
     paths: [
       // North America
-      `M 120,50 L 140,45 L 180,50 L 220,55 L 260,70 L 280,90 L 270,110 L 250,130 
-       L 230,140 L 210,155 L 200,170 L 190,165 L 180,170 L 165,165 L 150,175 
-       L 140,185 L 130,180 L 120,170 L 100,165 L 85,150 L 75,130 L 70,110 
-       L 75,90 L 85,75 L 100,60 L 120,50 Z`,
+      'M 80,60 L 120,50 L 180,55 L 220,80 L 230,120 L 210,150 L 180,170 L 140,180 L 100,175 L 70,150 L 60,110 L 65,80 Z',
       // Central America
-      `M 165,175 L 175,180 L 185,195 L 190,210 L 185,225 L 175,235 L 165,230 
-       L 160,220 L 155,205 L 160,190 L 165,175 Z`,
+      'M 140,180 L 160,190 L 170,220 L 155,240 L 140,235 L 130,210 L 135,190 Z',
       // South America
-      `M 185,235 L 200,240 L 220,250 L 235,270 L 240,300 L 235,340 L 225,380 
-       L 210,420 L 195,450 L 180,470 L 170,460 L 165,430 L 170,390 L 175,350 
-       L 170,310 L 165,280 L 170,260 L 180,245 L 185,235 Z`,
-      // Greenland
-      `M 280,30 L 310,25 L 340,35 L 350,55 L 340,75 L 320,80 L 295,75 L 280,60 L 280,30 Z`,
-    ]
+      'M 155,240 L 180,250 L 210,280 L 220,340 L 200,400 L 160,420 L 130,390 L 120,330 L 130,280 L 145,250 Z',
+    ],
+    labelX: 150,
+    labelY: 140,
   },
   EMEA: {
-    label: 'EMEA',
-    labelPos: [480, 200],
+    // Europe + Middle East + Africa
     paths: [
       // Europe
-      `M 380,70 L 400,65 L 430,60 L 470,65 L 510,75 L 540,90 L 560,100 
-       L 555,120 L 540,135 L 520,145 L 490,150 L 460,145 L 430,150 
-       L 400,145 L 380,140 L 370,125 L 375,105 L 380,85 L 380,70 Z`,
-      // UK/Ireland
-      `M 360,85 L 375,80 L 385,90 L 380,105 L 365,110 L 355,100 L 360,85 Z`,
-      // Scandinavia
-      `M 420,35 L 440,30 L 465,40 L 475,60 L 465,75 L 445,70 L 430,55 L 420,35 Z`,
+      'M 420,60 L 480,50 L 540,55 L 560,80 L 550,110 L 520,130 L 480,135 L 440,130 L 410,110 L 405,80 Z',
       // Middle East
-      `M 520,160 L 560,155 L 590,165 L 600,190 L 590,215 L 560,225 
-       L 530,220 L 510,200 L 515,175 L 520,160 Z`,
+      'M 540,130 L 580,125 L 620,140 L 610,180 L 570,190 L 540,175 L 530,150 Z',
       // Africa
-      `M 380,180 L 420,175 L 460,180 L 500,190 L 530,210 L 540,250 
-       L 535,300 L 520,350 L 495,400 L 460,430 L 420,440 L 385,420 
-       L 365,380 L 360,330 L 365,280 L 375,230 L 380,180 Z`,
-      // Madagascar
-      `M 545,380 L 555,375 L 565,390 L 560,420 L 545,430 L 535,415 L 540,390 L 545,380 Z`,
-    ]
+      'M 420,150 L 480,145 L 540,160 L 560,200 L 550,280 L 520,350 L 470,380 L 420,360 L 400,300 L 390,230 L 400,180 Z',
+    ],
+    labelX: 480,
+    labelY: 200,
   },
   APAC: {
-    label: 'Asia Pacific',
-    labelPos: [720, 200],
+    // Asia + Australia/Pacific
     paths: [
-      // Russia/Northern Asia
-      `M 560,50 L 620,40 L 700,35 L 780,40 L 850,50 L 880,70 L 870,95 
-       L 840,110 L 790,115 L 730,110 L 670,105 L 620,95 L 580,85 L 560,70 L 560,50 Z`,
-      // China/East Asia
-      `M 650,110 L 700,105 L 760,115 L 800,130 L 810,160 L 795,190 
-       L 760,210 L 720,215 L 680,205 L 650,185 L 640,155 L 645,130 L 650,110 Z`,
-      // Japan
-      `M 820,130 L 835,125 L 845,140 L 840,165 L 825,175 L 815,160 L 820,130 Z`,
-      // Southeast Asia
-      `M 680,220 L 720,225 L 760,235 L 780,260 L 770,290 L 740,305 
-       L 700,300 L 670,280 L 665,250 L 680,220 Z`,
-      // India
-      `M 600,180 L 640,175 L 660,195 L 655,230 L 635,270 L 610,290 
-       L 585,280 L 575,250 L 580,215 L 595,190 L 600,180 Z`,
-      // Indonesia
-      `M 700,310 L 740,305 L 780,315 L 820,320 L 840,335 L 830,350 
-       L 790,355 L 750,350 L 710,340 L 695,325 L 700,310 Z`,
+      // Asia (Russia + East Asia)
+      'M 560,40 L 700,35 L 820,50 L 880,80 L 900,130 L 880,180 L 820,200 L 740,195 L 680,180 L 620,150 L 580,120 L 560,80 Z',
+      // South/Southeast Asia
+      'M 680,180 L 750,200 L 800,230 L 820,280 L 780,300 L 720,290 L 680,260 L 660,220 Z',
       // Australia
-      `M 740,380 L 790,370 L 840,380 L 870,400 L 875,440 L 860,480 
-       L 820,500 L 770,495 L 735,470 L 720,430 L 725,395 L 740,380 Z`,
-      // New Zealand
-      `M 890,480 L 905,475 L 915,490 L 910,515 L 895,525 L 880,515 L 885,495 L 890,480 Z`,
-      // Philippines
-      `M 790,250 L 805,245 L 815,260 L 810,285 L 795,295 L 785,280 L 790,250 Z`,
-      // Taiwan
-      `M 795,195 L 805,190 L 810,205 L 800,215 L 790,210 L 795,195 Z`,
-    ]
+      'M 780,340 L 860,330 L 920,360 L 930,410 L 890,450 L 820,460 L 770,430 L 760,380 Z',
+    ],
+    labelX: 780,
+    labelY: 150,
+  },
+  LATAM: {
+    // Latin America (shown as part of AMER but can be highlighted separately)
+    paths: [
+      'M 140,200 L 175,210 L 200,250 L 215,320 L 195,390 L 155,410 L 125,380 L 115,320 L 125,260 L 135,220 Z',
+    ],
+    labelX: 160,
+    labelY: 310,
+  },
+};
+
+// Get color with opacity based on percentage
+function getRegionFill(percentage: number): string {
+  if (percentage <= 0) return '#1e293b';
+  // Cyan gradient based on percentage
+  const opacity = 0.3 + (percentage / 100) * 0.7;
+  return `rgba(11, 202, 217, ${opacity})`;
+}
+
+// Format currency values
+function formatValue(value: number): string {
+  if (value >= 1000000) {
+    return `$${(value / 1000000).toFixed(1)}M`;
+  } else if (value >= 1000) {
+    return `$${(value / 1000).toFixed(0)}K`;
   }
-};
-
-const REGION_CONFIG: Record<string, { name: string; color: string }> = {
-  AMER: { name: 'Americas', color: '#3B82F6' },
-  EMEA: { name: 'EMEA', color: '#10B981' },
-  APAC: { name: 'Asia Pacific', color: '#8B5CF6' },
-};
-
-const formatCurrency = (value: number): string => {
-  if (value >= 1000000000) return `$${(value / 1000000000).toFixed(1)}B`;
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
   return `$${value.toFixed(0)}`;
-};
+}
 
 export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
-  const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
-
   // Extract region data from widget data
-  const regionData = useMemo((): RegionData[] => {
+  const regionData = useMemo(() => {
     if (data.map_data?.regions) {
       return data.map_data.regions;
     }
@@ -135,19 +104,6 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
     return [];
   }, [data]);
 
-  const regionDataMap = useMemo(() => {
-    const map: Record<string, RegionData & { percentage: number }> = {};
-    const total = regionData.reduce((sum, r) => sum + (r.value || 0), 0);
-    regionData.forEach(r => {
-      const key = r.region.toUpperCase();
-      map[key] = {
-        ...r,
-        percentage: total > 0 ? (r.value / total) * 100 : 0
-      };
-    });
-    return map;
-  }, [regionData]);
-
   const total = useMemo(() => {
     if (data.map_data?.total) return data.map_data.total;
     return regionData.reduce((sum, r) => sum + (r.value || 0), 0);
@@ -155,199 +111,136 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
 
   const hasDrillDown = widget.interactions?.some(i => i.type === 'drill_down' && i.enabled);
 
-  const getRegionStyle = (regionKey: string) => {
-    const config = REGION_CONFIG[regionKey];
-    const regionInfo = regionDataMap[regionKey];
-    const isHovered = hoveredRegion === regionKey;
-    
-    if (!config) return { fill: '#334155', opacity: 0.5 };
-    
-    // Calculate opacity based on percentage (min 0.4, max 1.0)
-    const baseOpacity = regionInfo 
-      ? Math.max(0.5, Math.min(1, 0.4 + (regionInfo.percentage / 100)))
-      : 0.4;
-    
-    return {
-      fill: config.color,
-      opacity: isHovered ? 1 : baseOpacity,
-      filter: isHovered ? 'brightness(1.2)' : 'none',
-    };
-  };
+  // Create a lookup for region data
+  const regionLookup = useMemo(() => {
+    const lookup: Record<string, { value: number; percentage: number }> = {};
+    regionData.forEach(r => {
+      const regionKey = r.region?.toUpperCase() || '';
+      lookup[regionKey] = {
+        value: r.value || 0,
+        percentage: r.percentage || 0,
+      };
+    });
+    return lookup;
+  }, [regionData]);
 
   return (
-    <div style={{
-      background: 'linear-gradient(145deg, #0c1222 0%, #1a2744 100%)',
-      borderRadius: '12px',
-      padding: '16px',
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-    }}>
-      {/* Header */}
-      <div style={{ marginBottom: '12px' }}>
-        <h3 style={{ 
-          color: '#f1f5f9', 
-          fontSize: '15px', 
-          fontWeight: 600, 
-          margin: 0,
-          letterSpacing: '-0.01em'
-        }}>
-          {widget.title || 'Revenue by Region'}
-        </h3>
-        <p style={{ color: '#64748b', fontSize: '12px', margin: '4px 0 0 0' }}>
-          Total: {formatCurrency(total)}
-        </p>
+    <div className="p-4 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-medium text-slate-400">{widget.title}</h3>
+        <div className="text-right">
+          <span className="text-lg font-bold text-white">{formatValue(total)}</span>
+          <span className="text-xs text-slate-500 ml-1">total</span>
+        </div>
       </div>
 
-      {/* Map Container */}
-      <div style={{ flex: 1, position: 'relative', minHeight: Math.max(height - 100, 180) }}>
-        <svg 
-          viewBox="0 0 960 540" 
-          style={{ 
-            width: '100%', 
-            height: '100%',
-          }}
+      <div className="flex-1 relative" style={{ minHeight: Math.max(height - 100, 150) }}>
+        {/* SVG World Map */}
+        <svg
+          viewBox="0 0 1000 500"
+          className="w-full h-full"
           preserveAspectRatio="xMidYMid meet"
         >
-          {/* Ocean/background */}
-          <rect width="960" height="540" fill="#0f172a" />
-          
-          {/* Grid lines for style */}
-          <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e3a5f" strokeWidth="0.5" opacity="0.3"/>
-            </pattern>
-            <filter id="glow">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-          </defs>
-          <rect width="960" height="540" fill="url(#grid)" />
+          {/* Ocean background */}
+          <rect width="1000" height="500" fill="#0a1628" />
+
+          {/* Grid lines for visual effect */}
+          <g stroke="#1e293b" strokeWidth="0.5" opacity="0.3">
+            {[100, 200, 300, 400].map(y => (
+              <line key={`h-${y}`} x1="0" y1={y} x2="1000" y2={y} />
+            ))}
+            {[200, 400, 600, 800].map(x => (
+              <line key={`v-${x}`} x1={x} y1="0" x2={x} y2="500" />
+            ))}
+          </g>
 
           {/* Render each region */}
-          {Object.entries(REGION_PATHS).map(([regionKey, regionPathData]) => {
-            const style = getRegionStyle(regionKey);
-            const isHovered = hoveredRegion === regionKey;
-            
+          {Object.entries(REGION_PATHS).map(([regionKey, config]) => {
+            const regionInfo = regionLookup[regionKey] || { value: 0, percentage: 0 };
+            const hasData = regionInfo.value > 0;
+            const fillColor = getRegionFill(regionInfo.percentage);
+
             return (
-              <g 
+              <g
                 key={regionKey}
-                onMouseEnter={() => setHoveredRegion(regionKey)}
-                onMouseLeave={() => setHoveredRegion(null)}
-                onClick={() => onClick?.(regionKey)}
+                onClick={() => hasDrillDown && onClick?.(regionKey)}
                 style={{ cursor: hasDrillDown ? 'pointer' : 'default' }}
+                className="transition-all duration-200 hover:opacity-80"
               >
-                {regionPathData.paths.map((path, idx) => (
+                {/* Region landmass shapes */}
+                {config.paths.map((path, i) => (
                   <path
-                    key={`${regionKey}-${idx}`}
+                    key={`${regionKey}-${i}`}
                     d={path}
-                    fill={style.fill}
-                    opacity={style.opacity}
-                    stroke={isHovered ? '#fff' : '#1e293b'}
-                    strokeWidth={isHovered ? 1.5 : 0.5}
-                    filter={isHovered ? 'url(#glow)' : undefined}
-                    style={{ transition: 'all 0.2s ease-out' }}
+                    fill={fillColor}
+                    stroke={hasData ? '#0BCAD9' : '#334155'}
+                    strokeWidth={hasData ? 1.5 : 0.5}
                   />
                 ))}
+
+                {/* Region label and value */}
+                {hasData && (
+                  <g>
+                    {/* Background for text readability */}
+                    <rect
+                      x={config.labelX - 40}
+                      y={config.labelY - 12}
+                      width="80"
+                      height="36"
+                      fill="rgba(15, 23, 42, 0.8)"
+                      rx="4"
+                    />
+                    <text
+                      x={config.labelX}
+                      y={config.labelY}
+                      textAnchor="middle"
+                      fill="#94a3b8"
+                      fontSize="11"
+                      fontWeight="500"
+                    >
+                      {regionKey}
+                    </text>
+                    <text
+                      x={config.labelX}
+                      y={config.labelY + 14}
+                      textAnchor="middle"
+                      fill="#ffffff"
+                      fontSize="12"
+                      fontWeight="bold"
+                    >
+                      {regionInfo.percentage.toFixed(0)}%
+                    </text>
+                  </g>
+                )}
               </g>
             );
           })}
         </svg>
-
-        {/* Hover tooltip */}
-        {hoveredRegion && regionDataMap[hoveredRegion] && (
-          <div style={{
-            position: 'absolute',
-            top: '8px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(15, 23, 42, 0.95)',
-            border: `1px solid ${REGION_CONFIG[hoveredRegion]?.color || '#475569'}`,
-            borderRadius: '8px',
-            padding: '10px 14px',
-            color: '#f8fafc',
-            fontSize: '13px',
-            pointerEvents: 'none',
-            zIndex: 10,
-            backdropFilter: 'blur(8px)',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
-          }}>
-            <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-              {REGION_CONFIG[hoveredRegion]?.name}
-            </div>
-            <div style={{ display: 'flex', gap: '16px', fontSize: '12px' }}>
-              <span style={{ color: '#94a3b8' }}>Revenue:</span>
-              <span style={{ fontWeight: 500 }}>{formatCurrency(regionDataMap[hoveredRegion].value)}</span>
-            </div>
-            <div style={{ display: 'flex', gap: '16px', fontSize: '12px' }}>
-              <span style={{ color: '#94a3b8' }}>Share:</span>
-              <span style={{ fontWeight: 500, color: REGION_CONFIG[hoveredRegion]?.color }}>
-                {regionDataMap[hoveredRegion].percentage.toFixed(1)}%
-              </span>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Legend */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        gap: '20px',
-        marginTop: '12px',
-        padding: '10px',
-        background: 'rgba(30, 41, 59, 0.4)',
-        borderRadius: '8px'
-      }}>
-        {Object.entries(REGION_CONFIG).map(([regionKey, config]) => {
-          const regionInfo = regionDataMap[regionKey];
-          const isHovered = hoveredRegion === regionKey;
-          
-          return (
-            <div 
-              key={regionKey}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: hasDrillDown ? 'pointer' : 'default',
-                opacity: hoveredRegion && !isHovered ? 0.5 : 1,
-                transition: 'opacity 0.2s',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                background: isHovered ? 'rgba(255,255,255,0.05)' : 'transparent'
-              }}
-              onMouseEnter={() => setHoveredRegion(regionKey)}
-              onMouseLeave={() => setHoveredRegion(null)}
-              onClick={() => onClick?.(regionKey)}
+      <div className="flex flex-wrap gap-3 mt-2 justify-center">
+        {regionData
+          .filter(r => r.value > 0)
+          .sort((a, b) => (b.value || 0) - (a.value || 0))
+          .map(r => (
+            <div
+              key={r.region}
+              className={`flex items-center gap-2 px-2 py-1 rounded ${
+                hasDrillDown ? 'cursor-pointer hover:bg-slate-800' : ''
+              }`}
+              onClick={() => hasDrillDown && onClick?.(r.region)}
             >
-              <div style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '3px',
-                background: config.color,
-                boxShadow: isHovered ? `0 0 8px ${config.color}` : 'none'
-              }} />
-              <span style={{ color: '#cbd5e1', fontSize: '12px', fontWeight: 500 }}>
-                {config.name}
+              <div
+                className="w-3 h-3 rounded-sm"
+                style={{ backgroundColor: getRegionFill(r.percentage || 0) }}
+              />
+              <span className="text-xs text-slate-400">{r.region}</span>
+              <span className="text-xs font-medium text-slate-300">
+                {(r.percentage || 0).toFixed(0)}%
               </span>
-              {regionInfo && (
-                <span style={{ 
-                  color: config.color, 
-                  fontSize: '12px', 
-                  fontWeight: 600,
-                  marginLeft: '4px'
-                }}>
-                  {regionInfo.percentage.toFixed(0)}%
-                </span>
-              )}
             </div>
-          );
-        })}
+          ))}
       </div>
     </div>
   );
