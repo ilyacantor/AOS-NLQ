@@ -422,15 +422,23 @@ def _extract_metrics_from_query(query: str) -> List[str]:
             extraction_method = f"persona_default:{persona_detected}"
             logger.info(f"[METRIC_EXTRACTION] Using {persona_detected} persona metrics: {metrics}")
         else:
-            # NO SILENT DEFAULT - log a warning and return empty
-            # The caller must decide what to do
-            logger.warning(
-                f"[METRIC_EXTRACTION] No metrics found in query: '{query}'. "
-                f"Returning empty list - caller must handle this explicitly."
-            )
-            extraction_method = "none_found"
-            # Return empty - let the caller decide what to do
-            return []
+            # Check for generic year+summary queries (e.g., "2025 results", "2024 summary")
+            # These should default to CFO persona since they're asking for a business overview
+            import re
+            if re.search(r"\b20\d{2}\b", q) and any(term in q for term in ["results", "summary", "overview", "performance", "p&l", "dashboard"]):
+                metrics = ["revenue", "gross_margin_pct", "operating_profit", "net_income"]
+                extraction_method = "year_summary_default:CFO"
+                logger.info(f"[METRIC_EXTRACTION] Year summary query detected, using CFO metrics: {metrics}")
+            else:
+                # NO SILENT DEFAULT - log a warning and return empty
+                # The caller must decide what to do
+                logger.warning(
+                    f"[METRIC_EXTRACTION] No metrics found in query: '{query}'. "
+                    f"Returning empty list - caller must handle this explicitly."
+                )
+                extraction_method = "none_found"
+                # Return empty - let the caller decide what to do
+                return []
 
     # Final validation: ensure all returned metrics exist in catalog
     valid_metrics, errors = semantic_client.validate_metrics(metrics)

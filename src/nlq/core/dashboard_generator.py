@@ -711,8 +711,13 @@ def refine_dashboard_schema(
 
         for metric in metrics_to_chart:
             # Check if we already have a trend chart for this metric
+            # Check both ID patterns: "trend_{metric}" (refinement) and "{metric}_trend" (initial generation)
             trend_id = f"trend_{metric}"
-            if not any(w.id == trend_id for w in updated_schema.widgets):
+            has_trend = any(
+                w.id == trend_id or w.id == f"{metric}_trend"
+                for w in updated_schema.widgets
+            )
+            if not has_trend:
                 # Find next available position
                 max_row = max((w.position.row + w.position.row_span for w in updated_schema.widgets), default=0)
 
@@ -852,7 +857,17 @@ def refine_dashboard_schema(
             else:
                 chart_id = f"breakdown_{metric}_by_{dimension}"
 
-                if not any(w.id == chart_id for w in updated_schema.widgets):
+                # Check for duplicate - either by ID or by semantic meaning (same metric + dimension)
+                # This prevents adding "Revenue by Region" when one already exists with a different ID prefix
+                has_duplicate = any(
+                    w.id == chart_id or  # Exact ID match
+                    w.id == f"{metric}_by_{dimension}" or  # Initial generation ID pattern
+                    (w.data.metrics and w.data.dimensions and
+                     w.data.metrics[0].metric == metric and
+                     w.data.dimensions[0].dimension == dimension)  # Same metric+dimension combo
+                    for w in updated_schema.widgets
+                )
+                if not has_duplicate:
                     max_row = max((w.position.row + w.position.row_span for w in updated_schema.widgets), default=0)
                     updated_schema.widgets.append(Widget(
                         id=chart_id,

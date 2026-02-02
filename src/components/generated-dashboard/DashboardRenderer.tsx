@@ -1058,7 +1058,7 @@ export function DashboardRenderer({
             isResizable={editMode}
             margin={[schema.layout.gap, schema.layout.gap]}
             containerPadding={[0, 0]}
-            compactType={null}
+            compactType="vertical"
             preventCollision={false}
           >
             {schema.widgets.map(widget => (
