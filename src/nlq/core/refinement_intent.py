@@ -40,12 +40,17 @@ class RefinementIntent:
 
 # Refinement trigger patterns with types
 REFINEMENT_PATTERNS = {
-    # Add widget patterns
+    # Add widget patterns - specific keywords
     r"\badd\s+(?:a\s+)?(?:new\s+)?(?:kpi|card|metric|widget)\b": (RefinementType.ADD_WIDGET, 0.95),
     r"\badd\s+(?:a\s+)?(?:new\s+)?(?:chart|graph|visualization)\b": (RefinementType.ADD_WIDGET, 0.90),
     r"\binclude\s+(?:a\s+)?(?:kpi|metric)\b": (RefinementType.ADD_WIDGET, 0.85),
     r"\bshow\s+(?:me\s+)?(?:also|as well)\b": (RefinementType.ADD_WIDGET, 0.80),
     r"\bcan\s+you\s+add\b": (RefinementType.ADD_WIDGET, 0.90),
+
+    # Add widget patterns - metric by name (e.g., "add csat trend", "add revenue card")
+    r"\badd\s+(?:a\s+)?(?:\w+)\s+(?:trend|card|chart|graph)\b": (RefinementType.ADD_WIDGET, 0.90),
+    r"\badd\s+(?:a\s+)?(?:\w+\s+\w+)\s+(?:trend|card|chart|graph)\b": (RefinementType.ADD_WIDGET, 0.90),
+    r"\badd\s+(?:a\s+)?(?:\w+)\s+(?:kpi|widget|metric)\b": (RefinementType.ADD_WIDGET, 0.90),
 
     # Remove widget patterns
     r"\bremove\s+(?:the\s+)?(?:kpi|card|chart|widget)\b": (RefinementType.REMOVE_WIDGET, 0.95),
@@ -120,12 +125,19 @@ METRIC_PATTERNS = {
     r"\bchurn\b": "gross_churn_pct",
     r"\bnrr\b": "nrr",
     r"\bnet\s*retention\b": "nrr",
+    r"\bretention\b": "nrr",
     r"\bheadcount\b": "headcount",
+    r"\bhiring\b": "headcount",
     r"\barr\b": "arr",
     r"\bcustomer\s*count\b": "customer_count",
     r"\bcustomers\b": "customer_count",
     r"\bquota\b": "quota_attainment",
     r"\bsales\s*cycle\b": "sales_cycle_days",
+    r"\bcsat\b": "csat",
+    r"\btech\s*debt\b": "tech_debt_pct",
+    r"\buptime\b": "uptime_pct",
+    r"\btraining\s*hours\b": "training_hours_per_employee",
+    r"\bfeatures\b": "features_shipped",
 }
 
 

@@ -40,6 +40,8 @@ interface SavedDashboard {
   name: string;
   schema: DashboardSchema;
   savedAt: string;
+  layoutMap?: Record<string, LayoutItem>;  // Persisted widget positions
+  widgetData?: Record<string, WidgetData>; // Persisted widget data
 }
 
 interface SavedTemplate {
@@ -465,13 +467,15 @@ export function DashboardRenderer({
       name: saveName.trim(),
       schema: schema,
       savedAt: new Date().toISOString(),
+      layoutMap: layoutMap,  // Persist widget positions
+      widgetData: widgetData, // Persist widget data
     };
     saveDashboard(saved);
     setShowSaveModal(false);
     setSaveName('');
     setSaveSuccess('Dashboard saved!');
     setTimeout(() => setSaveSuccess(null), 2000);
-  }, [schema, saveName]);
+  }, [schema, saveName, layoutMap, widgetData]);
 
   // Save as template
   const handleSaveAsTemplate = useCallback(() => {
@@ -500,8 +504,22 @@ export function DashboardRenderer({
   // Load saved dashboard or template
   const handleLoad = useCallback((item: SavedDashboard | SavedTemplate) => {
     setSchema(item.schema);
-    setLayoutMap({});
-    fetchWidgetData(item.schema);
+
+    // Restore layout and widget data if loading a saved dashboard (not template)
+    const savedDashboard = item as SavedDashboard;
+    if (savedDashboard.layoutMap && Object.keys(savedDashboard.layoutMap).length > 0) {
+      setLayoutMap(savedDashboard.layoutMap);
+    } else {
+      setLayoutMap({});
+    }
+
+    // Restore widget data if available, otherwise fetch fresh
+    if (savedDashboard.widgetData && Object.keys(savedDashboard.widgetData).length > 0) {
+      setWidgetData(savedDashboard.widgetData);
+    } else {
+      fetchWidgetData(item.schema);
+    }
+
     setShowLoadModal(false);
   }, []);
 
