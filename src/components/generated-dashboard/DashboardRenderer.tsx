@@ -50,6 +50,18 @@ interface SavedTemplate {
   savedAt: string;
 }
 
+interface EvalResult {
+  status: string;
+  total: number;
+  passed: number;
+  failed: number;
+  errors: number;
+  skipped: number;
+  duration_seconds: number;
+  summary: string;
+  failures: string[];
+}
+
 interface DashboardRendererProps {
   /** Initial schema to render (optional - can start empty) */
   initialSchema?: DashboardSchema;
@@ -174,10 +186,13 @@ export function DashboardRenderer({
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
+  const [showTestModal, setShowTestModal] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [templateName, setTemplateName] = useState('');
   const [templateDesc, setTemplateDesc] = useState('');
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  const [testRunning, setTestRunning] = useState(false);
+  const [testResult, setTestResult] = useState<EvalResult | null>(null);
 
   // Sync with initialSchema/initialWidgetData prop changes (for persona switching)
   useEffect(() => {
@@ -290,6 +305,32 @@ export function DashboardRenderer({
     setInitialQuery('');
     setRefinementQuery('');
     setLayoutMap({});
+  }, []);
+
+  // Run evaluation tests
+  const handleRunTests = useCallback(async () => {
+    setTestRunning(true);
+    setTestResult(null);
+    setShowTestModal(true);
+    try {
+      const response = await fetch('/api/v1/eval/run', { method: 'POST' });
+      const result = await response.json();
+      setTestResult(result);
+    } catch (err) {
+      setTestResult({
+        status: 'error',
+        total: 0,
+        passed: 0,
+        failed: 0,
+        errors: 1,
+        skipped: 0,
+        duration_seconds: 0,
+        summary: `Failed to run tests: ${err}`,
+        failures: [String(err)],
+      });
+    } finally {
+      setTestRunning(false);
+    }
   }, []);
 
   // Auto-arrange widgets to remove gaps and create a clean layout
@@ -738,6 +779,7 @@ export function DashboardRenderer({
                     <button onClick={() => { setSaveName(schema.title); setShowSaveModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">💾 Save</button>
                     <button onClick={() => { setTemplateName(schema.title + ' Template'); setShowTemplateModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">📋 Template</button>
                     <button onClick={() => { setShowLoadModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">📂 Load</button>
+                    <button onClick={() => { handleRunTests(); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-purple-300 hover:bg-slate-700">🧪 Tests</button>
                     <hr className="my-1 border-slate-700" />
                     <button onClick={() => { handleReset(); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-slate-700">✕ Reset</button>
                   </div>
@@ -767,6 +809,7 @@ export function DashboardRenderer({
               <button onClick={() => { setSaveName(schema.title); setShowSaveModal(true); }} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">💾 Save</button>
               <button onClick={() => { setTemplateName(schema.title + ' Template'); setShowTemplateModal(true); }} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">📋 Template</button>
               <button onClick={() => setShowLoadModal(true)} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">📂 Load</button>
+              <button onClick={handleRunTests} className="px-3 py-1.5 bg-purple-900/50 text-purple-300 rounded-lg text-sm hover:bg-purple-800/60 transition-colors" title="Run NLQ-DCL evaluation tests">🧪 Tests</button>
               <button onClick={handleReset} className="px-3 py-1.5 bg-red-900/50 text-red-300 rounded-lg text-sm hover:bg-red-900/70 transition-colors">✕ Reset</button>
             </div>
           </div>
@@ -1088,6 +1131,104 @@ export function DashboardRenderer({
             else deleteSavedTemplate(id);
           }}
         />
+      )}
+
+      {/* Test Results Modal */}
+      {showTestModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-lg max-h-[80vh] flex flex-col">
+            <h3 className="text-lg font-semibold text-white mb-4">🧪 NLQ-DCL Evaluation</h3>
+
+            {testRunning ? (
+              <div className="flex flex-col items-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400 mb-4"></div>
+                <p className="text-slate-300">Running evaluation tests...</p>
+                <p className="text-slate-500 text-sm mt-2">This may take up to 2 minutes</p>
+              </div>
+            ) : testResult ? (
+              <div className="flex-1 overflow-y-auto">
+                {/* Status Banner */}
+                <div className={`px-4 py-3 rounded-lg mb-4 ${
+                  testResult.status === 'passed'
+                    ? 'bg-green-900/30 border border-green-700/50'
+                    : testResult.status === 'failed'
+                    ? 'bg-red-900/30 border border-red-700/50'
+                    : 'bg-yellow-900/30 border border-yellow-700/50'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">
+                      {testResult.status === 'passed' ? '✓' : testResult.status === 'failed' ? '✗' : '⚠'}
+                    </span>
+                    <div>
+                      <p className={`font-medium ${
+                        testResult.status === 'passed' ? 'text-green-300' :
+                        testResult.status === 'failed' ? 'text-red-300' : 'text-yellow-300'
+                      }`}>
+                        {testResult.status === 'passed' ? 'All Tests Passed' :
+                         testResult.status === 'failed' ? 'Some Tests Failed' : 'Error Running Tests'}
+                      </p>
+                      <p className="text-slate-400 text-sm">{testResult.summary}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-4 gap-3 mb-4">
+                  <div className="bg-slate-800 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-white">{testResult.total}</p>
+                    <p className="text-xs text-slate-400">Total</p>
+                  </div>
+                  <div className="bg-green-900/30 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-green-400">{testResult.passed}</p>
+                    <p className="text-xs text-green-400/70">Passed</p>
+                  </div>
+                  <div className="bg-red-900/30 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-red-400">{testResult.failed}</p>
+                    <p className="text-xs text-red-400/70">Failed</p>
+                  </div>
+                  <div className="bg-yellow-900/30 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-yellow-400">{testResult.errors}</p>
+                    <p className="text-xs text-yellow-400/70">Errors</p>
+                  </div>
+                </div>
+
+                {/* Duration */}
+                <p className="text-slate-500 text-sm mb-4">
+                  Completed in {testResult.duration_seconds}s
+                </p>
+
+                {/* Failures */}
+                {testResult.failures.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-slate-300 font-medium mb-2">Failures:</p>
+                    <div className="bg-slate-800 rounded-lg p-3 max-h-48 overflow-y-auto">
+                      {testResult.failures.map((f, i) => (
+                        <p key={i} className="text-red-400 text-xs font-mono mb-1">{f}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setShowTestModal(false)}
+                className="flex-1 px-4 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
+              >
+                Close
+              </button>
+              {!testRunning && (
+                <button
+                  onClick={handleRunTests}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition-colors"
+                >
+                  Run Again
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Scenario Modeling Panel - CFO only */}
