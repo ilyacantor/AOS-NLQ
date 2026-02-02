@@ -129,7 +129,6 @@ DIMENSION_ALIASES = {
     "org": "department",
     # Deal
     "deal": "deal", "deals": "deal",
-    "win": "deal", "wins": "deal",
     "opportunity": "deal", "opportunities": "deal",
     # Stage
     "stage": "stage", "stages": "stage",
@@ -358,16 +357,18 @@ def _extract_dimension_and_metric(
     dimension = "rep"
     metric = "quota_attainment"
 
+    # Check for explicit metric mentions FIRST (higher priority)
+    metric_found = False
+    for alias, canonical in METRIC_ALIASES.items():
+        if alias in remainder or alias in full_query:
+            metric = canonical
+            metric_found = True
+            break
+
     # Check for explicit dimension mentions
     for alias, canonical in DIMENSION_ALIASES.items():
         if alias in remainder or alias in full_query:
             dimension = canonical
-            break
-
-    # Check for explicit metric mentions
-    for alias, canonical in METRIC_ALIASES.items():
-        if alias in remainder or alias in full_query:
-            metric = canonical
             break
 
     # Infer metric from dimension if not explicitly mentioned
