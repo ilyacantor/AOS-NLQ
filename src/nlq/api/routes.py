@@ -1111,32 +1111,90 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
 
     # Step 2: Try exact metric match via synonyms (FREE - no API call)
     # Strip common prefixes to get to the metric name
+    # Order matters - longer/more specific prefixes should come first
     prefixes_to_strip = [
-        "what is ", "what's ", "what was ", "whats ",
-        "how much ", "how is ", "how's ", "hows ",
-        "tell me ", "show me ", "get me ", "give me ",
-        "our ", "the ", "current ", "total ",
-        "can you show me ", "can you tell me ",
+        # Multi-word question patterns (check these first)
+        "can you show me ", "can you tell me ", "can you get me ",
+        "what are our ", "what is our ", "what's our ", "whats our ",
+        "what are the ", "what is the ", "what's the ", "whats the ",
+        "how much is our ", "how much is the ", "how much do we have in ",
+        "how many ", "how much ",
+        # Standard question words
+        "what is ", "what's ", "what was ", "whats ", "what are ",
+        "how is ", "how's ", "hows ",
+        "tell me about ", "tell me the ", "tell me ",
+        "show me the ", "show me ", "get me the ", "get me ", "give me the ", "give me ",
+        # Visualization/command prefixes (e.g., "make a revenue chart" -> "revenue")
+        "make me a chart of ", "make a chart of ", "make chart of ",
+        "make me a graph of ", "make a graph of ", "make graph of ",
+        "create a chart of ", "create chart of ", "create a graph of ",
+        "build a chart of ", "build chart of ", "build a graph of ",
+        "display a chart of ", "display chart of ", "display a graph of ",
+        "show a chart of ", "show chart of ", "show a graph of ", "show graph of ",
+        "show a dashboard of ", "show a kpi of ", "show a tile of ", "show a card of ",
+        "graph of ", "chart of ", "visualization of ",
+        "make me a ", "make a ", "make ",
+        "create a dashboard widget for ", "create a dashboard for ",
+        "create a visualization of ", "create visualization of ",
+        "create a ", "create ", "build a ", "build ",
+        "display a ", "display ", "graph ", "visualize ",
+        "add a card showing ", "add a tile showing ", "add a kpi for ",
+        "add a card for ", "add a tile for ", "add a kpi showing ",
+        "add a ", "add ",
+        "drill deeper into ", "drill down into ", "drill down on ", "drill into ", "drill down ",
+        "pull up ", "pull ", "compare ",
+        # Casual prefixes
+        "yo whats ", "yo what's ", "quick question ", "need ",
+        "how we doing on ", "how are we doing on ",
+        # Simple prefixes (check last)
+        "our ", "the ", "current ", "total ", "latest ", "a ",
     ]
     metric_query = q
-    for prefix in prefixes_to_strip:
-        if metric_query.startswith(prefix):
-            metric_query = metric_query[len(prefix):]
+    # Keep stripping prefixes until none match (handles nested prefixes)
+    stripped = True
+    while stripped:
+        stripped = False
+        for prefix in prefixes_to_strip:
+            if metric_query.startswith(prefix):
+                metric_query = metric_query[len(prefix):]
+                stripped = True
+                break
     metric_query = metric_query.rstrip("?").strip()
 
     # Strip conversational suffixes (e.g., "how's pipeline looking" -> "pipeline")
+    # Order by length (longest first) to handle overlapping patterns
+    # Note: Do NOT strip " rate" - it's part of metric names like "attrition rate"
     conversational_suffixes = [
-        " looking", " doing", " going", " trending", " performing",
-        " look", " now", " today", " currently",
+        # Longer patterns first (must be before shorter ones like " kpi")
+        " across departments", " across regions", " across stages",
+        " by departments", " by regions",
+        " as a widget", " as a tile", " as a card", " as a kpi",
+        " visualization", " dashboard", " report",
+        " that we have", " do we have", " we have", " work here",
+        " performing", " trending",
+        " metrics", " figures", " numbers", " stats", " data",
+        " looking", " doing", " going",
+        " currently", " today",
+        # Shorter patterns last
+        " widget", " tile", " card", " chart", " graph", " kpi", " metric",
+        " look", " now",
     ]
-    for suffix in conversational_suffixes:
-        if metric_query.endswith(suffix):
-            metric_query = metric_query[:-len(suffix)].strip()
+    # Keep stripping until no more suffixes match
+    stripped = True
+    while stripped:
+        stripped = False
+        for suffix in conversational_suffixes:
+            if metric_query.endswith(suffix):
+                metric_query = metric_query[:-len(suffix)].strip()
+                stripped = True
+                break
 
     # Strip period suffixes (e.g., "revenue 2025", "margin this year", "arr q3")
+    # Include common misspellings
     period_suffixes = [
         " 2024", " 2025", " 2026",
         " this year", " last year", " this quarter", " last quarter",
+        " this quater", " last quater",  # misspellings
         " q1", " q2", " q3", " q4",
         " ytd", " mtd", " qtd",
     ]
@@ -1284,6 +1342,158 @@ def _try_simple_metric_query(question: str) -> Optional[NLQResponse]:
         return simple_metric_to_nlq_response(result)
 
     return None  # No match, let normal flow handle it
+
+
+# =============================================================================
+# SIMPLE BREAKDOWN HANDLER - Handle "X by Y" queries without LLM
+# =============================================================================
+
+# Dimension aliases for normalization
+_DIMENSION_ALIASES = {
+    # Region aliases
+    "geo": "region",
+    "geography": "region",
+    "territory": "region",
+    "territories": "region",
+    "reigon": "region",  # misspelling
+    # Department aliases
+    "dept": "department",
+    "org": "department",
+    "team": "department",
+    "departmnet": "department",  # misspelling
+    # Stage aliases
+    "phase": "stage",
+    "phases": "stage",
+    "sales stage": "stage",
+    "sales_stage": "stage",
+    # Segment aliases
+    "customer segment": "segment",
+    "customer_segment": "segment",
+    "tier": "segment",
+    "market segment": "segment",
+    "market_segment": "segment",
+    "segmnet": "segment",  # misspelling
+}
+
+
+def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
+    """
+    Try to answer a simple breakdown query directly from DCL.
+
+    Handles queries like "Revenue by region", "Headcount by department" without Claude.
+    Returns None if no confident match found.
+    """
+    import re
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    from src.nlq.knowledge.synonyms import normalize_metric
+
+    q = question.lower().strip()
+
+    # Match "metric by dimension" pattern
+    # Remove prefixes first (longer prefixes should come before shorter ones)
+    prefixes = [
+        "drill deeper into ", "drill down into ", "drill down on ", "drill down ",
+        "drill into ", "break down ", "breakdown ", "compare ",
+        "show me ", "show ", "display ", "get ", "give me ", "what's ", "what is ",
+        "create ", "make ", "build ", "add ", "graph ", "chart ",
+        # Additional visualization prefixes that may remain after initial strip
+        "a visualization of ", "a chart of ", "a graph of ", "a dashboard of ",
+        "visualization of ", "chart of ", "graph of ", "dashboard of ",
+    ]
+    for prefix in prefixes:
+        if q.startswith(prefix):
+            q = q[len(prefix):]
+            break  # Only strip one prefix at a time, but loop continues below
+
+    # Loop to strip multiple prefixes (e.g., "create a visualization of" -> "")
+    while True:
+        stripped = False
+        for prefix in prefixes:
+            if q.startswith(prefix):
+                q = q[len(prefix):]
+                stripped = True
+                break
+        if not stripped:
+            break
+
+    # Match "X by Y" or "X across Y" pattern
+    # Allow up to 4 words for metric (e.g., "time to fill days")
+    by_match = re.search(r"^(\w+(?:\s+\w+){0,3})\s+(?:by|across)\s+(\w+(?:\s+\w+)?)", q)
+    if not by_match:
+        return None
+
+    metric_term = by_match.group(1).strip()
+    dim_term = by_match.group(2).strip()
+
+    # Handle plural dimension terms (e.g., "stages" -> "stage", "departments" -> "department")
+    if dim_term.endswith("s") and dim_term not in ("business", "success"):
+        dim_term = dim_term[:-1]  # Remove trailing 's'
+
+    # Normalize metric
+    metric = normalize_metric(metric_term)
+    if not metric:
+        return None
+
+    # Normalize dimension
+    dimension = _DIMENSION_ALIASES.get(dim_term, dim_term)
+
+    # Query DCL for breakdown data
+    dcl_client = get_semantic_client()
+    current_period = "2026-Q4"
+
+    result = dcl_client.query(
+        metric=metric,
+        dimensions=[dimension],
+        time_range={"period": current_period, "granularity": "quarterly"}
+    )
+
+    if result.get("error") or not result.get("data"):
+        return None
+
+    # Format as dashboard data
+    breakdown_data = result.get("data", [])
+    if not breakdown_data:
+        return None
+
+    # Convert breakdown data to the expected format: list of {label, value}
+    formatted_data = []
+    for item in breakdown_data:
+        if isinstance(item, dict):
+            # Extract dimension key and value
+            dim_key = item.get(dimension, item.get("label", ""))
+            val = item.get("value")
+            if dim_key and val is not None:
+                formatted_data.append({"label": str(dim_key), "value": val})
+
+    if not formatted_data:
+        return None
+
+    # Build dashboard response with breakdown in expected format
+    # Format: {widget_id: {series: [{data: [{label, value}]}]}}
+    widget_id = f"breakdown_{metric}_by_{dimension}"
+    dashboard_data = {
+        widget_id: {
+            "title": f"{metric.replace('_', ' ').title()} by {dimension.title()}",
+            "type": "bar_chart",
+            "series": [{
+                "name": metric,
+                "data": formatted_data,
+            }]
+        }
+    }
+
+    return NLQResponse(
+        success=True,
+        answer=f"Here's {metric.replace('_', ' ')} by {dimension}",
+        value=None,
+        unit=None,
+        confidence=0.9,
+        parsed_intent="BREAKDOWN",
+        resolved_metric=metric,
+        resolved_period=current_period,
+        response_type="dashboard",
+        dashboard_data=dashboard_data,
+    )
 
 
 # Guided discovery patterns and available metrics by domain
@@ -2376,6 +2586,14 @@ async def query(request: NLQRequest) -> NLQResponse:
                 resolved_metric=None,
                 resolved_period=None,
             )
+
+        # =================================================================
+        # SIMPLE BREAKDOWN QUERIES - Handle "X by Y" queries early (no Claude needed)
+        # Must come before simple metric queries to avoid "revenue by region" -> "revenue"
+        # =================================================================
+        breakdown_result = _try_simple_breakdown_query(request.question)
+        if breakdown_result:
+            return breakdown_result
 
         # =================================================================
         # SIMPLE METRIC QUERIES - Handle "what is X?" queries early (no Claude needed)

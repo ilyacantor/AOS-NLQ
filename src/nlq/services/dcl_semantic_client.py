@@ -56,12 +56,18 @@ class SemanticCatalog:
     alias_to_metric: Dict[str, str] = field(default_factory=dict)  # alias -> metric_id
 
     def build_alias_index(self):
-        """Build reverse lookup from aliases to metric IDs."""
+        """Build reverse lookup from aliases to metric IDs.
+
+        Two-pass approach ensures aliases take precedence over canonical IDs.
+        This allows "attrition" (alias) to map to "attrition_rate" even though
+        there's also a metric with canonical ID "attrition".
+        """
         self.alias_to_metric = {}
+        # First pass: Add all canonical IDs
         for metric_id, metric in self.metrics.items():
-            # Add canonical ID
             self.alias_to_metric[metric_id.lower()] = metric_id
-            # Add all aliases
+        # Second pass: Add all aliases (so they can override canonical IDs)
+        for metric_id, metric in self.metrics.items():
             for alias in metric.aliases:
                 self.alias_to_metric[alias.lower()] = metric_id
 
@@ -263,11 +269,13 @@ class DCLSemanticClient:
         return catalog
 
     def _get_metric_aliases(self) -> Dict[str, List[str]]:
-        """Get common aliases for metrics."""
+        """Get common aliases for metrics including common misspellings."""
         return {
-            # Financial
-            "revenue": ["sales", "top line", "topline", "turnover", "total revenue"],
-            "ar": ["accounts receivable", "receivables", "a/r"],
+            # Financial (with common misspellings)
+            "revenue": ["sales", "top line", "topline", "total revenue",
+                        "reveune", "revnue", "revennue", "revanue"],  # misspellings
+            "ar": ["accounts receivable", "receivables", "a/r",
+                   "recievables", "receivbles", "recievbles"],  # misspellings
             "ap": ["accounts payable", "payables", "a/p"],
             "ebitda": ["earnings before interest taxes depreciation amortization"],
             "gross_margin_pct": ["gross margin", "gm", "margin"],
@@ -283,8 +291,12 @@ class DCLSemanticClient:
             "quota_attainment": ["quota", "attainment"],
             "gross_churn_pct": ["churn", "churn rate", "customer churn"],
 
-            # Operations
-            "headcount": ["employees", "staff", "team size", "hc"],
+            # Operations/HR (with common misspellings)
+            "headcount": ["employees", "staff", "team size", "hc", "people", "fte",
+                          "employess", "employes", "emplyees"],  # misspellings
+            "attrition_rate": ["attrition", "attrition rate", "turnover rate", "employee turnover", "turnover",
+                               "attriton", "attrtion", "attriton rate"],  # misspellings
+            "engagement_score": ["engagement", "engagment", "engagmnet"],  # misspellings
             "cac": ["customer acquisition cost", "acquisition cost"],
             "ltv_cac": ["ltv/cac", "lifetime value to cac"],
             "magic_number": ["sales efficiency", "efficiency"],
@@ -779,8 +791,28 @@ class DCLSemanticClient:
         default_period = "2026-Q4"  # Current period
 
         if dimensions:
-            dim_key = f"{metric}_by_{'_'.join(dimensions)}"
-            if dim_key in fact_base:
+            # Try multiple key patterns:
+            # 1. {metric}_by_{dimensions} - e.g., "engagement_score_by_department"
+            # 2. {base_metric}_by_{dimensions} - e.g., "engagement_by_department"
+            # 3. For metrics ending in _rate/_pct/_score, try without suffix
+            dim_suffix = '_'.join(dimensions)
+            dim_key_variants = [
+                f"{metric}_by_{dim_suffix}",
+            ]
+            # Add variant without common suffixes
+            for suffix in ("_score", "_rate", "_pct", "_count", "_days", "_hours"):
+                if metric.endswith(suffix):
+                    base_metric = metric[:-len(suffix)]
+                    dim_key_variants.append(f"{base_metric}_by_{dim_suffix}")
+                    break
+
+            dim_key = None
+            for variant in dim_key_variants:
+                if variant in fact_base:
+                    dim_key = variant
+                    break
+
+            if dim_key and dim_key in fact_base:
                 dim_data = fact_base[dim_key]
 
                 # Data is keyed by period - get the right period's data
@@ -805,10 +837,22 @@ class DCLSemanticClient:
                         ]
                         return result
 
-            # Try single dimension
+            # Try single dimension with key variants
             for dim in dimensions:
-                dim_key = f"{metric}_by_{dim}"
-                if dim_key in fact_base:
+                dim_key_single_variants = [f"{metric}_by_{dim}"]
+                for suffix in ("_score", "_rate", "_pct", "_count", "_days", "_hours"):
+                    if metric.endswith(suffix):
+                        base_metric = metric[:-len(suffix)]
+                        dim_key_single_variants.append(f"{base_metric}_by_{dim}")
+                        break
+
+                dim_key = None
+                for variant in dim_key_single_variants:
+                    if variant in fact_base:
+                        dim_key = variant
+                        break
+
+                if dim_key and dim_key in fact_base:
                     dim_data = fact_base[dim_key]
 
                     if isinstance(dim_data, dict):
