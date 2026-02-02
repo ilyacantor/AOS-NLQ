@@ -3,12 +3,25 @@ Visualization Intent Detection for Self-Developing Dashboards.
 
 Detects when a user wants a visualization vs. a simple answer, and extracts
 visualization requirements from natural language queries.
+
+IMPORTANT: This module now tracks decisions explicitly and fails loudly when
+metric extraction fails, rather than silently defaulting to CFO metrics.
 """
 
 import re
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional, Tuple
+
+from src.nlq.core.debug_info import (
+    DashboardDebugInfo,
+    DecisionSource,
+    FailureCategory,
+    is_strict_mode,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class VisualizationIntent(str, Enum):
@@ -378,30 +391,61 @@ def _extract_metrics_from_query(query: str) -> List[str]:
             matched_indices.add(i)
             logger.debug(f"Resolved '{word}' -> '{metric.id}'")
 
-    # If no specific metrics found, select based on dashboard type/persona
+    # If no specific metrics found, check for persona-specific dashboard requests
+    # But DO NOT silently default to random metrics
+    extraction_method = "semantic_resolution" if metrics else None
+
     if not metrics:
-        # Check for persona-specific dashboard requests
+        # Check for EXPLICIT persona-specific dashboard requests
+        # These are OK because user explicitly asked for a persona dashboard
+        persona_metrics = None
+        persona_detected = None
+
         if any(term in q for term in ["ops dashboard", "operations dashboard", "coo dashboard"]):
-            metrics = ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months", "ltv_cac"]
+            persona_metrics = ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months", "ltv_cac"]
+            persona_detected = "COO"
         elif any(term in q for term in ["sales dashboard", "cro dashboard", "growth dashboard"]):
-            metrics = ["pipeline", "win_rate", "quota_attainment", "sales_cycle_days"]
+            persona_metrics = ["pipeline", "win_rate", "quota_attainment", "sales_cycle_days"]
+            persona_detected = "CRO"
         elif any(term in q for term in ["finance dashboard", "cfo dashboard", "financial dashboard"]):
-            metrics = ["revenue", "gross_margin_pct", "net_income", "arr"]
+            persona_metrics = ["revenue", "gross_margin_pct", "net_income", "arr"]
+            persona_detected = "CFO"
         elif any(term in q for term in ["engineering dashboard", "cto dashboard", "tech dashboard"]):
-            metrics = ["uptime_pct", "p1_incidents", "deployment_frequency"]
+            persona_metrics = ["uptime_pct", "p1_incidents", "deployment_frequency"]
+            persona_detected = "CTO"
         elif any(term in q for term in ["customer dashboard", "cs dashboard", "success dashboard"]):
-            metrics = ["nrr", "gross_churn_pct", "customer_count"]
+            persona_metrics = ["nrr", "gross_churn_pct", "customer_count"]
+            persona_detected = "CS"
+
+        if persona_metrics:
+            metrics = persona_metrics
+            extraction_method = f"persona_default:{persona_detected}"
+            logger.info(f"[METRIC_EXTRACTION] Using {persona_detected} persona metrics: {metrics}")
         else:
-            # Default to revenue for generic requests
-            metrics = ["revenue"]
+            # NO SILENT DEFAULT - log a warning and return empty
+            # The caller must decide what to do
+            logger.warning(
+                f"[METRIC_EXTRACTION] No metrics found in query: '{query}'. "
+                f"Returning empty list - caller must handle this explicitly."
+            )
+            extraction_method = "none_found"
+            # Return empty - let the caller decide what to do
+            return []
 
     # Final validation: ensure all returned metrics exist in catalog
     valid_metrics, errors = semantic_client.validate_metrics(metrics)
     if errors:
         for error in errors:
-            logger.warning(f"Metric validation: {error}")
+            logger.warning(f"[METRIC_VALIDATION] {error}")
+        if not valid_metrics:
+            logger.error(
+                f"[METRIC_EXTRACTION] All metrics failed validation for query: '{query}'. "
+                f"Original metrics: {metrics}, Errors: {errors}"
+            )
+            return []
         metrics = valid_metrics
 
+    logger.info(f"[METRIC_EXTRACTION] Extracted metrics: {metrics} (method: {extraction_method})")
     return metrics
 
 

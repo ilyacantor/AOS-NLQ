@@ -3,6 +3,9 @@ Dashboard Schema Generator for Self-Developing Dashboards.
 
 Generates dashboard schemas from visualization requirements extracted from
 natural language queries.
+
+IMPORTANT: This module no longer silently pads metrics or falls back to defaults.
+If the user requests 1 metric, they get 1 metric. If extraction fails, we fail loudly.
 """
 
 import uuid
@@ -12,6 +15,13 @@ from src.nlq.core.visualization_intent import (
     ChartTypeHint,
     VisualizationIntent,
     VisualizationRequirements,
+)
+from src.nlq.core.debug_info import (
+    DashboardDebugInfo,
+    DashboardGenerationError,
+    DecisionSource,
+    FailureCategory,
+    is_strict_mode,
 )
 from src.nlq.knowledge.display import get_display_name, get_domain
 from src.nlq.knowledge.schema import get_metric_unit
@@ -103,6 +113,7 @@ def generate_dashboard_schema(
     query: str,
     requirements: VisualizationRequirements,
     fact_base: Any = None,
+    debug_info: Optional[DashboardDebugInfo] = None,
 ) -> DashboardSchema:
     """
     Generate a dashboard schema from visualization requirements.
@@ -111,10 +122,19 @@ def generate_dashboard_schema(
         query: Original natural language query
         requirements: Extracted visualization requirements
         fact_base: Optional fact base for data validation
+        debug_info: Optional debug info for tracking decisions
 
     Returns:
         Complete DashboardSchema
     """
+    # Initialize debug info if not provided
+    if debug_info is None:
+        debug_info = DashboardDebugInfo(original_query=query)
+
+    debug_info.metrics_extracted = requirements.metrics.copy() if requirements.metrics else []
+    debug_info.intent_detected = requirements.intent.value if requirements.intent else "unknown"
+    debug_info.dimensions_requested = requirements.dimensions.copy() if requirements.dimensions else []
+
     dashboard_id = f"dash_{uuid.uuid4().hex[:8]}"
     title = _generate_title(query, requirements)
 
@@ -122,19 +142,26 @@ def generate_dashboard_schema(
 
     if requirements.intent == VisualizationIntent.SINGLE_METRIC_TREND:
         widgets = _generate_single_metric_trend(requirements)
+        debug_info.add_decision("schema_generation", "Using SINGLE_METRIC_TREND template", DecisionSource.USER_REQUEST)
     elif requirements.intent == VisualizationIntent.BREAKDOWN_CHART:
         widgets = _generate_breakdown_chart(requirements)
+        debug_info.add_decision("schema_generation", "Using BREAKDOWN_CHART template", DecisionSource.USER_REQUEST)
     elif requirements.intent == VisualizationIntent.COMPARISON_CHART:
         widgets = _generate_comparison_chart(requirements)
+        debug_info.add_decision("schema_generation", "Using COMPARISON_CHART template", DecisionSource.USER_REQUEST)
     elif requirements.intent == VisualizationIntent.DRILL_DOWN_VIEW:
         widgets = _generate_drill_down_view(requirements)
+        debug_info.add_decision("schema_generation", "Using DRILL_DOWN_VIEW template", DecisionSource.USER_REQUEST)
     elif requirements.intent == VisualizationIntent.MULTI_METRIC_DASHBOARD:
         widgets = _generate_multi_metric_dashboard(requirements)
+        debug_info.add_decision("schema_generation", "Using MULTI_METRIC_DASHBOARD template", DecisionSource.USER_REQUEST)
     elif requirements.intent == VisualizationIntent.FULL_DASHBOARD:
-        widgets = _generate_full_dashboard(requirements)
+        widgets = _generate_full_dashboard(requirements, debug_info)
+        debug_info.add_decision("schema_generation", "Using FULL_DASHBOARD template", DecisionSource.USER_REQUEST)
     else:
         # Simple KPI for simple answers that were promoted to viz
         widgets = _generate_simple_kpi(requirements)
+        debug_info.add_decision("schema_generation", "Using SIMPLE_KPI template (fallback)", DecisionSource.GENERIC_DEFAULT)
 
     # Determine default time binding
     time_binding = TimeBinding(
@@ -521,21 +548,58 @@ def _generate_multi_metric_dashboard(requirements: VisualizationRequirements) ->
     return widgets
 
 
-def _generate_full_dashboard(requirements: VisualizationRequirements) -> List[Widget]:
-    """Generate a full executive-style dashboard."""
+def _generate_full_dashboard(
+    requirements: VisualizationRequirements,
+    debug_info: Optional[DashboardDebugInfo] = None,
+) -> List[Widget]:
+    """
+    Generate a full executive-style dashboard.
+
+    IMPORTANT: This function NO LONGER pads metrics. If user requests 1 metric,
+    they get a dashboard with 1 metric. We do not silently add unrequested metrics.
+    """
     widgets = []
 
-    # Use detected metrics or default to CFO metrics
-    metrics = requirements.metrics if requirements.metrics else ["revenue", "gross_margin_pct", "net_income", "pipeline"]
+    # Use detected metrics - DO NOT default to CFO metrics
+    if not requirements.metrics:
+        error_msg = "Cannot generate dashboard: no metrics specified in request"
+        if debug_info:
+            debug_info.add_error(
+                FailureCategory.METRIC_EXTRACTION,
+                error_msg,
+            )
+        if is_strict_mode():
+            raise DashboardGenerationError(
+                error_msg,
+                FailureCategory.METRIC_EXTRACTION,
+                debug_info,
+                "Ensure the query explicitly mentions metrics or use a persona-specific dashboard request",
+            )
+        # In non-strict mode, log and use a minimal default
+        logger.error(f"[FALLBACK] {error_msg} - using 'revenue' as emergency fallback")
+        requirements.metrics = ["revenue"]
 
-    # Top KPI row - use the detected metrics, pad with defaults if needed
-    kpi_metrics = metrics[:4]  # Take first 4 metrics
-    if len(kpi_metrics) < 4:
-        # Pad with relevant metrics based on context
-        defaults = ["revenue", "gross_margin_pct", "net_income", "pipeline"]
-        for m in defaults:
-            if m not in kpi_metrics and len(kpi_metrics) < 4:
-                kpi_metrics.append(m)
+    metrics = requirements.metrics
+
+    # NO PADDING - use exactly what was requested
+    # If user asked for 1 metric, they get 1 KPI card
+    kpi_metrics = metrics[:4]  # Cap at 4 but DO NOT pad
+
+    if debug_info:
+        debug_info.add_decision(
+            stage="full_dashboard_generation",
+            decision=f"Using {len(kpi_metrics)} KPI metrics: {kpi_metrics}",
+            source=DecisionSource.USER_REQUEST,
+            details="No padding applied - using exactly what was requested",
+        )
+
+    # Calculate column span based on number of metrics
+    # If 1 metric: full width (12 cols)
+    # If 2 metrics: 6 cols each
+    # If 3 metrics: 4 cols each
+    # If 4 metrics: 3 cols each
+    num_kpis = len(kpi_metrics)
+    col_span = 12 // num_kpis if num_kpis > 0 else 12
 
     col = 1
     for metric in kpi_metrics:
@@ -547,13 +611,13 @@ def _generate_full_dashboard(requirements: VisualizationRequirements) -> List[Wi
                 metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
                 time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
             ),
-            position=GridPosition(column=col, row=1, col_span=3, row_span=2),
+            position=GridPosition(column=col, row=1, col_span=col_span, row_span=2),
             kpi_config=KPIConfig(show_trend=True, show_sparkline=True),
         ))
-        col += 3
+        col += col_span
 
-    # Primary metric trend chart
-    primary_metric = metrics[0] if metrics else "revenue"
+    # Primary metric trend chart - use first metric (which user explicitly requested)
+    primary_metric = metrics[0]  # Safe - we already checked metrics is not empty above
     widgets.append(Widget(
         id=f"{primary_metric}_trend",
         type=WidgetType.LINE_CHART,
