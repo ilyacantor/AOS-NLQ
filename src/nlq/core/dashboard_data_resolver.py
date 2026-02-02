@@ -593,7 +593,7 @@ class DashboardDataResolver:
             metric=metric,
             dimensions=[],
             grain="quarterly",
-            year=reference_year,
+            time_range={"year": reference_year},
             filters=filters,
         )
 
