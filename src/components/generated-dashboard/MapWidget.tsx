@@ -1,10 +1,12 @@
 /**
- * MapWidget - Geographic revenue visualization with actual world map
+ * MapWidget - Geographic revenue visualization with real world map using Leaflet
  *
- * Shows revenue distribution on a proper world map (AMER, EMEA, APAC, LATAM)
+ * Shows revenue distribution on an interactive world map (AMER, EMEA, APAC)
+ * with actual country borders, pan, and zoom capabilities.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
+import L from 'leaflet';
 import { Widget, WidgetData } from '../../types/generated-dashboard';
 
 interface MapWidgetProps {
@@ -14,64 +16,56 @@ interface MapWidgetProps {
   onClick?: (value?: string) => void;
 }
 
-// Simplified but recognizable continent paths (viewBox 0 0 1000 500)
-const REGION_PATHS: Record<string, { paths: string[]; labelX: number; labelY: number }> = {
-  AMER: {
-    // North America + South America
-    paths: [
-      // North America
-      'M 80,60 L 120,50 L 180,55 L 220,80 L 230,120 L 210,150 L 180,170 L 140,180 L 100,175 L 70,150 L 60,110 L 65,80 Z',
-      // Central America
-      'M 140,180 L 160,190 L 170,220 L 155,240 L 140,235 L 130,210 L 135,190 Z',
-      // South America
-      'M 155,240 L 180,250 L 210,280 L 220,340 L 200,400 L 160,420 L 130,390 L 120,330 L 130,280 L 145,250 Z',
-    ],
-    labelX: 150,
-    labelY: 140,
-  },
-  EMEA: {
-    // Europe + Middle East + Africa
-    paths: [
-      // Europe
-      'M 420,60 L 480,50 L 540,55 L 560,80 L 550,110 L 520,130 L 480,135 L 440,130 L 410,110 L 405,80 Z',
-      // Middle East
-      'M 540,130 L 580,125 L 620,140 L 610,180 L 570,190 L 540,175 L 530,150 Z',
-      // Africa
-      'M 420,150 L 480,145 L 540,160 L 560,200 L 550,280 L 520,350 L 470,380 L 420,360 L 400,300 L 390,230 L 400,180 Z',
-    ],
-    labelX: 480,
-    labelY: 200,
-  },
-  APAC: {
-    // Asia + Australia/Pacific
-    paths: [
-      // Asia (Russia + East Asia)
-      'M 560,40 L 700,35 L 820,50 L 880,80 L 900,130 L 880,180 L 820,200 L 740,195 L 680,180 L 620,150 L 580,120 L 560,80 Z',
-      // South/Southeast Asia
-      'M 680,180 L 750,200 L 800,230 L 820,280 L 780,300 L 720,290 L 680,260 L 660,220 Z',
-      // Australia
-      'M 780,340 L 860,330 L 920,360 L 930,410 L 890,450 L 820,460 L 770,430 L 760,380 Z',
-    ],
-    labelX: 780,
-    labelY: 150,
-  },
-  LATAM: {
-    // Latin America (shown as part of AMER but can be highlighted separately)
-    paths: [
-      'M 140,200 L 175,210 L 200,250 L 215,320 L 195,390 L 155,410 L 125,380 L 115,320 L 125,260 L 135,220 Z',
-    ],
-    labelX: 160,
-    labelY: 310,
-  },
+// Country to region mapping
+const COUNTRY_REGIONS: Record<string, string> = {
+  // AMER - Americas
+  USA: 'AMER', CAN: 'AMER', MEX: 'AMER', BRA: 'AMER', ARG: 'AMER',
+  COL: 'AMER', PER: 'AMER', VEN: 'AMER', CHL: 'AMER', ECU: 'AMER',
+  BOL: 'AMER', PRY: 'AMER', URY: 'AMER', GUY: 'AMER', SUR: 'AMER',
+  PAN: 'AMER', CRI: 'AMER', NIC: 'AMER', HND: 'AMER', SLV: 'AMER',
+  GTM: 'AMER', BLZ: 'AMER', CUB: 'AMER', DOM: 'AMER', HTI: 'AMER',
+  JAM: 'AMER', TTO: 'AMER', BHS: 'AMER', GRL: 'AMER',
+  // EMEA - Europe, Middle East, Africa
+  GBR: 'EMEA', DEU: 'EMEA', FRA: 'EMEA', ITA: 'EMEA', ESP: 'EMEA',
+  PRT: 'EMEA', NLD: 'EMEA', BEL: 'EMEA', CHE: 'EMEA', AUT: 'EMEA',
+  POL: 'EMEA', CZE: 'EMEA', HUN: 'EMEA', ROU: 'EMEA', BGR: 'EMEA',
+  GRC: 'EMEA', SWE: 'EMEA', NOR: 'EMEA', FIN: 'EMEA', DNK: 'EMEA',
+  IRL: 'EMEA', UKR: 'EMEA', BLR: 'EMEA', LTU: 'EMEA', LVA: 'EMEA',
+  EST: 'EMEA', SVK: 'EMEA', SVN: 'EMEA', HRV: 'EMEA', SRB: 'EMEA',
+  BIH: 'EMEA', MNE: 'EMEA', MKD: 'EMEA', ALB: 'EMEA', MDA: 'EMEA',
+  RUS: 'EMEA', TUR: 'EMEA', ISR: 'EMEA', SAU: 'EMEA', ARE: 'EMEA',
+  QAT: 'EMEA', KWT: 'EMEA', BHR: 'EMEA', OMN: 'EMEA', YEM: 'EMEA',
+  JOR: 'EMEA', LBN: 'EMEA', SYR: 'EMEA', IRQ: 'EMEA', IRN: 'EMEA',
+  EGY: 'EMEA', LBY: 'EMEA', TUN: 'EMEA', DZA: 'EMEA', MAR: 'EMEA',
+  ZAF: 'EMEA', NGA: 'EMEA', KEN: 'EMEA', ETH: 'EMEA', GHA: 'EMEA',
+  TZA: 'EMEA', UGA: 'EMEA', AGO: 'EMEA', MOZ: 'EMEA', ZWE: 'EMEA',
+  ZMB: 'EMEA', BWA: 'EMEA', NAM: 'EMEA', SEN: 'EMEA', CIV: 'EMEA',
+  CMR: 'EMEA', COD: 'EMEA', SDN: 'EMEA', SSD: 'EMEA', MLI: 'EMEA',
+  NER: 'EMEA', TCD: 'EMEA', CAF: 'EMEA', COG: 'EMEA', GAB: 'EMEA',
+  GNQ: 'EMEA', MRT: 'EMEA', ESH: 'EMEA', BFA: 'EMEA', BEN: 'EMEA',
+  TGO: 'EMEA', LBR: 'EMEA', SLE: 'EMEA', GIN: 'EMEA', GMB: 'EMEA',
+  GNB: 'EMEA', CPV: 'EMEA', STP: 'EMEA', MWI: 'EMEA', RWA: 'EMEA',
+  BDI: 'EMEA', ERI: 'EMEA', DJI: 'EMEA', SOM: 'EMEA', MDG: 'EMEA',
+  MUS: 'EMEA', SYC: 'EMEA', COM: 'EMEA', SWZ: 'EMEA', LSO: 'EMEA',
+  // APAC - Asia Pacific
+  CHN: 'APAC', JPN: 'APAC', KOR: 'APAC', PRK: 'APAC', TWN: 'APAC',
+  HKG: 'APAC', MAC: 'APAC', MNG: 'APAC', IND: 'APAC', PAK: 'APAC',
+  BGD: 'APAC', NPL: 'APAC', BTN: 'APAC', LKA: 'APAC', MDV: 'APAC',
+  THA: 'APAC', VNM: 'APAC', MYS: 'APAC', SGP: 'APAC', IDN: 'APAC',
+  PHL: 'APAC', MMR: 'APAC', KHM: 'APAC', LAO: 'APAC', BRN: 'APAC',
+  TLS: 'APAC', AUS: 'APAC', NZL: 'APAC', PNG: 'APAC', FJI: 'APAC',
+  SLB: 'APAC', VUT: 'APAC', NCL: 'APAC', WSM: 'APAC', TON: 'APAC',
+  KAZ: 'APAC', UZB: 'APAC', TKM: 'APAC', KGZ: 'APAC', TJK: 'APAC',
+  AFG: 'APAC',
 };
 
-// Get color with opacity based on percentage
-function getRegionFill(percentage: number): string {
-  if (percentage <= 0) return '#1e293b';
-  // Cyan gradient based on percentage
-  const opacity = 0.3 + (percentage / 100) * 0.7;
-  return `rgba(11, 202, 217, ${opacity})`;
-}
+// Region colors
+const REGION_COLORS: Record<string, string> = {
+  AMER: '#06b6d4', // cyan
+  EMEA: '#8b5cf6', // purple
+  APAC: '#f59e0b', // amber
+  LATAM: '#10b981', // emerald
+};
 
 // Format currency values
 function formatValue(value: number): string {
@@ -84,6 +78,10 @@ function formatValue(value: number): string {
 }
 
 export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const geoJsonLayerRef = useRef<L.GeoJSON | null>(null);
+
   // Extract region data from widget data
   const regionData = useMemo(() => {
     if (data.map_data?.regions) {
@@ -109,9 +107,7 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
     return regionData.reduce((sum, r) => sum + (r.value || 0), 0);
   }, [data, regionData]);
 
-  const hasDrillDown = widget.interactions?.some(i => i.type === 'drill_down' && i.enabled);
-
-  // Create a lookup for region data
+  // Create region lookup
   const regionLookup = useMemo(() => {
     const lookup: Record<string, { value: number; percentage: number }> = {};
     regionData.forEach(r => {
@@ -124,6 +120,110 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
     return lookup;
   }, [regionData]);
 
+  const hasDrillDown = widget.interactions?.some(i => i.type === 'drill_down' && i.enabled);
+
+  // Initialize Leaflet map
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    // Create map centered on Atlantic to show all continents
+    const map = L.map(mapContainerRef.current, {
+      center: [20, 0],
+      zoom: 1.5,
+      minZoom: 1,
+      maxZoom: 6,
+      worldCopyJump: true,
+      maxBounds: [[-90, -180], [90, 180]],
+      maxBoundsViscosity: 1.0,
+    });
+
+    // Dark tile layer
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      subdomains: 'abcd',
+      maxZoom: 19,
+    }).addTo(map);
+
+    mapRef.current = map;
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  // Load and render GeoJSON countries
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    const map = mapRef.current;
+
+    // Remove existing layer if any
+    if (geoJsonLayerRef.current) {
+      map.removeLayer(geoJsonLayerRef.current);
+    }
+
+    // Fetch world countries GeoJSON
+    fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
+      .then(response => response.json())
+      .then((geojsonData: GeoJSON.FeatureCollection) => {
+        const geoJsonLayer = L.geoJSON(geojsonData, {
+          style: (feature) => {
+            const countryCode = feature?.properties?.ISO_A3 || '';
+            const region = COUNTRY_REGIONS[countryCode];
+            const regionInfo = region ? regionLookup[region] : null;
+            const hasData = regionInfo && regionInfo.value > 0;
+            const baseColor = region ? REGION_COLORS[region] : '#334155';
+
+            return {
+              fillColor: hasData ? baseColor : '#1e293b',
+              fillOpacity: hasData ? 0.4 + (regionInfo!.percentage / 100) * 0.4 : 0.3,
+              color: hasData ? baseColor : '#334155',
+              weight: hasData ? 1 : 0.5,
+            };
+          },
+          onEachFeature: (feature, layer) => {
+            const countryCode = feature?.properties?.ISO_A3 || '';
+            const countryName = feature?.properties?.ADMIN || countryCode;
+            const region = COUNTRY_REGIONS[countryCode];
+            const regionInfo = region ? regionLookup[region] : null;
+
+            if (region && regionInfo && regionInfo.value > 0) {
+              layer.bindTooltip(
+                `<div style="text-align: center;">
+                  <strong>${countryName}</strong><br/>
+                  <span style="color: ${REGION_COLORS[region]}">${region}</span><br/>
+                  ${regionInfo.percentage.toFixed(1)}% of revenue
+                </div>`,
+                { sticky: true }
+              );
+
+              if (hasDrillDown) {
+                layer.on('click', () => {
+                  onClick?.(region);
+                });
+              }
+            } else {
+              layer.bindTooltip(countryName, { sticky: true });
+            }
+          },
+        });
+
+        geoJsonLayer.addTo(map);
+        geoJsonLayerRef.current = geoJsonLayer;
+      })
+      .catch(err => {
+        console.error('Failed to load GeoJSON:', err);
+      });
+
+    return () => {
+      if (geoJsonLayerRef.current && mapRef.current) {
+        mapRef.current.removeLayer(geoJsonLayerRef.current);
+        geoJsonLayerRef.current = null;
+      }
+    };
+  }, [regionLookup, hasDrillDown, onClick]);
+
   return (
     <div className="p-4 h-full flex flex-col">
       <div className="flex items-center justify-between mb-2">
@@ -134,113 +234,43 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
         </div>
       </div>
 
-      <div className="flex-1 relative" style={{ minHeight: Math.max(height - 100, 150) }}>
-        {/* SVG World Map */}
-        <svg
-          viewBox="0 0 1000 500"
-          className="w-full h-full"
-          preserveAspectRatio="xMidYMid meet"
-        >
-          {/* Ocean background */}
-          <rect width="1000" height="500" fill="#0a1628" />
-
-          {/* Grid lines for visual effect */}
-          <g stroke="#1e293b" strokeWidth="0.5" opacity="0.3">
-            {[100, 200, 300, 400].map(y => (
-              <line key={`h-${y}`} x1="0" y1={y} x2="1000" y2={y} />
-            ))}
-            {[200, 400, 600, 800].map(x => (
-              <line key={`v-${x}`} x1={x} y1="0" x2={x} y2="500" />
-            ))}
-          </g>
-
-          {/* Render each region */}
-          {Object.entries(REGION_PATHS).map(([regionKey, config]) => {
-            const regionInfo = regionLookup[regionKey] || { value: 0, percentage: 0 };
-            const hasData = regionInfo.value > 0;
-            const fillColor = getRegionFill(regionInfo.percentage);
-
-            return (
-              <g
-                key={regionKey}
-                onClick={() => hasDrillDown && onClick?.(regionKey)}
-                style={{ cursor: hasDrillDown ? 'pointer' : 'default' }}
-                className="transition-all duration-200 hover:opacity-80"
-              >
-                {/* Region landmass shapes */}
-                {config.paths.map((path, i) => (
-                  <path
-                    key={`${regionKey}-${i}`}
-                    d={path}
-                    fill={fillColor}
-                    stroke={hasData ? '#0BCAD9' : '#334155'}
-                    strokeWidth={hasData ? 1.5 : 0.5}
-                  />
-                ))}
-
-                {/* Region label and value */}
-                {hasData && (
-                  <g>
-                    {/* Background for text readability */}
-                    <rect
-                      x={config.labelX - 40}
-                      y={config.labelY - 12}
-                      width="80"
-                      height="36"
-                      fill="rgba(15, 23, 42, 0.8)"
-                      rx="4"
-                    />
-                    <text
-                      x={config.labelX}
-                      y={config.labelY}
-                      textAnchor="middle"
-                      fill="#94a3b8"
-                      fontSize="11"
-                      fontWeight="500"
-                    >
-                      {regionKey}
-                    </text>
-                    <text
-                      x={config.labelX}
-                      y={config.labelY + 14}
-                      textAnchor="middle"
-                      fill="#ffffff"
-                      fontSize="12"
-                      fontWeight="bold"
-                    >
-                      {regionInfo.percentage.toFixed(0)}%
-                    </text>
-                  </g>
-                )}
-              </g>
-            );
-          })}
-        </svg>
-      </div>
+      {/* Leaflet Map Container */}
+      <div
+        ref={mapContainerRef}
+        className="flex-1 rounded-lg overflow-hidden"
+        style={{ minHeight: Math.max(height - 100, 200) }}
+      />
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-3 mt-2 justify-center">
+      <div className="flex flex-wrap gap-3 mt-3 justify-center">
         {regionData
           .filter(r => r.value > 0)
           .sort((a, b) => (b.value || 0) - (a.value || 0))
-          .map(r => (
-            <div
-              key={r.region}
-              className={`flex items-center gap-2 px-2 py-1 rounded ${
-                hasDrillDown ? 'cursor-pointer hover:bg-slate-800' : ''
-              }`}
-              onClick={() => hasDrillDown && onClick?.(r.region)}
-            >
+          .map(r => {
+            const regionKey = r.region?.toUpperCase() || '';
+            const color = REGION_COLORS[regionKey] || '#64748b';
+            return (
               <div
-                className="w-3 h-3 rounded-sm"
-                style={{ backgroundColor: getRegionFill(r.percentage || 0) }}
-              />
-              <span className="text-xs text-slate-400">{r.region}</span>
-              <span className="text-xs font-medium text-slate-300">
-                {(r.percentage || 0).toFixed(0)}%
-              </span>
-            </div>
-          ))}
+                key={r.region}
+                className={`flex items-center gap-2 px-2 py-1 rounded ${
+                  hasDrillDown ? 'cursor-pointer hover:bg-slate-800' : ''
+                }`}
+                onClick={() => hasDrillDown && onClick?.(r.region)}
+              >
+                <div
+                  className="w-3 h-3 rounded-sm"
+                  style={{ backgroundColor: color }}
+                />
+                <span className="text-xs text-slate-400">{r.region}</span>
+                <span className="text-xs font-medium text-slate-300">
+                  {formatValue(r.value || 0)}
+                </span>
+                <span className="text-xs text-slate-500">
+                  ({(r.percentage || 0).toFixed(0)}%)
+                </span>
+              </div>
+            );
+          })}
       </div>
     </div>
   );
