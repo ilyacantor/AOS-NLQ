@@ -286,7 +286,7 @@ class DCLSemanticClient:
             # Sales
             "pipeline": ["sales pipeline", "pipe", "opportunities", "deals"],
             "arr": ["annual recurring revenue", "recurring revenue"],
-            "nrr": ["net revenue retention", "net retention"],
+            "nrr": ["net revenue retention", "net retention", "retention rate", "retention"],
             "win_rate": ["close rate", "conversion rate"],
             "quota_attainment": ["quota", "attainment"],
             "gross_churn_pct": ["churn", "churn rate", "customer churn"],
@@ -294,7 +294,8 @@ class DCLSemanticClient:
             # Operations/HR (with common misspellings)
             "headcount": ["employees", "staff", "team size", "hc", "people", "fte",
                           "employess", "employes", "emplyees",  # misspellings
-                          "personnel", "personnel hires", "hires", "workforce"],  # additional aliases
+                          "personnel", "personnel hires", "hires", "workforce",  # additional aliases
+                          "hiring", "hiring trend"],  # map hiring to headcount trend
             "attrition_rate": ["attrition", "attrition rate", "turnover rate", "employee turnover", "turnover",
                                "attriton", "attrtion", "attriton rate"],  # misspellings
             "engagement_score": ["engagement", "engagment", "engagmnet"],  # misspellings
@@ -306,6 +307,8 @@ class DCLSemanticClient:
             "uptime_pct": ["uptime", "availability"],
             "p1_incidents": ["incidents", "p1s", "outages"],
             "deployment_success_pct": ["deploy success", "deployment success"],
+            "tech_debt_pct": ["tech debt", "technical debt", "debt ratio"],
+            "csat": ["csat score", "customer satisfaction", "satisfaction score"],
         }
 
     def _get_metric_domains(self) -> Dict[str, str]:

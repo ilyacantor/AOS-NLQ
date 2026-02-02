@@ -1447,7 +1447,24 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
         time_range={"period": current_period, "granularity": "quarterly"}
     )
 
+    # If query failed or returned no data, provide helpful error message
     if result.get("error") or not result.get("data"):
+        # Get valid dimensions to provide helpful suggestion
+        valid_dims = dcl_client.get_valid_dimensions(metric)
+        if valid_dims:
+            valid_list = ", ".join(valid_dims)
+            return NLQResponse(
+                success=True,
+                answer=f"No data available for {metric.replace('_', ' ')} by {dim_term}. "
+                       f"Try breaking down by: {valid_list}.",
+                value=None,
+                unit=None,
+                confidence=0.85,
+                parsed_intent="DATA_NOT_AVAILABLE",
+                resolved_metric=metric,
+                resolved_period=current_period,
+                response_type="text",
+            )
         return None
 
     # Format as dashboard data
@@ -1462,10 +1479,41 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
             # Extract dimension key and value
             dim_key = item.get(dimension, item.get("label", ""))
             val = item.get("value")
+
+            # Handle nested value dicts (e.g., {'pipeline': 6.4, 'qualified': 3.84})
+            if isinstance(val, dict):
+                # Try to get the metric value, or first numeric value
+                if metric in val:
+                    val = val[metric]
+                else:
+                    # Get first numeric value from the dict
+                    for v in val.values():
+                        if isinstance(v, (int, float)):
+                            val = v
+                            break
+                    else:
+                        val = 0
+
             if dim_key and val is not None:
                 formatted_data.append({"label": str(dim_key), "value": val})
 
     if not formatted_data:
+        # No breakdown data found - provide helpful message
+        valid_dims = dcl_client.get_valid_dimensions(metric)
+        if valid_dims:
+            valid_list = ", ".join(valid_dims)
+            return NLQResponse(
+                success=True,
+                answer=f"No breakdown data available for {metric.replace('_', ' ')} by {dim_term}. "
+                       f"Try breaking down by: {valid_list}.",
+                value=None,
+                unit=None,
+                confidence=0.85,
+                parsed_intent="DATA_NOT_AVAILABLE",
+                resolved_metric=metric,
+                resolved_period=current_period,
+                response_type="text",
+            )
         return None
 
     # Build dashboard response with breakdown in expected format

@@ -478,6 +478,21 @@ class DashboardDataResolver:
             if isinstance(item, dict):
                 label = item.get(dimension, item.get("label", item.get("name", "")))
                 value = item.get("value", item.get("val", 0))
+
+                # Handle nested value dicts (e.g., {'pipeline': 6.4, 'qualified': 3.84})
+                if isinstance(value, dict):
+                    # Try to get the metric value, or first numeric value
+                    if metric in value:
+                        value = value[metric]
+                    else:
+                        # Get first numeric value from the dict
+                        for v in value.values():
+                            if isinstance(v, (int, float)):
+                                value = v
+                                break
+                        else:
+                            value = 0
+
                 if label and value is not None:
                     breakdown.append({"label": str(label), "value": round(value, 2)})
                     total += value
