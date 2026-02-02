@@ -39,8 +39,8 @@ interface NodeState {
 
 export const GalaxyView: React.FC<GalaxyViewProps> = ({
   data,
-  width = 700,
-  height = 700,
+  width: propWidth,
+  height: propHeight,
   onNavigateToDashboard,
 }) => {
   const [selectedNode, setSelectedNode] = useState<IntentNode | null>(null);
@@ -48,6 +48,39 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const [hoveredPosition, setHoveredPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [nodeStates, setNodeStates] = useState<Map<string, NodeState>>(new Map());
+
+  // Container ref for measuring available space
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ width: propWidth || 700, height: propHeight || 700 });
+
+  // Use container size or props
+  const width = propWidth || containerSize.width;
+  const height = propHeight || containerSize.height;
+
+  // Measure container and update size
+  useEffect(() => {
+    if (propWidth && propHeight) return; // Skip if explicit dimensions provided
+
+    const updateSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        // Use the smaller dimension to keep it square, or use both for non-square
+        const size = Math.min(rect.width, rect.height);
+        if (size > 0) {
+          setContainerSize({ width: size, height: size });
+        }
+      }
+    };
+
+    updateSize();
+
+    const resizeObserver = new ResizeObserver(updateSize);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => resizeObserver.disconnect();
+  }, [propWidth, propHeight]);
 
   // Mobile bottom sheet state
   const [sheetState, setSheetState] = useState<SheetState>('collapsed');
@@ -637,7 +670,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
         </div>
 
         {/* Center - SVG Visualization */}
-        <div className="flex-1 flex items-center justify-center p-4 overflow-hidden min-h-0">
+        <div ref={containerRef} className="flex-1 flex items-center justify-center overflow-hidden min-h-0">
           {svgContent}
         </div>
 
