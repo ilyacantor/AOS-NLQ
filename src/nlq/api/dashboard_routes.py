@@ -1,6 +1,8 @@
 """
 Dashboard API routes for Self-Developing Dashboards.
 
+All data access goes through DCL - NLQ holds no local data.
+
 Endpoints:
 - POST /v1/query/dashboard: Generate dashboard schema from NL query
 - POST /v1/dashboard/refine: Refine existing dashboard with NL
@@ -8,7 +10,6 @@ Endpoints:
 """
 
 import logging
-from pathlib import Path
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -24,7 +25,6 @@ from src.nlq.core.visualization_intent import (
     detect_visualization_intent,
     should_generate_visualization,
 )
-from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.models.dashboard_schema import (
     DashboardGenerationResponse,
     DashboardRefinementRequest,
@@ -39,33 +39,10 @@ router = APIRouter()
 # In-memory cache for generated dashboards (in production, use Redis or DB)
 _dashboard_cache: Dict[str, DashboardSchema] = {}
 
-# Lazy-loaded fact base instance
-_fact_base: Optional[FactBase] = None
-
-
-def _get_fact_base() -> FactBase:
-    """Get or create the fact base instance."""
-    global _fact_base
-    if _fact_base is None:
-        _fact_base = FactBase()
-        # Try multiple paths for fact base
-        possible_paths = [
-            Path("data/fact_base.json"),
-            Path("/home/user/AOS-NLQ/data/fact_base.json"),
-            Path("./data/fact_base.json"),
-        ]
-        for path in possible_paths:
-            if path.exists():
-                _fact_base.load(path)
-                logger.info(f"Dashboard routes: Loaded fact base from {path}")
-                break
-    return _fact_base
-
 
 def _resolve_widget_data(dashboard: DashboardSchema) -> Dict[str, Any]:
-    """Resolve widget data from fact base for a dashboard."""
-    fact_base = _get_fact_base()
-    resolver = DashboardDataResolver(fact_base)
+    """Resolve widget data from DCL for a dashboard."""
+    resolver = DashboardDataResolver()
 
     # Extract filters from widget data bindings (if any widget has filters set)
     active_filters = {}
@@ -302,9 +279,6 @@ async def filter_dashboard(request: DashboardFilterRequest) -> DashboardFilterRe
     """
     try:
         from src.nlq.core.dashboard_data_resolver import DashboardDataResolver
-        from src.nlq.knowledge.fact_base import FactBase
-        import os
-        from pathlib import Path
 
         logger.info(f"Filter request for {request.dashboard_id}: {request.filters}")
 
@@ -318,13 +292,8 @@ async def filter_dashboard(request: DashboardFilterRequest) -> DashboardFilterRe
                 error=f"Dashboard {request.dashboard_id} not found",
             )
 
-        # Load fact base
-        project_root = Path(__file__).parent.parent.parent.parent
-        fact_base_path = project_root / "data" / "fact_base.json"
-        fact_base = FactBase(fact_base_path)
-
-        # Resolve data with filters
-        resolver = DashboardDataResolver(fact_base)
+        # Resolve data with filters via DCL
+        resolver = DashboardDataResolver()
         widget_data = resolver.resolve_dashboard_data(
             dashboard,
             reference_year="2025",

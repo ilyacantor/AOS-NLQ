@@ -680,6 +680,134 @@ class DCLSemanticClient:
             available = [m.display_name for m in list(catalog.metrics.values())[:5]]
             return f"Metric '{metric_id}' not found. Available metrics include: {', '.join(available)}"
 
+    # =========================================================================
+    # DATA QUERY API - All data access goes through DCL
+    # =========================================================================
+
+    def query(
+        self,
+        metric: str,
+        dimensions: List[str] = None,
+        filters: Dict[str, Any] = None,
+        time_range: Dict[str, Any] = None,
+        grain: str = None,
+    ) -> Dict[str, Any]:
+        """
+        Execute a data query against DCL.
+
+        This is the single entry point for all data access. NLQ holds no local data.
+
+        Args:
+            metric: Canonical metric ID (e.g., "revenue", "pipeline")
+            dimensions: List of dimensions to break down by (e.g., ["region", "segment"])
+            filters: Filter criteria (e.g., {"region": "AMER"})
+            time_range: Time range specification (e.g., {"period": "2025", "granularity": "quarterly"})
+            grain: Time granularity override (e.g., "monthly", "quarterly")
+
+        Returns:
+            Query result from DCL with data points
+
+        Raises:
+            DCLQueryError: If DCL returns an error or is unavailable
+        """
+        if not self.dcl_url:
+            # Local dev mode - use fallback data
+            return self._query_local_fallback(metric, dimensions, filters, time_range, grain)
+
+        if not self._http_client:
+            self._http_client = httpx.Client(timeout=30.0)
+
+        try:
+            payload = {
+                "metric": metric,
+                "dimensions": dimensions or [],
+                "filters": filters or {},
+                "time_range": time_range or {},
+                "grain": grain,
+            }
+
+            response = self._http_client.post(
+                f"{self.dcl_url}/api/dcl/query",
+                json=payload
+            )
+
+            if response.status_code == 404:
+                return {"error": f"Unknown metric: {metric}", "status": "not_found"}
+            elif response.status_code == 400:
+                error_msg = response.json().get("message", "Invalid query")
+                return {"error": error_msg, "status": "bad_request"}
+
+            response.raise_for_status()
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"DCL query failed: {e}")
+            return {"error": f"DCL query failed: {e}", "status": "error"}
+        except Exception as e:
+            logger.error(f"DCL query error: {e}")
+            return {"error": f"DCL unavailable: {e}", "status": "error"}
+
+    def _query_local_fallback(
+        self,
+        metric: str,
+        dimensions: List[str] = None,
+        filters: Dict[str, Any] = None,
+        time_range: Dict[str, Any] = None,
+        grain: str = None,
+    ) -> Dict[str, Any]:
+        """
+        Local fallback for dev mode when DCL is not available.
+
+        Reads from fact_base.json to provide mock data.
+        """
+        from pathlib import Path
+
+        fact_base_path = Path(__file__).parent.parent.parent.parent / "data" / "fact_base.json"
+        try:
+            import json
+            with open(fact_base_path, 'r') as f:
+                fact_base = json.load(f)
+        except Exception as e:
+            logger.warning(f"Local fallback failed - no fact_base.json: {e}")
+            return {"error": "No data available (DCL not configured, no local fallback)", "status": "error"}
+
+        # Build response based on query type
+        result = {"metric": metric, "data": [], "status": "ok", "source": "local_fallback"}
+
+        # Handle dimensional queries
+        if dimensions:
+            dim_key = f"{metric}_by_{'_'.join(dimensions)}"
+            if dim_key in fact_base:
+                result["data"] = fact_base[dim_key]
+                return result
+
+            # Try single dimension
+            for dim in dimensions:
+                dim_key = f"{metric}_by_{dim}"
+                if dim_key in fact_base:
+                    result["data"] = fact_base[dim_key]
+                    return result
+
+        # Handle time series queries
+        if "quarterly" in fact_base:
+            quarterly_data = []
+            for entry in fact_base["quarterly"]:
+                if metric in entry:
+                    quarterly_data.append({
+                        "period": entry.get("period", f"{entry.get('year')}-{entry.get('quarter')}"),
+                        "value": entry[metric]
+                    })
+            if quarterly_data:
+                result["data"] = quarterly_data
+                return result
+
+        # Try direct metric lookup
+        if metric in fact_base:
+            result["data"] = fact_base[metric]
+            return result
+
+        return {"error": f"Metric '{metric}' not found in local data", "status": "not_found"}
+
     def close(self):
         """Close HTTP client."""
         if self._http_client:

@@ -1,14 +1,14 @@
 """
-Dashboard Data Resolver - Populates dashboard widgets with real fact base data.
+Dashboard Data Resolver - Populates dashboard widgets with data from DCL.
 
-This module replaces the mock data generation in the frontend with actual
-data from the fact base, ensuring dashboards show real values.
+This module routes all data access through DCL's query API.
+NLQ holds no local data - it's a stateless UI layer.
 """
 
 import logging
 from typing import Any, Dict, List, Optional
 
-from src.nlq.knowledge.fact_base import FactBase
+from src.nlq.services.dcl_semantic_client import get_semantic_client
 from src.nlq.knowledge.schema import get_metric_unit
 from src.nlq.knowledge.display import get_display_name
 from src.nlq.models.dashboard_schema import (
@@ -22,13 +22,14 @@ logger = logging.getLogger(__name__)
 
 class DashboardDataResolver:
     """
-    Resolves dashboard widget data from the fact base.
+    Resolves dashboard widget data from DCL.
 
-    Replaces mock data generation with real fact base queries.
+    All data access goes through DCL's query API.
     """
 
-    def __init__(self, fact_base: FactBase):
-        self.fact_base = fact_base
+    def __init__(self, fact_base=None):
+        """Initialize resolver. fact_base param kept for backwards compatibility but ignored."""
+        self.dcl_client = get_semantic_client()
 
     def resolve_dashboard_data(
         self,
@@ -93,13 +94,35 @@ class DashboardDataResolver:
         else:
             return {"loading": False}
 
+    def _query_dcl(
+        self,
+        metric: str,
+        dimensions: List[str] = None,
+        filters: Dict[str, Any] = None,
+        time_range: Dict[str, Any] = None,
+        grain: str = None,
+    ) -> Dict[str, Any]:
+        """Execute query against DCL and handle errors."""
+        result = self.dcl_client.query(
+            metric=metric,
+            dimensions=dimensions,
+            filters=filters,
+            time_range=time_range,
+            grain=grain,
+        )
+
+        if result.get("status") == "error" or result.get("error"):
+            logger.warning(f"DCL query error for '{metric}': {result.get('error')}")
+
+        return result
+
     def _resolve_kpi_data(
         self,
         widget: Widget,
         reference_year: str,
         filters: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
-        """Resolve KPI card data from fact base."""
+        """Resolve KPI card data from DCL."""
         filters = filters or {}
         metrics = widget.data.metrics
         if not metrics:
@@ -107,34 +130,29 @@ class DashboardDataResolver:
 
         metric = metrics[0].metric
 
-        # Get current value - try quarterly first, then annual aggregation
-        value = self.fact_base.query(metric, reference_year)
-        if value is None:
-            # Try annual aggregation from quarters
-            try:
-                value = self.fact_base.query_annual(metric, int(reference_year))
-            except (ValueError, TypeError):
-                pass
+        # Query DCL for current year value
+        result = self._query_dcl(
+            metric=metric,
+            filters=filters,
+            time_range={"period": reference_year, "granularity": "yearly"},
+        )
 
-        if value is None:
-            return {
-                "loading": False,
-                "error": f"Metric '{metric}' not found in fact base"
-            }
+        if result.get("error"):
+            return {"loading": False, "error": result["error"]}
 
-        # Apply filters - adjust value based on filtered dimension
-        value = self._apply_filter_ratio(value, filters)
+        # Extract value from DCL response
+        value = self._extract_value_from_result(result)
+        if value is None:
+            return {"loading": False, "error": f"No data for '{metric}'"}
 
         # Get prior year for trend
         prior_year = str(int(reference_year) - 1)
-        prior_value = self.fact_base.query(metric, prior_year)
-        if prior_value is None:
-            try:
-                prior_value = self.fact_base.query_annual(metric, int(prior_year))
-            except (ValueError, TypeError):
-                pass
-        if prior_value is not None:
-            prior_value = self._apply_filter_ratio(prior_value, filters)
+        prior_result = self._query_dcl(
+            metric=metric,
+            filters=filters,
+            time_range={"period": prior_year, "granularity": "yearly"},
+        )
+        prior_value = self._extract_value_from_result(prior_result)
 
         # Calculate trend
         trend = None
@@ -149,8 +167,14 @@ class DashboardDataResolver:
         # Format value
         formatted_value = self._format_value(metric, value)
 
-        # Get sparkline data from quarters
-        sparkline_data = self._get_quarterly_values(metric, reference_year, filters)
+        # Get sparkline data (last 8 quarters)
+        sparkline_result = self._query_dcl(
+            metric=metric,
+            filters=filters,
+            time_range={"period": "last 8 quarters", "granularity": "quarterly"},
+            grain="quarterly",
+        )
+        sparkline_data = self._extract_time_series_values(sparkline_result)
 
         # Include filter info in response
         filter_label = None
@@ -180,29 +204,19 @@ class DashboardDataResolver:
 
         metric = metrics[0].metric
 
-        # Determine time range - get last 8 quarters
-        ref_year = int(reference_year)
-        periods = []
+        # Query DCL for quarterly data
+        result = self._query_dcl(
+            metric=metric,
+            filters=filters,
+            time_range={"period": "last 8 quarters", "granularity": "quarterly"},
+            grain="quarterly",
+        )
 
-        # Build list of quarters going back
-        for year in [ref_year - 1, ref_year]:
-            for q in range(1, 5):
-                periods.append(f"{year}-Q{q}")
+        if result.get("error"):
+            return {"loading": False, "error": result["error"]}
 
-        # Get values for each period
-        data_points = []
-        for period in periods:
-            val = self.fact_base.query(metric, period)
-            if val is not None:
-                # Apply filters
-                val = self._apply_filter_ratio(val, filters)
-                # Format label nicely
-                parts = period.split("-")
-                label = f"{parts[1]} {parts[0]}" if len(parts) == 2 else period
-                data_points.append({
-                    "label": label,
-                    "value": round(val, 1)
-                })
+        # Extract data points
+        data_points = self._extract_time_series(result)
 
         if not data_points:
             return {"loading": False, "error": f"No time series data for '{metric}'"}
@@ -230,85 +244,35 @@ class DashboardDataResolver:
 
         metric = metrics[0].metric
         dimensions = widget.data.dimensions
-
-        # Check what dimension is requested
         dimension = dimensions[0].dimension if dimensions else "region"
 
-        # For region breakdown, we need to calculate/estimate proportions
-        # Since the fact base doesn't have regional breakdown, we'll use
-        # typical SaaS distribution ratios
-        total_value = self.fact_base.query(metric, reference_year)
+        # Query DCL for dimensional breakdown
+        result = self._query_dcl(
+            metric=metric,
+            dimensions=[dimension],
+            filters=filters,
+            time_range={"period": reference_year, "granularity": "yearly"},
+        )
 
-        if total_value is None:
-            return {"loading": False, "error": f"Metric '{metric}' not found"}
+        if result.get("error"):
+            return {"loading": False, "error": result["error"]}
 
-        # Generate breakdown based on dimension type
-        # First check if we have pre-defined dimensional data in fact base
-        dimensional_data = self._get_dimensional_data(metric, dimension, reference_year)
-        if dimensional_data is not None:
-            breakdown = []
-            total = sum(dimensional_data.values())
-            for label, value in dimensional_data.items():
-                ratio = value / total if total > 0 else 0
-                breakdown.append({"label": label, "value": round(value, 1), "ratio": round(ratio, 2)})
-            # Apply filters
-            if dimension in filters:
-                filtered_value = filters[dimension]
-                breakdown = [b for b in breakdown if b["label"].lower() == filtered_value.lower() or b["label"].upper() == filtered_value.upper()]
-        elif dimension in ["region", "geo"]:
-            # Typical enterprise SaaS regional distribution
-            breakdown = [
-                {"label": "AMER", "value": round(total_value * 0.50, 1), "ratio": 0.50},
-                {"label": "EMEA", "value": round(total_value * 0.30, 1), "ratio": 0.30},
-                {"label": "APAC", "value": round(total_value * 0.20, 1), "ratio": 0.20},
-            ]
-            # If filtered by region, only show that region
-            if "region" in filters:
-                filtered_region = filters["region"].upper()
-                breakdown = [b for b in breakdown if b["label"] == filtered_region]
-        elif dimension in ["stage", "pipeline_stage", "deal_stage"]:
-            # Standard pipeline stages
-            breakdown = [
-                {"label": "Lead", "value": round(total_value * 0.20, 1), "ratio": 0.20},
-                {"label": "Qualified", "value": round(total_value * 0.30, 1), "ratio": 0.30},
-                {"label": "Proposal", "value": round(total_value * 0.20, 1), "ratio": 0.20},
-                {"label": "Negotiation", "value": round(total_value * 0.15, 1), "ratio": 0.15},
-                {"label": "Closed-Won", "value": round(total_value * 0.15, 1), "ratio": 0.15},
-            ]
-            if "stage" in filters:
-                filtered_stage = filters["stage"]
-                breakdown = [b for b in breakdown if b["label"].lower() == filtered_stage.lower()]
-        elif dimension == "product":
-            breakdown = [
-                {"label": "Enterprise", "value": round(total_value * 0.45, 1), "ratio": 0.45},
-                {"label": "Professional", "value": round(total_value * 0.30, 1), "ratio": 0.30},
-                {"label": "Team", "value": round(total_value * 0.18, 1), "ratio": 0.18},
-                {"label": "Starter", "value": round(total_value * 0.07, 1), "ratio": 0.07},
-            ]
-            if "product" in filters:
-                filtered_product = filters["product"]
-                breakdown = [b for b in breakdown if b["label"].lower() == filtered_product.lower()]
-        elif dimension == "segment":
-            breakdown = [
-                {"label": "Enterprise", "value": round(total_value * 0.55, 1), "ratio": 0.55},
-                {"label": "Mid-Market", "value": round(total_value * 0.30, 1), "ratio": 0.30},
-                {"label": "SMB", "value": round(total_value * 0.15, 1), "ratio": 0.15},
-            ]
-            if "segment" in filters:
-                filtered_segment = filters["segment"]
-                breakdown = [b for b in breakdown if b["label"].lower() == filtered_segment.lower()]
-        else:
-            # Default quarterly breakdown
-            breakdown = []
-            for q in range(1, 5):
-                period = f"{reference_year}-Q{q}"
-                val = self.fact_base.query(metric, period)
-                if val is not None:
-                    breakdown.append({"label": f"Q{q}", "value": round(val, 1)})
+        # Extract breakdown data
+        breakdown = self._extract_dimensional_data(result, dimension)
 
-        # Apply any additional filter ratios for non-matching dimensions
-        for item in breakdown:
-            item["value"] = round(self._apply_filter_ratio(item["value"], {k: v for k, v in filters.items() if k != dimension}), 1)
+        if not breakdown:
+            # Fallback: try to get total and apply standard ratios
+            total_result = self._query_dcl(
+                metric=metric,
+                filters=filters,
+                time_range={"period": reference_year, "granularity": "yearly"},
+            )
+            total_value = self._extract_value_from_result(total_result)
+
+            if total_value is not None:
+                breakdown = self._generate_estimated_breakdown(dimension, total_value, filters)
+            else:
+                return {"loading": False, "error": f"No data for '{metric}'"}
 
         return {
             "loading": False,
@@ -317,7 +281,7 @@ class DashboardDataResolver:
                 "name": get_display_name(metric),
                 "data": breakdown,
             }],
-            "clickable": True,  # Enable click to filter
+            "clickable": True,
             "filter_dimension": dimension,
         }
 
@@ -333,23 +297,20 @@ class DashboardDataResolver:
         if not metrics:
             return {"loading": False, "error": "No metrics specified"}
 
-        # Get quarterly breakdown for multiple metrics
         categories = ["Q1", "Q2", "Q3", "Q4"]
         series = []
 
-        for metric_binding in metrics[:3]:  # Limit to 3 series
+        for metric_binding in metrics[:3]:
             metric = metric_binding.metric
-            data_points = []
 
-            for q in range(1, 5):
-                period = f"{reference_year}-Q{q}"
-                val = self.fact_base.query(metric, period)
-                if val is not None:
-                    val = self._apply_filter_ratio(val, filters)
-                data_points.append({
-                    "label": f"Q{q}",
-                    "value": round(val, 1) if val else 0
-                })
+            result = self._query_dcl(
+                metric=metric,
+                filters=filters,
+                time_range={"period": reference_year, "granularity": "quarterly"},
+                grain="quarterly",
+            )
+
+            data_points = self._extract_quarterly_values(result, reference_year)
 
             series.append({
                 "name": get_display_name(metric),
@@ -369,7 +330,6 @@ class DashboardDataResolver:
         filters: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Resolve donut chart data."""
-        # Similar to category data but optimized for proportional display
         return self._resolve_category_data(widget, reference_year, filters)
 
     def _resolve_table_data(
@@ -382,7 +342,6 @@ class DashboardDataResolver:
         filters = filters or {}
         metrics = widget.data.metrics
         dimensions = widget.data.dimensions
-
         dimension = dimensions[0].dimension if dimensions else "quarter"
 
         rows = []
@@ -394,190 +353,196 @@ class DashboardDataResolver:
 
                 for metric_binding in metrics:
                     metric = metric_binding.metric
-                    val = self.fact_base.query(metric, period)
-                    if val is not None:
-                        val = self._apply_filter_ratio(val, filters)
+                    result = self._query_dcl(
+                        metric=metric,
+                        filters=filters,
+                        time_range={"period": period, "granularity": "quarterly"},
+                    )
+                    val = self._extract_value_from_result(result)
                     row[metric] = round(val, 1) if val else None
 
                 rows.append(row)
-        elif dimension in ["region", "geo"]:
-            # Create regional breakdown rows
-            regions = ["AMER", "EMEA", "APAC"]
-            ratios = [0.50, 0.30, 0.20]
+        else:
+            # Get dimensional breakdown
+            for metric_binding in metrics[:1]:  # Primary metric
+                metric = metric_binding.metric
+                result = self._query_dcl(
+                    metric=metric,
+                    dimensions=[dimension],
+                    filters=filters,
+                    time_range={"period": reference_year, "granularity": "yearly"},
+                )
 
-            # Filter regions if filter is active
-            if "region" in filters:
-                filtered_region = filters["region"].upper()
-                filtered_pairs = [(r, rt) for r, rt in zip(regions, ratios) if r == filtered_region]
-                if filtered_pairs:
-                    regions, ratios = zip(*filtered_pairs)
-                    regions, ratios = list(regions), list(ratios)
-
-            for region, ratio in zip(regions, ratios):
-                row = {"region": region}
-
-                for metric_binding in metrics:
-                    metric = metric_binding.metric
-                    total = self.fact_base.query(metric, reference_year)
-                    if total is not None:
-                        val = total * ratio
-                        # Apply other filters besides region
-                        val = self._apply_filter_ratio(val, {k: v for k, v in filters.items() if k != "region"})
-                        row[metric] = round(val, 1)
-                    else:
-                        row[metric] = None
-
-                rows.append(row)
+                breakdown = self._extract_dimensional_data(result, dimension)
+                for item in breakdown:
+                    row = {dimension: item["label"]}
+                    row[metric] = item["value"]
+                    rows.append(row)
 
         return {
             "loading": False,
             "rows": rows,
         }
 
-    def _get_quarterly_values(
-        self,
-        metric: str,
-        reference_year: str,
-        filters: Optional[Dict[str, str]] = None,
-    ) -> List[float]:
-        """Get quarterly values for sparkline."""
-        filters = filters or {}
-        values = []
-        ref_year = int(reference_year)
+    # =========================================================================
+    # HELPER METHODS FOR EXTRACTING DATA FROM DCL RESPONSES
+    # =========================================================================
 
-        # Get last 8 quarters
-        for year in [ref_year - 1, ref_year]:
-            for q in range(1, 5):
-                val = self.fact_base.query(metric, f"{year}-Q{q}")
-                if val is not None:
-                    val = self._apply_filter_ratio(val, filters)
-                    values.append(val)
+    def _extract_value_from_result(self, result: Dict[str, Any]) -> Optional[float]:
+        """Extract a single value from DCL query result."""
+        if result.get("error"):
+            return None
 
-        return values if values else None
+        data = result.get("data", [])
+        if not data:
+            return None
 
-    def _get_dimensional_data(
-        self,
-        metric: str,
-        dimension: str,
-        reference_year: str,
-    ) -> Optional[Dict[str, float]]:
-        """
-        Get pre-defined dimensional breakdown data from fact base.
-
-        Looks for keys like 'pipeline_by_stage', 'revenue_by_region', etc.
-        Returns None if no pre-defined breakdown exists.
-        """
-        # Map dimension names to fact base keys
-        breakdown_key = f"{metric}_by_{dimension}"
-
-        # Try to get from fact base raw data
-        try:
-            raw_data = self.fact_base._raw_data
-            if breakdown_key in raw_data:
-                dim_data = raw_data[breakdown_key]
-                
-                # Check if it's keyed by year (old format) or by quarter (new format)
-                if reference_year in dim_data:
-                    return dim_data[reference_year]
-                
-                # Try quarterly keys - aggregate all quarters for the year
-                quarterly_keys = [f"{reference_year}-Q{q}" for q in range(1, 5)]
-                aggregated = {}
-                counts = {}
-                found_quarters = 0
-                
-                # Check if this is a percentage/rate metric (should average, not sum)
-                is_percentage_metric = any(
-                    term in metric.lower() 
-                    for term in ["_pct", "_rate", "_percent", "margin", "ratio", "win_rate", "churn", "nrr", "attainment"]
-                )
-                
-                for qkey in quarterly_keys:
-                    if qkey in dim_data:
-                        quarter_data = dim_data[qkey]
-                        found_quarters += 1
-                        if isinstance(quarter_data, dict):
-                            for label, value in quarter_data.items():
-                                if isinstance(value, (int, float)):
-                                    aggregated[label] = aggregated.get(label, 0) + value
-                                    counts[label] = counts.get(label, 0) + 1
-                
-                if found_quarters > 0 and aggregated:
-                    # For percentage metrics, return average instead of sum
-                    if is_percentage_metric:
-                        return {label: val / counts[label] for label, val in aggregated.items()}
-                    return aggregated
-                
-                # Try getting most recent quarter of the year
-                for qkey in reversed(quarterly_keys):
-                    if qkey in dim_data:
-                        return dim_data[qkey]
-                
-                # Try without year for non-time-series breakdowns
-                if isinstance(dim_data, dict) and not any(k.isdigit() for k in str(list(dim_data.keys())[0]) if dim_data):
-                    return dim_data
-        except (AttributeError, IndexError, KeyError):
-            pass
+        # Handle different response formats
+        if isinstance(data, list):
+            if len(data) > 0:
+                item = data[-1] if len(data) > 1 else data[0]  # Latest value
+                if isinstance(item, dict):
+                    return item.get("value", item.get("val"))
+                return item
+        elif isinstance(data, dict):
+            return data.get("value", data.get("val"))
+        elif isinstance(data, (int, float)):
+            return data
 
         return None
 
-    def _apply_filter_ratio(
-        self,
-        value: float,
-        filters: Dict[str, str],
-    ) -> float:
-        """
-        Apply filter ratios to a value.
+    def _extract_time_series(self, result: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Extract time series data points from DCL result."""
+        if result.get("error"):
+            return []
 
-        Since the fact base doesn't have dimensional breakdowns, we use
-        predefined ratios to estimate filtered values.
-        """
-        if not filters:
-            return value
+        data = result.get("data", [])
+        if not data:
+            return []
 
-        # Region ratios
-        region_ratios = {
-            "AMER": 0.50,
-            "EMEA": 0.30,
-            "APAC": 0.20,
+        data_points = []
+        for item in data:
+            if isinstance(item, dict):
+                period = item.get("period", item.get("label", ""))
+                value = item.get("value", item.get("val", 0))
+
+                # Format label nicely (Q1 2024 -> Q1 2024)
+                if "-Q" in str(period):
+                    parts = period.split("-")
+                    label = f"{parts[1]} {parts[0]}" if len(parts) == 2 else period
+                else:
+                    label = str(period)
+
+                data_points.append({
+                    "label": label,
+                    "value": round(value, 1) if value else 0
+                })
+
+        return data_points
+
+    def _extract_time_series_values(self, result: Dict[str, Any]) -> Optional[List[float]]:
+        """Extract just the values from time series for sparklines."""
+        data_points = self._extract_time_series(result)
+        if not data_points:
+            return None
+        return [p["value"] for p in data_points]
+
+    def _extract_quarterly_values(
+        self, result: Dict[str, Any], reference_year: str
+    ) -> List[Dict[str, Any]]:
+        """Extract quarterly values from result."""
+        data_points = self._extract_time_series(result)
+
+        # If we got time series data, filter to requested year
+        if data_points:
+            return data_points[-4:] if len(data_points) > 4 else data_points
+
+        # Fallback: generate empty quarters
+        return [{"label": f"Q{q}", "value": 0} for q in range(1, 5)]
+
+    def _extract_dimensional_data(
+        self, result: Dict[str, Any], dimension: str
+    ) -> List[Dict[str, Any]]:
+        """Extract dimensional breakdown from DCL result."""
+        if result.get("error"):
+            return []
+
+        data = result.get("data", [])
+        if not data:
+            return []
+
+        breakdown = []
+        total = 0
+
+        for item in data:
+            if isinstance(item, dict):
+                label = item.get(dimension, item.get("label", item.get("name", "")))
+                value = item.get("value", item.get("val", 0))
+                if label and value is not None:
+                    breakdown.append({"label": str(label), "value": round(value, 1)})
+                    total += value
+
+        # Add ratios
+        for item in breakdown:
+            item["ratio"] = round(item["value"] / total, 2) if total > 0 else 0
+
+        return breakdown
+
+    def _generate_estimated_breakdown(
+        self, dimension: str, total_value: float, filters: Dict[str, str]
+    ) -> List[Dict[str, Any]]:
+        """Generate estimated breakdown using standard ratios when DCL doesn't have dimensional data."""
+
+        # Standard distribution ratios
+        distributions = {
+            "region": [
+                ("AMER", 0.50),
+                ("EMEA", 0.30),
+                ("APAC", 0.20),
+            ],
+            "segment": [
+                ("Enterprise", 0.55),
+                ("Mid-Market", 0.30),
+                ("SMB", 0.15),
+            ],
+            "product": [
+                ("Enterprise", 0.45),
+                ("Professional", 0.30),
+                ("Team", 0.18),
+                ("Starter", 0.07),
+            ],
+            "stage": [
+                ("Lead", 0.20),
+                ("Qualified", 0.30),
+                ("Proposal", 0.20),
+                ("Negotiation", 0.15),
+                ("Closed-Won", 0.15),
+            ],
         }
 
-        # Segment ratios
-        segment_ratios = {
-            "Enterprise": 0.55,
-            "Mid-Market": 0.30,
-            "SMB": 0.15,
-        }
+        dist = distributions.get(dimension, [])
+        if not dist:
+            return []
 
-        # Product ratios
-        product_ratios = {
-            "Enterprise": 0.45,
-            "Professional": 0.30,
-            "Team": 0.18,
-            "Starter": 0.07,
-        }
+        breakdown = []
+        for label, ratio in dist:
+            value = total_value * ratio
+            breakdown.append({
+                "label": label,
+                "value": round(value, 1),
+                "ratio": ratio,
+            })
 
-        result = value
+        # Apply dimension filter if present
+        if dimension in filters:
+            filter_value = filters[dimension]
+            breakdown = [
+                b for b in breakdown
+                if b["label"].lower() == filter_value.lower()
+                or b["label"].upper() == filter_value.upper()
+            ]
 
-        # Apply region filter
-        if "region" in filters:
-            region = filters["region"].upper()
-            if region in region_ratios:
-                result *= region_ratios[region]
-
-        # Apply segment filter
-        if "segment" in filters:
-            segment = filters["segment"].title()
-            if segment in segment_ratios:
-                result *= segment_ratios[segment]
-
-        # Apply product filter
-        if "product" in filters:
-            product = filters["product"].title()
-            if product in product_ratios:
-                result *= product_ratios[product]
-
-        return result
+        return breakdown
 
     def _format_value(self, metric: str, value: float) -> str:
         """Format a metric value for display."""
@@ -603,7 +568,7 @@ class DashboardDataResolver:
 
 def resolve_dashboard_with_data(
     schema: DashboardSchema,
-    fact_base: FactBase,
+    fact_base=None,  # Kept for backwards compatibility, ignored
     reference_year: str = "2025",
 ) -> Dict[str, Any]:
     """
@@ -611,7 +576,7 @@ def resolve_dashboard_with_data(
 
     Returns the schema plus resolved widget data.
     """
-    resolver = DashboardDataResolver(fact_base)
+    resolver = DashboardDataResolver()
     widget_data = resolver.resolve_dashboard_data(schema, reference_year)
 
     return {
