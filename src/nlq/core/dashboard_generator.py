@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 from src.nlq.models.dashboard_schema import (
     AggregationType,
+    BridgeConfig,
     ChartConfig,
     DashboardSchema,
     DataBinding,
@@ -120,7 +121,9 @@ def generate_dashboard_schema(
 
     widgets = []
 
-    if requirements.intent == VisualizationIntent.SINGLE_METRIC_TREND:
+    if requirements.intent == VisualizationIntent.BRIDGE_ANALYSIS:
+        widgets = _generate_bridge_analysis(requirements, query)
+    elif requirements.intent == VisualizationIntent.SINGLE_METRIC_TREND:
         widgets = _generate_single_metric_trend(requirements)
     elif requirements.intent == VisualizationIntent.BREAKDOWN_CHART:
         widgets = _generate_breakdown_chart(requirements)
@@ -164,6 +167,15 @@ def _generate_title(query: str, requirements: VisualizationRequirements) -> str:
     # Extract year from query if present (e.g., "2025 results")
     year_match = re.search(r"\b(20\d{2})\b", q)
     year = year_match.group(1) if year_match else None
+
+    # Handle bridge analysis
+    if requirements.intent == VisualizationIntent.BRIDGE_ANALYSIS:
+        metric = requirements.metrics[0] if requirements.metrics else "revenue"
+        metric_name = get_display_name(metric)
+        direction = requirements.bridge_direction or "change"
+        if requirements.bridge_start_period and requirements.bridge_end_period:
+            return f"{metric_name} Bridge: {requirements.bridge_start_period} to {requirements.bridge_end_period}"
+        return f"{metric_name} {direction.title()} Analysis"
 
     # Handle full dashboard with year-based overview queries
     if requirements.intent == VisualizationIntent.FULL_DASHBOARD:
@@ -859,3 +871,152 @@ def refine_dashboard_schema(
     updated_schema.refinement_history.append(refinement_query)
 
     return updated_schema
+
+
+# =============================================================================
+# Bridge Analysis Generation
+# =============================================================================
+
+# Persona-specific bridge factors - what drives changes for each metric
+BRIDGE_FACTORS = {
+    # CFO metrics
+    "revenue": {
+        "CFO": ["Volume Change", "Price/Mix", "FX Impact", "New Customers", "Churn Impact"],
+        "CRO": ["New Logos", "Expansion", "Renewals", "Downgrades", "Churn"],
+        "default": ["Volume", "Price", "Mix", "Other"],
+    },
+    "gross_margin_pct": {
+        "CFO": ["COGS Change", "Revenue Mix", "Pricing Actions", "Efficiency Gains"],
+        "default": ["Revenue Mix", "Cost Changes", "Pricing", "Other"],
+    },
+    "net_income": {
+        "CFO": ["Revenue Change", "COGS", "OpEx Change", "Interest/Tax", "One-time Items"],
+        "default": ["Revenue", "Costs", "Operating Expenses", "Other"],
+    },
+    "pipeline": {
+        "CRO": ["New Opportunities", "Stage Advances", "Closed Won", "Closed Lost", "Pushouts"],
+        "default": ["New Pipeline", "Conversions", "Losses", "Timing"],
+    },
+    "arr": {
+        "CFO": ["New Bookings", "Expansions", "Contractions", "Churn"],
+        "CRO": ["New Logos", "Upsells", "Downgrades", "Churned ARR"],
+        "default": ["New ARR", "Expansion", "Contraction", "Churn"],
+    },
+    "nrr": {
+        "CFO": ["Expansion Revenue", "Downgrades", "Churn Impact"],
+        "CRO": ["Upsells", "Cross-sells", "Downgrades", "Churn"],
+        "default": ["Expansion", "Contraction", "Churn"],
+    },
+    "headcount": {
+        "COO": ["New Hires", "Internal Transfers", "Voluntary Attrition", "Involuntary Attrition"],
+        "default": ["Hires", "Transfers", "Attrition"],
+    },
+    "gross_churn_pct": {
+        "CRO": ["Price Sensitivity", "Product Gaps", "Service Issues", "Competition", "Other"],
+        "default": ["Pricing", "Product", "Service", "Competition"],
+    },
+    "uptime_pct": {
+        "CTO": ["Infrastructure", "Code Issues", "External Dependencies", "Planned Maintenance"],
+        "default": ["Infrastructure", "Application", "External", "Planned"],
+    },
+    "csat": {
+        "COO": ["Response Time", "Resolution Quality", "Product Issues", "Communication"],
+        "default": ["Support", "Product", "Communication"],
+    },
+}
+
+# Default bridge factors for metrics not specifically defined
+DEFAULT_BRIDGE_FACTORS = ["Primary Factor", "Secondary Factor", "Other Factors"]
+
+
+def _get_bridge_factors(metric: str, persona: str = None) -> List[str]:
+    """Get the appropriate bridge factors for a metric based on persona."""
+    factors_map = BRIDGE_FACTORS.get(metric, {})
+    if persona and persona in factors_map:
+        return factors_map[persona]
+    return factors_map.get("default", DEFAULT_BRIDGE_FACTORS)
+
+
+def _detect_persona_from_metric(metric: str) -> str:
+    """Detect the most relevant persona for a metric."""
+    cfo_metrics = {"revenue", "gross_margin_pct", "net_income", "operating_margin", "cash_flow", "ar", "ap"}
+    cro_metrics = {"pipeline", "bookings", "arr", "nrr", "win_rate", "quota_attainment", "sales_cycle_days", "gross_churn_pct"}
+    coo_metrics = {"headcount", "attrition", "utilization", "magic_number", "cac_payback_months", "csat"}
+    cto_metrics = {"uptime_pct", "p1_incidents", "deployment_frequency", "mttr", "tech_debt_pct"}
+
+    if metric in cfo_metrics:
+        return "CFO"
+    elif metric in cro_metrics:
+        return "CRO"
+    elif metric in coo_metrics:
+        return "COO"
+    elif metric in cto_metrics:
+        return "CTO"
+    return "CFO"  # Default
+
+
+def _generate_bridge_analysis(requirements: VisualizationRequirements, query: str) -> List[Widget]:
+    """Generate a bridge/waterfall chart to explain metric changes."""
+    widgets = []
+    metric = requirements.metrics[0] if requirements.metrics else "revenue"
+    persona = _detect_persona_from_metric(metric)
+    factors = _get_bridge_factors(metric, persona)
+
+    # Determine time periods
+    start_period = requirements.bridge_start_period or "Q3 2024"
+    end_period = requirements.bridge_end_period or "Q4 2024"
+
+    # Direction of change
+    direction = requirements.bridge_direction or "change"
+
+    # KPI showing the net change
+    widgets.append(Widget(
+        id=f"kpi_{metric}_change",
+        type=WidgetType.KPI_CARD,
+        title=f"{get_display_name(metric)} Change",
+        description=f"Net change from {start_period} to {end_period}",
+        data=DataBinding(
+            metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
+            time=TimeBinding(period=end_period, granularity=TimeGranularity.QUARTERLY),
+        ),
+        position=GridPosition(column=1, row=1, col_span=3, row_span=2),
+        kpi_config=KPIConfig(show_trend=True, show_sparkline=False),
+    ))
+
+    # Bridge chart
+    widgets.append(Widget(
+        id=f"bridge_{metric}",
+        type=WidgetType.BRIDGE_CHART,
+        title=f"{get_display_name(metric)} Bridge: {start_period} → {end_period}",
+        description=f"Factors explaining the {direction} in {get_display_name(metric).lower()}",
+        data=DataBinding(
+            metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
+            time=TimeBinding(period=f"{start_period} to {end_period}", granularity=TimeGranularity.QUARTERLY),
+        ),
+        position=GridPosition(column=4, row=1, col_span=9, row_span=4),
+        bridge_config=BridgeConfig(
+            start_label=start_period,
+            end_label=end_period,
+            start_period=start_period,
+            end_period=end_period,
+            show_totals=True,
+            show_labels=True,
+        ),
+    ))
+
+    # Add a supporting table showing the factors
+    widgets.append(Widget(
+        id=f"table_{metric}_factors",
+        type=WidgetType.DATA_TABLE,
+        title="Contributing Factors",
+        description="Breakdown of factors driving the change",
+        data=DataBinding(
+            metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
+            dimensions=[DimensionBinding(dimension="factor", alias="Factor")],
+            time=TimeBinding(period=f"{start_period} to {end_period}", granularity=TimeGranularity.QUARTERLY),
+        ),
+        position=GridPosition(column=1, row=3, col_span=3, row_span=3),
+        table_config=TableConfig(sortable=True, show_totals=True),
+    ))
+
+    return widgets

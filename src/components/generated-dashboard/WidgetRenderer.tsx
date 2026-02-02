@@ -57,7 +57,7 @@ export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight
   // Handle click vs double-click for KPI cards
   const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isKPI = widget.type === 'kpi_card';
-  const isChart = ['line_chart', 'bar_chart', 'area_chart', 'pie_chart', 'donut_chart', 'stacked_bar'].includes(widget.type);
+  const isChart = ['line_chart', 'bar_chart', 'area_chart', 'pie_chart', 'donut_chart', 'stacked_bar', 'bridge_chart'].includes(widget.type);
   const isClickable = isKPI || isChart || widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
   // Single click handler - KPIs always clickable, charts pass clicked value
@@ -149,6 +149,8 @@ function renderWidgetContent(
       return <DataTableContent widget={widget} data={data} onClick={onClick} />;
     case 'sparkline':
       return <SparklineContent widget={widget} data={data} />;
+    case 'bridge_chart':
+      return <BridgeChartContent widget={widget} data={data} height={height} onClick={onClick} />;
     default:
       return (
         <div className="p-4">
@@ -658,6 +660,151 @@ function DataTableContent({
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Bridge Chart Component (Waterfall)
+// =============================================================================
+
+function BridgeChartContent({
+  widget,
+  data,
+  height,
+  onClick,
+}: {
+  widget: Widget;
+  data: WidgetData;
+  height: number;
+  onClick?: (value?: string) => void;
+}) {
+  const bridgeData = data.bridge_data || [];
+  const bridgeConfig = widget.bridge_config;
+
+  // Colors from config or defaults
+  const positiveColor = bridgeConfig?.positive_color || '#10B981';
+  const negativeColor = bridgeConfig?.negative_color || '#EF4444';
+  const totalColor = bridgeConfig?.total_color || '#0BCAD9';
+
+  // Transform bridge data for recharts waterfall visualization
+  // Each bar needs: base (invisible), value (visible bar)
+  const chartData = bridgeData.map((item, index) => {
+    const isTotal = item.type === 'start' || item.type === 'end';
+    const isPositive = item.type === 'positive';
+    const isNegative = item.type === 'negative';
+
+    // For start/end totals, the bar goes from 0 to value
+    // For changes, the bar shows the delta from the running total
+    let base = 0;
+    let barValue = item.value;
+
+    if (isTotal) {
+      base = 0;
+      barValue = item.value;
+    } else if (index > 0 && bridgeData[index - 1]) {
+      // Calculate base from previous running total
+      const prevRunningTotal = bridgeData[index - 1].running_total || 0;
+      if (isNegative) {
+        // Negative bars: base is at current running total, bar goes down
+        base = item.running_total || 0;
+        barValue = Math.abs(item.value);
+      } else {
+        // Positive bars: base is at previous running total
+        base = prevRunningTotal;
+        barValue = item.value;
+      }
+    }
+
+    return {
+      label: item.label,
+      base: Math.round(base * 100) / 100,
+      value: Math.round(barValue * 100) / 100,
+      displayValue: item.formatted_value || item.value.toString(),
+      type: item.type,
+      fill: isTotal ? totalColor : isPositive ? positiveColor : negativeColor,
+      runningTotal: item.running_total,
+    };
+  });
+
+  if (bridgeData.length === 0) {
+    return (
+      <div className="p-4 h-full flex flex-col">
+        <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
+        <p className="text-slate-500 text-sm">No bridge data available</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 h-full flex flex-col">
+      <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
+      {widget.description && (
+        <p className="text-xs text-slate-500 mb-2">{widget.description}</p>
+      )}
+      <div className="flex-1" style={{ minHeight: height - 100 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: '#94a3b8', fontSize: 10 }}
+              axisLine={{ stroke: '#475569' }}
+              interval={0}
+              angle={-30}
+              textAnchor="end"
+              height={60}
+            />
+            <YAxis
+              tick={{ fill: '#94a3b8', fontSize: 11 }}
+              axisLine={{ stroke: '#475569' }}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#1e293b',
+                border: '1px solid #334155',
+                borderRadius: '8px',
+              }}
+              labelStyle={{ color: '#f1f5f9' }}
+              formatter={(_value: any, name: string, props: any) => {
+                if (name === 'base') return null;
+                const item = props.payload;
+                return [item.displayValue, item.type === 'start' || item.type === 'end' ? 'Total' : 'Change'];
+              }}
+            />
+            {/* Invisible base bar */}
+            <Bar dataKey="base" stackId="stack" fill="transparent" />
+            {/* Visible value bar with individual colors */}
+            <Bar
+              dataKey="value"
+              stackId="stack"
+              radius={[4, 4, 0, 0]}
+              onClick={(data: any) => onClick?.(data.label)}
+              cursor="pointer"
+            >
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.fill} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Legend */}
+      <div className="flex justify-center gap-6 mt-2 text-xs">
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: totalColor }} />
+          <span className="text-slate-400">Total</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: positiveColor }} />
+          <span className="text-slate-400">Increase</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: negativeColor }} />
+          <span className="text-slate-400">Decrease</span>
+        </div>
       </div>
     </div>
   );

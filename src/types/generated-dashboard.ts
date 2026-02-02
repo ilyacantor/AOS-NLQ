@@ -19,7 +19,8 @@ export type WidgetType =
   | 'sparkline'
   | 'filter_control'
   | 'time_range_selector'
-  | 'text_block';
+  | 'text_block'
+  | 'bridge_chart';
 
 export type AggregationType = 'sum' | 'average' | 'min' | 'max' | 'count' | 'last' | 'first';
 
@@ -100,6 +101,18 @@ export interface FilterConfig {
   linked_widgets: string[];
 }
 
+export interface BridgeConfig {
+  start_label: string;
+  end_label: string;
+  start_period?: string;
+  end_period?: string;
+  show_totals: boolean;
+  show_labels: boolean;
+  positive_color: string;
+  negative_color: string;
+  total_color: string;
+}
+
 // =============================================================================
 // Interaction Types
 // =============================================================================
@@ -155,6 +168,7 @@ export interface Widget {
   kpi_config?: KPIConfig;
   table_config?: TableConfig;
   filter_config?: FilterConfig;
+  bridge_config?: BridgeConfig;
   interactions: InteractionConfig[];
   style: Record<string, any>;
 }
@@ -224,6 +238,14 @@ export interface ChartDataSeries {
   color?: string;
 }
 
+export interface BridgeDataPoint {
+  label: string;
+  value: number;
+  formatted_value?: string;
+  type: 'start' | 'end' | 'positive' | 'negative';
+  running_total?: number;
+}
+
 export interface WidgetData {
   loading: boolean;
   error?: string;
@@ -238,4 +260,8 @@ export interface WidgetData {
   series?: ChartDataSeries[];
   categories?: string[];
   rows?: Record<string, any>[];
+  // Bridge chart specific data
+  bridge_data?: BridgeDataPoint[];
+  start_value?: number;
+  end_value?: number;
 }
