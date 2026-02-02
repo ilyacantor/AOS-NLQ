@@ -407,11 +407,20 @@ function App() {
   }, [])
 
   // Handle navigation from GalaxyView when it detects a dashboard query
-  // (query_type === 'DASHBOARD' from the intent-map API)
-  const handleNavigateToDashboard = useCallback((queryText: string, _data: IntentMapResponse) => {
-    // Switch to dashboard view and generate the dashboard
+  // (query_type === 'DASHBOARD' or 'VISUALIZATION' with dashboard from the intent-map API)
+  const handleNavigateToDashboard = useCallback((queryText: string, responseData: IntentMapResponse) => {
+    // Switch to dashboard view
     setViewMode('dashboard')
-    generateDashboard(queryText, true)
+
+    // If the response already contains dashboard schema and data, use it directly
+    // instead of regenerating (e.g., for VISUALIZATION queries with bridge charts)
+    if (responseData.dashboard && responseData.dashboard_data) {
+      setDashboardSchema(responseData.dashboard as DashboardSchema)
+      setDashboardWidgetData(responseData.dashboard_data)
+    } else {
+      // Fall back to generating a new dashboard
+      generateDashboard(queryText, true)
+    }
   }, [generateDashboard])
 
   // Handle navigation from DashboardRenderer when it detects a factual query
