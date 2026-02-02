@@ -7,6 +7,7 @@
 
 import { useRef, useCallback } from 'react';
 import { Widget, WidgetData } from '../../types/generated-dashboard';
+import { MapWidget } from './MapWidget';
 import {
   LineChart,
   Line,
@@ -149,6 +150,8 @@ function renderWidgetContent(
       return <DataTableContent widget={widget} data={data} onClick={onClick} />;
     case 'sparkline':
       return <SparklineContent widget={widget} data={data} />;
+    case 'map':
+      return <MapWidget widget={widget} data={data} height={height} onClick={onClick} />;
     default:
       return (
         <div className="p-4">

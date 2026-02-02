@@ -91,6 +91,8 @@ class DashboardDataResolver:
             return self._resolve_donut_data(widget, reference_year, filters)
         elif widget_type_str == "data_table":
             return self._resolve_table_data(widget, reference_year, filters)
+        elif widget_type_str == "map":
+            return self._resolve_map_data(widget, reference_year, filters)
         else:
             return {"loading": False}
 
@@ -382,6 +384,68 @@ class DashboardDataResolver:
         return {
             "loading": False,
             "rows": rows,
+        }
+
+    def _resolve_map_data(
+        self,
+        widget: Widget,
+        reference_year: str,
+        filters: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        """Resolve geographic map data showing revenue by region."""
+        filters = filters or {}
+        metrics = widget.data.metrics
+        if not metrics:
+            return {"loading": False, "error": "No metric specified"}
+
+        metric = metrics[0].metric
+
+        # Query DCL for regional breakdown
+        result = self._query_dcl(
+            metric=metric,
+            dimensions=["region"],
+            filters=filters,
+            time_range={"period": reference_year, "granularity": "yearly"},
+        )
+
+        if result.get("error"):
+            return {"loading": False, "error": result["error"]}
+
+        # Extract regional data
+        regional_data = self._extract_dimensional_data(result, "region", metric)
+
+        if not regional_data:
+            return {"loading": False, "error": f"No regional data for '{metric}'"}
+
+        # Calculate total and percentages
+        total = sum(item.get("value", 0) for item in regional_data)
+        regions = []
+
+        for item in regional_data:
+            value = item.get("value", 0)
+            percentage = (value / total * 100) if total > 0 else 0
+            regions.append({
+                "region": item.get("label", "").upper(),
+                "value": round(value, 2),
+                "percentage": round(percentage, 1),
+            })
+
+        # Sort by value descending
+        regions.sort(key=lambda r: r["value"], reverse=True)
+
+        return {
+            "loading": False,
+            "map_data": {
+                "total": round(total, 2),
+                "metric": metric,
+                "regions": regions,
+            },
+            # Also provide series format for fallback rendering
+            "series": [{
+                "name": get_display_name(metric),
+                "data": [{"label": r["region"], "value": r["value"]} for r in regions],
+            }],
+            "categories": [r["region"] for r in regions],
         }
 
     # =========================================================================

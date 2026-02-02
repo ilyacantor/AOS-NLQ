@@ -246,6 +246,7 @@ def _infer_chart_type(
             ChartTypeHint.KPI: WidgetType.KPI_CARD,
             ChartTypeHint.AREA: WidgetType.AREA_CHART,
             ChartTypeHint.STACKED: WidgetType.STACKED_BAR,
+            ChartTypeHint.MAP: WidgetType.MAP,
         }
         return hint_map.get(requirements.chart_hint, WidgetType.BAR_CHART)
 

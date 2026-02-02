@@ -19,7 +19,8 @@ export type WidgetType =
   | 'sparkline'
   | 'filter_control'
   | 'time_range_selector'
-  | 'text_block';
+  | 'text_block'
+  | 'map';
 
 export type AggregationType = 'sum' | 'average' | 'min' | 'max' | 'count' | 'last' | 'first';
 

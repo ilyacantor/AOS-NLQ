@@ -45,6 +45,7 @@ class ChartTypeHint(str, Enum):
     KPI = "kpi"
     AREA = "area"
     STACKED = "stacked"
+    MAP = "map"
     AUTO = "auto"  # Let system decide
 
 
@@ -153,7 +154,23 @@ CHART_TYPE_HINTS = {
     "kpi": ChartTypeHint.KPI,
     "metric": ChartTypeHint.KPI,
     "number": ChartTypeHint.KPI,
+    "map": ChartTypeHint.MAP,
+    "on a map": ChartTypeHint.MAP,
+    "geographic": ChartTypeHint.MAP,
+    "geographically": ChartTypeHint.MAP,
 }
+
+# Geographic intent patterns - triggers map visualization
+GEOGRAPHIC_PATTERNS = [
+    r"\bwhere\b.*\b(revenue|sales|customers?|bookings)\b.*\b(comes?|from|located|concentrated)\b",
+    r"\b(revenue|sales|customers?|bookings)\b.*\bwhere\b",
+    r"\bmap\b.*\b(revenue|sales|distribution)\b",
+    r"\b(revenue|sales)\b.*\bmap\b",
+    r"\bgeographic\b.*\b(breakdown|distribution|split)\b",
+    r"\bglobal\b.*\b(distribution|breakdown|revenue|sales)\b",
+    r"\b(regional|regions?)\b.*\b(distribution|breakdown|revenue|sales)\b",
+    r"\bshow.*\b(revenue|sales)\b.*\bby\s+region\b.*\bmap\b",
+]
 
 # Dimension patterns
 DIMENSION_PATTERNS = {
@@ -220,12 +237,20 @@ def detect_visualization_intent(query: str) -> VisualizationRequirements:
         if trigger in q:
             answer_score = max(answer_score, weight)
 
-    # Detect chart type hint
-    chart_hint = ChartTypeHint.AUTO
-    for pattern, hint in CHART_TYPE_HINTS.items():
-        if pattern in q:
-            chart_hint = hint
+    # Check for geographic intent first (map visualization)
+    is_geographic = False
+    for geo_pattern in GEOGRAPHIC_PATTERNS:
+        if re.search(geo_pattern, q, re.IGNORECASE):
+            is_geographic = True
             break
+
+    # Detect chart type hint
+    chart_hint = ChartTypeHint.MAP if is_geographic else ChartTypeHint.AUTO
+    if not is_geographic:
+        for pattern, hint in CHART_TYPE_HINTS.items():
+            if pattern in q:
+                chart_hint = hint
+                break
 
     # Detect dimensions using DCL semantic client
     dimensions = []
