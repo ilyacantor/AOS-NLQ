@@ -18,7 +18,7 @@ The goal is to resolve simple queries without expensive LLM calls while
 ensuring complex queries still get proper handling.
 
 Usage:
-    resolver = TieredIntentResolver(fact_base, cache_service, claude_client)
+    resolver = TieredIntentResolver(cache_service, query_parser)
     result = await resolver.resolve("what is our ebitda")
 
     if result.tier == 1:
@@ -35,7 +35,6 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
-    from src.nlq.knowledge.fact_base import FactBase
     from src.nlq.services.query_cache_service import QueryCacheService
     from src.nlq.llm.parser import QueryParser
 
@@ -130,11 +129,9 @@ class TieredIntentResolver:
 
     def __init__(
         self,
-        fact_base: "FactBase",
         cache_service: Optional["QueryCacheService"] = None,
         query_parser: Optional["QueryParser"] = None,
     ):
-        self.fact_base = fact_base
         self.cache_service = cache_service
         self.query_parser = query_parser
         self._metric_index = None
@@ -326,7 +323,6 @@ class TieredIntentResolver:
 # Convenience function for use in routes
 async def resolve_intent(
     query: str,
-    fact_base: "FactBase",
     cache_service: Optional["QueryCacheService"] = None,
     query_parser: Optional["QueryParser"] = None,
 ) -> IntentResolutionResult:
@@ -335,5 +331,5 @@ async def resolve_intent(
 
     This is the main entry point for the tiered intent system.
     """
-    resolver = TieredIntentResolver(fact_base, cache_service, query_parser)
+    resolver = TieredIntentResolver(cache_service, query_parser)
     return await resolver.resolve(query)

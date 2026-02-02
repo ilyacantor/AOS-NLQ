@@ -7,6 +7,8 @@ Generates IntentNode objects for different query types:
 - Comparison queries: Both period nodes + context
 - Aggregation queries: Result node + component nodes
 - Breakdown queries: All component nodes
+
+All data is fetched from DCL.
 """
 
 from typing import Any, List, Optional
@@ -23,6 +25,24 @@ from src.nlq.models.response import (
     IntentNode,
     MatchType,
 )
+
+
+def _query_dcl_value(metric: str, period: str) -> Optional[Any]:
+    """Query a metric value from DCL."""
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    dcl_client = get_semantic_client()
+
+    result = dcl_client.query(metric=metric, time_range={"period": period})
+    if result.get("error"):
+        return None
+    data = result.get("data", [])
+    if isinstance(data, list) and len(data) > 0:
+        if isinstance(data[0], dict) and "value" in data[0]:
+            return sum(d.get("value", 0) for d in data if d.get("value") is not None)
+        return data[-1] if data else None
+    elif isinstance(data, (int, float)):
+        return data
+    return None
 
 
 def format_value(metric: str, value: Any) -> str:
@@ -82,7 +102,6 @@ def generate_nodes_for_point_query(
     metric: str,
     value: Any,
     period: str,
-    fact_base: Any,
 ) -> List[IntentNode]:
     """
     Generate nodes for a direct point query.
@@ -96,7 +115,6 @@ def generate_nodes_for_point_query(
         metric: The queried metric
         value: The metric value
         period: The time period
-        fact_base: FactBase instance for fetching related values
 
     Returns:
         List of IntentNode objects
@@ -126,7 +144,7 @@ def generate_nodes_for_point_query(
     # Related nodes (POTENTIAL, middle ring)
     related_metrics = get_related_metrics(metric, limit=3)
     for i, related in enumerate(related_metrics):
-        related_value = fact_base.query(related, period) if fact_base else None
+        related_value = _query_dcl_value(related, period)
         rel_confidence = bounded_confidence(0.70 - (i * 0.05))
         rel_quality = data_quality * 0.9
 
@@ -149,7 +167,7 @@ def generate_nodes_for_point_query(
     # Context nodes (HYPOTHESIS, outer ring)
     context_metrics = get_context_metrics(metric, limit=2)
     for i, ctx in enumerate(context_metrics):
-        ctx_value = fact_base.query(ctx, period) if fact_base else None
+        ctx_value = _query_dcl_value(ctx, period)
         ctx_confidence = bounded_confidence(0.45 - (i * 0.10))
         ctx_quality = data_quality * 0.8
 
@@ -176,7 +194,6 @@ def generate_nodes_for_ambiguous_query(
     ambiguity_type: AmbiguityType,
     candidates: List[str],
     period: str,
-    fact_base: Any,
 ) -> List[IntentNode]:
     """
     Generate nodes for an ambiguous query.
@@ -190,7 +207,6 @@ def generate_nodes_for_ambiguous_query(
         ambiguity_type: The type of ambiguity
         candidates: List of candidate metrics
         period: The time period
-        fact_base: FactBase instance for fetching values
 
     Returns:
         List of IntentNode objects
@@ -200,7 +216,7 @@ def generate_nodes_for_ambiguous_query(
     if ambiguity_type == AmbiguityType.VAGUE_METRIC:
         # Multiple candidates, all POTENTIAL (no single EXACT)
         for i, metric in enumerate(candidates):
-            value = fact_base.query(metric, period) if fact_base else None
+            value = _query_dcl_value(metric, period)
             confidence = 0.80  # All equal confidence
 
             nodes.append(IntentNode(
@@ -223,7 +239,7 @@ def generate_nodes_for_ambiguous_query(
         if candidates:
             context_metrics = get_context_metrics(candidates[0], limit=2)
             for i, ctx in enumerate(context_metrics):
-                ctx_value = fact_base.query(ctx, period) if fact_base else None
+                ctx_value = _query_dcl_value(ctx, period)
                 ctx_confidence = bounded_confidence(0.45 - (i * 0.05))
 
                 nodes.append(IntentNode(
@@ -245,7 +261,7 @@ def generate_nodes_for_ambiguous_query(
     elif ambiguity_type == AmbiguityType.BROAD_REQUEST:
         # Multiple metrics, all EXACT (user asked for everything)
         for i, metric in enumerate(candidates):
-            value = fact_base.query(metric, period) if fact_base else None
+            value = _query_dcl_value(metric, period)
             conf = bounded_confidence(0.95 - (i * 0.03))
 
             nodes.append(IntentNode(
@@ -268,7 +284,7 @@ def generate_nodes_for_ambiguous_query(
         # Burn rate applies but profitable companies don't report discretely
         # Show COGS and SG&A as the actual cost metrics
         for i, metric in enumerate(candidates):  # candidates are ["cogs", "sga"]
-            value = fact_base.query(metric, period) if fact_base else None
+            value = _query_dcl_value(metric, period)
             # Both are EXACT matches since they directly answer what "burn rate" means for profitable co
             match_type = MatchType.EXACT
             conf = bounded_confidence(0.85 - (i * 0.05))
@@ -308,7 +324,7 @@ def generate_nodes_for_ambiguous_query(
     else:
         # Default: Primary candidate as EXACT, rest as POTENTIAL
         for i, metric in enumerate(candidates):
-            value = fact_base.query(metric, period) if fact_base else None
+            value = _query_dcl_value(metric, period)
             match_type = MatchType.EXACT if i == 0 else MatchType.POTENTIAL
             confidence = 0.90 if i == 0 else bounded_confidence(0.75 - (i * 0.05))
 
@@ -339,7 +355,6 @@ def generate_nodes_for_comparison_query(
     value2: Any,
     difference: float,
     pct_change: Optional[float],
-    fact_base: Any,
 ) -> List[IntentNode]:
     """
     Generate nodes for a comparison query.
@@ -356,7 +371,6 @@ def generate_nodes_for_comparison_query(
         value2: Value for period2
         difference: Absolute difference
         pct_change: Percentage change
-        fact_base: FactBase instance
 
     Returns:
         List of IntentNode objects
@@ -420,7 +434,7 @@ def generate_nodes_for_comparison_query(
     # Related context nodes (HYPOTHESIS)
     related_metrics = get_related_metrics(metric, limit=2)
     for i, related in enumerate(related_metrics):
-        rel_value = fact_base.query(related, period1) if fact_base else None
+        rel_value = _query_dcl_value(related, period1)
         ctx_confidence = bounded_confidence(0.45 - (i * 0.10))
 
         nodes.append(IntentNode(
@@ -448,7 +462,6 @@ def generate_nodes_for_aggregation_query(
     result: float,
     periods: List[str],
     values: List[float],
-    fact_base: Any,
 ) -> List[IntentNode]:
     """
     Generate nodes for an aggregation query.
@@ -464,7 +477,6 @@ def generate_nodes_for_aggregation_query(
         result: The aggregated result
         periods: List of periods
         values: Values for each period
-        fact_base: FactBase instance
 
     Returns:
         List of IntentNode objects
@@ -518,7 +530,6 @@ def generate_nodes_for_aggregation_query(
 def generate_nodes_for_breakdown_query(
     breakdown: dict,
     period: str,
-    fact_base: Any,
 ) -> List[IntentNode]:
     """
     Generate nodes for a breakdown query.
@@ -531,7 +542,6 @@ def generate_nodes_for_breakdown_query(
     Args:
         breakdown: Dict of metric -> value
         period: The time period
-        fact_base: FactBase instance
 
     Returns:
         List of IntentNode objects
@@ -563,7 +573,7 @@ def generate_nodes_for_breakdown_query(
         first_metric = list(breakdown.keys())[0]
         context_metrics = get_context_metrics(first_metric, limit=2)
         for i, ctx in enumerate(context_metrics):
-            ctx_value = fact_base.query(ctx, period) if fact_base else None
+            ctx_value = _query_dcl_value(ctx, period)
             ctx_confidence = bounded_confidence(0.45 - (i * 0.10))
 
             nodes.append(IntentNode(

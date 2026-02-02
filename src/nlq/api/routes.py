@@ -32,7 +32,6 @@ from src.nlq.core.node_generator import (
 )
 from src.nlq.core.parser import QueryParser
 from src.nlq.core.resolver import PeriodResolver
-from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.knowledge.schema import FINANCIAL_SCHEMA, get_metric_unit
 from src.nlq.knowledge.synonyms import normalize_metric
 from src.nlq.knowledge.display import get_display_name
@@ -65,9 +64,6 @@ from src.nlq.core.refinement_intent import (
     is_context_dependent_query,
     needs_clarification_without_context,
 )
-
-# People/HR query handling (extracted to separate module)
-from src.nlq.api.people_queries import is_people_query, handle_people_query
 
 # Shared query helpers (consolidates /query and /query/galaxy logic)
 from src.nlq.api.query_helpers import (
@@ -371,10 +367,6 @@ def _parsed_query_to_cache_dict(parsed: ParsedQuery) -> dict:
     }
 
 
-# People query handling moved to src/nlq/api/people_queries.py
-# Import: from src.nlq.api.people_queries import is_people_query, handle_people_query
-
-
 def _is_dashboard_query(question: str) -> bool:
     """Detect if this is a dashboard/report request."""
     q = question.lower()
@@ -417,11 +409,11 @@ def _extract_period_from_dashboard_query(question: str) -> str:
     return "2025-Q4"
 
 
-def _handle_dashboard_query(question: str, fact_base=None) -> Optional[IntentMapResponse]:
+def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
     """
     Generate persona-specific dashboard with key metrics.
 
-    Data is fetched from DCL - fact_base param is ignored (kept for backwards compatibility).
+    All data is fetched from DCL.
     """
     from src.nlq.services.dcl_semantic_client import get_semantic_client
 
@@ -1036,29 +1028,7 @@ router = APIRouter()
 
 
 # Lazy-loaded singletons
-_fact_base: FactBase = None
 _claude_client: ClaudeClient = None
-
-
-def get_fact_base() -> FactBase:
-    """Get or create the fact base singleton."""
-    global _fact_base
-    if _fact_base is None:
-        _fact_base = FactBase()
-        # Try multiple paths for fact base
-        possible_paths = [
-            Path("data/fact_base.json"),
-            Path("/home/user/AOS-NLQ/data/fact_base.json"),
-            Path("./data/fact_base.json"),
-        ]
-        for path in possible_paths:
-            if path.exists():
-                _fact_base.load(path)
-                logger.info(f"Loaded fact base from {path}")
-                break
-        else:
-            logger.warning("Fact base not found at any expected path")
-    return _fact_base
 
 
 def get_claude_client() -> ClaudeClient:
@@ -1118,12 +1088,12 @@ from src.nlq.services.tiered_intent import detect_complexity, QueryComplexity
 from src.nlq.knowledge.synonyms import normalize_metric
 
 
-def _try_tiered_metric_query_core(question: str, fact_base=None) -> Optional[SimpleMetricResult]:
+def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]:
     """
     Core logic for tiered metric queries - uses embedding-based lookup.
 
     Replaces the old regex-based _try_simple_metric_query_core.
-    Data is fetched from DCL - fact_base param is ignored (kept for backwards compatibility).
+    All data is fetched from DCL.
 
     Strategy:
     1. Detect if query is complex (comparison, trend, breakdown) -> skip, let LLM handle
@@ -1186,12 +1156,12 @@ def _try_tiered_metric_query_core(question: str, fact_base=None) -> Optional[Sim
     # Try synonym lookup
     resolved_metric = normalize_metric(metric_query)
     if resolved_metric:
-        return _build_simple_metric_result(resolved_metric, fact_base)
+        return _build_simple_metric_result(resolved_metric)
 
     # Also try the original query in case it's already a metric name
     resolved_metric = normalize_metric(q.rstrip("?").strip())
     if resolved_metric:
-        return _build_simple_metric_result(resolved_metric, fact_base)
+        return _build_simple_metric_result(resolved_metric)
 
     # Step 3: Try embedding-based lookup (CHEAP - ~$0.0001)
     # Only do this if we have the embedding index available
@@ -1211,12 +1181,12 @@ def _try_tiered_metric_query_core(question: str, fact_base=None) -> Optional[Sim
                 else:
                     result = loop.run_until_complete(metric_index.lookup(question))
                     if result and result.is_high_confidence:
-                        return _build_simple_metric_result(result.canonical_metric, fact_base)
+                        return _build_simple_metric_result(result.canonical_metric)
             except RuntimeError:
                 # No event loop, create one
                 result = asyncio.run(metric_index.lookup(question))
                 if result and result.is_high_confidence:
-                    return _build_simple_metric_result(result.canonical_metric, fact_base)
+                    return _build_simple_metric_result(result.canonical_metric)
     except ImportError:
         pass  # Embedding index not available, fall through
     except Exception as e:
@@ -1225,11 +1195,11 @@ def _try_tiered_metric_query_core(question: str, fact_base=None) -> Optional[Sim
     return None  # No match, let normal flow handle it
 
 
-def _build_simple_metric_result(metric: str, fact_base=None) -> Optional[SimpleMetricResult]:
+def _build_simple_metric_result(metric: str) -> Optional[SimpleMetricResult]:
     """
     Build a SimpleMetricResult for a resolved metric.
 
-    Data is fetched from DCL - fact_base param is ignored (kept for backwards compatibility).
+    All data is fetched from DCL.
     """
     from src.nlq.services.dcl_semantic_client import get_semantic_client
 
@@ -1295,7 +1265,7 @@ def _build_simple_metric_result(metric: str, fact_base=None) -> Optional[SimpleM
     )
 
 
-def _try_simple_metric_query(question: str, fact_base=None) -> Optional[NLQResponse]:
+def _try_simple_metric_query(question: str) -> Optional[NLQResponse]:
     """
     Try to answer a simple metric query directly from DCL.
 
@@ -1303,7 +1273,7 @@ def _try_simple_metric_query(question: str, fact_base=None) -> Optional[NLQRespo
     Handles queries like "ebitda", "what's our revenue?", "GM" without Claude.
     Returns None if no confident match found.
 
-    Data is fetched from DCL - fact_base param is ignored (kept for backwards compatibility).
+    All data is fetched from DCL.
     """
     result = _try_tiered_metric_query_core(question)
     if result:
@@ -1406,7 +1376,7 @@ def _check_missing_data(question: str) -> Optional[NLQResponse]:
     return None
 
 
-def _try_simple_metric_query_galaxy(question: str, fact_base=None) -> Optional[IntentMapResponse]:
+def _try_simple_metric_query_galaxy(question: str) -> Optional[IntentMapResponse]:
     """
     Try to answer a simple metric query directly from DCL for Galaxy mode.
 
@@ -1414,7 +1384,7 @@ def _try_simple_metric_query_galaxy(question: str, fact_base=None) -> Optional[I
     Handles queries like "ebitda", "what's our revenue?", "GM" without Claude.
     Returns None if no confident match found.
 
-    Data is fetched from DCL - fact_base param is ignored (kept for backwards compatibility).
+    All data is fetched from DCL.
     """
     result = _try_tiered_metric_query_core(question)
     if result:
@@ -1451,12 +1421,12 @@ def _handle_ambiguous_query_text(
     ambiguity_type: AmbiguityType,
     candidates: list,
     clarification: Optional[str],
-    fact_base: FactBase,
 ) -> NLQResponse:
     """
     Handle an ambiguous query and return text response matching ground truth format.
 
     Now includes related_metrics for consistency with Galaxy View.
+    Data is fetched from DCL.
 
     Ground truth formats by type:
     - BURN_RATE: "Our COGS of $70M and SG&A of $60M total $130M..."
@@ -1467,6 +1437,9 @@ def _handle_ambiguous_query_text(
     """
     import re
     from datetime import date as date_type
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+
+    dcl_client = get_semantic_client()
 
     q = question.lower().strip()
     current_year = str(date_type.today().year)
@@ -1478,7 +1451,6 @@ def _handle_ambiguous_query_text(
         ambiguity_type,
         candidates,
         current_year,
-        fact_base,
     )
     related_metrics = _nodes_to_related_metrics(nodes)
 
@@ -1492,8 +1464,18 @@ def _handle_ambiguous_query_text(
         return f"${round(val, 1)}M"
 
     def get_val(metric: str, period: str) -> Optional[float]:
-        """Get value from fact base."""
-        return fact_base.query(metric, period) if fact_base else None
+        """Get value from DCL."""
+        result = dcl_client.query(metric=metric, time_range={"period": period})
+        if result.get("error"):
+            return None
+        data = result.get("data", [])
+        if isinstance(data, list) and len(data) > 0:
+            if isinstance(data[0], dict) and "value" in data[0]:
+                return sum(d.get("value", 0) for d in data if d.get("value") is not None)
+            return data[-1] if data else None
+        elif isinstance(data, (int, float)):
+            return data
+        return None
 
     # ===== BURN_RATE =====
     # Ground truth: "Our COGS of $70M and SG&A of $60M total $130M annually. We are quite profitable, however, and have been for a long time, therefore we do not report burn_rate discretely."
@@ -1983,18 +1965,9 @@ def _handle_ambiguous_query_text(
             dcl_client = get_semantic_client()
 
             def _get_top_deals(year: str):
-                """Get top deals from DCL or local fallback."""
+                """Get top deals from DCL."""
                 result = dcl_client.query(metric="top_deals", time_range={"period": year})
-                if result.get("data"):
-                    return result["data"]
-                # Local fallback for dev mode
-                try:
-                    import json
-                    with open('data/fact_base.json') as f:
-                        fb_data = json.load(f)
-                    return fb_data.get('top_deals', {}).get(year, [])
-                except Exception:
-                    return []
+                return result.get("data", [])
 
             # Check if specific year is requested
             year_match = re.search(r'20\d{2}', question)
@@ -2400,19 +2373,10 @@ async def query(request: NLQRequest) -> NLQResponse:
                 resolved_period=None,
             )
 
-        # Get dependencies
-        fact_base = get_fact_base()
-
-        # Check for People/HR queries first (doesn't need Claude API)
-        if is_people_query(request.question):
-            people_response = handle_people_query(request.question, fact_base)
-            if people_response:
-                return people_response
-
         # =================================================================
         # SIMPLE METRIC QUERIES - Handle "what is X?" queries early (no Claude needed)
         # =================================================================
-        simple_result = _try_simple_metric_query(request.question, fact_base)
+        simple_result = _try_simple_metric_query(request.question)
         if simple_result:
             return simple_result
 
@@ -2427,7 +2391,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                 pass
             else:
                 # Fallback to text summary for non-visual dashboard requests
-                dashboard_response = _handle_dashboard_query(request.question, fact_base)
+                dashboard_response = _handle_dashboard_query(request.question)
                 if dashboard_response:
                     # Convert IntentMapResponse to NLQResponse for text endpoint
                     return NLQResponse(
@@ -2508,7 +2472,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                 )
 
                 # Resolve data for updated dashboard
-                data_resolver = DashboardDataResolver(fact_base)
+                data_resolver = DashboardDataResolver()
                 widget_data = data_resolver.resolve_dashboard_data(
                     updated_schema,
                     reference_year="2025",
@@ -2563,7 +2527,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                 )
 
                 # Resolve real data from fact base
-                data_resolver = DashboardDataResolver(fact_base)
+                data_resolver = DashboardDataResolver()
                 widget_data = data_resolver.resolve_dashboard_data(
                     dashboard_schema,
                     reference_year="2025",
@@ -2601,14 +2565,13 @@ async def query(request: NLQRequest) -> NLQResponse:
                 ambiguity_type,
                 candidates,
                 clarification,
-                fact_base,
             )
 
         # Set up components
         reference_date = request.reference_date or date.today()
         resolver = PeriodResolver(reference_date)
         claude_client = get_claude_client()
-        executor = QueryExecutor(fact_base, claude_client)
+        executor = QueryExecutor(claude_client=claude_client)
 
         # Get session ID from request body
         session_id = request.session_id or "default"
@@ -2810,47 +2773,11 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 clarification_prompt=None,
             )
 
-        fact_base = get_fact_base()
-
-        # Check for People/HR queries first (doesn't need Claude API)
-        if is_people_query(request.question):
-            people_response = handle_people_query(request.question, fact_base)
-            if people_response:
-                # Convert NLQResponse to IntentMapResponse for Galaxy view
-                return IntentMapResponse(
-                    query=request.question,
-                    query_type="PEOPLE",
-                    ambiguity_type=None,
-                    persona="People",
-                    overall_confidence=people_response.confidence,
-                    overall_data_quality=1.0,
-                    node_count=1 if people_response.value else 0,
-                    nodes=[IntentNode(
-                        id="people_1",
-                        metric=people_response.resolved_metric or "people",
-                        display_name=people_response.resolved_metric or "People",
-                        match_type=MatchType.EXACT,
-                        domain=Domain.PEOPLE,
-                        confidence=people_response.confidence,
-                        data_quality=1.0,
-                        freshness="0h",
-                        value=people_response.value,
-                        formatted_value=f"{people_response.value} {people_response.unit}" if people_response.value else None,
-                        period=people_response.resolved_period or "",
-                        semantic_label="People/HR",
-                    )] if people_response.value is not None else [],
-                    primary_node_id="people_1" if people_response.value else None,
-                    primary_answer=people_response.answer,
-                    text_response=people_response.answer,
-                    needs_clarification=False,
-                    clarification_prompt=None,
-                )
-
         # =================================================================
         # SIMPLE METRIC QUERIES - Handle direct questions like "what's revenue?"
         # (Must be early to catch simple lookups before other handlers)
         # =================================================================
-        simple_response = _try_simple_metric_query_galaxy(request.question, fact_base)
+        simple_response = _try_simple_metric_query_galaxy(request.question)
         if simple_response:
             return simple_response
 
@@ -2870,7 +2797,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
 
         # Check for dashboard/report queries (doesn't need Claude API)
         if _is_dashboard_query(request.question):
-            dashboard_response = _handle_dashboard_query(request.question, fact_base)
+            dashboard_response = _handle_dashboard_query(request.question)
             if dashboard_response:
                 return dashboard_response
 
@@ -2920,7 +2847,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 )
 
                 # Resolve data for updated dashboard
-                data_resolver = DashboardDataResolver(fact_base)
+                data_resolver = DashboardDataResolver()
                 widget_data = data_resolver.resolve_dashboard_data(
                     updated_schema,
                     reference_year="2025",
@@ -3017,7 +2944,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 )
 
                 # Resolve real data from fact base
-                data_resolver = DashboardDataResolver(fact_base)
+                data_resolver = DashboardDataResolver()
                 widget_data = data_resolver.resolve_dashboard_data(
                     dashboard_schema,
                     reference_year="2025",
@@ -3077,7 +3004,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         reference_date = request.reference_date or date.today()
         resolver = PeriodResolver(reference_date)
         claude_client = get_claude_client()
-        executor = QueryExecutor(fact_base, claude_client)
+        executor = QueryExecutor(claude_client=claude_client)
 
         # Check for ambiguity first
         ambiguity_type, candidates, clarification = detect_ambiguity(request.question)
@@ -3089,7 +3016,6 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 ambiguity_type,
                 candidates,
                 clarification,
-                fact_base,
                 resolver,
             )
 
@@ -3224,7 +3150,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
             )
 
         # Generate nodes based on intent
-        nodes = _generate_nodes_for_intent(parsed, result, fact_base)
+        nodes = _generate_nodes_for_intent(parsed, result)
 
         # Calculate overall metrics
         overall_confidence, overall_data_quality = calculate_overall_metrics(nodes)
@@ -3285,10 +3211,12 @@ def _handle_ambiguous_query_galaxy(
     ambiguity_type: AmbiguityType,
     candidates: list,
     clarification: Optional[str],
-    fact_base: FactBase,
     resolver: PeriodResolver,
 ) -> IntentMapResponse:
-    """Handle an ambiguous query and return Galaxy response."""
+    """Handle an ambiguous query and return Galaxy response. Data fetched from DCL."""
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    dcl_client = get_semantic_client()
+
     # Default to current year
     current_year = str(date.today().year)
     last_year = str(int(current_year) - 1)
@@ -3297,22 +3225,10 @@ def _handle_ambiguous_query_galaxy(
     # ===== SPECIAL HANDLING FOR BIGGEST DEALS =====
     # Match text handler: show deal data directly instead of asking for clarification
     if "biggest deals" in q or ("deals" in q and "biggest" in q):
-        from src.nlq.services.dcl_semantic_client import get_semantic_client
-        dcl_client = get_semantic_client()
-
         def _get_top_deals_galaxy(year: str):
-            """Get top deals from DCL or local fallback."""
+            """Get top deals from DCL."""
             result = dcl_client.query(metric="top_deals", time_range={"period": year})
-            if result.get("data"):
-                return result["data"]
-            # Local fallback for dev mode
-            try:
-                import json
-                with open('data/fact_base.json') as f:
-                    fb_data = json.load(f)
-                return fb_data.get('top_deals', {}).get(year, [])
-            except Exception:
-                return []
+            return result.get("data", [])
 
         # Check if specific year is requested
         year_match = re.search(r'20\d{2}', question)
@@ -3337,7 +3253,7 @@ def _handle_ambiguous_query_galaxy(
                         metric="deal_value",
                         confidence=0.95,
                         data_quality=1.0,
-                        source="fact_base",
+                        source="dcl",
                     )
                     nodes.append(node)
 
@@ -3389,7 +3305,7 @@ def _handle_ambiguous_query_galaxy(
                     metric="deal_value",
                     confidence=0.95,
                     data_quality=1.0,
-                    source="fact_base",
+                    source="dcl",
                 )
                 nodes.append(node)
 
@@ -3434,7 +3350,6 @@ def _handle_ambiguous_query_galaxy(
         ambiguity_type,
         candidates,
         period,
-        fact_base,
     )
 
     overall_confidence, overall_data_quality = calculate_overall_metrics(nodes)
@@ -3464,14 +3379,13 @@ def _handle_ambiguous_query_galaxy(
     )
 
 
-def _generate_nodes_for_intent(parsed, result, fact_base) -> list:
-    """Generate nodes based on query intent."""
+def _generate_nodes_for_intent(parsed, result) -> list:
+    """Generate nodes based on query intent. Data fetched from DCL."""
     if parsed.intent == QueryIntent.POINT_QUERY:
         return generate_nodes_for_point_query(
             parsed.metric,
             result.value,
             parsed.resolved_period,
-            fact_base,
         )
 
     elif parsed.intent == QueryIntent.COMPARISON_QUERY:
@@ -3484,7 +3398,6 @@ def _generate_nodes_for_intent(parsed, result, fact_base) -> list:
             data["value2"],
             data["difference"],
             data["pct_change"],
-            fact_base,
         )
 
     elif parsed.intent == QueryIntent.AGGREGATION_QUERY:
@@ -3495,7 +3408,6 @@ def _generate_nodes_for_intent(parsed, result, fact_base) -> list:
             data["result"],
             data["periods"],
             data["values"],
-            fact_base,
         )
 
     elif parsed.intent == QueryIntent.BREAKDOWN_QUERY:
@@ -3503,7 +3415,6 @@ def _generate_nodes_for_intent(parsed, result, fact_base) -> list:
         return generate_nodes_for_breakdown_query(
             data["breakdown"],
             data["period"],
-            fact_base,
         )
 
     else:
@@ -3512,7 +3423,6 @@ def _generate_nodes_for_intent(parsed, result, fact_base) -> list:
             parsed.metric,
             result.value,
             parsed.resolved_period,
-            fact_base,
         )
 
 
