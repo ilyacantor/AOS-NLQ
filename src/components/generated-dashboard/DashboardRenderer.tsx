@@ -771,11 +771,6 @@ export function DashboardRenderer({
       {schema && (
         <div className="px-4 md:px-6 py-2 md:py-3 border-b border-slate-800">
           <div className="flex items-center justify-between gap-2">
-            {/* Title - compact on mobile */}
-            <div className="flex-1 min-w-0">
-              <h2 className="text-base md:text-lg font-semibold text-white truncate">{schema.title}</h2>
-            </div>
-
             {/* Mobile: Single menu button */}
             <div className="md:hidden relative">
               <button

@@ -39,20 +39,19 @@ interface QueryHistoryItem {
 type ViewMode = 'galaxy' | 'dashboard' | 'guide'
 type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO'
 type PanelTab = 'History' | 'Learning' | 'Data Gaps'
-type QueryMode = 'static' | 'ai'
 
 const personaOptions: { label: string; value: Persona; query: string; refinePresets: string[] }[] = [
   {
     label: 'CFO',
     value: 'CFO',
     query: 'Show me a finance dashboard with revenue KPI, gross margin percent KPI, operating margin trend, net income KPI, and cash breakdown by region',
-    refinePresets: ['Add EBITDA card', 'Add AR vs AP comparison', 'Show revenue by region', 'Filter to AMER region']
+    refinePresets: ['Add EBITDA card', 'Which region has the most revenue?', 'Show revenue by region', 'Filter to AMER region']
   },
   {
     label: 'CRO',
     value: 'CRO',
     query: 'Show me a sales dashboard with ARR KPI, pipeline KPI, bookings trend over time, win rate KPI, and quota attainment by rep',
-    refinePresets: ['Add pipeline by stage', 'Show pipeline by salesperson', 'Add revenue by customer', 'Show NRR trend']
+    refinePresets: ['Who is our top rep?', 'What is our largest deal?', 'Show pipeline by salesperson', 'Show NRR trend']
   },
   {
     label: 'COO',
@@ -64,7 +63,7 @@ const personaOptions: { label: string; value: Persona; query: string; refinePres
     label: 'CTO',
     value: 'CTO',
     query: 'Show me a technology dashboard with uptime percent KPI, P1 incidents KPI, deploys per week trend, sprint velocity KPI, and MTTR breakdown',
-    refinePresets: ['Add code coverage card', 'Show tech debt trend', 'Add features shipped', 'Filter to Platform']
+    refinePresets: ['Which service has the best SLO?', 'Show tech debt trend', 'Add features shipped', 'Filter to Platform']
   },
   {
     label: 'CHRO',
@@ -105,7 +104,6 @@ function App() {
   // Core state
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('galaxy')
-  const [queryMode, setQueryMode] = useState<QueryMode>('ai')
   const [selectedPersona, setSelectedPersona] = useState<Persona>('CFO')
   const [panelTab, setPanelTab] = useState<PanelTab>('History')
   const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([])
@@ -326,7 +324,6 @@ function App() {
         body: JSON.stringify({
           question: queryText,
           reference_date: '2026-01-27',
-          mode: queryMode,
           session_id: sessionId
         })
       })
@@ -366,7 +363,7 @@ function App() {
     }
 
     setIsLoading(false)
-  }, [queryMode, sessionId, shouldRouteToDashboard, dashboardSchema, generateDashboard])
+  }, [sessionId, shouldRouteToDashboard, dashboardSchema, generateDashboard])
 
   // Auto-query "2025 results" for Galaxy view on first load
   useEffect(() => {
@@ -488,32 +485,6 @@ function App() {
         {mobileMenuOpen && (
           <div className="md:hidden px-4 pb-4 bg-slate-900/95 border-t border-slate-800">
             <div className="flex flex-col gap-3 pt-3">
-              {/* Mode Toggle */}
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400 text-sm">Mode:</span>
-                <div className="flex items-center bg-slate-800 rounded-lg p-1">
-                  <button
-                    onClick={() => setQueryMode('static')}
-                    className={`min-h-[44px] px-4 rounded-md text-sm font-medium transition-colors ${
-                      queryMode === 'static'
-                        ? 'bg-amber-600 text-white'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Static
-                  </button>
-                  <button
-                    onClick={() => setQueryMode('ai')}
-                    className={`min-h-[44px] px-4 rounded-md text-sm font-medium transition-colors ${
-                      queryMode === 'ai'
-                        ? 'bg-emerald-600 text-white'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    AI
-                  </button>
-                </div>
-              </div>
               {/* User Guide & Stats */}
               <div className="flex items-center justify-between">
                 <button
@@ -589,32 +560,6 @@ function App() {
           </div>
 
           <div className="flex items-center gap-4 text-slate-500 text-sm">
-            {/* Static/AI Mode Toggle */}
-            <div className="flex items-center gap-2">
-              <span className="text-slate-500 text-xs">Mode:</span>
-              <div className="flex items-center bg-slate-900 rounded-lg p-0.5">
-                <button
-                  onClick={() => setQueryMode('static')}
-                  className={`min-h-[44px] px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                    queryMode === 'static'
-                      ? 'bg-amber-600 text-white'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Static
-                </button>
-                <button
-                  onClick={() => setQueryMode('ai')}
-                  className={`min-h-[44px] px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                    queryMode === 'ai'
-                      ? 'bg-emerald-600 text-white'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  AI
-                </button>
-              </div>
-            </div>
             <LLMCallCounter />
             {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
           </div>
@@ -722,13 +667,6 @@ function App() {
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
                       )}
-                    </div>
-
-                    {/* Help Text - Desktop only */}
-                    <div className="hidden lg:block px-3 py-1.5 bg-cyan-900/30 border border-cyan-700/50 rounded-lg">
-                      <p className="text-cyan-300 text-xs">
-                        💡 Drag to rearrange • Resize corners • Chatbox to refine
-                      </p>
                     </div>
                   </div>
                 </div>
