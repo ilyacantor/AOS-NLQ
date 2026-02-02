@@ -64,6 +64,11 @@ interface EvalResult {
   failures: string[];
 }
 
+interface PersonaOption {
+  label: string;
+  value: string;
+}
+
 interface DashboardRendererProps {
   /** Initial schema to render (optional - can start empty) */
   initialSchema?: DashboardSchema;
@@ -83,6 +88,12 @@ interface DashboardRendererProps {
   refinePresets?: string[];
   /** Current persona (for showing what-if panel) */
   persona?: 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO' | string;
+  /** Persona options for dropdown */
+  personaOptions?: PersonaOption[];
+  /** Callback when persona changes */
+  onPersonaChange?: (persona: string) => void;
+  /** Whether dashboard is being generated */
+  isGenerating?: boolean;
 }
 
 // =============================================================================
@@ -148,6 +159,9 @@ export function DashboardRenderer({
   showRefinementInput = true,
   refinePresets = [],
   persona,
+  personaOptions = [],
+  onPersonaChange,
+  isGenerating = false,
 }: DashboardRendererProps) {
   // Query router for detecting factual queries that should go to Galaxy
   const { routeQuery } = useQueryRouter();
@@ -771,39 +785,80 @@ export function DashboardRenderer({
       {schema && (
         <div className="px-4 md:px-6 py-2 md:py-3 border-b border-slate-800">
           <div className="flex items-center justify-between gap-2">
-            {/* Mobile: Single menu button */}
-            <div className="md:hidden relative">
-              <button
-                onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
-              >
-                ⋮ Edit
-              </button>
-              {showMobileMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowMobileMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px]">
-                    <button onClick={() => { setEditMode(!editMode); setShowMobileMenu(false); }} className={`w-full px-4 py-2 text-left text-sm hover:bg-slate-700 ${editMode ? 'text-amber-300' : 'text-slate-300'}`}>
-                      {editMode ? '✓ Edit Mode' : '⊞ Edit Layout'}
-                    </button>
-                    {persona === 'CFO' && (
-                      <button onClick={() => { setScenarioOpen(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-cyan-300 hover:bg-slate-700">📊 What-If</button>
-                    )}
-                    <button onClick={() => { handleAutoArrange(); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">⊞ Auto Arrange</button>
-                    <button onClick={() => { setSaveName(schema.title); setShowSaveModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">💾 Save</button>
-                    <button onClick={() => { setTemplateName(schema.title + ' Template'); setShowTemplateModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">📋 Template</button>
-                    <button onClick={() => { setShowLoadModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">📂 Load</button>
-                    <button onClick={() => { handleRunTests(); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-purple-300 hover:bg-slate-700">🧪 Tests</button>
-                    <hr className="my-1 border-slate-700" />
-                    <button onClick={() => { handleReset(); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-slate-700">✕ Reset</button>
-                  </div>
-                </>
+            {/* Mobile: Persona dropdown + menu button */}
+            <div className="md:hidden flex items-center gap-2">
+              {personaOptions.length > 0 && (
+                <select
+                  value={persona || ''}
+                  onChange={(e) => onPersonaChange?.(e.target.value)}
+                  disabled={isGenerating}
+                  className="min-h-[36px] px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-cyan-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500/50 disabled:opacity-50"
+                >
+                  {personaOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               )}
+              <div className="relative">
+                <button
+                  onClick={() => setShowMobileMenu(!showMobileMenu)}
+                  className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
+                >
+                  ⋮ Menu
+                </button>
+                {showMobileMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowMobileMenu(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+                      <button onClick={() => { setEditMode(!editMode); setShowMobileMenu(false); }} className={`w-full px-4 py-2 text-left text-sm hover:bg-slate-700 ${editMode ? 'text-amber-300' : 'text-slate-300'}`}>
+                        {editMode ? '✓ Edit Mode' : '⊞ Edit Layout'}
+                      </button>
+                      {persona === 'CFO' && (
+                        <button onClick={() => { setScenarioOpen(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-cyan-300 hover:bg-slate-700">📊 What-If</button>
+                      )}
+                      <button onClick={() => { handleAutoArrange(); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">⊞ Auto Arrange</button>
+                      <button onClick={() => { setSaveName(schema.title); setShowSaveModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">💾 Save</button>
+                      <button onClick={() => { setTemplateName(schema.title + ' Template'); setShowTemplateModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">📋 Template</button>
+                      <button onClick={() => { setShowLoadModal(true); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700">📂 Load</button>
+                      <button onClick={() => { handleRunTests(); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-purple-300 hover:bg-slate-700">🧪 Tests</button>
+                      <hr className="my-1 border-slate-700" />
+                      <button onClick={() => { handleReset(); setShowMobileMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-slate-700">✕ Reset</button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            {/* Desktop: Compact controls with dropdown */}
+            {/* Desktop: Persona dropdown + controls in one row */}
             <div className="hidden md:flex items-center gap-2">
-              {/* Edit toggle - stays visible */}
+              {/* Persona dropdown */}
+              {personaOptions.length > 0 && (
+                <>
+                  <select
+                    value={persona || ''}
+                    onChange={(e) => onPersonaChange?.(e.target.value)}
+                    disabled={isGenerating}
+                    className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-cyan-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500/50 disabled:opacity-50 cursor-pointer"
+                  >
+                    {personaOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label} Dashboard
+                      </option>
+                    ))}
+                  </select>
+                  {isGenerating && (
+                    <svg className="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
+                  <div className="w-px h-6 bg-slate-700 mx-1" />
+                </>
+              )}
+
+              {/* Edit toggle */}
               <button
                 onClick={() => setEditMode(!editMode)}
                 className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${editMode ? 'bg-amber-600 text-white hover:bg-amber-500' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
@@ -812,7 +867,7 @@ export function DashboardRenderer({
                 {editMode ? '✓ Editing' : '✎ Edit'}
               </button>
 
-              {/* What-If button - CFO only, stays visible */}
+              {/* What-If button - CFO only */}
               {persona === 'CFO' && (
                 <button
                   onClick={() => setScenarioOpen(true)}

@@ -3378,7 +3378,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                         value=value,
                         formatted_value=formatted,
                         period="2025",
-                        semantic_label="Visualization",
+                        semantic_label=widget.title,
                     ))
 
                 return IntentMapResponse(

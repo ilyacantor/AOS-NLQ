@@ -621,57 +621,7 @@ function App() {
             {/* Dashboard View - Always uses DashboardRenderer with full controls */}
             {viewMode === 'dashboard' && (
               <div className="h-full overflow-hidden flex flex-col">
-                {/* Dashboard Header with Persona Selector - Compact on mobile */}
-                <div className="flex-shrink-0 px-4 md:px-6 py-2 md:py-3 border-b border-slate-800 bg-slate-900/50">
-                  <div className="flex items-center justify-between gap-2">
-                    {/* Mobile: Dropdown selector */}
-                    <div className="md:hidden flex items-center gap-2">
-                      <select
-                        value={selectedPersona}
-                        onChange={(e) => handlePersonaSelect(e.target.value as Persona)}
-                        disabled={isGeneratingDashboard}
-                        className="min-h-[36px] px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-cyan-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500/50 disabled:opacity-50"
-                      >
-                        {personaOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label} Dashboard
-                          </option>
-                        ))}
-                      </select>
-                      {isGeneratingDashboard && (
-                        <svg className="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                      )}
-                    </div>
-
-                    {/* Desktop: Dropdown selector */}
-                    <div className="hidden md:flex items-center gap-2">
-                      <span className="text-slate-500 text-xs">Quick Load:</span>
-                      <select
-                        value={selectedPersona}
-                        onChange={(e) => handlePersonaSelect(e.target.value as Persona)}
-                        disabled={isGeneratingDashboard}
-                        className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-cyan-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500/50 disabled:opacity-50 cursor-pointer"
-                      >
-                        {personaOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label} Dashboard
-                          </option>
-                        ))}
-                      </select>
-                      {isGeneratingDashboard && (
-                        <svg className="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* DashboardRenderer - Full builder functionality */}
+                {/* DashboardRenderer - Full builder functionality with integrated persona selector */}
                 <div className="flex-1 overflow-hidden">
                   <DashboardRenderer
                     initialSchema={dashboardSchema || undefined}
@@ -682,6 +632,9 @@ function App() {
                     showRefinementInput={true}
                     refinePresets={personaOptions.find(p => p.value === selectedPersona)?.refinePresets || []}
                     persona={selectedPersona}
+                    personaOptions={personaOptions.map(p => ({ label: p.label, value: p.value }))}
+                    onPersonaChange={(value) => handlePersonaSelect(value as Persona)}
+                    isGenerating={isGeneratingDashboard}
                   />
                 </div>
 
