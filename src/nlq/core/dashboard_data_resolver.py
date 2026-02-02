@@ -258,7 +258,7 @@ class DashboardDataResolver:
             return {"loading": False, "error": result["error"]}
 
         # Extract breakdown data
-        breakdown = self._extract_dimensional_data(result, dimension)
+        breakdown = self._extract_dimensional_data(result, dimension, metric)
 
         if not breakdown:
             # Fallback: try to get total and apply standard ratios
@@ -373,7 +373,7 @@ class DashboardDataResolver:
                     time_range={"period": reference_year, "granularity": "yearly"},
                 )
 
-                breakdown = self._extract_dimensional_data(result, dimension)
+                breakdown = self._extract_dimensional_data(result, dimension, metric)
                 for item in breakdown:
                     row = {dimension: item["label"]}
                     row[metric] = item["value"]
@@ -461,7 +461,7 @@ class DashboardDataResolver:
         return [{"label": f"Q{q}", "value": 0} for q in range(1, 5)]
 
     def _extract_dimensional_data(
-        self, result: Dict[str, Any], dimension: str
+        self, result: Dict[str, Any], dimension: str, metric: str = None
     ) -> List[Dict[str, Any]]:
         """Extract dimensional breakdown from DCL result."""
         if result.get("error"):
