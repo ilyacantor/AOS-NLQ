@@ -3028,7 +3028,8 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         # (Must come before visualization to handle "make that a bar chart")
         # =================================================================
         session_id = request.session_id or "default"
-        current_schema = get_session_dashboard(session_id)
+        session_data = get_session_dashboard(session_id)
+        current_schema = session_data.get("dashboard") if session_data else None
         has_current_dashboard = current_schema is not None
 
         refinement_intent = detect_refinement_intent(request.question, has_current_dashboard)
@@ -3058,6 +3059,12 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
             logger.info(f"Galaxy refinement detected: {refinement_intent.refinement_type}")
 
             try:
+                from src.nlq.models.dashboard_schema import DashboardSchema
+
+                # Reconstruct DashboardSchema from stored dict
+                if isinstance(current_schema, dict):
+                    current_schema = DashboardSchema(**current_schema)
+
                 # Detect visualization requirements for the refinement
                 _, viz_requirements = should_generate_visualization(request.question)
 
@@ -3075,8 +3082,9 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                     reference_year="2025",
                 )
 
-                # Update session state
-                _session_dashboards[session_id] = updated_schema
+                # Update session state (convert to dict for storage)
+                updated_dict = updated_schema.model_dump() if hasattr(updated_schema, 'model_dump') else updated_schema
+                set_session_dashboard(session_id, updated_dict, widget_data)
 
                 # Create nodes from updated dashboard
                 nodes = []
@@ -3172,9 +3180,10 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                     reference_year="2025",
                 )
 
-                # Store in session for refinement
+                # Store in session for refinement (convert to dict for storage)
                 session_id = request.session_id or "default"
-                _session_dashboards[session_id] = dashboard_schema
+                dashboard_dict = dashboard_schema.model_dump() if hasattr(dashboard_schema, 'model_dump') else dashboard_schema
+                set_session_dashboard(session_id, dashboard_dict, widget_data)
 
                 # Create galaxy nodes from dashboard metrics
                 nodes = []
