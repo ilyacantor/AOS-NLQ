@@ -64,6 +64,13 @@ from src.nlq.core.refinement_intent import (
     is_context_dependent_query,
     needs_clarification_without_context,
 )
+from src.nlq.core.debug_info import (
+    DashboardDebugInfo,
+    DashboardGenerationError,
+    FailureCategory,
+    DecisionSource,
+    is_strict_mode,
+)
 
 # Shared query helpers (consolidates /query and /query/galaxy logic)
 from src.nlq.api.query_helpers import (
@@ -2905,7 +2912,15 @@ async def query(request: NLQRequest) -> NLQResponse:
                 )
             except Exception as e:
                 logger.error(f"Dashboard refinement failed: {e}", exc_info=True)
-                # Fall through to new dashboard generation
+                if is_strict_mode():
+                    # In strict mode, return error response instead of falling through
+                    return NLQResponse(
+                        success=False,
+                        answer=f"Dashboard refinement failed: {str(e)}. This error is shown because strict mode is enabled.",
+                        error_code="REFINEMENT_FAILED",
+                        error_details={"exception": str(e), "category": FailureCategory.REFINEMENT.value},
+                    )
+                # In production, fall through to new dashboard generation
 
         # Check for new visualization request
         should_viz, viz_requirements = should_generate_visualization(request.question)
@@ -2914,10 +2929,14 @@ async def query(request: NLQRequest) -> NLQResponse:
             logger.info(f"Visualization intent detected: {viz_requirements.intent.value}")
 
             try:
+                # Create debug info for tracking decisions
+                debug_info = DashboardDebugInfo(original_query=request.question)
+
                 # Generate dashboard schema
                 dashboard_schema = generate_dashboard_schema(
                     query=request.question,
                     requirements=viz_requirements,
+                    debug_info=debug_info,
                 )
 
                 # Resolve real data from fact base
@@ -2931,7 +2950,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                 dashboard_dict = dashboard_schema.model_dump()
                 set_session_dashboard(session_id, dashboard_dict, widget_data)
 
-                # Return dashboard response
+                # Return dashboard response with debug info if in strict mode
                 return NLQResponse(
                     success=True,
                     answer=f"Here's a dashboard showing {dashboard_schema.title}",
@@ -2944,10 +2963,19 @@ async def query(request: NLQRequest) -> NLQResponse:
                     response_type="dashboard",
                     dashboard=dashboard_dict,
                     dashboard_data=widget_data,
+                    debug_info=debug_info.to_dict() if is_strict_mode() else None,
                 )
             except Exception as e:
                 logger.error(f"Dashboard generation failed: {e}", exc_info=True)
-                # Fall through to normal query processing if dashboard fails
+                if is_strict_mode():
+                    # In strict mode, return error response instead of falling through
+                    return NLQResponse(
+                        success=False,
+                        answer=f"Dashboard generation failed: {str(e)}. This error is shown because strict mode is enabled.",
+                        error_code="DASHBOARD_GENERATION_FAILED",
+                        error_details={"exception": str(e), "category": FailureCategory.SCHEMA_GENERATION.value},
+                    )
+                # In production, fall through to normal query processing if dashboard fails
 
         # Check for ambiguity first (same as Galaxy endpoint)
         ambiguity_type, candidates, clarification = detect_ambiguity(request.question)
@@ -3303,7 +3331,15 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
 
             except Exception as e:
                 logger.error(f"Error applying refinement: {e}", exc_info=True)
-                # Fall through to visualization/normal processing
+                if is_strict_mode():
+                    # In strict mode, return error response instead of falling through
+                    return _create_error_galaxy_response(
+                        question=request.question,
+                        query_type="ERROR",
+                        error_code="REFINEMENT_FAILED",
+                        error_message=f"Dashboard refinement failed: {str(e)}. Strict mode is enabled.",
+                    )
+                # In production, fall through to visualization/normal processing
 
         # =================================================================
         # AMBIGUOUS QUERY DETECTION - Ask for clarification if needed
@@ -3339,10 +3375,14 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
             logger.info(f"Galaxy visualization intent detected: {viz_requirements.intent.value}")
 
             try:
+                # Create debug info for tracking decisions
+                debug_info = DashboardDebugInfo(original_query=request.question)
+
                 # Generate dashboard schema
                 dashboard_schema = generate_dashboard_schema(
                     query=request.question,
                     requirements=viz_requirements,
+                    debug_info=debug_info,
                 )
 
                 # Resolve real data from fact base
@@ -3398,11 +3438,20 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                     dashboard=dashboard_schema.model_dump(),
                     dashboard_data=widget_data,
                     response_type="dashboard",
+                    debug_info=debug_info.to_dict() if is_strict_mode() else None,
                 )
 
             except Exception as e:
                 logger.error(f"Error generating visualization: {e}", exc_info=True)
-                # Fall through to normal processing
+                if is_strict_mode():
+                    # In strict mode, return error response instead of falling through
+                    return _create_error_galaxy_response(
+                        question=request.question,
+                        query_type="ERROR",
+                        error_code="VISUALIZATION_GENERATION_FAILED",
+                        error_message=f"Visualization generation failed: {str(e)}. Strict mode is enabled.",
+                    )
+                # In production, fall through to normal processing
 
         reference_date = request.reference_date or date.today()
         resolver = PeriodResolver(reference_date)
@@ -3989,14 +4038,14 @@ async def health() -> HealthResponse:
         dcl_client = get_semantic_client()
         catalog = dcl_client.get_catalog()
         dcl_available = len(catalog.metrics) > 0
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"DCL health check failed: {e}")
 
     try:
         # Don't actually call Claude for health check to avoid costs
         claude_available = os.environ.get("ANTHROPIC_API_KEY") is not None
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Claude API key check failed: {e}")
 
     session_stats = get_session_stats()
     return HealthResponse(

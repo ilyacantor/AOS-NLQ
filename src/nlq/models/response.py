@@ -179,6 +179,12 @@ class IntentMapResponse(BaseModel):
         description="Response type: 'galaxy' for nodes, 'dashboard' for visualization"
     )
 
+    # Debug info for development (tracks all decisions made during processing)
+    debug_info: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Debug information showing all decisions made during dashboard generation (only in strict mode)"
+    )
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -343,6 +349,18 @@ class NLQResponse(BaseModel):
     active_filters: Optional[Dict[str, str]] = Field(
         default=None,
         description="Active cross-widget filters (dimension -> value)"
+    )
+
+    # Error details for debugging
+    error_details: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Detailed error information for debugging"
+    )
+
+    # Debug info for development (tracks all decisions made during processing)
+    debug_info: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Debug information showing all decisions made during dashboard generation (only in strict mode)"
     )
 
     model_config = ConfigDict(
