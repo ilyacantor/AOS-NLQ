@@ -501,9 +501,10 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               const isPrimary = node.id === data.primary_node_id;
               const isSelected = selectedNode?.id === node.id;
               const isDragging = draggedNodeId === node.id;
-              const radius = getCircleRadius(node.confidence, isPrimary);
+              // Scale node radius with the same factor as rings to prevent overlap when container is small
+              const radius = getCircleRadius(node.confidence, isPrimary) * scale;
               const color = DOMAIN_COLORS[node.domain] || DOMAIN_COLORS.finance;
-              const arcRadius = radius + 6;
+              const arcRadius = radius + 6 * scale;
 
               return (
                 <g
@@ -517,7 +518,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                   {/* Selection/hover ring */}
                   {isSelected && (
                     <circle
-                      r={radius + 12}
+                      r={radius + 12 * scale}
                       fill="none"
                       stroke="#fff"
                       strokeWidth={2}
@@ -539,7 +540,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                     d={getArcPath(0, 0, arcRadius, node.data_quality)}
                     fill="none"
                     stroke="#4ade80"
-                    strokeWidth="3"
+                    strokeWidth={Math.max(2, 3 * scale)}
                     strokeLinecap="round"
                     opacity="0.9"
                   />
@@ -548,7 +549,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                   <circle
                     cx={radius * 0.7}
                     cy={-radius * 0.7}
-                    r={5}
+                    r={Math.max(3, 5 * scale)}
                     fill={getFreshnessColor(node.freshness)}
                     stroke="#0f172a"
                     strokeWidth="1"
@@ -568,10 +569,10 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
 
                   {/* Label below node - just the metric name */}
                   <text
-                    y={radius + 16}
+                    y={radius + 12 * scale}
                     textAnchor="middle"
                     fill="#94a3b8"
-                    fontSize="10"
+                    fontSize={Math.max(8, 10 * scale)}
                     fontWeight="500"
                     style={{ pointerEvents: 'none' }}
                   >
