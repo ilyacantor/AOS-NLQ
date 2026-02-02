@@ -635,23 +635,49 @@ class DashboardDataResolver:
             "running_total": round(start_value, 2),
         })
 
-        # Distribute the change across factors
-        # In real implementation, these proportions would come from actual data
+        # Distribute the change across factors with realistic positive and negative values
+        # In real implementation, these proportions would come from actual data/DCL
         running_total = start_value
-        remaining_change = total_change
+
+        # Create a mix of positive and negative factors that sum to total_change
+        # Typical bridge: some factors add, some subtract, net = total_change
+        num_factors = len(factors)
+
+        # Generate factor values with some being negative for realism
+        # For an increase: mostly positive with some small negatives
+        # For a decrease: mostly negative with some small positives
+        factor_values = []
+        if total_change >= 0:
+            # Net increase scenario
+            positive_total = total_change * 1.3  # Positive factors add to 130% of change
+            negative_total = total_change * 0.3  # Negative factors subtract 30%
+            for i in range(num_factors):
+                if i < num_factors - 1:
+                    # Alternate larger positives with smaller negatives
+                    if i % 3 == 2:  # Every 3rd factor is negative
+                        factor_values.append(-negative_total / max(1, num_factors // 3))
+                    else:
+                        factor_values.append(positive_total / max(1, num_factors - num_factors // 3))
+                else:
+                    # Last factor is the balancing amount
+                    current_sum = sum(factor_values)
+                    factor_values.append(total_change - current_sum)
+        else:
+            # Net decrease scenario
+            negative_total = total_change * 1.3  # Larger negative factors
+            positive_total = -total_change * 0.3  # Some positive offset
+            for i in range(num_factors):
+                if i < num_factors - 1:
+                    if i % 3 == 2:  # Every 3rd factor is positive
+                        factor_values.append(positive_total / max(1, num_factors // 3))
+                    else:
+                        factor_values.append(negative_total / max(1, num_factors - num_factors // 3))
+                else:
+                    current_sum = sum(factor_values)
+                    factor_values.append(total_change - current_sum)
 
         for i, factor in enumerate(factors):
-            # Simulate factor contribution (in real impl, query DCL for breakdown)
-            # Use varying proportions to make it look realistic
-            if i == len(factors) - 1:
-                # Last factor gets the remainder
-                factor_value = remaining_change
-            else:
-                # Distribute with some variance
-                proportion = (0.4 - i * 0.1) if i < 3 else 0.1
-                factor_value = total_change * proportion
-                remaining_change -= factor_value
-
+            factor_value = factor_values[i] if i < len(factor_values) else 0
             running_total += factor_value
 
             bridge_data.append({

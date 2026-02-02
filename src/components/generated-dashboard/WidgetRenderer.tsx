@@ -689,31 +689,36 @@ function BridgeChartContent({
   const totalColor = bridgeConfig?.total_color || '#0BCAD9';
 
   // Transform bridge data for recharts waterfall visualization
-  // Each bar needs: base (invisible), value (visible bar)
+  // Each bar needs: base (invisible spacer), value (visible bar)
+  // For waterfall effect:
+  //   - Start/End totals: base=0, full bar from 0 to value
+  //   - Positive changes: base=previous running total, bar goes UP
+  //   - Negative changes: base=current running total (after decrease), bar shows the decrease amount
   const chartData = bridgeData.map((item, index) => {
     const isTotal = item.type === 'start' || item.type === 'end';
     const isPositive = item.type === 'positive';
     const isNegative = item.type === 'negative';
 
-    // For start/end totals, the bar goes from 0 to value
-    // For changes, the bar shows the delta from the running total
     let base = 0;
-    let barValue = item.value;
+    let barValue = Math.abs(item.value);
 
     if (isTotal) {
+      // Start and End bars go from 0 to their value
       base = 0;
       barValue = item.value;
-    } else if (index > 0 && bridgeData[index - 1]) {
-      // Calculate base from previous running total
+    } else if (index > 0) {
+      // Get previous running total to determine where this bar starts
       const prevRunningTotal = bridgeData[index - 1].running_total || 0;
-      if (isNegative) {
-        // Negative bars: base is at current running total, bar goes down
-        base = item.running_total || 0;
+      const currentRunningTotal = item.running_total || 0;
+
+      if (isPositive) {
+        // Positive bar: starts at previous running total, goes up
+        base = prevRunningTotal;
         barValue = Math.abs(item.value);
       } else {
-        // Positive bars: base is at previous running total
-        base = prevRunningTotal;
-        barValue = item.value;
+        // Negative bar: starts at current (lower) running total, bar shows decrease
+        base = currentRunningTotal;
+        barValue = Math.abs(item.value);
       }
     }
 
@@ -721,10 +726,11 @@ function BridgeChartContent({
       label: item.label,
       base: Math.round(base * 100) / 100,
       value: Math.round(barValue * 100) / 100,
-      displayValue: item.formatted_value || item.value.toString(),
+      displayValue: item.formatted_value || `${item.value >= 0 ? '+' : ''}${item.value}`,
       type: item.type,
       fill: isTotal ? totalColor : isPositive ? positiveColor : negativeColor,
       runningTotal: item.running_total,
+      rawValue: item.value, // Keep original signed value for display
     };
   });
 
@@ -770,11 +776,13 @@ function BridgeChartContent({
               formatter={(_value: any, name: string, props: any) => {
                 if (name === 'base') return null;
                 const item = props.payload;
-                return [item.displayValue, item.type === 'start' || item.type === 'end' ? 'Total' : 'Change'];
+                const isTotal = item.type === 'start' || item.type === 'end';
+                const label = isTotal ? 'Total' : (item.rawValue >= 0 ? 'Increase' : 'Decrease');
+                return [item.displayValue, label];
               }}
             />
-            {/* Invisible base bar */}
-            <Bar dataKey="base" stackId="stack" fill="transparent" />
+            {/* Invisible base bar - creates the "floating" effect */}
+            <Bar dataKey="base" stackId="stack" fill="transparent" isAnimationActive={false} />
             {/* Visible value bar with individual colors */}
             <Bar
               dataKey="value"
@@ -782,6 +790,15 @@ function BridgeChartContent({
               radius={[4, 4, 0, 0]}
               onClick={(data: any) => onClick?.(data.label)}
               cursor="pointer"
+              label={{
+                position: 'top',
+                fill: '#94a3b8',
+                fontSize: 10,
+                formatter: (value: any, entry: any) => {
+                  const item = chartData.find(d => d.value === value && d.label === entry?.label);
+                  return item?.displayValue || '';
+                }
+              }}
             >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
