@@ -279,7 +279,7 @@ class DCLSemanticClient:
             "ap": ["accounts payable", "payables", "a/p"],
             "ebitda": ["earnings before interest taxes depreciation amortization"],
             "gross_margin_pct": ["gross margin", "gm", "margin"],
-            "net_income": ["profit", "net profit", "bottom line"],
+            "net_income": ["profit", "net profit", "bottom line", "profitable", "profitability"],
             "operating_profit": ["ebit", "operating income"],
             "cogs": ["cost of goods sold", "cost of sales", "cos"],
 
@@ -293,13 +293,14 @@ class DCLSemanticClient:
 
             # Operations/HR (with common misspellings)
             "headcount": ["employees", "staff", "team size", "hc", "people", "fte",
-                          "employess", "employes", "emplyees"],  # misspellings
+                          "employess", "employes", "emplyees",  # misspellings
+                          "personnel", "personnel hires", "hires", "workforce"],  # additional aliases
             "attrition_rate": ["attrition", "attrition rate", "turnover rate", "employee turnover", "turnover",
                                "attriton", "attrtion", "attriton rate"],  # misspellings
             "engagement_score": ["engagement", "engagment", "engagmnet"],  # misspellings
             "cac": ["customer acquisition cost", "acquisition cost"],
             "ltv_cac": ["ltv/cac", "lifetime value to cac"],
-            "magic_number": ["sales efficiency", "efficiency"],
+            "magic_number": ["sales efficiency", "efficiency", "efficient"],  # yes/no query support
 
             # Tech
             "uptime_pct": ["uptime", "availability"],
