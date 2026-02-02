@@ -437,7 +437,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               Outer
             </text>
 
-            {/* Center - Persona */}
+            {/* Center - Query */}
             <g transform={`translate(${centerX}, ${centerY})`}>
               <circle
                 r={50 * scale}
@@ -445,15 +445,53 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                 stroke="#3B82F6"
                 strokeWidth="2"
               />
-              <text
-                textAnchor="middle"
-                dy="0.35em"
-                fill="#fff"
-                fontSize="14"
-                fontWeight="bold"
-              >
-                {data.persona || 'CFO'}
-              </text>
+              {/* Query text with wrapping */}
+              {(() => {
+                const query = data.query || 'Query';
+                const maxWidth = 80 * scale; // Approximate max width for text
+                const fontSize = 11;
+                const lineHeight = 14;
+                // Simple word wrapping - split into lines
+                const words = query.split(' ');
+                const lines: string[] = [];
+                let currentLine = '';
+
+                words.forEach(word => {
+                  const testLine = currentLine ? `${currentLine} ${word}` : word;
+                  // Rough estimate: ~6px per character at fontSize 11
+                  if (testLine.length * 6 > maxWidth && currentLine) {
+                    lines.push(currentLine);
+                    currentLine = word;
+                  } else {
+                    currentLine = testLine;
+                  }
+                });
+                if (currentLine) lines.push(currentLine);
+
+                // Limit to 4 lines max and truncate if needed
+                const maxLines = 4;
+                const displayLines = lines.slice(0, maxLines);
+                if (lines.length > maxLines) {
+                  displayLines[maxLines - 1] = displayLines[maxLines - 1].slice(0, -3) + '...';
+                }
+
+                const totalHeight = displayLines.length * lineHeight;
+                const startY = -totalHeight / 2 + lineHeight / 2;
+
+                return displayLines.map((line, i) => (
+                  <text
+                    key={i}
+                    textAnchor="middle"
+                    y={startY + i * lineHeight}
+                    dy="0.35em"
+                    fill="#fff"
+                    fontSize={fontSize}
+                    fontWeight="500"
+                  >
+                    {line}
+                  </text>
+                ));
+              })()}
             </g>
 
             {/* Nodes */}
