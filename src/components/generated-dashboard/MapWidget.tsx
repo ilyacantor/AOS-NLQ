@@ -187,18 +187,13 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
       .then(response => response.json())
       .then((geojsonData: GeoJSON.FeatureCollection) => {
         const geoJsonLayer = L.geoJSON(geojsonData, {
-          style: (feature) => {
-            const countryCode = feature?.properties?.ISO_A3 || '';
-            const region = COUNTRY_REGIONS[countryCode];
-            const baseColor = region ? REGION_COLORS[region] : '#1e293b';
-            const regionInfo = region ? regionLookup[region] : null;
-            const hasData = regionInfo && regionInfo.value > 0;
-
+          style: () => {
+            // Neutral land masses - no colored overlay
             return {
-              fillColor: baseColor,
-              fillOpacity: hasData ? 0.6 : 0.25,
-              color: hasData ? baseColor : '#334155',
-              weight: hasData ? 1.5 : 0.5,
+              fillColor: '#2d4a3e',
+              fillOpacity: 0.9,
+              color: '#1a3a2e',
+              weight: 0.5,
             };
           },
           onEachFeature: (feature, layer) => {
