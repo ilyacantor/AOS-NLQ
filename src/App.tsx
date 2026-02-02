@@ -701,25 +701,27 @@ function App() {
                       )}
                     </div>
 
-                    {/* Desktop: Button tabs */}
+                    {/* Desktop: Dropdown selector */}
                     <div className="hidden md:flex items-center gap-2">
                       <span className="text-slate-500 text-xs">Quick Load:</span>
-                      <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-1">
+                      <select
+                        value={selectedPersona}
+                        onChange={(e) => handlePersonaSelect(e.target.value as Persona)}
+                        disabled={isGeneratingDashboard}
+                        className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-cyan-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500/50 disabled:opacity-50 cursor-pointer"
+                      >
                         {personaOptions.map((option) => (
-                          <button
-                            key={option.value}
-                            onClick={() => handlePersonaSelect(option.value)}
-                            disabled={isGeneratingDashboard}
-                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-50 ${
-                              selectedPersona === option.value
-                                ? 'bg-cyan-600 text-white'
-                                : 'text-slate-400 hover:text-slate-200'
-                            }`}
-                          >
-                            {option.label}
-                          </button>
+                          <option key={option.value} value={option.value}>
+                            {option.label} Dashboard
+                          </option>
                         ))}
-                      </div>
+                      </select>
+                      {isGeneratingDashboard && (
+                        <svg className="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                      )}
                     </div>
 
                     {/* Help Text - Desktop only */}

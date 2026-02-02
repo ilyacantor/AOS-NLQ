@@ -761,8 +761,9 @@ export function DashboardRenderer({
 
   const rowHeight = schema?.layout.row_height || 80;
 
-  // State for mobile menu
+  // State for mobile menu and desktop actions dropdown
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
 
   return (
     <div className="h-full flex flex-col bg-slate-950">
@@ -805,8 +806,9 @@ export function DashboardRenderer({
               )}
             </div>
 
-            {/* Desktop: Button bar */}
+            {/* Desktop: Compact controls with dropdown */}
             <div className="hidden md:flex items-center gap-2">
+              {/* Edit toggle - stays visible */}
               <button
                 onClick={() => setEditMode(!editMode)}
                 className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${editMode ? 'bg-amber-600 text-white hover:bg-amber-500' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
@@ -814,6 +816,8 @@ export function DashboardRenderer({
               >
                 {editMode ? '✓ Editing' : '✎ Edit'}
               </button>
+
+              {/* What-If button - CFO only, stays visible */}
               {persona === 'CFO' && (
                 <button
                   onClick={() => setScenarioOpen(true)}
@@ -823,12 +827,47 @@ export function DashboardRenderer({
                   📊 What-If
                 </button>
               )}
-              <button onClick={handleAutoArrange} className="px-3 py-1.5 bg-cyan-900/50 text-cyan-300 rounded-lg text-sm hover:bg-cyan-800/60 transition-colors" title="Remove gaps and arrange widgets neatly">⊞ Auto</button>
-              <button onClick={() => { setSaveName(schema.title); setShowSaveModal(true); }} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">💾 Save</button>
-              <button onClick={() => { setTemplateName(schema.title + ' Template'); setShowTemplateModal(true); }} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">📋 Template</button>
-              <button onClick={() => setShowLoadModal(true)} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">📂 Load</button>
-              <button onClick={handleRunTests} className="px-3 py-1.5 bg-purple-900/50 text-purple-300 rounded-lg text-sm hover:bg-purple-800/60 transition-colors" title="Run NLQ-DCL evaluation tests">🧪 Tests</button>
-              <button onClick={handleReset} className="px-3 py-1.5 bg-red-900/50 text-red-300 rounded-lg text-sm hover:bg-red-900/70 transition-colors">✕ Reset</button>
+
+              {/* Actions dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowActionsMenu(!showActionsMenu)}
+                  className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors flex items-center gap-1"
+                >
+                  Actions
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {showActionsMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowActionsMenu(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[160px]">
+                      <button onClick={() => { handleAutoArrange(); setShowActionsMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-cyan-300 hover:bg-slate-700 flex items-center gap-2">
+                        <span>⊞</span> Auto Arrange
+                      </button>
+                      <hr className="my-1 border-slate-700" />
+                      <button onClick={() => { setSaveName(schema.title); setShowSaveModal(true); setShowActionsMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2">
+                        <span>💾</span> Save Dashboard
+                      </button>
+                      <button onClick={() => { setTemplateName(schema.title + ' Template'); setShowTemplateModal(true); setShowActionsMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2">
+                        <span>📋</span> Save as Template
+                      </button>
+                      <button onClick={() => { setShowLoadModal(true); setShowActionsMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2">
+                        <span>📂</span> Load
+                      </button>
+                      <hr className="my-1 border-slate-700" />
+                      <button onClick={() => { handleRunTests(); setShowActionsMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-purple-300 hover:bg-slate-700 flex items-center gap-2">
+                        <span>🧪</span> Run Tests
+                      </button>
+                      <hr className="my-1 border-slate-700" />
+                      <button onClick={() => { handleReset(); setShowActionsMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-slate-700 flex items-center gap-2">
+                        <span>✕</span> Reset
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
