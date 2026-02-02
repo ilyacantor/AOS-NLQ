@@ -270,6 +270,10 @@ def detect_visualization_intent(query: str) -> VisualizationRequirements:
     if "dashboard" in q:
         intent = VisualizationIntent.FULL_DASHBOARD
         confidence = 0.95
+    elif any(term in q for term in ["results", "summary", "overview", "performance"]) and re.search(r"\b20\d{2}\b", q):
+        # "[year] results" or "[year] summary" -> wants full dashboard for that year
+        intent = VisualizationIntent.FULL_DASHBOARD
+        confidence = 0.95
     elif viz_score > answer_score:
         if drill_down_requested:
             intent = VisualizationIntent.DRILL_DOWN_VIEW

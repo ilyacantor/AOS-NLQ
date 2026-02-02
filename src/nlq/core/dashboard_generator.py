@@ -158,6 +158,21 @@ def generate_dashboard_schema(
 
 def _generate_title(query: str, requirements: VisualizationRequirements) -> str:
     """Generate a dashboard title from the query."""
+    import re
+    q = query.lower()
+
+    # Extract year from query if present (e.g., "2025 results")
+    year_match = re.search(r"\b(20\d{2})\b", q)
+    year = year_match.group(1) if year_match else None
+
+    # Handle full dashboard with year-based overview queries
+    if requirements.intent == VisualizationIntent.FULL_DASHBOARD:
+        if year and any(term in q for term in ["results", "summary", "overview", "performance"]):
+            return f"{year} Business Summary"
+        elif year:
+            return f"{year} Dashboard"
+        return "Executive Dashboard"
+
     if requirements.metrics:
         metric_names = [get_display_name(m) for m in requirements.metrics[:2]]
         if requirements.dimensions:
