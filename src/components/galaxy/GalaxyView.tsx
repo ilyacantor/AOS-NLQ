@@ -151,23 +151,40 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
     setNodeStates(newStates);
   }, [data.nodes, targetPositions]);
 
-  // Physics simulation loop - nodes smoothly return to their orbital positions
+  // Physics simulation loop - nodes smoothly return to their orbital positions with subtle orbit animation
   useEffect(() => {
+    let startTime = Date.now();
+
     const simulate = () => {
+      const elapsed = (Date.now() - startTime) / 1000; // Time in seconds
+
       setNodeStates(prev => {
         const next = new Map(prev);
         let needsUpdate = false;
+        let nodeIndex = 0;
 
         next.forEach((state, nodeId) => {
           // Skip dragged node
           if (nodeId === draggedNodeId) return;
 
-          // Spring force toward target position
-          const dx = state.targetX - state.x;
-          const dy = state.targetY - state.y;
+          // Subtle orbit animation - each node has a unique phase
+          const orbitPhase = nodeIndex * 0.7; // Different starting phase for each node
+          const orbitAmplitude = 2; // Very subtle movement (2 pixels)
+          const orbitSpeed = 0.3; // Slow orbit
+          const orbitOffsetX = Math.sin(elapsed * orbitSpeed + orbitPhase) * orbitAmplitude;
+          const orbitOffsetY = Math.cos(elapsed * orbitSpeed * 0.7 + orbitPhase) * orbitAmplitude;
+
+          // Target with subtle orbit animation
+          const animatedTargetX = state.targetX + orbitOffsetX;
+          const animatedTargetY = state.targetY + orbitOffsetY;
+
+          // Spring force toward animated target position
+          const dx = animatedTargetX - state.x;
+          const dy = animatedTargetY - state.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          if (distance > 0.5) {
+          // Always update for orbit animation (unless very close)
+          if (distance > 0.1) {
             needsUpdate = true;
             // Spring constant
             const springStrength = 0.08;
@@ -181,13 +198,9 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             // Update position
             state.x += state.vx;
             state.y += state.vy;
-          } else {
-            // Snap to target when close enough
-            state.x = state.targetX;
-            state.y = state.targetY;
-            state.vx = 0;
-            state.vy = 0;
           }
+
+          nodeIndex++;
         });
 
         return next;
@@ -244,8 +257,35 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   }, [draggedNodeId]);
 
   const handleMouseUp = useCallback(() => {
+    // Update target position to where the node was dropped (so it stays there)
+    if (draggedNodeId) {
+      setNodeStates(prev => {
+        const next = new Map(prev);
+        const state = next.get(draggedNodeId);
+        if (state) {
+          state.targetX = state.x;
+          state.targetY = state.y;
+        }
+        return next;
+      });
+    }
     setDraggedNodeId(null);
-  }, []);
+  }, [draggedNodeId]);
+
+  // Reset all nodes to their original orbital positions
+  const handleResetPositions = useCallback(() => {
+    setNodeStates(prev => {
+      const next = new Map(prev);
+      next.forEach((state, nodeId) => {
+        const originalTarget = targetPositions.get(nodeId);
+        if (originalTarget) {
+          state.targetX = originalTarget.x;
+          state.targetY = originalTarget.y;
+        }
+      });
+      return next;
+    });
+  }, [targetPositions]);
 
   const handleMouseLeave = useCallback(() => {
     setDraggedNodeId(null);
@@ -651,8 +691,16 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
         </div>
 
         {/* Center - SVG Visualization */}
-        <div ref={containerRef} className="flex-1 flex items-center justify-center overflow-hidden min-h-0">
+        <div ref={containerRef} className="flex-1 flex items-center justify-center overflow-hidden min-h-0 relative">
           {svgContent}
+          {/* Reset button - appears in top right of visualization */}
+          <button
+            onClick={handleResetPositions}
+            className="absolute top-4 right-4 px-3 py-1.5 text-xs bg-slate-800/80 hover:bg-slate-700 text-slate-300 rounded-md border border-slate-600/50 transition-colors"
+            title="Reset node positions"
+          >
+            Reset
+          </button>
         </div>
 
         {/* Right Panel - Node Detail Panel */}
