@@ -707,6 +707,8 @@ class DCLSemanticClient:
         filters: Dict[str, Any] = None,
         time_range: Dict[str, Any] = None,
         grain: str = None,
+        order_by: str = None,
+        limit: int = None,
     ) -> Dict[str, Any]:
         """
         Execute a data query against DCL.
@@ -719,6 +721,8 @@ class DCLSemanticClient:
             filters: Filter criteria (e.g., {"region": "AMER"})
             time_range: Time range specification (e.g., {"period": "2025", "granularity": "quarterly"})
             grain: Time granularity override (e.g., "monthly", "quarterly")
+            order_by: Sort order ("asc" or "desc") for ranking queries
+            limit: Number of results to return for ranking queries
 
         Returns:
             Query result from DCL with data points
@@ -728,7 +732,7 @@ class DCLSemanticClient:
         """
         if not self.dcl_url:
             # Local dev mode - use fallback data
-            return self._query_local_fallback(metric, dimensions, filters, time_range, grain)
+            return self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
 
         if not self._http_client:
             self._http_client = httpx.Client(timeout=30.0)
@@ -741,6 +745,10 @@ class DCLSemanticClient:
                 "time_range": time_range or {},
                 "grain": grain,
             }
+            if order_by:
+                payload["order_by"] = order_by
+            if limit:
+                payload["limit"] = limit
 
             response = self._http_client.post(
                 f"{self.dcl_url}/api/dcl/query",
@@ -763,6 +771,231 @@ class DCLSemanticClient:
             logger.error(f"DCL query error: {e}")
             return {"error": f"DCL unavailable: {e}", "status": "error"}
 
+    def query_ranking(
+        self,
+        metric: str,
+        dimension: str,
+        order_by: str = "desc",
+        limit: int = 1,
+        time_range: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
+        """
+        Execute a ranking query to find top/bottom items by a metric.
+
+        This is specialized for superlative queries like "who is our top rep?"
+
+        Args:
+            metric: Metric to rank by (e.g., "quota_attainment", "win_rate", "revenue")
+            dimension: Dimension to rank (e.g., "rep", "region", "service")
+            order_by: "desc" for highest first, "asc" for lowest first
+            limit: Number of results to return
+            time_range: Optional time range filter
+
+        Returns:
+            Query result with ranked data
+        """
+        if not self.dcl_url:
+            return self._query_ranking_local(metric, dimension, order_by, limit, time_range)
+
+        # DCL mode - use the general query with ranking parameters
+        return self.query(
+            metric=metric,
+            dimensions=[dimension],
+            time_range=time_range,
+            order_by=order_by,
+            limit=limit,
+        )
+
+    def _query_ranking_local(
+        self,
+        metric: str,
+        dimension: str,
+        order_by: str = "desc",
+        limit: int = 1,
+        time_range: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
+        """
+        Local ranking query implementation for dev mode.
+
+        Handles specialized data structures like quota_by_rep, win_rate_by_rep, etc.
+        """
+        from pathlib import Path
+
+        fact_base_path = Path(__file__).parent.parent.parent.parent / "data" / "fact_base.json"
+        try:
+            with open(fact_base_path, 'r') as f:
+                fact_base = json.load(f)
+        except Exception as e:
+            logger.warning(f"Local ranking query failed - no fact_base.json: {e}")
+            return {"error": "No data available", "status": "error"}
+
+        # Determine period to use
+        period = "2026-Q4"  # Default to current period
+        if time_range:
+            period = time_range.get("period", period)
+
+        # Map metric + dimension to data source
+        data_source_map = {
+            ("quota_attainment", "rep"): "quota_by_rep",
+            ("win_rate", "rep"): "win_rate_by_rep",
+            ("pipeline", "rep"): "pipeline_by_rep",
+            ("slo_attainment", "service"): "slo_attainment_by_service",
+            ("revenue", "region"): "revenue_by_region",
+            ("revenue", "segment"): "revenue_by_segment",
+            ("pipeline", "region"): "pipeline_by_region",
+            ("pipeline", "stage"): "pipeline_by_stage",
+            ("headcount", "department"): "headcount_by_department",
+            ("deal_value", "deal"): "top_deals",
+        }
+
+        # Find the data source
+        data_key = data_source_map.get((metric, dimension))
+
+        # If not in map, try constructing the key
+        if not data_key:
+            data_key = f"{metric}_by_{dimension}"
+
+        if data_key not in fact_base:
+            return {"error": f"No ranking data for {metric} by {dimension}", "status": "not_found"}
+
+        raw_data = fact_base[data_key]
+
+        # Handle different data structures
+        result_data = []
+
+        # Check if it's period-keyed data
+        if isinstance(raw_data, dict):
+            # For top_deals, it's different - period is a key to array of deals
+            if data_key == "top_deals":
+                deals = raw_data.get(period, raw_data.get("2026", []))
+                if isinstance(deals, list):
+                    result_data = [
+                        {"company": d.get("company"), "value": d.get("value"),
+                         "rep": d.get("rep"), "quarter": d.get("quarter")}
+                        for d in deals
+                    ]
+            # Period-keyed dimensional data
+            elif period in raw_data:
+                period_data = raw_data[period]
+                if isinstance(period_data, dict):
+                    for name, values in period_data.items():
+                        if name in ("Total", "total"):
+                            continue
+                        if isinstance(values, dict):
+                            # Nested structure like quota_by_rep
+                            value_field = "attainment_pct" if "attainment_pct" in values else "value"
+                            value_field = value_field if value_field in values else list(values.keys())[0] if values else "value"
+                            result_data.append({
+                                dimension: name,
+                                "value": values.get(value_field, values.get("value", 0)),
+                                **values  # Include all fields
+                            })
+                        else:
+                            # Simple key-value
+                            result_data.append({
+                                dimension: name,
+                                "value": values
+                            })
+            else:
+                # Try latest period
+                periods = list(raw_data.keys())
+                if periods:
+                    latest_period = sorted(periods)[-1]
+                    period_data = raw_data[latest_period]
+                    if isinstance(period_data, dict):
+                        for name, values in period_data.items():
+                            if name in ("Total", "total"):
+                                continue
+                            if isinstance(values, dict):
+                                value_field = "attainment_pct" if "attainment_pct" in values else "value"
+                                result_data.append({
+                                    dimension: name,
+                                    "value": values.get(value_field, 0),
+                                    **values
+                                })
+                            else:
+                                result_data.append({
+                                    dimension: name,
+                                    "value": values
+                                })
+        elif isinstance(raw_data, list):
+            # Already a list of items
+            result_data = raw_data
+
+        # Sort the data
+        if result_data:
+            reverse = (order_by.lower() == "desc")
+
+            def get_sort_value(item):
+                # Try common value field names in priority order
+                for key in ("value", "attainment_pct", "pipeline", "slo_attainment", "revenue", "headcount"):
+                    if key in item:
+                        v = item[key]
+                        return v if isinstance(v, (int, float)) else 0
+                return 0
+
+            result_data = sorted(result_data, key=get_sort_value, reverse=reverse)
+
+        # Apply limit
+        if limit and limit > 0:
+            result_data = result_data[:limit]
+
+        return {
+            "metric": metric,
+            "dimension": dimension,
+            "period": period,
+            "data": result_data,
+            "status": "ok",
+            "source": "local_fallback"
+        }
+
+    def _apply_sorting_and_limit(
+        self,
+        data: List[Dict[str, Any]],
+        order_by: str = None,
+        limit: int = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Apply sorting and limit to query results.
+
+        Args:
+            data: List of result dicts
+            order_by: "asc" or "desc"
+            limit: Max number of results to return
+
+        Returns:
+            Sorted and limited data list
+        """
+        if not data:
+            return data
+
+        # Sort by value if order_by is specified
+        if order_by:
+            reverse = (order_by.lower() == "desc")
+            # Get the value field - look for 'value' or other numeric fields
+            def get_sort_key(item):
+                # Try common value field names
+                for key in ("value", "attainment_pct", "pipeline", "revenue", "slo_attainment", "headcount"):
+                    if key in item:
+                        val = item[key]
+                        return val if isinstance(val, (int, float)) else 0
+                # If dict has nested value
+                if isinstance(item, dict):
+                    for v in item.values():
+                        if isinstance(v, (int, float)):
+                            return v
+                        if isinstance(v, dict) and "value" in v:
+                            return v["value"]
+                return 0
+
+            data = sorted(data, key=get_sort_key, reverse=reverse)
+
+        # Apply limit
+        if limit and limit > 0:
+            data = data[:limit]
+
+        return data
+
     def _query_local_fallback(
         self,
         metric: str,
@@ -770,6 +1003,8 @@ class DCLSemanticClient:
         filters: Dict[str, Any] = None,
         time_range: Dict[str, Any] = None,
         grain: str = None,
+        order_by: str = None,
+        limit: int = None,
     ) -> Dict[str, Any]:
         """
         Local fallback for dev mode when DCL is not available.
@@ -839,6 +1074,7 @@ class DCLSemanticClient:
                             for k, v in period_data.items()
                             if k not in ("Total", "total")
                         ]
+                        result["data"] = self._apply_sorting_and_limit(result["data"], order_by, limit)
                         return result
 
             # Try single dimension with key variants
@@ -874,6 +1110,7 @@ class DCLSemanticClient:
                                 for k, v in period_data.items()
                                 if k not in ("Total", "total")
                             ]
+                            result["data"] = self._apply_sorting_and_limit(result["data"], order_by, limit)
                             return result
 
         # Handle time series queries - respect time_range filter

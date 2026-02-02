@@ -55,6 +55,7 @@ class QueryComplexity(str, Enum):
     COMPARISON = "comparison"            # "vs last year", "compared to"
     TREND = "trend"                      # "over time", "trend"
     BREAKDOWN = "breakdown"              # "by region", "breakdown"
+    SUPERLATIVE = "superlative"          # "top rep", "largest deal", "worst service"
     COMPLEX = "complex"                  # Anything else
 
 
@@ -91,6 +92,26 @@ COMPLEXITY_INDICATORS = {
     QueryComplexity.BREAKDOWN: [
         "breakdown", "by region", "by segment", "by product", "by team",
         "split", "composition", "drivers", "what's driving", "components",
+    ],
+    QueryComplexity.SUPERLATIVE: [
+        # Max/best patterns
+        "top rep", "best rep", "top sales", "best sales", "#1 rep",
+        "top performer", "best performer", "leading performer",
+        "highest", "largest", "biggest", "most", "best",
+        "top 3", "top 5", "top 10",
+        # Min/worst patterns
+        "worst", "lowest", "smallest", "least", "bottom",
+        "weakest", "lagging", "bottom 3", "bottom 5", "bottom 10",
+        # Casual patterns
+        "crushing it", "mvp", "star performer",
+    ],
+    QueryComplexity.COMPLEX: [
+        # Bridge/analysis queries - explain why metrics changed
+        "why did", "why has", "why is", "explain why", "explain how",
+        "what caused", "what drove", "what factors",
+        "increase", "decrease", "drop", "rise", "fell", "grew",
+        "declined", "improved", "worsened", "changed",
+        "bridge", "waterfall",
     ],
 }
 
@@ -160,7 +181,8 @@ class TieredIntentResolver:
 
         # Complex queries go straight to LLM (Tier 3)
         if complexity in (QueryComplexity.COMPARISON, QueryComplexity.TREND,
-                          QueryComplexity.BREAKDOWN, QueryComplexity.COMPLEX):
+                          QueryComplexity.BREAKDOWN, QueryComplexity.SUPERLATIVE,
+                          QueryComplexity.COMPLEX):
             return await self._tier_3_llm_parse(query, complexity)
 
         # Tier 1: Try cache first (FREE)
