@@ -608,6 +608,13 @@ export function DashboardRenderer({
           setWidgetData(initialData);
           fetchWidgetData(data.dashboard);
         }
+
+        // Auto-arrange on initial generation if not in edit mode
+        if (!editMode) {
+          setTimeout(() => {
+            handleAutoArrange();
+          }, 50);
+        }
       } else {
         setError(data.error || 'Dashboard generation returned no data');
         setSuggestions(data.suggestions || []);
@@ -619,7 +626,7 @@ export function DashboardRenderer({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [editMode, handleAutoArrange]);
 
   // Refine existing dashboard
   const refineDashboard = useCallback(async (query: string) => {
@@ -653,6 +660,14 @@ export function DashboardRenderer({
         const widgetCountChanged = oldWidgetCount !== newWidgetCount;
 
         setSchema(data.dashboard);
+
+        // Auto-arrange if not in edit mode to fill gaps cleanly
+        if (!editMode) {
+          // Use setTimeout to ensure schema is updated before auto-arrange runs
+          setTimeout(() => {
+            handleAutoArrange();
+          }, 50);
+        }
 
         // Use pre-resolved widget data from backend if available
         const newWidgetData = data.widget_data && Object.keys(data.widget_data).length > 0
@@ -719,7 +734,7 @@ export function DashboardRenderer({
       setIsRefining(false);
       setRefinementQuery('');
     }
-  }, [schema, onRefinement]);
+  }, [schema, onRefinement, editMode, handleAutoArrange]);
 
   // Fetch data for all widgets (uses pre-resolved data if available, otherwise mock)
   const fetchWidgetData = useCallback(async (

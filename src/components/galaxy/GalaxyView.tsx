@@ -167,12 +167,12 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
           // Skip dragged node
           if (nodeId === draggedNodeId) return;
 
-          // Subtle orbit animation - each node has a unique phase
-          const orbitPhase = nodeIndex * 0.7; // Different starting phase for each node
-          const orbitAmplitude = 2; // Very subtle movement (2 pixels)
-          const orbitSpeed = 0.3; // Slow orbit
+          // Gentle orbit animation - each node has a unique phase
+          const orbitPhase = nodeIndex * 0.8; // Different starting phase for each node
+          const orbitAmplitude = 4; // Gentle movement (4 pixels)
+          const orbitSpeed = 0.5; // Moderate orbit speed
           const orbitOffsetX = Math.sin(elapsed * orbitSpeed + orbitPhase) * orbitAmplitude;
-          const orbitOffsetY = Math.cos(elapsed * orbitSpeed * 0.7 + orbitPhase) * orbitAmplitude;
+          const orbitOffsetY = Math.cos(elapsed * orbitSpeed * 0.6 + orbitPhase) * orbitAmplitude * 0.8;
 
           // Target with subtle orbit animation
           const animatedTargetX = state.targetX + orbitOffsetX;
@@ -183,22 +183,21 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
           const dy = animatedTargetY - state.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          // Always update for orbit animation (unless very close)
-          if (distance > 0.1) {
-            needsUpdate = true;
-            // Spring constant
-            const springStrength = 0.08;
-            // Damping
-            const damping = 0.85;
+          // Always update for continuous orbit animation
+          needsUpdate = true;
 
-            // Apply spring force
-            state.vx = (state.vx + dx * springStrength) * damping;
-            state.vy = (state.vy + dy * springStrength) * damping;
+          // Spring constant - softer for smoother orbit
+          const springStrength = 0.06;
+          // Damping
+          const damping = 0.9;
 
-            // Update position
-            state.x += state.vx;
-            state.y += state.vy;
-          }
+          // Apply spring force
+          state.vx = (state.vx + dx * springStrength) * damping;
+          state.vy = (state.vy + dy * springStrength) * damping;
+
+          // Update position
+          state.x += state.vx;
+          state.y += state.vy;
 
           nodeIndex++;
         });
