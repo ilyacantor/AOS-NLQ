@@ -239,4 +239,8 @@ export interface WidgetData {
   series?: ChartDataSeries[];
   categories?: string[];
   rows?: Record<string, any>[];
+  map_data?: {
+    regions: Array<{ region: string; value: number; percentage?: number }>;
+    total?: number;
+  };
 }
