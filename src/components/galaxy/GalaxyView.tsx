@@ -11,7 +11,6 @@ import {
 import { GalaxyHeader } from './GalaxyHeader';
 import { GalaxyLegend } from './GalaxyLegend';
 import { NodeDetailPanel } from './NodeDetailPanel';
-import { NodeTooltip } from './NodeTooltip';
 import { DataTable } from './DataTable';
 
 interface GalaxyViewProps {
@@ -44,10 +43,12 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   onNavigateToDashboard,
 }) => {
   const [selectedNode, setSelectedNode] = useState<IntentNode | null>(null);
-  const [hoveredNode, setHoveredNode] = useState<IntentNode | null>(null);
-  const [hoveredPosition, setHoveredPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [nodeStates, setNodeStates] = useState<Map<string, NodeState>>(new Map());
+
+  // Track drag to differentiate from click
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+  const hasDragged = useRef(false);
 
   // Container ref for measuring available space
   const containerRef = useRef<HTMLDivElement>(null);
@@ -99,7 +100,6 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   }, [isDashboard, data.query, data, onNavigateToDashboard]);
 
   const svgRef = useRef<SVGSVGElement>(null);
-  const animationRef = useRef<number | null>(null);
 
   const centerX = width / 2;
   const centerY = height / 2;
@@ -151,92 +151,90 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
     setNodeStates(newStates);
   }, [data.nodes, targetPositions]);
 
-  // Physics simulation loop - nodes smoothly return to their orbital positions with subtle orbit animation
+  // Animation time for smooth orbit effect
+  const [animTime, setAnimTime] = useState(0);
+
+  // Smooth animation loop - just updates time, positions calculated in render
   useEffect(() => {
-    let startTime = Date.now();
+    let rafId: number;
+    let lastTime = performance.now();
 
-    const simulate = () => {
-      const elapsed = (Date.now() - startTime) / 1000; // Time in seconds
-
-      setNodeStates(prev => {
-        const next = new Map(prev);
-        let needsUpdate = false;
-        let nodeIndex = 0;
-
-        next.forEach((state, nodeId) => {
-          // Skip dragged node
-          if (nodeId === draggedNodeId) return;
-
-          // Gentle orbit animation - each node has a unique phase
-          const orbitPhase = nodeIndex * 0.8; // Different starting phase for each node
-          const orbitAmplitude = 4; // Gentle movement (4 pixels)
-          const orbitSpeed = 0.5; // Moderate orbit speed
-          const orbitOffsetX = Math.sin(elapsed * orbitSpeed + orbitPhase) * orbitAmplitude;
-          const orbitOffsetY = Math.cos(elapsed * orbitSpeed * 0.6 + orbitPhase) * orbitAmplitude * 0.8;
-
-          // Target with subtle orbit animation
-          const animatedTargetX = state.targetX + orbitOffsetX;
-          const animatedTargetY = state.targetY + orbitOffsetY;
-
-          // Spring force toward animated target position
-          const dx = animatedTargetX - state.x;
-          const dy = animatedTargetY - state.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-
-          // Always update for continuous orbit animation
-          needsUpdate = true;
-
-          // Spring constant - softer for smoother orbit
-          const springStrength = 0.06;
-          // Damping
-          const damping = 0.9;
-
-          // Apply spring force
-          state.vx = (state.vx + dx * springStrength) * damping;
-          state.vy = (state.vy + dy * springStrength) * damping;
-
-          // Update position
-          state.x += state.vx;
-          state.y += state.vy;
-
-          nodeIndex++;
-        });
-
-        return next;
-      });
-
-      animationRef.current = requestAnimationFrame(simulate);
+    const animate = (now: number) => {
+      const delta = (now - lastTime) / 1000;
+      lastTime = now;
+      setAnimTime(t => t + delta);
+      rafId = requestAnimationFrame(animate);
     };
 
-    animationRef.current = requestAnimationFrame(simulate);
+    rafId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
 
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [draggedNodeId]);
-
-  // Get current position for a node
-  const getNodePosition = useCallback((nodeId: string) => {
+  // Get current position for a node with smooth orbit animation
+  const getNodePosition = useCallback((nodeId: string, nodeIndex: number) => {
     const state = nodeStates.get(nodeId);
-    if (state) {
+    const basePos = state
+      ? { x: state.targetX, y: state.targetY }
+      : (targetPositions.get(nodeId) || { x: centerX, y: centerY });
+
+    // If being dragged, use exact drag position
+    if (draggedNodeId === nodeId && state) {
       return { x: state.x, y: state.y };
     }
-    return targetPositions.get(nodeId) || { x: centerX, y: centerY };
-  }, [nodeStates, targetPositions, centerX, centerY]);
+
+    // Apply gentle orbit animation
+    const orbitPhase = nodeIndex * 0.9;
+    const orbitAmplitude = 3;
+    const orbitSpeed = 0.4;
+    const offsetX = Math.sin(animTime * orbitSpeed + orbitPhase) * orbitAmplitude;
+    const offsetY = Math.cos(animTime * orbitSpeed * 0.7 + orbitPhase) * orbitAmplitude;
+
+    return {
+      x: basePos.x + offsetX,
+      y: basePos.y + offsetY,
+    };
+  }, [nodeStates, targetPositions, centerX, centerY, animTime, draggedNodeId]);
 
   // Drag handlers
   const handleMouseDown = useCallback((e: React.MouseEvent, node: IntentNode) => {
     e.preventDefault();
     e.stopPropagation();
     setDraggedNodeId(node.id);
-    setHoveredNode(null);
-    setHoveredPosition(null);
-  }, []);
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
+    hasDragged.current = false;
+
+    // Initialize drag position
+    const target = targetPositions.get(node.id) || { x: centerX, y: centerY };
+    setNodeStates(prev => {
+      const next = new Map(prev);
+      const existing = next.get(node.id);
+      if (existing) {
+        // Keep current target position
+      } else {
+        next.set(node.id, {
+          x: target.x,
+          y: target.y,
+          vx: 0,
+          vy: 0,
+          targetX: target.x,
+          targetY: target.y,
+        });
+      }
+      return next;
+    });
+  }, [targetPositions, centerX, centerY]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!draggedNodeId || !svgRef.current) return;
+
+    // Check if moved enough to count as drag
+    if (dragStartPos.current) {
+      const dx = e.clientX - dragStartPos.current.x;
+      const dy = e.clientY - dragStartPos.current.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        hasDragged.current = true;
+      }
+    }
 
     const svgRect = svgRef.current.getBoundingClientRect();
     const mouseX = e.clientX - svgRect.left;
@@ -248,8 +246,6 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
       if (state) {
         state.x = mouseX;
         state.y = mouseY;
-        state.vx = 0;
-        state.vy = 0;
       }
       return next;
     });
@@ -257,7 +253,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
 
   const handleMouseUp = useCallback(() => {
     // Update target position to where the node was dropped (so it stays there)
-    if (draggedNodeId) {
+    if (draggedNodeId && hasDragged.current) {
       setNodeStates(prev => {
         const next = new Map(prev);
         const state = next.get(draggedNodeId);
@@ -288,30 +284,19 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
 
   const handleMouseLeave = useCallback(() => {
     setDraggedNodeId(null);
-    setHoveredNode(null);
-    setHoveredPosition(null);
+    dragStartPos.current = null;
+    hasDragged.current = false;
   }, []);
 
-  const handleNodeClick = (node: IntentNode) => {
-    if (!draggedNodeId) {
+  const handleNodeClick = useCallback((node: IntentNode) => {
+    // Only open panel if this was a click, not a drag
+    if (!hasDragged.current) {
       setSelectedNode(prev => prev?.id === node.id ? null : node);
     }
-  };
-
-  const handleNodeMouseEnter = (node: IntentNode) => {
-    if (!draggedNodeId) {
-      setHoveredNode(node);
-      const pos = getNodePosition(node.id);
-      setHoveredPosition(pos);
-    }
-  };
-
-  const handleNodeMouseLeave = () => {
-    if (!draggedNodeId) {
-      setHoveredNode(null);
-      setHoveredPosition(null);
-    }
-  };
+    // Reset drag state
+    hasDragged.current = false;
+    dragStartPos.current = null;
+  }, []);
 
   // Check if we have multiple data elements for table display
   const hasMultipleDataElements = data.nodes && data.nodes.length > 1;
@@ -453,11 +438,10 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             </g>
 
             {/* Nodes */}
-            {data.nodes.map((node) => {
-              const pos = getNodePosition(node.id);
+            {data.nodes.map((node, nodeIndex) => {
+              const pos = getNodePosition(node.id, nodeIndex);
               const isPrimary = node.id === data.primary_node_id;
               const isSelected = selectedNode?.id === node.id;
-              const isHovered = hoveredNode?.id === node.id;
               const isDragging = draggedNodeId === node.id;
               const radius = getCircleRadius(node.confidence, isPrimary);
               const color = DOMAIN_COLORS[node.domain] || DOMAIN_COLORS.finance;
@@ -469,18 +453,16 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                   transform={`translate(${pos.x}, ${pos.y})`}
                   onClick={() => handleNodeClick(node)}
                   onMouseDown={(e) => handleMouseDown(e, node)}
-                  onMouseEnter={() => handleNodeMouseEnter(node)}
-                  onMouseLeave={handleNodeMouseLeave}
                   style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
                   className="galaxy-node"
                 >
                   {/* Selection/hover ring */}
-                  {(isSelected || isHovered) && (
+                  {isSelected && (
                     <circle
                       r={radius + 12}
                       fill="none"
-                      stroke={isSelected ? '#fff' : '#64748b'}
-                      strokeWidth={isSelected ? 2 : 1}
+                      stroke="#fff"
+                      strokeWidth={2}
                       opacity={isSelected ? 0.8 : 0.5}
                     />
                   )}
@@ -489,7 +471,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                   <circle
                     r={radius}
                     fill={color}
-                    opacity={isSelected || isHovered ? 1 : 0.85}
+                    opacity={isSelected ? 1 : 0.9}
                     stroke={isPrimary ? '#fff' : 'none'}
                     strokeWidth={isPrimary ? 2 : 0}
                   />
@@ -541,17 +523,6 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               );
             })}
 
-      {/* Hover Tooltip */}
-      {hoveredNode && hoveredPosition && !draggedNodeId && (
-        <NodeTooltip
-          node={hoveredNode}
-          isPrimary={hoveredNode.id === data.primary_node_id}
-          x={hoveredPosition.x}
-          y={hoveredPosition.y}
-          svgWidth={width}
-          svgHeight={height}
-        />
-      )}
     </svg>
   );
 
