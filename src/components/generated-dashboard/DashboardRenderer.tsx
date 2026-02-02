@@ -177,6 +177,41 @@ export function DashboardRenderer({
   const [refinementMessage, setRefinementMessage] = useState<string | null>(null);
   const refinementTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Drag-to-scroll for presets container on desktop
+  const presetsRef = useRef<HTMLDivElement>(null);
+  const [isDraggingPresets, setIsDraggingPresets] = useState(false);
+  const [dragStartX, setDragStartX] = useState(0);
+  const [scrollStartX, setScrollStartX] = useState(0);
+
+  const handlePresetsMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!presetsRef.current) return;
+    setIsDraggingPresets(true);
+    setDragStartX(e.clientX);
+    setScrollStartX(presetsRef.current.scrollLeft);
+    presetsRef.current.style.cursor = 'grabbing';
+    presetsRef.current.style.userSelect = 'none';
+  }, []);
+
+  const handlePresetsMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDraggingPresets || !presetsRef.current) return;
+    const dx = e.clientX - dragStartX;
+    presetsRef.current.scrollLeft = scrollStartX - dx;
+  }, [isDraggingPresets, dragStartX, scrollStartX]);
+
+  const handlePresetsMouseUp = useCallback(() => {
+    setIsDraggingPresets(false);
+    if (presetsRef.current) {
+      presetsRef.current.style.cursor = 'grab';
+      presetsRef.current.style.userSelect = '';
+    }
+  }, []);
+
+  const handlePresetsMouseLeave = useCallback(() => {
+    if (isDraggingPresets) {
+      handlePresetsMouseUp();
+    }
+  }, [isDraggingPresets, handlePresetsMouseUp]);
+
   // Scenario modeling panel state (CFO only)
   const [scenarioOpen, setScenarioOpen] = useState(false);
   
@@ -960,14 +995,27 @@ export function DashboardRenderer({
             </div>
           )}
 
-          {/* Preset Refinements - Hidden on mobile, horizontal scroll on tablet+ */}
+          {/* Preset Refinements - Hidden on mobile, horizontal scroll on tablet+ with drag-to-scroll */}
           {refinePresets.length > 0 && (
-            <div className="hidden md:flex items-center gap-2 mt-2 overflow-x-auto">
+            <div
+              ref={presetsRef}
+              className="hidden md:flex items-center gap-2 mt-2 overflow-x-auto scrollbar-hide"
+              style={{ cursor: 'grab' }}
+              onMouseDown={handlePresetsMouseDown}
+              onMouseMove={handlePresetsMouseMove}
+              onMouseUp={handlePresetsMouseUp}
+              onMouseLeave={handlePresetsMouseLeave}
+            >
               <span className="text-slate-500 text-xs py-1 flex-shrink-0">Try:</span>
               {refinePresets.map((preset, i) => (
                 <button
                   key={i}
-                  onClick={() => refineDashboard(preset)}
+                  onClick={(e) => {
+                    // Only trigger click if not dragging
+                    if (!isDraggingPresets) {
+                      refineDashboard(preset);
+                    }
+                  }}
                   disabled={isRefining}
                   className="flex-shrink-0 px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors disabled:opacity-50 whitespace-nowrap"
                 >
