@@ -49,6 +49,10 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [nodeStates, setNodeStates] = useState<Map<string, NodeState>>(new Map());
 
+  // Track drag state to differentiate click vs drag
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+  const didDrag = useRef(false);
+
   // Container ref for measuring available space
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: propWidth || 700, height: propHeight || 700 });
@@ -233,10 +237,22 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
     setDraggedNodeId(node.id);
     setHoveredNode(null);
     setHoveredPosition(null);
+    // Track starting position to detect if this is a drag vs click
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
+    didDrag.current = false;
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!draggedNodeId || !svgRef.current) return;
+
+    // Check if mouse moved enough to count as a drag (not just a click)
+    if (dragStartPos.current) {
+      const dx = e.clientX - dragStartPos.current.x;
+      const dy = e.clientY - dragStartPos.current.y;
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        didDrag.current = true;
+      }
+    }
 
     const svgRect = svgRef.current.getBoundingClientRect();
     const mouseX = e.clientX - svgRect.left;
@@ -269,6 +285,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
       });
     }
     setDraggedNodeId(null);
+    dragStartPos.current = null;
   }, [draggedNodeId]);
 
   // Reset all nodes to their original orbital positions
@@ -293,9 +310,13 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   }, []);
 
   const handleNodeClick = (node: IntentNode) => {
-    if (!draggedNodeId) {
+    // Only trigger click if this wasn't a drag operation
+    if (!draggedNodeId && !didDrag.current) {
       setSelectedNode(prev => prev?.id === node.id ? null : node);
     }
+    // Reset drag tracking
+    didDrag.current = false;
+    dragStartPos.current = null;
   };
 
   const handleNodeMouseEnter = (node: IntentNode) => {
