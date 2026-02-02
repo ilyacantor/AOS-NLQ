@@ -417,12 +417,64 @@ def _extract_period_from_dashboard_query(question: str) -> str:
     return "2025-Q4"
 
 
-def _handle_dashboard_query(question: str, fact_base) -> Optional[IntentMapResponse]:
-    """Generate persona-specific dashboard with key metrics."""
-    import json
+def _handle_dashboard_query(question: str, fact_base=None) -> Optional[IntentMapResponse]:
+    """
+    Generate persona-specific dashboard with key metrics.
 
-    with open('data/fact_base.json') as f:
-        data = json.load(f)
+    Data is fetched from DCL - fact_base param is ignored (kept for backwards compatibility).
+    """
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+
+    dcl_client = get_semantic_client()
+
+    def _query_metric_value(metric: str, period: str = "2025") -> Optional[float]:
+        """Query a single metric value from DCL."""
+        try:
+            result = dcl_client.query(
+                metric=metric,
+                time_range={"period": period, "granularity": "annual"}
+            )
+            if result.get("error"):
+                return None
+            data = result.get("data", [])
+            if not data:
+                return None
+            # Handle different response formats
+            if isinstance(data, list) and len(data) > 0:
+                if isinstance(data[0], dict) and "value" in data[0]:
+                    return sum(d.get("value", 0) for d in data if d.get("value") is not None)
+                else:
+                    return data[-1] if data else None
+            elif isinstance(data, (int, float)):
+                return data
+            return None
+        except Exception as e:
+            logger.debug(f"Failed to query {metric}: {e}")
+            return None
+
+    def _build_period_data(period: str = "2025") -> dict:
+        """Build a period data dict by querying DCL for each metric."""
+        metrics_to_query = [
+            "revenue", "gross_margin_pct", "operating_margin_pct", "net_income",
+            "cash", "arr", "burn_multiple", "pipeline", "win_rate",
+            "gross_churn_pct", "nrr", "sales_cycle_days", "quota_attainment",
+            "new_logo_revenue", "headcount", "revenue_per_employee",
+            "magic_number", "cac_payback_months", "ltv_cac", "attrition_rate",
+            "implementation_days", "uptime_pct", "deploys_per_week",
+            "mttr_p1_hours", "sprint_velocity", "tech_debt_pct",
+            "code_coverage_pct", "features_shipped", "hires",
+            "engineering_headcount", "sales_headcount", "cs_headcount",
+            "csat", "employee_growth_rate"
+        ]
+        period_data = {}
+        for metric in metrics_to_query:
+            value = _query_metric_value(metric, period)
+            if value is not None:
+                period_data[metric] = value
+        return period_data
+
+    # Get period data from DCL
+    period_data = _build_period_data("2025")
 
     q = question.lower()
     period = _extract_period_from_dashboard_query(question)
@@ -431,28 +483,11 @@ def _handle_dashboard_query(question: str, fact_base) -> Optional[IntentMapRespo
     # KPI queries should use annual data for current year summary
     is_kpi_query = "kpi" in q or "key metric" in q
     has_explicit_quarter = any(qtr in q for qtr in ['q1', 'q2', 'q3', 'q4', 'quarter'])
-    use_annual = is_kpi_query and not has_explicit_quarter
 
-    # Find the right data period
-    quarterly_data = data.get('quarterly', [])
-    annual_data = data.get('annual', {})
-
-    # Use annual data for KPI queries without explicit quarter
-    if use_annual and '2025' in annual_data:
-        period_data = annual_data['2025']
-        period = "2025"
-    else:
-        # Try exact match first, then fall back to latest quarter
-        period_data = None
-        for qd in quarterly_data:
-            if qd.get('period') == period:
-                period_data = qd
-                break
-
-        if not period_data:
-            # Default to most recent quarter (Q4 2025)
-            period_data = next((qd for qd in quarterly_data if qd.get('period') == '2025-Q4'), quarterly_data[-1])
-            period = period_data.get('period', '2025-Q4')
+    # If asking for a specific quarter, fetch that quarter's data instead
+    if has_explicit_quarter and period != "2025":
+        period_data = _build_period_data(period)
+    # Default to annual 2025 data (already fetched above)
 
     # Detect persona from question or default based on keywords
     persona = _detect_dashboard_persona(question)
@@ -574,9 +609,8 @@ def _handle_dashboard_query(question: str, fact_base) -> Optional[IntentMapRespo
 
     elif "kpi" in q:
         # Comprehensive KPI dashboard - 2025 vs 2024 full year comparison
-        annual = data.get('annual', {})
-        y25 = annual.get('2025', {})
-        y24 = annual.get('2024', {})
+        y25 = period_data  # Already have 2025 data
+        y24 = _build_period_data("2024")  # Fetch 2024 for comparison
 
         def calc_change(v25, v24, is_pct=False):
             """Calculate YoY change."""
@@ -1084,11 +1118,12 @@ from src.nlq.services.tiered_intent import detect_complexity, QueryComplexity
 from src.nlq.knowledge.synonyms import normalize_metric
 
 
-def _try_tiered_metric_query_core(question: str, fact_base: FactBase) -> Optional[SimpleMetricResult]:
+def _try_tiered_metric_query_core(question: str, fact_base=None) -> Optional[SimpleMetricResult]:
     """
     Core logic for tiered metric queries - uses embedding-based lookup.
 
     Replaces the old regex-based _try_simple_metric_query_core.
+    Data is fetched from DCL - fact_base param is ignored (kept for backwards compatibility).
 
     Strategy:
     1. Detect if query is complex (comparison, trend, breakdown) -> skip, let LLM handle
@@ -1190,10 +1225,44 @@ def _try_tiered_metric_query_core(question: str, fact_base: FactBase) -> Optiona
     return None  # No match, let normal flow handle it
 
 
-def _build_simple_metric_result(metric: str, fact_base: FactBase) -> Optional[SimpleMetricResult]:
-    """Build a SimpleMetricResult for a resolved metric."""
-    # Use query_annual to aggregate quarterly data for metrics not in annual section
-    value = fact_base.query_annual(metric, 2025)
+def _build_simple_metric_result(metric: str, fact_base=None) -> Optional[SimpleMetricResult]:
+    """
+    Build a SimpleMetricResult for a resolved metric.
+
+    Data is fetched from DCL - fact_base param is ignored (kept for backwards compatibility).
+    """
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+
+    dcl_client = get_semantic_client()
+
+    # Query DCL for annual data
+    result = dcl_client.query(
+        metric=metric,
+        time_range={"period": "2025", "granularity": "annual"}
+    )
+
+    # Extract value from DCL response
+    if result.get("status") == "error" or result.get("error"):
+        logger.debug(f"DCL query failed for {metric}: {result.get('error')}")
+        return None
+
+    data = result.get("data", [])
+    if not data:
+        return None
+
+    # Handle different response formats
+    if isinstance(data, list) and len(data) > 0:
+        # Time series - aggregate or take latest
+        if isinstance(data[0], dict) and "value" in data[0]:
+            # Sum quarterly values for annual total
+            value = sum(d.get("value", 0) for d in data if d.get("value") is not None)
+        else:
+            value = data[-1] if data else None
+    elif isinstance(data, (int, float)):
+        value = data
+    else:
+        return None
+
     if value is None:
         return None
 
@@ -1226,15 +1295,17 @@ def _build_simple_metric_result(metric: str, fact_base: FactBase) -> Optional[Si
     )
 
 
-def _try_simple_metric_query(question: str, fact_base: FactBase) -> Optional[NLQResponse]:
+def _try_simple_metric_query(question: str, fact_base=None) -> Optional[NLQResponse]:
     """
-    Try to answer a simple metric query directly from fact base.
+    Try to answer a simple metric query directly from DCL.
 
     Uses tiered approach: exact match -> embedding lookup -> fall through to LLM.
     Handles queries like "ebitda", "what's our revenue?", "GM" without Claude.
     Returns None if no confident match found.
+
+    Data is fetched from DCL - fact_base param is ignored (kept for backwards compatibility).
     """
-    result = _try_tiered_metric_query_core(question, fact_base)
+    result = _try_tiered_metric_query_core(question)
     if result:
         return simple_metric_to_nlq_response(result)
 
@@ -1335,15 +1406,17 @@ def _check_missing_data(question: str) -> Optional[NLQResponse]:
     return None
 
 
-def _try_simple_metric_query_galaxy(question: str, fact_base: FactBase) -> Optional[IntentMapResponse]:
+def _try_simple_metric_query_galaxy(question: str, fact_base=None) -> Optional[IntentMapResponse]:
     """
-    Try to answer a simple metric query directly from fact base for Galaxy mode.
+    Try to answer a simple metric query directly from DCL for Galaxy mode.
 
     Uses tiered approach: exact match -> embedding lookup -> fall through to LLM.
     Handles queries like "ebitda", "what's our revenue?", "GM" without Claude.
     Returns None if no confident match found.
+
+    Data is fetched from DCL - fact_base param is ignored (kept for backwards compatibility).
     """
-    result = _try_tiered_metric_query_core(question, fact_base)
+    result = _try_tiered_metric_query_core(question)
     if result:
         return simple_metric_to_galaxy_response(result, question)
     return None
@@ -1906,15 +1979,28 @@ def _handle_ambiguous_query_text(
 
         # "biggest deals" or "2025 biggest deals" -> Show top deals for current + prior year
         if "biggest deals" in q or ("deals" in q and "biggest" in q):
-            import json
-            with open('data/fact_base.json') as f:
-                fb_data = json.load(f)
+            from src.nlq.services.dcl_semantic_client import get_semantic_client
+            dcl_client = get_semantic_client()
+
+            def _get_top_deals(year: str):
+                """Get top deals from DCL or local fallback."""
+                result = dcl_client.query(metric="top_deals", time_range={"period": year})
+                if result.get("data"):
+                    return result["data"]
+                # Local fallback for dev mode
+                try:
+                    import json
+                    with open('data/fact_base.json') as f:
+                        fb_data = json.load(f)
+                    return fb_data.get('top_deals', {}).get(year, [])
+                except Exception:
+                    return []
 
             # Check if specific year is requested
             year_match = re.search(r'20\d{2}', question)
             if year_match:
                 year = year_match.group()
-                top_deals = fb_data.get('top_deals', {}).get(year, [])
+                top_deals = _get_top_deals(year)
                 if top_deals:
                     deal_list = ", ".join([f"{d['company']} ${d['value']}M" for d in top_deals])
                     total = sum(d['value'] for d in top_deals)
@@ -1924,8 +2010,8 @@ def _handle_ambiguous_query_text(
                         related_metrics=related_metrics)
 
             # No year specified - show current year and prior year deals
-            cy_deals = fb_data.get('top_deals', {}).get(current_year, [])
-            ly_deals = fb_data.get('top_deals', {}).get(last_year, [])
+            cy_deals = _get_top_deals(current_year)
+            ly_deals = _get_top_deals(last_year)
 
             lines = []
             if cy_deals:
@@ -3211,15 +3297,28 @@ def _handle_ambiguous_query_galaxy(
     # ===== SPECIAL HANDLING FOR BIGGEST DEALS =====
     # Match text handler: show deal data directly instead of asking for clarification
     if "biggest deals" in q or ("deals" in q and "biggest" in q):
-        import json
-        with open('data/fact_base.json') as f:
-            fb_data = json.load(f)
+        from src.nlq.services.dcl_semantic_client import get_semantic_client
+        dcl_client = get_semantic_client()
+
+        def _get_top_deals_galaxy(year: str):
+            """Get top deals from DCL or local fallback."""
+            result = dcl_client.query(metric="top_deals", time_range={"period": year})
+            if result.get("data"):
+                return result["data"]
+            # Local fallback for dev mode
+            try:
+                import json
+                with open('data/fact_base.json') as f:
+                    fb_data = json.load(f)
+                return fb_data.get('top_deals', {}).get(year, [])
+            except Exception:
+                return []
 
         # Check if specific year is requested
         year_match = re.search(r'20\d{2}', question)
         if year_match:
             year = year_match.group()
-            top_deals = fb_data.get('top_deals', {}).get(year, [])
+            top_deals = _get_top_deals_galaxy(year)
             if top_deals:
                 deal_list = ", ".join([f"{d['company']} ${d['value']}M" for d in top_deals])
                 total = sum(d['value'] for d in top_deals)
@@ -3259,8 +3358,8 @@ def _handle_ambiguous_query_galaxy(
                 )
 
         # No year specified - show current year and prior year deals
-        cy_deals = fb_data.get('top_deals', {}).get(current_year, [])
-        ly_deals = fb_data.get('top_deals', {}).get(last_year, [])
+        cy_deals = _get_top_deals_galaxy(current_year)
+        ly_deals = _get_top_deals_galaxy(last_year)
 
         lines = []
         if cy_deals:
@@ -3565,13 +3664,18 @@ async def health() -> HealthResponse:
     Health check endpoint.
 
     Returns service status and component availability.
+    Checks DCL connectivity for data access.
     """
-    fact_base_loaded = False
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+
+    dcl_available = False
     claude_available = False
 
     try:
-        fb = get_fact_base()
-        fact_base_loaded = len(fb.available_metrics) > 0
+        # Check DCL connectivity by getting the catalog
+        dcl_client = get_semantic_client()
+        catalog = dcl_client.get_catalog()
+        dcl_available = len(catalog.metrics) > 0
     except Exception:
         pass
 
@@ -3583,9 +3687,9 @@ async def health() -> HealthResponse:
 
     session_stats = get_session_stats()
     return HealthResponse(
-        status="healthy" if fact_base_loaded else "degraded",
+        status="healthy" if dcl_available else "degraded",
         version="0.1.0",
-        fact_base_loaded=fact_base_loaded,
+        fact_base_loaded=dcl_available,  # Field name kept for backwards compatibility
         claude_available=claude_available,
         session_count=session_stats["total_sessions"],
         max_sessions=session_stats["max_sessions"],
@@ -3598,20 +3702,30 @@ async def schema() -> SchemaResponse:
     Return available metrics and periods.
 
     Useful for building UIs and understanding what queries are supported.
+    Fetches metric information from DCL semantic catalog.
     """
-    fact_base = get_fact_base()
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
 
-    # Get metric details from schema
+    dcl_client = get_semantic_client()
+    catalog = dcl_client.get_catalog()
+
+    # Get metric details from DCL catalog
     metric_details = {}
-    for name, defn in FINANCIAL_SCHEMA.items():
-        metric_details[name] = {
-            "display_name": defn.display_name,
-            "type": defn.metric_type.value,
-            "unit": defn.unit,
+    for metric_id, metric in catalog.metrics.items():
+        metric_details[metric_id] = {
+            "display_name": metric.display_name,
+            "type": "metric",  # All DCL metrics are metrics
+            "unit": metric.unit,
+            "domain": metric.domain,
+            "allowed_dimensions": metric.allowed_dimensions,
         }
 
+    # Default periods supported
+    periods = ["2024", "2025", "2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4",
+               "2025-Q1", "2025-Q2", "2025-Q3", "2025-Q4"]
+
     return SchemaResponse(
-        metrics=sorted(list(fact_base.available_metrics)),
-        periods=sorted(list(fact_base.available_periods)),
+        metrics=sorted(list(catalog.metrics.keys())),
+        periods=sorted(periods),
         metric_details=metric_details,
     )
