@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 from src.nlq.models.response import Domain, MatchType, IntentMapResponse, IntentNode, NLQResponse
 from src.nlq.knowledge.display import get_display_name
+from src.nlq.core.personality import detect_persona_from_metric, detect_persona_from_question
 
 
 @dataclass
@@ -81,11 +82,13 @@ def simple_metric_to_nlq_response(result: SimpleMetricResult) -> NLQResponse:
 def simple_metric_to_galaxy_response(result: SimpleMetricResult, question: str) -> IntentMapResponse:
     """Convert SimpleMetricResult to IntentMapResponse for /query/galaxy endpoint."""
     node_id = f"{result.metric}_1"
+    # Detect persona from metric first, then from question, fallback to CFO
+    persona = detect_persona_from_metric(result.metric) or detect_persona_from_question(question) or "CFO"
     return IntentMapResponse(
         query=question,
         query_type="POINT_QUERY",
         ambiguity_type=None,
-        persona="CFO",
+        persona=persona,
         overall_confidence=0.95,
         overall_data_quality=1.0,
         node_count=1,
@@ -150,7 +153,7 @@ def guided_discovery_to_galaxy_response(result: GuidedDiscoveryResult, question:
         query=question,
         query_type="GUIDED_DISCOVERY",
         ambiguity_type=None,
-        persona="CFO",
+        persona=detect_persona_from_question(question) or "CFO",
         overall_confidence=0.9,
         overall_data_quality=1.0,
         node_count=len(nodes),
@@ -184,7 +187,7 @@ def missing_data_to_galaxy_response(result: MissingDataResult, question: str) ->
         query=question,
         query_type="MISSING_DATA",
         ambiguity_type=None,
-        persona="CFO",
+        persona=detect_persona_from_question(question) or "CFO",
         overall_confidence=0.8,
         overall_data_quality=0.0,
         node_count=0,
