@@ -61,6 +61,9 @@ SUPERLATIVE_PATTERNS = {
     SuperlativeType.MAX: [
         r"(?:who|which|what)(?:'s| is) (?:the |our )?(?:top|best|highest|#1|leading|number one) (.+)",
         r"(?:who|which|what) (?:has|have) the (?:most|highest|largest|biggest|best) (.+)",
+        r"which (.+) has the (?:most|highest|largest|biggest) (.+)",
+        r"which (.+) is (?:largest|biggest|highest|best)",
+        r"what (?:is|was) (?:the |our )?(?:largest|biggest|highest|best) (.+)",
         r"largest (.+)",
         r"biggest (.+)",
         r"highest (.+)",
@@ -75,6 +78,8 @@ SUPERLATIVE_PATTERNS = {
     SuperlativeType.MIN: [
         r"(?:who|which|what)(?:'s| is) (?:the |our )?(?:worst|lowest|bottom|weakest|lagging) (.+)",
         r"(?:who|which|what) (?:has|have) the (?:least|lowest|smallest|fewest|worst) (.+)",
+        r"which (.+) has the (?:least|lowest|smallest|fewest) (.+)",
+        r"which (.+) is (?:smallest|lowest|worst)",
         r"lowest (.+)",
         r"smallest (.+)",
         r"worst (.+)",
@@ -255,9 +260,64 @@ def detect_superlative_intent(query: str) -> Optional[RankingIntent]:
                     )
 
                 groups = match.groups()
+
+                # Handle patterns with two groups like "which (region) has the most (revenue)"
+                if len(groups) >= 2:
+                    dimension_part = groups[0].strip()
+                    metric_part = groups[1].strip()
+
+                    # Resolve dimension from first group
+                    dimension = "rep"  # default
+                    for alias, canonical in DIMENSION_ALIASES.items():
+                        if alias in dimension_part:
+                            dimension = canonical
+                            break
+
+                    # Resolve metric from second group
+                    metric = "quota_attainment"  # default
+                    for alias, canonical in METRIC_ALIASES.items():
+                        if alias in metric_part:
+                            metric = canonical
+                            break
+
+                    return RankingIntent(
+                        metric=metric,
+                        dimension=dimension,
+                        ranking_type=ranking_type,
+                        limit=1,
+                        raw_query=query,
+                    )
+
+                # Single group - check if it's a "which X is largest/smallest" pattern
                 remainder = groups[0] if groups else ""
 
-                dimension, metric = _extract_dimension_and_metric(remainder, query_lower)
+                # Check if the captured group is just a dimension (e.g., "segment" in "which segment is largest")
+                dimension_only = False
+                for alias, canonical in DIMENSION_ALIASES.items():
+                    if remainder.strip() == alias or remainder.strip() == canonical:
+                        dimension_only = True
+                        dimension = canonical
+                        # Infer metric from dimension
+                        if dimension == "segment":
+                            metric = "revenue"
+                        elif dimension == "region":
+                            metric = "revenue"
+                        elif dimension == "department":
+                            metric = "headcount"
+                        elif dimension == "service":
+                            metric = "slo_attainment"
+                        elif dimension == "rep":
+                            metric = "quota_attainment"
+                        elif dimension == "deal":
+                            metric = "deal_value"
+                        elif dimension == "stage":
+                            metric = "pipeline"
+                        else:
+                            metric = "revenue"  # default
+                        break
+
+                if not dimension_only:
+                    dimension, metric = _extract_dimension_and_metric(remainder, query_lower)
 
                 # Handle "best"/"worst" inversion for metrics where lower is better
                 actual_type = ranking_type

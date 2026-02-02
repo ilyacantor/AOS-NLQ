@@ -1086,6 +1086,125 @@ import re as _re_simple
 # Import tiered intent components
 from src.nlq.services.tiered_intent import detect_complexity, QueryComplexity
 from src.nlq.knowledge.synonyms import normalize_metric
+from src.nlq.core.superlative_intent import (
+    is_superlative_query,
+    detect_superlative_intent,
+    get_sort_order,
+)
+
+
+def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
+    """
+    Handle superlative/ranking queries like 'who is our top rep?'
+
+    Returns a SimpleMetricResult with the ranked data, or None if not a superlative query.
+    """
+    if not is_superlative_query(question):
+        return None
+
+    intent = detect_superlative_intent(question)
+    if not intent:
+        return None
+
+    # Get the DCL client
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    from src.nlq.api.query_helpers import determine_domain
+    dcl_client = get_semantic_client()
+
+    # Execute ranking query
+    order_by = get_sort_order(intent.ranking_type)
+    result = dcl_client.query_ranking(
+        metric=intent.metric,
+        dimension=intent.dimension,
+        order_by=order_by,
+        limit=intent.limit,
+        time_range={"period": "2026-Q4"}
+    )
+
+    if "error" in result:
+        return None
+
+    data = result.get("data", [])
+    if not data:
+        return None
+
+    # Determine unit based on metric
+    if intent.metric in ("quota_attainment", "win_rate", "slo_attainment"):
+        unit = "%"
+    elif intent.metric in ("revenue", "pipeline", "deal_value"):
+        unit = "USD millions"
+    elif intent.metric == "headcount":
+        unit = "employees"
+    else:
+        unit = ""
+
+    # Determine domain
+    domain = determine_domain(intent.metric)
+
+    # Format response based on result
+    if intent.limit == 1:
+        # Single result - "top rep", "largest deal", etc.
+        top_item = data[0]
+        name = top_item.get(intent.dimension) or top_item.get("name") or top_item.get("company") or "Unknown"
+        value = top_item.get("value") or top_item.get("attainment_pct") or top_item.get("pipeline") or 0
+
+        # Format value with appropriate unit
+        if intent.metric in ("quota_attainment", "win_rate", "slo_attainment"):
+            value_str = f"{value}%"
+        elif intent.metric in ("revenue", "pipeline", "deal_value"):
+            value_str = f"${value}M"
+        elif intent.metric == "headcount":
+            value_str = f"{int(value)} employees"
+        else:
+            value_str = str(value)
+
+        # Build descriptive response
+        ranking_word = "top" if order_by == "desc" else "bottom"
+        response_text = f"**{name}** is the {ranking_word} {intent.dimension} with {value_str} {intent.metric.replace('_', ' ')}."
+
+        return SimpleMetricResult(
+            metric=intent.metric,
+            value=value,
+            formatted_value=value_str,
+            unit=unit,
+            display_name=name,
+            domain=domain,
+            answer=response_text,
+            period="2026-Q4",
+        )
+    else:
+        # Multiple results - "top 5 reps", etc.
+        ranking_word = "Top" if order_by == "desc" else "Bottom"
+        lines = [f"**{ranking_word} {intent.limit} {intent.dimension}s by {intent.metric.replace('_', ' ')}:**\n"]
+
+        for i, item in enumerate(data, 1):
+            name = item.get(intent.dimension) or item.get("name") or item.get("company") or "Unknown"
+            value = item.get("value") or item.get("attainment_pct") or item.get("pipeline") or 0
+
+            if intent.metric in ("quota_attainment", "win_rate", "slo_attainment"):
+                value_str = f"{value}%"
+            elif intent.metric in ("revenue", "pipeline", "deal_value"):
+                value_str = f"${value}M"
+            elif intent.metric == "headcount":
+                value_str = f"{int(value)}"
+            else:
+                value_str = str(value)
+
+            lines.append(f"{i}. **{name}** - {value_str}")
+
+        response_text = "\n".join(lines)
+        first_value = data[0].get("value") or data[0].get("attainment_pct") or data[0].get("pipeline") or 0
+
+        return SimpleMetricResult(
+            metric=intent.metric,
+            value=first_value,
+            formatted_value=response_text,
+            unit=unit,
+            display_name=f"{ranking_word} {intent.limit} {intent.dimension}s",
+            domain=domain,
+            answer=response_text,
+            period="2026-Q4",
+        )
 
 
 def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]:
@@ -1101,6 +1220,11 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
     3. Try embedding-based lookup (CHEAP, ~$0.0001)
     4. Return None to fall through to LLM (EXPENSIVE)
     """
+    # Step 0: Check for superlative/ranking queries first
+    superlative_result = _try_superlative_query(question)
+    if superlative_result:
+        return superlative_result
+
     # Step 1: Check complexity - complex queries need LLM
     complexity = detect_complexity(question)
     if complexity in (QueryComplexity.COMPARISON, QueryComplexity.TREND,
