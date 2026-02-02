@@ -891,6 +891,53 @@ def refine_dashboard_schema(
                         chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
                     ))
 
+    # Handle question-style queries like "Which region has the most revenue?" or "What product has the highest pipeline?"
+    if re.search(r"\b(which|what|where)\b.*\b(most|highest|lowest|best|worst)\b", q, re.IGNORECASE):
+        # Extract dimension from the query (which/what X has...)
+        dim_match = re.search(r"\b(which|what)\s+(region|rep|product|segment|stage|salesperson|customer|quarter)\b", q, re.IGNORECASE)
+        if dim_match:
+            requested_dimension = dim_match.group(2).lower()
+            if requested_dimension == "salesperson":
+                requested_dimension = "rep"
+
+            # Get the metric - either from requirements or try to infer from query
+            metric = requirements.metrics[0] if requirements.metrics else None
+            if not metric:
+                # Try to extract from common patterns like "most revenue" or "highest pipeline"
+                metric_match = re.search(r"\b(most|highest|lowest)\s+(\w+)", q, re.IGNORECASE)
+                if metric_match:
+                    metric = metric_match.group(2).lower()
+
+            if metric:
+                # Validate dimension for this metric
+                dimension = _get_fallback_dimension(metric, requested_dimension)
+                if dimension:
+                    chart_id = f"breakdown_{metric}_by_{dimension}"
+
+                    # Check for duplicate
+                    has_duplicate = any(
+                        w.id == chart_id or
+                        w.id == f"{metric}_by_{dimension}" or
+                        (w.data.metrics and w.data.dimensions and
+                         w.data.metrics[0].metric == metric and
+                         w.data.dimensions[0].dimension == dimension)
+                        for w in updated_schema.widgets
+                    )
+                    if not has_duplicate:
+                        max_row = max((w.position.row + w.position.row_span for w in updated_schema.widgets), default=0)
+                        updated_schema.widgets.append(Widget(
+                            id=chart_id,
+                            type=WidgetType.BAR_CHART,
+                            title=f"{get_display_name(metric)} by {dimension.title()}",
+                            data=DataBinding(
+                                metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
+                                dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
+                                time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+                            ),
+                            position=GridPosition(column=1, row=max_row + 1, col_span=6, row_span=3),
+                            chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
+                        ))
+
     # Handle "break down by" dimension changes (modifies existing charts)
     if "break" in q and "down" in q and "by" in q:
         # Extract new dimension from requirements or query
