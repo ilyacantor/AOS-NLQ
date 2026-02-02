@@ -108,7 +108,8 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   // Base design assumes 320 (outer ring) + 50 (node radius + padding) = 370 radius needed
   const baseRadius = 370;
   const availableRadius = Math.min(width, height) / 2 - 20; // 20px margin from edge
-  const scale = availableRadius / baseRadius;
+  // Ensure minimum scale of 0.6 to prevent rings from collapsing together
+  const scale = Math.max(0.6, availableRadius / baseRadius);
 
   // Scaled ring radii
   const ringRadii = useMemo(() => ({
