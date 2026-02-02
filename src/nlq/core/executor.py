@@ -1,22 +1,23 @@
 """
-Query execution against the fact base for AOS-NLQ.
+Query execution against DCL for AOS-NLQ.
 
 CRITICAL REQUIREMENTS:
 1. Check metric exists BEFORE querying
-2. Check period exists BEFORE querying
-3. Verify non-empty results
-4. Return explicit errors for zero-row scenarios
+2. Verify non-empty results
+3. Return explicit errors for zero-row scenarios
 
 Never return empty results silently - always provide appropriate error codes.
+
+All data access goes through DCL's query API.
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from src.nlq.core.confidence import ConfidenceCalculator, bounded_confidence
-from src.nlq.knowledge.fact_base import FactBase
 from src.nlq.models.query import ParsedQuery, QueryIntent
 from src.nlq.models.response import QueryResult
+from src.nlq.services.dcl_semantic_client import get_semantic_client
 
 if TYPE_CHECKING:
     from src.nlq.llm.client import ClaudeClient
@@ -25,17 +26,17 @@ logger = logging.getLogger(__name__)
 
 
 class QueryExecutor:
-    """Executes parsed queries against the fact base."""
+    """Executes parsed queries against DCL."""
 
-    def __init__(self, fact_base: FactBase, claude_client: Optional["ClaudeClient"] = None):
+    def __init__(self, fact_base=None, claude_client: Optional["ClaudeClient"] = None):
         """
         Initialize the query executor.
 
         Args:
-            fact_base: The fact base to query against
+            fact_base: Ignored - kept for backwards compatibility
             claude_client: Optional Claude client for LLM fallback on unknown breakdowns
         """
-        self.fact_base = fact_base
+        self.dcl_client = get_semantic_client()
         self.claude_client = claude_client
         self.confidence_calculator = ConfidenceCalculator()
 
@@ -46,20 +47,64 @@ class QueryExecutor:
         # A year period is exactly 4 digits with no quarter suffix
         return period.isdigit() and len(period) == 4
 
+    def _query_dcl(self, metric: str, period: str) -> Optional[Any]:
+        """
+        Query DCL for a metric value.
+
+        Args:
+            metric: Canonical metric ID
+            period: Period string (e.g., "2025", "2025-Q1")
+
+        Returns:
+            Metric value or None if not found
+        """
+        granularity = "annual" if self._is_year_period(period) else "quarterly"
+
+        result = self.dcl_client.query(
+            metric=metric,
+            time_range={"period": period, "granularity": granularity}
+        )
+
+        if result.get("error") or result.get("status") == "error":
+            logger.debug(f"DCL query failed for {metric}/{period}: {result.get('error')}")
+            return None
+
+        return self._extract_value_from_dcl(result, aggregate=self._is_year_period(period))
+
+    def _extract_value_from_dcl(self, result: Dict[str, Any], aggregate: bool = False) -> Optional[Any]:
+        """Extract a single value from DCL query result."""
+        data = result.get("data", [])
+        if not data:
+            return None
+
+        # Handle different response formats
+        if isinstance(data, list) and len(data) > 0:
+            if isinstance(data[0], dict) and "value" in data[0]:
+                if aggregate:
+                    # Sum quarterly values for annual total
+                    return sum(d.get("value", 0) for d in data if d.get("value") is not None)
+                else:
+                    # Return the specific period's value (usually last in list)
+                    return data[-1].get("value")
+            else:
+                return data[-1] if data else None
+        elif isinstance(data, (int, float)):
+            return data
+
+        return None
+
     def _smart_query(self, metric: str, period: str) -> Any:
         """
-        Query the fact base, using query_annual() for year periods to aggregate quarterly data.
+        Query DCL for a metric, handling annual vs quarterly periods.
 
         This is the proper way to handle metrics that only exist in quarterly data
         (like EBITDA) when the user asks for annual values.
         """
-        if self._is_year_period(period):
-            return self.fact_base.query_annual(metric, int(period))
-        return self.fact_base.query(metric, period)
+        return self._query_dcl(metric, period)
 
     def execute(self, parsed_query: ParsedQuery) -> QueryResult:
         """
-        Execute a parsed query against the fact base.
+        Execute a parsed query against DCL.
 
         Args:
             parsed_query: Structured query from the parser
@@ -75,8 +120,9 @@ class QueryExecutor:
         if parsed_query.intent == QueryIntent.BREAKDOWN_QUERY:
             return self._execute_breakdown_query(parsed_query)
 
-        # Check 1: Does the metric exist in our schema?
-        available_metrics = self.fact_base.available_metrics
+        # Check 1: Does the metric exist in DCL catalog?
+        catalog = self.dcl_client.get_catalog()
+        available_metrics = set(catalog.metrics.keys())
         if parsed_query.metric not in available_metrics:
             return QueryResult(
                 success=False,
@@ -103,15 +149,7 @@ class QueryExecutor:
                 confidence=0.0
             )
 
-        if not self.fact_base.has_period(period_key):
-            available_periods = self.fact_base.available_periods
-            return QueryResult(
-                success=False,
-                error="NO_DATA_FOR_PERIOD",
-                message=f"No data available for period '{period_key}'. Available: {', '.join(sorted(available_periods)[:5])}...",
-                confidence=0.0
-            )
-
+        # Note: Period validation removed - DCL handles this and returns empty if no data
         return self._execute_point_query(parsed_query)
 
     def _execute_point_query(self, parsed_query: ParsedQuery) -> QueryResult:
@@ -227,10 +265,10 @@ class QueryExecutor:
                 "2025-Q1", "2025-Q2", "2025-Q3", "2025-Q4"
             ]
 
-        # Query each period
+        # Query each period via DCL
         trend_data = []
         for period in periods:
-            value = self.fact_base.query(metric, period)
+            value = self._query_dcl(metric, period)
             if value is not None:
                 trend_data.append({
                     "period": period,
@@ -282,10 +320,10 @@ class QueryExecutor:
                 confidence=0.0
             )
 
-        # Get values for all periods
+        # Get values for all periods via DCL
         values = []
         for period in parsed_query.aggregation_periods:
-            value = self.fact_base.query(parsed_query.metric, period)
+            value = self._query_dcl(parsed_query.metric, period)
             if value is not None:
                 values.append((period, value))
 
