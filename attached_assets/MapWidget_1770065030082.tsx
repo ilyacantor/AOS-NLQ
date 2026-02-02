@@ -2,22 +2,33 @@
  * MapWidget.tsx
  * Real world map using embedded SVG paths - NO EXTERNAL DEPENDENCIES
  * Works with React 19
+ * 
+ * DROP INTO: src/components/dashboard/widgets/MapWidget.tsx
  */
 
-import { useState, useMemo } from 'react';
-import { Widget, WidgetData } from '../../types/generated-dashboard';
-
-interface MapWidgetProps {
-  widget: Widget;
-  data: WidgetData;
-  height: number;
-  onClick?: (value?: string) => void;
-}
+import React, { useState, useMemo } from 'react';
 
 interface RegionData {
   region: string;
   value: number;
   percentage?: number;
+}
+
+interface MapWidgetProps {
+  schema: {
+    id: string;
+    title?: string;
+    data_binding?: {
+      metric?: string;
+      dimension?: string;
+    };
+  };
+  data: {
+    regions?: RegionData[];
+    total?: number;
+    metric_name?: string;
+    currency?: string;
+  };
 }
 
 // Simplified but recognizable continent/region paths
@@ -112,59 +123,35 @@ const formatCurrency = (value: number): string => {
   return `$${value.toFixed(0)}`;
 };
 
-export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
+export const MapWidget: React.FC<MapWidgetProps> = ({ schema, data }) => {
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
-
-  // Extract region data from widget data
-  const regionData = useMemo((): RegionData[] => {
-    if (data.map_data?.regions) {
-      return data.map_data.regions;
-    }
-
-    // Fallback: try to extract from series data
-    if (data.series?.[0]?.data) {
-      const seriesData = data.series[0].data;
-      const total = seriesData.reduce((sum, d) => sum + (d.value || 0), 0);
-      return seriesData.map(d => ({
-        region: d.label || '',
-        value: d.value || 0,
-        percentage: total > 0 ? ((d.value || 0) / total) * 100 : 0,
-      }));
-    }
-
-    return [];
-  }, [data]);
 
   const regionDataMap = useMemo(() => {
     const map: Record<string, RegionData & { percentage: number }> = {};
-    const total = regionData.reduce((sum, r) => sum + (r.value || 0), 0);
-    regionData.forEach(r => {
-      const key = r.region.toUpperCase();
-      map[key] = {
-        ...r,
-        percentage: total > 0 ? (r.value / total) * 100 : 0
-      };
-    });
+    if (data?.regions) {
+      const total = data.total || data.regions.reduce((sum, r) => sum + r.value, 0);
+      data.regions.forEach(r => {
+        map[r.region.toUpperCase()] = {
+          ...r,
+          percentage: total > 0 ? (r.value / total) * 100 : 0
+        };
+      });
+    }
     return map;
-  }, [regionData]);
+  }, [data]);
 
-  const total = useMemo(() => {
-    if (data.map_data?.total) return data.map_data.total;
-    return regionData.reduce((sum, r) => sum + (r.value || 0), 0);
-  }, [data, regionData]);
-
-  const hasDrillDown = widget.interactions?.some(i => i.type === 'drill_down' && i.enabled);
+  const total = data?.total || (data?.regions?.reduce((sum, r) => sum + r.value, 0) || 0);
 
   const getRegionStyle = (regionKey: string) => {
     const config = REGION_CONFIG[regionKey];
-    const regionInfo = regionDataMap[regionKey];
+    const regionData = regionDataMap[regionKey];
     const isHovered = hoveredRegion === regionKey;
     
     if (!config) return { fill: '#334155', opacity: 0.5 };
     
     // Calculate opacity based on percentage (min 0.4, max 1.0)
-    const baseOpacity = regionInfo 
-      ? Math.max(0.5, Math.min(1, 0.4 + (regionInfo.percentage / 100)))
+    const baseOpacity = regionData 
+      ? Math.max(0.5, Math.min(1, 0.4 + (regionData.percentage / 100)))
       : 0.4;
     
     return {
@@ -193,7 +180,7 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
           margin: 0,
           letterSpacing: '-0.01em'
         }}>
-          {widget.title || 'Revenue by Region'}
+          {schema.title || 'Revenue by Region'}
         </h3>
         <p style={{ color: '#64748b', fontSize: '12px', margin: '4px 0 0 0' }}>
           Total: {formatCurrency(total)}
@@ -201,7 +188,7 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
       </div>
 
       {/* Map Container */}
-      <div style={{ flex: 1, position: 'relative', minHeight: Math.max(height - 100, 180) }}>
+      <div style={{ flex: 1, position: 'relative', minHeight: '180px' }}>
         <svg 
           viewBox="0 0 960 540" 
           style={{ 
@@ -229,7 +216,7 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
           <rect width="960" height="540" fill="url(#grid)" />
 
           {/* Render each region */}
-          {Object.entries(REGION_PATHS).map(([regionKey, regionPathData]) => {
+          {Object.entries(REGION_PATHS).map(([regionKey, regionData]) => {
             const style = getRegionStyle(regionKey);
             const isHovered = hoveredRegion === regionKey;
             
@@ -238,10 +225,9 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
                 key={regionKey}
                 onMouseEnter={() => setHoveredRegion(regionKey)}
                 onMouseLeave={() => setHoveredRegion(null)}
-                onClick={() => onClick?.(regionKey)}
-                style={{ cursor: hasDrillDown ? 'pointer' : 'default' }}
+                style={{ cursor: 'pointer' }}
               >
-                {regionPathData.paths.map((path, idx) => (
+                {regionData.paths.map((path, idx) => (
                   <path
                     key={`${regionKey}-${idx}`}
                     d={path}
@@ -304,7 +290,7 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
         borderRadius: '8px'
       }}>
         {Object.entries(REGION_CONFIG).map(([regionKey, config]) => {
-          const regionInfo = regionDataMap[regionKey];
+          const regionData = regionDataMap[regionKey];
           const isHovered = hoveredRegion === regionKey;
           
           return (
@@ -314,7 +300,7 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                cursor: hasDrillDown ? 'pointer' : 'default',
+                cursor: 'pointer',
                 opacity: hoveredRegion && !isHovered ? 0.5 : 1,
                 transition: 'opacity 0.2s',
                 padding: '4px 8px',
@@ -323,7 +309,6 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
               }}
               onMouseEnter={() => setHoveredRegion(regionKey)}
               onMouseLeave={() => setHoveredRegion(null)}
-              onClick={() => onClick?.(regionKey)}
             >
               <div style={{
                 width: '12px',
@@ -335,14 +320,14 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
               <span style={{ color: '#cbd5e1', fontSize: '12px', fontWeight: 500 }}>
                 {config.name}
               </span>
-              {regionInfo && (
+              {regionData && (
                 <span style={{ 
                   color: config.color, 
                   fontSize: '12px', 
                   fontWeight: 600,
                   marginLeft: '4px'
                 }}>
-                  {regionInfo.percentage.toFixed(0)}%
+                  {regionData.percentage.toFixed(0)}%
                 </span>
               )}
             </div>
@@ -351,6 +336,6 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
       </div>
     </div>
   );
-}
+};
 
 export default MapWidget;
