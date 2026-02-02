@@ -20,7 +20,6 @@ class VisualizationIntent(str, Enum):
     MULTI_METRIC_DASHBOARD = "multi_metric_dashboard"  # Multiple KPIs
     DRILL_DOWN_VIEW = "drill_down_view"  # Ability to drill into details
     FULL_DASHBOARD = "full_dashboard"  # Complete dashboard request
-    BRIDGE_ANALYSIS = "bridge_analysis"  # Explain why a metric changed (waterfall/bridge chart)
 
 
 class ChartTypeHint(str, Enum):
@@ -33,7 +32,6 @@ class ChartTypeHint(str, Enum):
     KPI = "kpi"
     AREA = "area"
     STACKED = "stacked"
-    BRIDGE = "bridge"  # Waterfall/bridge chart for explaining changes
     AUTO = "auto"  # Let system decide
 
 
@@ -51,10 +49,6 @@ class VisualizationRequirements:
     drill_down_requested: bool
     filter_dimensions: List[str]
     confidence: float
-    # Bridge analysis specific fields
-    bridge_direction: Optional[str] = None  # "increase" or "decrease"
-    bridge_start_period: Optional[str] = None  # e.g., "Q3 2024"
-    bridge_end_period: Optional[str] = None  # e.g., "Q4 2024"
 
 
 # Visualization trigger patterns
@@ -99,20 +93,6 @@ VISUALIZATION_TRIGGERS = {
     "how is": 0.7,  # "how is pipeline"
     "doing": 0.7,  # "how's revenue doing"
 }
-
-# Bridge analysis trigger patterns - for explaining metric changes
-BRIDGE_ANALYSIS_TRIGGERS = [
-    r"explain\s+(?:why|how)\s+.+\s+(?:declined?|decreased?|dropped?|fell|went\s+down)",
-    r"explain\s+(?:why|how)\s+.+\s+(?:increased?|grew|rose|went\s+up|improved?)",
-    r"why\s+did\s+.+\s+(?:decline|decrease|drop|fall|go\s+down)",
-    r"why\s+did\s+.+\s+(?:increase|grow|rise|go\s+up|improve)",
-    r"what\s+(?:caused|drove|contributed\s+to)\s+(?:the\s+)?(?:decline|decrease|drop|increase|growth|rise)",
-    r"(?:walk|bridge)\s+(?:me\s+)?(?:through|from)\s+.+\s+to",
-    r"(?:breakdown|break\s+down)\s+(?:the\s+)?(?:change|delta|difference|variance)",
-    r"(?:waterfall|bridge)\s+(?:chart|analysis)",
-    r"what\s+(?:factors|drivers)\s+(?:caused|explain|drove)",
-    r"(?:factors|drivers)\s+(?:that\s+)?(?:drove|caused|explain)",
-]
 
 # Answer triggers - just want a simple answer
 ANSWER_TRIGGERS = {
@@ -160,10 +140,6 @@ CHART_TYPE_HINTS = {
     "kpi": ChartTypeHint.KPI,
     "metric": ChartTypeHint.KPI,
     "number": ChartTypeHint.KPI,
-    "bridge": ChartTypeHint.BRIDGE,
-    "bridge chart": ChartTypeHint.BRIDGE,
-    "waterfall": ChartTypeHint.BRIDGE,
-    "waterfall chart": ChartTypeHint.BRIDGE,
 }
 
 # Dimension patterns
@@ -290,43 +266,8 @@ def detect_visualization_intent(query: str) -> VisualizationRequirements:
     # Extract metrics (simplified - in production would use Claude)
     metrics = _extract_metrics_from_query(q)
 
-    # Check for bridge analysis intent (explain why X changed)
-    bridge_analysis_requested = False
-    bridge_direction = None
-    bridge_start_period = None
-    bridge_end_period = None
-
-    for pattern in BRIDGE_ANALYSIS_TRIGGERS:
-        if re.search(pattern, q, re.IGNORECASE):
-            bridge_analysis_requested = True
-            break
-
-    # If bridge analysis, extract direction (increase vs decrease)
-    if bridge_analysis_requested:
-        if any(term in q for term in ["decline", "decrease", "drop", "fell", "down", "lower"]):
-            bridge_direction = "decrease"
-        elif any(term in q for term in ["increase", "grow", "rise", "up", "higher", "improve"]):
-            bridge_direction = "increase"
-
-        # Extract time periods (e.g., "Q3 to Q4", "Q1 2024 to Q2 2024")
-        period_match = re.search(r"(Q[1-4](?:\s*20\d{2})?)\s*(?:to|->|through)\s*(Q[1-4](?:\s*20\d{2})?)", q, re.IGNORECASE)
-        if period_match:
-            bridge_start_period = period_match.group(1).upper()
-            bridge_end_period = period_match.group(2).upper()
-        else:
-            # Check for year references
-            year_match = re.search(r"(20\d{2})\s*(?:to|->|vs|versus)\s*(20\d{2})", q)
-            if year_match:
-                bridge_start_period = year_match.group(1)
-                bridge_end_period = year_match.group(2)
-
     # Determine final intent
-    if bridge_analysis_requested:
-        # Bridge analysis takes priority - explain metric changes
-        intent = VisualizationIntent.BRIDGE_ANALYSIS
-        confidence = 0.95
-        chart_hint = ChartTypeHint.BRIDGE
-    elif "dashboard" in q:
+    if "dashboard" in q:
         intent = VisualizationIntent.FULL_DASHBOARD
         confidence = 0.95
     elif any(term in q for term in ["results", "summary", "overview", "performance"]) and re.search(r"\b20\d{2}\b", q):
@@ -362,9 +303,6 @@ def detect_visualization_intent(query: str) -> VisualizationRequirements:
         drill_down_requested=drill_down_requested,
         filter_dimensions=filter_dimensions,
         confidence=confidence,
-        bridge_direction=bridge_direction,
-        bridge_start_period=bridge_start_period,
-        bridge_end_period=bridge_end_period,
     )
 
 

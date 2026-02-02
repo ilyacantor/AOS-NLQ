@@ -57,9 +57,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const sheetRef = useRef<HTMLDivElement>(null);
 
   // Navigate to dashboard space when dashboard query is detected
-  // Also navigate for VISUALIZATION queries that return a dashboard (e.g., bridge analysis)
-  const isDashboard = data.query_type === 'DASHBOARD' ||
-    (data.query_type === 'VISUALIZATION' && data.response_type === 'dashboard' && data.dashboard);
+  const isDashboard = data.query_type === 'DASHBOARD';
   useEffect(() => {
     if (isDashboard && onNavigateToDashboard) {
       // Navigate to dashboard space instead of showing modal

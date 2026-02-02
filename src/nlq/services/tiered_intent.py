@@ -92,14 +92,6 @@ COMPLEXITY_INDICATORS = {
         "breakdown", "by region", "by segment", "by product", "by team",
         "split", "composition", "drivers", "what's driving", "components",
     ],
-    QueryComplexity.COMPLEX: [
-        # Bridge/analysis queries - explain why metrics changed
-        "why did", "why has", "why is", "explain why", "explain how",
-        "what caused", "what drove", "what factors",
-        "increase", "decrease", "drop", "rise", "fell", "grew",
-        "declined", "improved", "worsened", "changed",
-        "bridge", "waterfall",
-    ],
 }
 
 

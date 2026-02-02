@@ -91,8 +91,6 @@ class DashboardDataResolver:
             return self._resolve_donut_data(widget, reference_year, filters)
         elif widget_type_str == "data_table":
             return self._resolve_table_data(widget, reference_year, filters)
-        elif widget_type_str == "bridge_chart":
-            return self._resolve_bridge_data(widget, reference_year, filters)
         else:
             return {"loading": False}
 
@@ -560,124 +558,6 @@ class DashboardDataResolver:
             ]
 
         return breakdown
-
-    def _resolve_bridge_data(
-        self,
-        widget: Widget,
-        reference_year: str,
-        filters: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
-        """
-        Resolve data for a bridge/waterfall chart.
-
-        The bridge chart shows:
-        - Start value (beginning period)
-        - Contributing factors (positive/negative changes)
-        - End value (ending period)
-        """
-        filters = filters or {}
-        metric = widget.data.metrics[0].metric if widget.data.metrics else "revenue"
-
-        # Get bridge config
-        bridge_config = widget.bridge_config
-        start_period = bridge_config.start_period if bridge_config else "Q3 2024"
-        end_period = bridge_config.end_period if bridge_config else "Q4 2024"
-
-        # Get persona-specific factors for this metric
-        from src.nlq.core.dashboard_generator import _get_bridge_factors, _detect_persona_from_metric
-        persona = _detect_persona_from_metric(metric)
-        factors = _get_bridge_factors(metric, persona)
-
-        # Query DCL for time series data to get start/end values
-        ts_result = self._query_dcl(
-            metric=metric,
-            dimensions=[],
-            grain="quarterly",
-            time_range={"year": reference_year},
-            filters=filters,
-        )
-
-        # Extract quarterly data points
-        time_series = self._extract_time_series(ts_result)
-
-        # Get start and end values from time series
-        start_value = 0.0
-        end_value = 0.0
-
-        if time_series:
-            # Try to find matching periods
-            for dp in time_series:
-                label = dp.get("label", "")
-                if start_period in label or label in start_period:
-                    start_value = dp.get("value", 0)
-                if end_period in label or label in end_period:
-                    end_value = dp.get("value", 0)
-
-            # Fallback: use first/last data points
-            if start_value == 0 and len(time_series) >= 2:
-                start_value = time_series[-2].get("value", 0)
-            if end_value == 0 and time_series:
-                end_value = time_series[-1].get("value", 0)
-
-        # Calculate the total change
-        total_change = end_value - start_value
-
-        # Generate bridge data points with factors
-        # In real implementation, these would come from DCL breakdown queries
-        bridge_data = []
-
-        # Start bar (total)
-        bridge_data.append({
-            "label": bridge_config.start_label if bridge_config else start_period,
-            "value": round(start_value, 2),
-            "formatted_value": self._format_value(metric, start_value),
-            "type": "start",
-            "running_total": round(start_value, 2),
-        })
-
-        # Distribute the change across factors
-        # In real implementation, these proportions would come from actual data
-        running_total = start_value
-        remaining_change = total_change
-
-        for i, factor in enumerate(factors):
-            # Simulate factor contribution (in real impl, query DCL for breakdown)
-            # Use varying proportions to make it look realistic
-            if i == len(factors) - 1:
-                # Last factor gets the remainder
-                factor_value = remaining_change
-            else:
-                # Distribute with some variance
-                proportion = (0.4 - i * 0.1) if i < 3 else 0.1
-                factor_value = total_change * proportion
-                remaining_change -= factor_value
-
-            running_total += factor_value
-
-            bridge_data.append({
-                "label": factor,
-                "value": round(factor_value, 2),
-                "formatted_value": self._format_value(metric, abs(factor_value)),
-                "type": "positive" if factor_value >= 0 else "negative",
-                "running_total": round(running_total, 2),
-            })
-
-        # End bar (total)
-        bridge_data.append({
-            "label": bridge_config.end_label if bridge_config else end_period,
-            "value": round(end_value, 2),
-            "formatted_value": self._format_value(metric, end_value),
-            "type": "end",
-            "running_total": round(end_value, 2),
-        })
-
-        return {
-            "loading": False,
-            "bridge_data": bridge_data,
-            "start_value": round(start_value, 2),
-            "end_value": round(end_value, 2),
-            "categories": [d["label"] for d in bridge_data],
-        }
 
     def _format_value(self, metric: str, value: float) -> str:
         """Format a metric value for display."""

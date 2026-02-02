@@ -36,7 +36,6 @@ class WidgetType(str, Enum):
     FILTER_CONTROL = "filter_control"
     TIME_RANGE_SELECTOR = "time_range_selector"
     TEXT_BLOCK = "text_block"
-    BRIDGE_CHART = "bridge_chart"  # Waterfall/bridge chart for explaining changes
 
 
 class AggregationType(str, Enum):
@@ -164,20 +163,6 @@ class FilterConfig(BaseModel):
     linked_widgets: List[str] = Field(default_factory=list, description="Widget IDs this filter affects")
 
 
-class BridgeConfig(BaseModel):
-    """Configuration specific to bridge/waterfall chart widgets."""
-
-    start_label: str = Field(default="Start", description="Label for the starting value bar")
-    end_label: str = Field(default="End", description="Label for the ending value bar")
-    start_period: Optional[str] = Field(default=None, description="Starting time period (e.g., 'Q3 2024')")
-    end_period: Optional[str] = Field(default=None, description="Ending time period (e.g., 'Q4 2024')")
-    show_totals: bool = Field(default=True, description="Whether to show total bars at start/end")
-    show_labels: bool = Field(default=True, description="Whether to show value labels on bars")
-    positive_color: str = Field(default="#10B981", description="Color for positive change bars (green)")
-    negative_color: str = Field(default="#EF4444", description="Color for negative change bars (red)")
-    total_color: str = Field(default="#0BCAD9", description="Color for total bars (cyan)")
-
-
 # =============================================================================
 # Interaction Models
 # =============================================================================
@@ -251,7 +236,6 @@ class Widget(BaseModel):
     kpi_config: Optional[KPIConfig] = Field(default=None, description="KPI-specific config")
     table_config: Optional[TableConfig] = Field(default=None, description="Table-specific config")
     filter_config: Optional[FilterConfig] = Field(default=None, description="Filter-specific config")
-    bridge_config: Optional[BridgeConfig] = Field(default=None, description="Bridge chart-specific config")
 
     # Interactions
     interactions: List[InteractionConfig] = Field(default_factory=list, description="Widget interactions")
