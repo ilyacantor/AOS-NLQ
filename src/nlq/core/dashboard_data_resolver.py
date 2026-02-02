@@ -479,7 +479,7 @@ class DashboardDataResolver:
                 label = item.get(dimension, item.get("label", item.get("name", "")))
                 value = item.get("value", item.get("val", 0))
                 if label and value is not None:
-                    breakdown.append({"label": str(label), "value": round(value, 1)})
+                    breakdown.append({"label": str(label), "value": round(value, 2)})
                     total += value
 
         # Add ratios

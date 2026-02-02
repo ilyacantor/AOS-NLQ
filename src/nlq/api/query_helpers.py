@@ -21,6 +21,7 @@ class SimpleMetricResult:
     display_name: str
     domain: Domain
     answer: str
+    period: str = "2026-Q4"  # Current period by default
 
 
 @dataclass
@@ -72,7 +73,7 @@ def simple_metric_to_nlq_response(result: SimpleMetricResult) -> NLQResponse:
         confidence=0.95,
         parsed_intent="POINT_QUERY",
         resolved_metric=result.metric,
-        resolved_period="2025",
+        resolved_period=result.period,
         response_type="text",
     )
 

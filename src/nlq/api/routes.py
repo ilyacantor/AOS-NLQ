@@ -1200,15 +1200,18 @@ def _build_simple_metric_result(metric: str) -> Optional[SimpleMetricResult]:
     Build a SimpleMetricResult for a resolved metric.
 
     All data is fetched from DCL.
+    Returns current period (2026-Q4) data by default.
     """
     from src.nlq.services.dcl_semantic_client import get_semantic_client
 
     dcl_client = get_semantic_client()
 
-    # Query DCL for annual data
+    # Query DCL for current quarter data (2026-Q4)
+    # Default to current period for "what is X" queries
+    current_period = "2026-Q4"
     result = dcl_client.query(
         metric=metric,
-        time_range={"period": "2025", "granularity": "annual"}
+        time_range={"period": current_period, "granularity": "quarterly"}
     )
 
     # Extract value from DCL response
@@ -1243,16 +1246,16 @@ def _build_simple_metric_result(metric: str) -> Optional[SimpleMetricResult]:
     # Format the value
     if unit in ("USD millions", "USD", "$"):
         formatted = f"${round(value, 1)}M"
-        answer = f"{display_name} for 2025 is {formatted}"
+        answer = f"{display_name} for {current_period} is {formatted}"
     elif unit == "%":
         formatted = f"{round(value, 1)}%"
-        answer = f"{display_name} for 2025 is {formatted}"
+        answer = f"{display_name} for {current_period} is {formatted}"
     elif unit in ("count", ""):
         formatted = f"{int(value):,}"
-        answer = f"{display_name} for 2025 is {formatted}"
+        answer = f"{display_name} for {current_period} is {formatted}"
     else:
         formatted = str(round(value, 1))
-        answer = f"{display_name} for 2025 is {formatted}"
+        answer = f"{display_name} for {current_period} is {formatted}"
 
     return SimpleMetricResult(
         metric=metric,
@@ -1262,6 +1265,7 @@ def _build_simple_metric_result(metric: str) -> Optional[SimpleMetricResult]:
         display_name=display_name,
         domain=determine_domain(metric),
         answer=answer,
+        period=current_period,
     )
 
 

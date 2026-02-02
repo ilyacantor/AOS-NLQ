@@ -775,28 +775,88 @@ class DCLSemanticClient:
         result = {"metric": metric, "data": [], "status": "ok", "source": "local_fallback"}
 
         # Handle dimensional queries
+        period_filter = time_range.get("period") if time_range else None
+        default_period = "2026-Q4"  # Current period
+
         if dimensions:
             dim_key = f"{metric}_by_{'_'.join(dimensions)}"
             if dim_key in fact_base:
-                result["data"] = fact_base[dim_key]
-                return result
+                dim_data = fact_base[dim_key]
+
+                # Data is keyed by period - get the right period's data
+                if isinstance(dim_data, dict):
+                    # Try to get specific period or default
+                    period_data = None
+                    if period_filter and period_filter in dim_data:
+                        period_data = dim_data[period_filter]
+                    elif default_period in dim_data:
+                        period_data = dim_data[default_period]
+                    elif dim_data:
+                        # Take the latest period
+                        period_data = dim_data.get(list(dim_data.keys())[-1])
+
+                    if period_data and isinstance(period_data, dict):
+                        # Convert dict {dim_value: value} to list of dicts
+                        dimension = dimensions[0] if dimensions else "label"
+                        result["data"] = [
+                            {dimension: k, "value": v}
+                            for k, v in period_data.items()
+                            if k not in ("Total", "total")
+                        ]
+                        return result
 
             # Try single dimension
             for dim in dimensions:
                 dim_key = f"{metric}_by_{dim}"
                 if dim_key in fact_base:
-                    result["data"] = fact_base[dim_key]
-                    return result
+                    dim_data = fact_base[dim_key]
 
-        # Handle time series queries
+                    if isinstance(dim_data, dict):
+                        period_data = None
+                        if period_filter and period_filter in dim_data:
+                            period_data = dim_data[period_filter]
+                        elif default_period in dim_data:
+                            period_data = dim_data[default_period]
+                        elif dim_data:
+                            period_data = dim_data.get(list(dim_data.keys())[-1])
+
+                        if period_data and isinstance(period_data, dict):
+                            result["data"] = [
+                                {dim: k, "value": v}
+                                for k, v in period_data.items()
+                                if k not in ("Total", "total")
+                            ]
+                            return result
+
+        # Handle time series queries - respect time_range filter
         if "quarterly" in fact_base:
             quarterly_data = []
+            period_filter = time_range.get("period") if time_range else None
+            granularity = time_range.get("granularity", "quarterly") if time_range else "quarterly"
+
             for entry in fact_base["quarterly"]:
-                if metric in entry:
-                    quarterly_data.append({
-                        "period": entry.get("period", f"{entry.get('year')}-{entry.get('quarter')}"),
-                        "value": entry[metric]
-                    })
+                if metric not in entry:
+                    continue
+
+                entry_period = entry.get("period", f"{entry.get('year')}-{entry.get('quarter')}")
+                entry_year = str(entry.get("year", ""))
+
+                # Apply period filter
+                if period_filter:
+                    # Year filter (e.g., "2025")
+                    if period_filter.isdigit() and len(period_filter) == 4:
+                        if entry_year != period_filter:
+                            continue
+                    # Quarter filter (e.g., "2025-Q4")
+                    elif "-Q" in period_filter:
+                        if entry_period != period_filter:
+                            continue
+
+                quarterly_data.append({
+                    "period": entry_period,
+                    "value": entry[metric]
+                })
+
             if quarterly_data:
                 result["data"] = quarterly_data
                 return result
