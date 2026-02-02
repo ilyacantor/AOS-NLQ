@@ -104,6 +104,19 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const centerX = width / 2;
   const centerY = height / 2;
 
+  // Calculate scale factor to fit visualization in container
+  // Base design assumes 320 (outer ring) + 50 (node radius + padding) = 370 radius needed
+  const baseRadius = 370;
+  const availableRadius = Math.min(width, height) / 2 - 20; // 20px margin from edge
+  const scale = availableRadius / baseRadius;
+
+  // Scaled ring radii
+  const ringRadii = useMemo(() => ({
+    inner: RING_CONFIG.inner.radius * scale,
+    middle: RING_CONFIG.middle.radius * scale,
+    outer: RING_CONFIG.outer.radius * scale,
+  }), [scale]);
+
   // Calculate target positions for nodes on their rings
   const targetPositions = useMemo(() => {
     const positions = new Map<string, { x: number; y: number }>();
@@ -126,12 +139,12 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
     const middle = data.nodes.filter(n => n.match_type === 'potential');
     const outer = data.nodes.filter(n => n.match_type === 'hypothesis');
 
-    placeNodesOnRing(inner, RING_CONFIG.inner.radius);
-    placeNodesOnRing(middle, RING_CONFIG.middle.radius);
-    placeNodesOnRing(outer, RING_CONFIG.outer.radius);
+    placeNodesOnRing(inner, ringRadii.inner);
+    placeNodesOnRing(middle, ringRadii.middle);
+    placeNodesOnRing(outer, ringRadii.outer);
 
     return positions;
-  }, [data.nodes, centerX, centerY]);
+  }, [data.nodes, centerX, centerY, ringRadii]);
 
   // Initialize node states when data changes
   useEffect(() => {
@@ -196,33 +209,39 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   }, [nodeStates, targetPositions, centerX, centerY, animTime, draggedNodeId]);
 
   // Drag handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent, node: IntentNode) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent, node: IntentNode, nodeIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
-    setDraggedNodeId(node.id);
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     hasDragged.current = false;
 
-    // Initialize drag position
+    // Capture current visual position (including orbit animation) to prevent jump
     const target = targetPositions.get(node.id) || { x: centerX, y: centerY };
+    const orbitPhase = nodeIndex * 0.9;
+    const orbitAmplitude = 3;
+    const orbitSpeed = 0.4;
+    const offsetX = Math.sin(animTime * orbitSpeed + orbitPhase) * orbitAmplitude;
+    const offsetY = Math.cos(animTime * orbitSpeed * 0.7 + orbitPhase) * orbitAmplitude;
+    const currentX = target.x + offsetX;
+    const currentY = target.y + offsetY;
+
     setNodeStates(prev => {
       const next = new Map(prev);
       const existing = next.get(node.id);
-      if (existing) {
-        // Keep current target position
-      } else {
-        next.set(node.id, {
-          x: target.x,
-          y: target.y,
-          vx: 0,
-          vy: 0,
-          targetX: target.x,
-          targetY: target.y,
-        });
-      }
+      next.set(node.id, {
+        x: currentX,
+        y: currentY,
+        vx: 0,
+        vy: 0,
+        targetX: existing?.targetX ?? target.x,
+        targetY: existing?.targetY ?? target.y,
+      });
       return next;
     });
-  }, [targetPositions, centerX, centerY]);
+
+    // Set dragged node after updating position to prevent flicker
+    setDraggedNodeId(node.id);
+  }, [targetPositions, centerX, centerY, animTime]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!draggedNodeId || !svgRef.current) return;
@@ -374,7 +393,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             <circle
               cx={centerX}
               cy={centerY}
-              r={RING_CONFIG.outer.radius}
+              r={ringRadii.outer}
               fill="none"
               stroke={RING_CONFIG.outer.strokeColor}
               strokeWidth="1"
@@ -383,7 +402,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             <circle
               cx={centerX}
               cy={centerY}
-              r={RING_CONFIG.middle.radius}
+              r={ringRadii.middle}
               fill="none"
               stroke={RING_CONFIG.middle.strokeColor}
               strokeWidth="1"
@@ -392,7 +411,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             <circle
               cx={centerX}
               cy={centerY}
-              r={RING_CONFIG.inner.radius}
+              r={ringRadii.inner}
               fill="none"
               stroke={RING_CONFIG.inner.strokeColor}
               strokeWidth="2"
@@ -401,7 +420,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             {/* Ring Labels */}
             <text
               x={centerX}
-              y={centerY - RING_CONFIG.inner.radius - 8}
+              y={centerY - ringRadii.inner - 8}
               textAnchor="middle"
               fill="#64748b"
               fontSize="10"
@@ -409,7 +428,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               Inner
             </text>
             <text
-              x={centerX + RING_CONFIG.middle.radius + 15}
+              x={centerX + ringRadii.middle + 15}
               y={centerY}
               textAnchor="start"
               fill="#475569"
@@ -421,7 +440,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             {/* Center - Persona */}
             <g transform={`translate(${centerX}, ${centerY})`}>
               <circle
-                r={50}
+                r={50 * scale}
                 fill="rgba(59, 130, 246, 0.15)"
                 stroke="#3B82F6"
                 strokeWidth="2"
@@ -452,7 +471,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                   key={node.id}
                   transform={`translate(${pos.x}, ${pos.y})`}
                   onClick={() => handleNodeClick(node)}
-                  onMouseDown={(e) => handleMouseDown(e, node)}
+                  onMouseDown={(e) => handleMouseDown(e, node, nodeIndex)}
                   style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
                   className="galaxy-node"
                 >
