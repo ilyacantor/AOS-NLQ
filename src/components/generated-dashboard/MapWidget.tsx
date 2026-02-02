@@ -1,8 +1,11 @@
 /**
- * MapWidget - Geographic revenue visualization with real world map using Leaflet
+ * MapWidget - Geographic revenue visualization with interactive world map
  *
- * Shows revenue distribution on an interactive world map (AMER, EMEA, APAC)
- * with actual country borders, pan, and zoom capabilities.
+ * Shows revenue distribution on an interactive world map with:
+ * - Solid ocean background (no distracting tiles)
+ * - Countries colored by region (AMER, EMEA, APAC)
+ * - Revenue bubbles sized by amount
+ * - Pan and zoom capabilities
  */
 
 import { useEffect, useRef, useMemo } from 'react';
@@ -16,7 +19,7 @@ interface MapWidgetProps {
   onClick?: (value?: string) => void;
 }
 
-// Country to region mapping
+// Country to region mapping (ISO_A3 codes)
 const COUNTRY_REGIONS: Record<string, string> = {
   // AMER - Americas
   USA: 'AMER', CAN: 'AMER', MEX: 'AMER', BRA: 'AMER', ARG: 'AMER',
@@ -59,12 +62,20 @@ const COUNTRY_REGIONS: Record<string, string> = {
   AFG: 'APAC',
 };
 
-// Region colors
+// Region colors - vibrant but professional
 const REGION_COLORS: Record<string, string> = {
-  AMER: '#06b6d4', // cyan
+  AMER: '#3b82f6', // blue
   EMEA: '#8b5cf6', // purple
   APAC: '#f59e0b', // amber
   LATAM: '#10b981', // emerald
+};
+
+// Region center coordinates for bubble placement
+const REGION_CENTERS: Record<string, [number, number]> = {
+  AMER: [39.8, -98.5],   // Central USA
+  EMEA: [48.5, 15],      // Central Europe
+  APAC: [25, 105],       // East Asia
+  LATAM: [-15, -55],     // Central South America
 };
 
 // Format currency values
@@ -81,6 +92,7 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const geoJsonLayerRef = useRef<L.GeoJSON | null>(null);
+  const bubblesLayerRef = useRef<L.LayerGroup | null>(null);
 
   // Extract region data from widget data
   const regionData = useMemo(() => {
@@ -122,7 +134,12 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
 
   const hasDrillDown = widget.interactions?.some(i => i.type === 'drill_down' && i.enabled);
 
-  // Initialize Leaflet map
+  // Calculate max value for bubble scaling
+  const maxValue = useMemo(() => {
+    return Math.max(...regionData.map(r => r.value || 0), 1);
+  }, [regionData]);
+
+  // Initialize Leaflet map with solid background
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
@@ -135,20 +152,22 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
       worldCopyJump: true,
       maxBounds: [[-90, -180], [90, 180]],
       maxBoundsViscosity: 1.0,
+      attributionControl: false,
+      zoomControl: true,
     });
 
-    // Dark tile layer
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      subdomains: 'abcd',
-      maxZoom: 19,
-    }).addTo(map);
+    // Set solid ocean background via CSS
+    mapContainerRef.current.style.backgroundColor = '#0c1929';
 
     mapRef.current = map;
+
+    // Create layer group for bubbles
+    bubblesLayerRef.current = L.layerGroup().addTo(map);
 
     return () => {
       map.remove();
       mapRef.current = null;
+      bubblesLayerRef.current = null;
     };
   }, []);
 
@@ -171,15 +190,15 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
           style: (feature) => {
             const countryCode = feature?.properties?.ISO_A3 || '';
             const region = COUNTRY_REGIONS[countryCode];
+            const baseColor = region ? REGION_COLORS[region] : '#1e293b';
             const regionInfo = region ? regionLookup[region] : null;
             const hasData = regionInfo && regionInfo.value > 0;
-            const baseColor = region ? REGION_COLORS[region] : '#334155';
 
             return {
-              fillColor: hasData ? baseColor : '#1e293b',
-              fillOpacity: hasData ? 0.4 + (regionInfo!.percentage / 100) * 0.4 : 0.3,
+              fillColor: baseColor,
+              fillOpacity: hasData ? 0.6 : 0.25,
               color: hasData ? baseColor : '#334155',
-              weight: hasData ? 1 : 0.5,
+              weight: hasData ? 1.5 : 0.5,
             };
           },
           onEachFeature: (feature, layer) => {
@@ -190,21 +209,20 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
 
             if (region && regionInfo && regionInfo.value > 0) {
               layer.bindTooltip(
-                `<div style="text-align: center;">
+                `<div style="text-align: center; font-size: 12px;">
                   <strong>${countryName}</strong><br/>
-                  <span style="color: ${REGION_COLORS[region]}">${region}</span><br/>
-                  ${regionInfo.percentage.toFixed(1)}% of revenue
+                  <span style="color: ${REGION_COLORS[region]}; font-weight: 600;">${region}</span>
                 </div>`,
-                { sticky: true }
+                { sticky: true, className: 'map-tooltip' }
               );
-
-              if (hasDrillDown) {
-                layer.on('click', () => {
-                  onClick?.(region);
-                });
-              }
-            } else {
-              layer.bindTooltip(countryName, { sticky: true });
+            } else if (region) {
+              layer.bindTooltip(
+                `<div style="text-align: center; font-size: 12px;">
+                  <strong>${countryName}</strong><br/>
+                  <span style="color: #64748b;">${region}</span>
+                </div>`,
+                { sticky: true, className: 'map-tooltip' }
+              );
             }
           },
         });
@@ -222,10 +240,96 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
         geoJsonLayerRef.current = null;
       }
     };
-  }, [regionLookup, hasDrillDown, onClick]);
+  }, [regionLookup]);
+
+  // Add revenue bubbles
+  useEffect(() => {
+    if (!mapRef.current || !bubblesLayerRef.current) return;
+
+    const bubblesLayer = bubblesLayerRef.current;
+    bubblesLayer.clearLayers();
+
+    // Add bubble for each region with data
+    regionData.forEach(r => {
+      const regionKey = r.region?.toUpperCase() || '';
+      const center = REGION_CENTERS[regionKey];
+      if (!center || !r.value) return;
+
+      const color = REGION_COLORS[regionKey] || '#64748b';
+
+      // Scale radius: min 20, max 60 based on value proportion
+      const proportion = r.value / maxValue;
+      const radius = 20 + (proportion * 40);
+
+      // Create circle marker
+      const circle = L.circleMarker(center, {
+        radius: radius,
+        fillColor: color,
+        fillOpacity: 0.85,
+        color: '#ffffff',
+        weight: 2,
+        className: 'revenue-bubble',
+      });
+
+      // Add tooltip with value
+      circle.bindTooltip(
+        `<div style="text-align: center; padding: 4px;">
+          <div style="font-weight: 700; font-size: 14px; color: ${color};">${regionKey}</div>
+          <div style="font-size: 16px; font-weight: 700; color: #fff;">${formatValue(r.value)}</div>
+          <div style="font-size: 11px; color: #94a3b8;">${(r.percentage || 0).toFixed(1)}% of total</div>
+        </div>`,
+        {
+          permanent: false,
+          direction: 'top',
+          offset: [0, -radius],
+          className: 'bubble-tooltip'
+        }
+      );
+
+      // Add click handler for drill-down
+      if (hasDrillDown) {
+        circle.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          onClick?.(regionKey);
+        });
+        circle.getElement?.()?.style.setProperty('cursor', 'pointer');
+      }
+
+      circle.addTo(bubblesLayer);
+
+      // Add permanent label inside bubble
+      const label = L.divIcon({
+        className: 'bubble-label',
+        html: `<div style="
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          width: ${radius * 2}px;
+          height: ${radius * 2}px;
+          margin-left: -${radius}px;
+          margin-top: -${radius}px;
+          color: white;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+          pointer-events: none;
+          font-family: system-ui, sans-serif;
+        ">
+          <div style="font-size: ${Math.max(10, radius / 3)}px; font-weight: 700;">${formatValue(r.value)}</div>
+          <div style="font-size: ${Math.max(8, radius / 4)}px; opacity: 0.9;">${regionKey}</div>
+        </div>`,
+        iconSize: [radius * 2, radius * 2],
+      });
+
+      L.marker(center, { icon: label, interactive: false }).addTo(bubblesLayer);
+    });
+  }, [regionData, maxValue, hasDrillDown, onClick]);
 
   return (
-    <div className="p-4 h-full flex flex-col">
+    <div
+      className="p-4 h-full flex flex-col"
+      onMouseDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+    >
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-medium text-slate-400">{widget.title}</h3>
         <div className="text-right">
@@ -258,7 +362,7 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
                 onClick={() => hasDrillDown && onClick?.(r.region)}
               >
                 <div
-                  className="w-3 h-3 rounded-sm"
+                  className="w-3 h-3 rounded-full"
                   style={{ backgroundColor: color }}
                 />
                 <span className="text-xs text-slate-400">{r.region}</span>
