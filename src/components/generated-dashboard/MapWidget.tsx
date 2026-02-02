@@ -224,6 +224,11 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
 
         geoJsonLayer.addTo(map);
         geoJsonLayerRef.current = geoJsonLayer;
+
+        // Bring bubbles layer to front after GeoJSON loads
+        if (bubblesLayerRef.current) {
+          bubblesLayerRef.current.bringToFront();
+        }
       })
       .catch(err => {
         console.error('Failed to load GeoJSON:', err);
