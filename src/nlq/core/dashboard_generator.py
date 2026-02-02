@@ -658,6 +658,21 @@ def _generate_full_dashboard(
                 )
             ],
         ))
+
+        # Add geographic map widget for CFO-style dashboards with regional data
+        if dimension == "region" and primary_metric in ["revenue", "bookings", "pipeline", "arr"]:
+            widgets.append(Widget(
+                id=f"map_{primary_metric}_by_region",
+                type=WidgetType.MAP,
+                title=f"{get_display_name(primary_metric)} by Region",
+                data=DataBinding(
+                    metrics=[MetricBinding(metric=primary_metric, format=_get_format_string(primary_metric))],
+                    dimensions=[DimensionBinding(dimension="region", sort_by="value", sort_order="desc")],
+                    time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+                ),
+                position=GridPosition(column=1, row=6, col_span=6, row_span=3),
+                chart_config=ChartConfig(show_legend=False, show_grid=False, animate=True),
+            ))
     else:
         # No breakdown available - add another metric comparison instead
         logger.warning(f"No breakdown for '{primary_metric}', adding metric comparison instead")
@@ -893,6 +908,7 @@ def refine_dashboard_schema(
                     ))
 
     # Handle question-style queries like "Which region has the most revenue?" or "What product has the highest pipeline?"
+    import re
     if re.search(r"\b(which|what|where)\b.*\b(most|highest|lowest|best|worst)\b", q, re.IGNORECASE):
         # Extract dimension from the query (which/what X has...)
         dim_match = re.search(r"\b(which|what)\s+(region|rep|product|segment|stage|salesperson|customer|quarter)\b", q, re.IGNORECASE)
