@@ -717,7 +717,16 @@ def refine_dashboard_schema(
                 w.id == trend_id or w.id == f"{metric}_trend"
                 for w in updated_schema.widgets
             )
-            if not has_trend:
+            if has_trend:
+                logger.info(f"[REFINEMENT_SKIP] Trend chart for '{metric}' already exists in dashboard")
+                # In strict mode, raise a user-friendly error
+                if is_strict_mode():
+                    raise DashboardGenerationError(
+                        f"A trend chart for '{get_display_name(metric)}' already exists in this dashboard.",
+                        FailureCategory.REFINEMENT,
+                        suggestion="Try asking for a different metric's trend, or remove the existing trend first."
+                    )
+            else:
                 # Find next available position
                 max_row = max((w.position.row + w.position.row_span for w in updated_schema.widgets), default=0)
 
@@ -932,6 +941,52 @@ def refine_dashboard_schema(
                     metric = first_chart.data.metrics[0].metric
                     dim = first_chart.data.dimensions[0].dimension
                     updated_schema.title = f"{get_display_name(metric)} by {dim.title()}"
+
+    # Fallback: If "add" is in query and metrics were detected but no action taken yet,
+    # default to adding KPI cards for the requested metrics
+    original_widget_count = len(current_schema.widgets)
+    if "add" in q and requirements.metrics and len(updated_schema.widgets) == original_widget_count:
+        logger.info(f"[REFINEMENT_FALLBACK] 'add' detected with metrics {requirements.metrics}, adding KPI cards")
+        for metric in requirements.metrics:
+            if not any(w.id == f"kpi_{metric}" for w in updated_schema.widgets):
+                # Find next available position
+                max_col = max((w.position.column + w.position.col_span for w in updated_schema.widgets), default=1)
+                if max_col > 10:
+                    max_col = 1
+                    max_row = max((w.position.row + w.position.row_span for w in updated_schema.widgets), default=1)
+                else:
+                    max_row = 1
+
+                updated_schema.widgets.append(Widget(
+                    id=f"kpi_{metric}",
+                    type=WidgetType.KPI_CARD,
+                    title=get_display_name(metric),
+                    data=DataBinding(
+                        metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
+                        time=updated_schema.time_range,
+                    ),
+                    position=GridPosition(column=max_col, row=max_row, col_span=3, row_span=2),
+                    kpi_config=KPIConfig(show_trend=True, show_sparkline=True),
+                ))
+
+    # Check if any changes were made
+    if len(updated_schema.widgets) == original_widget_count:
+        # No widgets added - check if any modifications were made
+        widgets_modified = any(
+            w1.model_dump() != w2.model_dump()
+            for w1, w2 in zip(current_schema.widgets, updated_schema.widgets)
+        )
+        if not widgets_modified:
+            logger.warning(
+                f"[REFINEMENT_NO_OP] No changes made for refinement query: '{refinement_query}'. "
+                f"Metrics requested: {requirements.metrics}, Intent: {requirements.intent}"
+            )
+            if is_strict_mode():
+                raise DashboardGenerationError(
+                    f"Unable to apply refinement: '{refinement_query}'. No matching refinement pattern found.",
+                    FailureCategory.REFINEMENT,
+                    suggestion=f"Try being more specific, e.g., 'Add {requirements.metrics[0] if requirements.metrics else 'revenue'} KPI card' or 'Show {requirements.metrics[0] if requirements.metrics else 'revenue'} trend'"
+                )
 
     # Update version and history
     updated_schema.version += 1
