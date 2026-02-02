@@ -159,6 +159,13 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
     // Set solid ocean background via CSS - bright ocean blue
     mapContainerRef.current.style.backgroundColor = '#1e6091';
 
+    // Create custom pane for bubbles with higher z-index than overlayPane (400)
+    map.createPane('bubblesPane');
+    const bubblesPane = map.getPane('bubblesPane');
+    if (bubblesPane) {
+      bubblesPane.style.zIndex = '450';
+    }
+
     mapRef.current = map;
 
     // Create layer group for bubbles
@@ -224,11 +231,6 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
 
         geoJsonLayer.addTo(map);
         geoJsonLayerRef.current = geoJsonLayer;
-
-        // Bring bubbles layer to front after GeoJSON loads
-        if (bubblesLayerRef.current) {
-          bubblesLayerRef.current.bringToFront();
-        }
       })
       .catch(err => {
         console.error('Failed to load GeoJSON:', err);
@@ -261,13 +263,14 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
       const proportion = r.value / maxValue;
       const radius = 10 + (proportion * 18);
 
-      // Create circle marker - 30% opacity (more transparent)
+      // Create circle marker in custom pane to ensure it's above countries
       const circle = L.circleMarker(center, {
         radius: radius,
         fillColor: color,
-        fillOpacity: 0.3,
+        fillOpacity: 0.8,
         color: '#ffffff',
         weight: 2,
+        pane: 'bubblesPane',
         className: 'revenue-bubble',
       });
 
