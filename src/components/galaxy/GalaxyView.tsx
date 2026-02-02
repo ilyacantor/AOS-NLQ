@@ -569,7 +569,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
 
                   {/* Label below node - just the metric name */}
                   <text
-                    y={radius + 12 * scale}
+                    y={radius + 18 * scale}
                     textAnchor="middle"
                     fill="#94a3b8"
                     fontSize={Math.max(8, 10 * scale)}
