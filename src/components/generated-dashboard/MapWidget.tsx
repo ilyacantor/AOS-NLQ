@@ -244,9 +244,15 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
     const bubblesLayer = bubblesLayerRef.current;
     bubblesLayer.clearLayers();
 
+    // Deduplicate regions - only one circle per region
+    const seenRegions = new Set<string>();
+    
     // Add bubble for each region with data
     regionData.forEach(r => {
       const regionKey = r.region?.toUpperCase() || '';
+      if (seenRegions.has(regionKey)) return; // Skip duplicates
+      seenRegions.add(regionKey);
+      
       const center = REGION_CENTERS[regionKey];
       if (!center || !r.value) return;
 
