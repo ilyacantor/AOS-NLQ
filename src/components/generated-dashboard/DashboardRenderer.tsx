@@ -296,19 +296,20 @@ export function DashboardRenderer({
     if (!schema) return [];
 
     return schema.widgets.map(widget => {
-      // Use stored position from layoutMap if it exists, otherwise use schema position
       const stored = layoutMap[widget.id];
       if (stored) {
         return { ...stored, i: widget.id };
       }
+      const isKPI = widget.type === 'kpi';
+      const h = isKPI ? Math.max(1, Math.round(widget.position.row_span / 2)) : widget.position.row_span;
       return {
         i: widget.id,
         x: widget.position.column - 1,
         y: widget.position.row - 1,
         w: widget.position.col_span,
-        h: widget.position.row_span,
+        h,
         minW: 2,
-        minH: 2,
+        minH: isKPI ? 1 : 2,
       };
     });
   }, [schema, layoutMap]);
