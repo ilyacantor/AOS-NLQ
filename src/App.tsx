@@ -366,10 +366,24 @@ function App() {
   }, [sessionId, shouldRouteToDashboard, dashboardSchema, generateDashboard])
 
   // Auto-query "2025 results" for Galaxy view on first load
+  // Wait for backend to be ready before firing the initial query
   useEffect(() => {
     if (!hasLoadedDefault && viewMode === 'galaxy') {
       setHasLoadedDefault(true)
-      submitGalaxyQuery('2025 results')
+      const waitForBackend = async () => {
+        for (let i = 0; i < 20; i++) {
+          try {
+            const res = await fetch('/v1/rag/session/stats?session_id=healthcheck')
+            if (res.ok) {
+              submitGalaxyQuery('2025 results')
+              return
+            }
+          } catch { /* backend not ready yet */ }
+          await new Promise(r => setTimeout(r, 1000))
+        }
+        submitGalaxyQuery('2025 results')
+      }
+      waitForBackend()
     }
   }, [hasLoadedDefault, viewMode, submitGalaxyQuery])
 
