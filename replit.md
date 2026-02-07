@@ -63,14 +63,25 @@ src/
 ├── App.tsx                 # Main React application
 ├── index.css               # Tailwind v4 styles
 ├── components/
-│   └── galaxy/             # Galaxy view visualization components
-│       ├── index.ts        # Exports
-│       ├── GalaxyView.tsx  # Main galaxy visualization
-│       └── types.ts        # TypeScript interfaces
+│   ├── galaxy/             # Galaxy view visualization components
+│   │   ├── index.ts        # Exports
+│   │   ├── GalaxyView.tsx  # Main galaxy visualization
+│   │   └── types.ts        # TypeScript interfaces
+│   └── generated-dashboard/  # Dashboard rendering system
+│       └── DashboardRenderer.tsx  # Main dashboard UI (1287 lines)
+├── hooks/
+│   ├── useDashboardRefinement.ts  # Refinement queue, API calls, messages
+│   ├── useDashboardLayout.ts      # Grid layout, resize, auto-arrange
+│   └── useDashboardPersistence.ts # Save/load/template localStorage ops
+├── types/
+│   └── generated-dashboard.ts     # Dashboard TypeScript interfaces
 └── nlq/
     ├── main.py             # FastAPI application entry point
     ├── api/
-    │   └── routes.py       # API endpoints (/v1/query, /v1/intent-map)
+    │   ├── routes.py       # API endpoints (/v1/query, /v1/intent-map)
+    │   └── dashboard_routes.py  # Dashboard API endpoints
+    ├── core/
+    │   └── dashboard_generator.py  # Dashboard schema generation & refinement
     ├── db/
     │   ├── schema.sql      # Supabase table definitions with RLS
     │   └── supabase_persistence.py  # Tenant-aware persistence service
@@ -168,6 +179,14 @@ When Supabase credentials are not configured:
 ---
 
 ## Recent Changes (2026-02-07)
+- **Fixed REFINEMENT_NO_OP crash**: `refine_dashboard_schema` now returns `(schema, 'noop', reason)` tuple instead of raising exception — treats no-op as success
+- **Added refinement_status to API response**: Backend returns `refinement_status` ('applied'|'noop'|'error') and `refinement_reason` fields; frontend handles noop gracefully
+- **Normalized widget IDs**: All widget IDs now use `trend_{metric}` convention (fixed remaining `{metric}_trend` pattern in `_generate_full_dashboard`)
+- **Extracted useDashboardRefinement hook** (163 lines): Refinement queue, API calls, message handling extracted from DashboardRenderer
+- **Extracted useDashboardLayout hook** (223 lines): Grid layout, container resize, auto-arrange with queueMicrotask pattern
+- **Extracted useDashboardPersistence hook** (234 lines): Save/load/template localStorage operations
+- **DashboardRenderer reduced from 1743 to 1287 lines** via hook extraction
+- **Fixed all LSP errors**: Resolved TypeScript unused vars, Python Optional[str] typing issues
 - **Fixed KPI triple-click blank screen bug**: Added concurrency guard to `refineDashboard` — KPI clicks now queue and process sequentially instead of firing concurrent requests
 - **Fixed nested setState anti-pattern**: Moved `setLayoutMap` out of `setSchema` updater in `handleAutoArrange` using `queueMicrotask` to prevent layout/schema mismatch
 - **Added DashboardErrorBoundary**: React error boundary wraps the dashboard grid, showing a "Reload Dashboard" button instead of a blank screen on rendering errors
