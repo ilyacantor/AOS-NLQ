@@ -1,3 +1,5 @@
+*Last updated: 2026-02-07*
+
 # NLQ System Overview
 
 ## What Is NLQ?
