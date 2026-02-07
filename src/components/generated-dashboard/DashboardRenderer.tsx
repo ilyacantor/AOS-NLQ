@@ -707,10 +707,18 @@ export function DashboardRenderer({
 
         refinementTimeoutRef.current = setTimeout(() => setRefinementMessage(null), 4000);
       } else {
-        setError(data.error || 'Failed to refine dashboard');
+        const errMsg = data.error || '';
+        if (errMsg.toLowerCase().includes('already exists') || errMsg.toLowerCase().includes('not found')) {
+          setRefinementMessage(null);
+        } else {
+          setRefinementMessage(errMsg || 'Could not apply that refinement');
+          refinementTimeoutRef.current = setTimeout(() => setRefinementMessage(null), 4000);
+        }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refine dashboard');
+      console.warn('Dashboard refinement error:', err);
+      setRefinementMessage('Could not apply that refinement');
+      refinementTimeoutRef.current = setTimeout(() => setRefinementMessage(null), 4000);
     } finally {
       setIsRefining(false);
       isRefiningRef.current = false;
@@ -772,9 +780,16 @@ export function DashboardRenderer({
       return;
     }
     
-    // For KPIs: add quarterly trend chart inline (stay in dashboard view)
     if (widget.type === 'kpi_card') {
       const metric = value || widget.data.metrics[0]?.metric || widget.title;
+      const trendId = `trend_${metric}`;
+      const altTrendId = `${metric}_trend`;
+      const alreadyExists = schema?.widgets.some(
+        w => w.id === trendId || w.id === altTrendId
+      );
+      if (alreadyExists) {
+        return;
+      }
       const refinementQuery = `Add a quarterly trend chart for ${metric}`;
       refineDashboard(refinementQuery);
       return;
@@ -786,7 +801,7 @@ export function DashboardRenderer({
       const query = `Show me ${metric} for ${value}`;
       onDrillDown(query);
     }
-  }, [onDrillDown, refineDashboard]);
+  }, [onDrillDown, refineDashboard, schema]);
 
   // Handle KPI double-click to show time-based chart
   const handleKPIDoubleClick = useCallback((widget: Widget) => {

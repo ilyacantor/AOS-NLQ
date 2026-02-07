@@ -726,22 +726,14 @@ def refine_dashboard_schema(
                 metrics_to_chart = [metric_match.group(1).lower()]
 
         for metric in metrics_to_chart:
-            # Check if we already have a trend chart for this metric
-            # Check both ID patterns: "trend_{metric}" (refinement) and "{metric}_trend" (initial generation)
             trend_id = f"trend_{metric}"
             has_trend = any(
                 w.id == trend_id or w.id == f"{metric}_trend"
                 for w in updated_schema.widgets
             )
             if has_trend:
-                logger.info(f"[REFINEMENT_SKIP] Trend chart for '{metric}' already exists in dashboard")
-                # In strict mode, raise a user-friendly error
-                if is_strict_mode():
-                    raise DashboardGenerationError(
-                        f"A trend chart for '{get_display_name(metric)}' already exists in this dashboard.",
-                        FailureCategory.REFINEMENT,
-                        suggestion="Try asking for a different metric's trend, or remove the existing trend first."
-                    )
+                logger.info(f"[REFINEMENT_SKIP] Trend chart for '{metric}' already exists, skipping")
+                continue
             else:
                 # Find next available position
                 max_row = max((w.position.row + w.position.row_span for w in updated_schema.widgets), default=0)
