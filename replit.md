@@ -221,3 +221,7 @@ When Supabase credentials are not configured:
 - **InsightsTile**: AI-generated insights with anomaly storytelling (enhanced mode uses InsightCard)
 - **PredictiveLineChart**: Recharts-based chart with historical (cyan) and forecast (purple dashed) data
 - **ScenarioModelingPanel**: CFO-only collapsible panel with sliders for scenario modeling
+
+---
+
+*Last updated: 2026-02-07*
