@@ -296,6 +296,7 @@ export function DashboardRenderer({
     if (!schema) return [];
 
     return schema.widgets.map(widget => {
+      // Use stored position from layoutMap if it exists, otherwise use schema position
       const stored = layoutMap[widget.id];
       if (stored) {
         return { ...stored, i: widget.id };
@@ -442,6 +443,7 @@ export function DashboardRenderer({
 
       const newLayoutMap: Record<string, LayoutItem> = {};
 
+      // Place KPIs first (row 0) - they're typically 3 cols wide, 2 rows tall
       kpis.forEach(widget => {
         const w = Math.min(widget.position.col_span || 3, cols);
         const h = widget.position.row_span || 2;
@@ -477,6 +479,9 @@ export function DashboardRenderer({
         newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
       });
 
+      // Update layout map (separate setState call)
+      setLayoutMap(newLayoutMap);
+
       // Update schema positions
       const updatedWidgets = prevSchema.widgets.map(widget => {
         const layout = newLayoutMap[widget.id];
@@ -497,6 +502,9 @@ export function DashboardRenderer({
 
       return { ...prevSchema, widgets: updatedWidgets };
     });
+
+    setSaveSuccess('Layout auto-arranged!');
+    setTimeout(() => setSaveSuccess(null), 2000);
   }, []);
 
   // Save dashboard
@@ -653,10 +661,11 @@ export function DashboardRenderer({
 
         setSchema(data.dashboard);
 
+        // Auto-arrange if not in edit mode to fill gaps cleanly
         if (!editMode) {
+          // Use setTimeout to ensure schema is updated before auto-arrange runs
           setTimeout(() => {
             handleAutoArrange();
-            setLayoutMap({});
           }, 50);
         }
 

@@ -5,32 +5,9 @@
  * the appropriate visualization component (chart, KPI, table, etc.)
  */
 
-import React, { useRef, useCallback } from 'react';
+import { useRef, useCallback } from 'react';
 import { Widget, WidgetData } from '../../types/generated-dashboard';
 import { MapWidget } from './MapWidget';
-
-class WidgetErrorBoundary extends React.Component<
-  { children: React.ReactNode; title: string },
-  { hasError: boolean }
-> {
-  constructor(props: { children: React.ReactNode; title: string }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="p-4 h-full flex items-center justify-center">
-          <p className="text-slate-500 text-sm">Unable to render {this.props.title}</p>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 import {
   LineChart,
   Line,
@@ -69,7 +46,8 @@ const CHART_COLORS = [
 ];
 
 export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight }: WidgetRendererProps) {
-  const height = Math.max(40, widget.position.row_span * rowHeight - 16);
+  // Calculate widget dimensions
+  const height = widget.position.row_span * rowHeight - 16; // Account for gap
 
   // Grid positioning style
   const style = {
@@ -142,9 +120,7 @@ export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight
       onDoubleClick={handleDoubleClick}
       title={isKPI ? 'Click to drill down, double-click for trend' : undefined}
     >
-      <WidgetErrorBoundary title={widget.title}>
-        {content}
-      </WidgetErrorBoundary>
+      {content}
     </div>
   );
 }
