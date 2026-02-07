@@ -444,13 +444,14 @@ export function DashboardRenderer({
 
       const newLayoutMap: Record<string, LayoutItem> = {};
 
-      // Place KPIs first (row 0) - they're typically 3 cols wide, 2 rows tall
+      // Place KPIs first (row 0) - halve height for compact display
       kpis.forEach(widget => {
         const w = Math.min(widget.position.col_span || 3, cols);
-        const h = widget.position.row_span || 2;
+        const rawH = widget.position.row_span || 2;
+        const h = Math.max(1, Math.round(rawH / 2));
         const pos = findPosition(w, h);
         place(pos.x, pos.y, w, h);
-        newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+        newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 1 };
       });
 
       // Place charts (after KPIs)
@@ -480,9 +481,6 @@ export function DashboardRenderer({
         newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
       });
 
-      // Update layout map (separate setState call)
-      setLayoutMap(newLayoutMap);
-
       // Update schema positions
       const updatedWidgets = prevSchema.widgets.map(widget => {
         const layout = newLayoutMap[widget.id];
@@ -503,9 +501,6 @@ export function DashboardRenderer({
 
       return { ...prevSchema, widgets: updatedWidgets };
     });
-
-    setSaveSuccess('Layout auto-arranged!');
-    setTimeout(() => setSaveSuccess(null), 2000);
   }, []);
 
   // Save dashboard
@@ -662,11 +657,10 @@ export function DashboardRenderer({
 
         setSchema(data.dashboard);
 
-        // Auto-arrange if not in edit mode to fill gaps cleanly
         if (!editMode) {
-          // Use setTimeout to ensure schema is updated before auto-arrange runs
           setTimeout(() => {
             handleAutoArrange();
+            setLayoutMap({});
           }, 50);
         }
 
