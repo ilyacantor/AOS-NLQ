@@ -5,7 +5,7 @@
  * the appropriate visualization component (chart, KPI, table, etc.)
  */
 
-import { useRef, useCallback, useState, useEffect, Component, ReactNode } from 'react';
+import { useRef, useCallback, Component, ReactNode } from 'react';
 import { Widget, WidgetData } from '../../types/generated-dashboard';
 import { MapWidget } from './MapWidget';
 import {
@@ -45,50 +45,36 @@ const CHART_COLORS = [
   '#EAB308', // Yellow
 ];
 
-function SafeResponsiveContainer({ children, ...props }: any) {
-  const [ready, setReady] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry && entry.contentRect.width > 0 && entry.contentRect.height > 0) {
-        setReady(true);
-      } else {
-        setReady(false);
-      }
-    });
-    observer.observe(el);
-    if (el.clientWidth > 0 && el.clientHeight > 0) {
-      setReady(true);
-    }
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
-      {ready ? (
-        <ResponsiveContainer {...props}>
-          {children}
-        </ResponsiveContainer>
-      ) : null}
-    </div>
-  );
-}
-
-class WidgetErrorBoundary extends Component<{ widget: Widget; children: ReactNode }, { hasError: boolean }> {
+class WidgetErrorBoundary extends Component<
+  { widget: Widget; children: ReactNode },
+  { hasError: boolean; errorKey: string }
+> {
   constructor(props: any) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, errorKey: '' };
   }
 
   static getDerivedStateFromError(): { hasError: boolean } {
     return { hasError: true };
   }
 
+  static getDerivedStateFromProps(
+    props: { widget: Widget },
+    state: { hasError: boolean; errorKey: string }
+  ) {
+    const currentKey = `${props.widget.id}_${JSON.stringify(props.widget.position)}`;
+    if (state.hasError && currentKey !== state.errorKey) {
+      return { hasError: false, errorKey: currentKey };
+    }
+    if (!state.errorKey) {
+      return { errorKey: currentKey };
+    }
+    return null;
+  }
+
   componentDidCatch(error: Error) {
+    const currentKey = `${this.props.widget.id}_${JSON.stringify(this.props.widget.position)}`;
+    this.setState({ errorKey: currentKey });
     console.warn(`[Widget ${this.props.widget.id}] Render error:`, error.message);
   }
 
@@ -253,7 +239,7 @@ function KPICardContent({ widget, data }: { widget: Widget; data: WidgetData }) 
 
       {showSparkline && (
         <div className="h-12 mt-2">
-          <SafeResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data.sparkline_data?.map((v, i) => ({ value: v, i }))}>
               <Area
                 type="monotone"
@@ -264,7 +250,7 @@ function KPICardContent({ widget, data }: { widget: Widget; data: WidgetData }) 
                 strokeWidth={1.5}
               />
             </AreaChart>
-          </SafeResponsiveContainer>
+          </ResponsiveContainer>
         </div>
       )}
     </div>
@@ -294,7 +280,7 @@ function LineChartContent({
     <div className="p-4 h-full flex flex-col">
       <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
       <div className="flex-1" style={{ minHeight: height - 80 }}>
-        <SafeResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%">
           <LineChart 
             data={chartData}
             onClick={(e) => {
@@ -337,7 +323,7 @@ function LineChartContent({
               />
             ))}
           </LineChart>
-        </SafeResponsiveContainer>
+        </ResponsiveContainer>
       </div>
     </div>
   );
@@ -365,7 +351,7 @@ function BarChartContent({
     <div className="p-4 h-full flex flex-col">
       <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
       <div className="flex-1" style={{ minHeight: height - 80 }}>
-        <SafeResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
             <XAxis
@@ -394,7 +380,7 @@ function BarChartContent({
               cursor={hasDrillDown ? 'pointer' : undefined}
             />
           </BarChart>
-        </SafeResponsiveContainer>
+        </ResponsiveContainer>
       </div>
     </div>
   );
@@ -422,7 +408,7 @@ function HorizontalBarContent({
     <div className="p-4 h-full flex flex-col">
       <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
       <div className="flex-1" style={{ minHeight: height - 80 }}>
-        <SafeResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
             <XAxis
@@ -453,7 +439,7 @@ function HorizontalBarContent({
               cursor={hasDrillDown ? 'pointer' : undefined}
             />
           </BarChart>
-        </SafeResponsiveContainer>
+        </ResponsiveContainer>
       </div>
     </div>
   );
@@ -481,7 +467,7 @@ function AreaChartContent({
     <div className="p-4 h-full flex flex-col">
       <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
       <div className="flex-1" style={{ minHeight: height - 80 }}>
-        <SafeResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%">
           <AreaChart 
             data={chartData}
             onClick={(e) => {
@@ -519,7 +505,7 @@ function AreaChartContent({
               activeDot={hasDrillDown ? { r: 8, stroke: '#0BCAD9', strokeWidth: 2, cursor: 'pointer' } : undefined}
             />
           </AreaChart>
-        </SafeResponsiveContainer>
+        </ResponsiveContainer>
       </div>
     </div>
   );
@@ -547,7 +533,7 @@ function DonutChartContent({
     <div className="p-4 h-full flex flex-col">
       <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
       <div className="flex-1" style={{ minHeight: height - 80 }}>
-        <SafeResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={chartData}
@@ -579,7 +565,7 @@ function DonutChartContent({
               formatter={(value) => <span className="text-slate-300 text-xs">{value}</span>}
             />
           </PieChart>
-        </SafeResponsiveContainer>
+        </ResponsiveContainer>
       </div>
     </div>
   );
@@ -615,7 +601,7 @@ function StackedBarContent({
     <div className="p-4 h-full flex flex-col">
       <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
       <div className="flex-1" style={{ minHeight: height - 80 }}>
-        <SafeResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%">
           <BarChart 
             data={chartData}
             onClick={(e) => {
@@ -657,7 +643,7 @@ function StackedBarContent({
               />
             ))}
           </BarChart>
-        </SafeResponsiveContainer>
+        </ResponsiveContainer>
       </div>
     </div>
   );
@@ -738,7 +724,7 @@ function SparklineContent({ widget, data }: { widget: Widget; data: WidgetData }
     <div className="p-4 h-full flex flex-col">
       <h3 className="text-sm font-medium text-slate-400 mb-2">{widget.title}</h3>
       <div className="flex-1">
-        <SafeResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={sparklineData}>
             <Area
               type="monotone"
@@ -749,7 +735,7 @@ function SparklineContent({ widget, data }: { widget: Widget; data: WidgetData }
               strokeWidth={1.5}
             />
           </AreaChart>
-        </SafeResponsiveContainer>
+        </ResponsiveContainer>
       </div>
     </div>
   );

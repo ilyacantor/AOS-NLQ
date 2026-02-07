@@ -43,6 +43,8 @@ export function useDashboardRefinement({
   const refinementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refineQueueRef = useRef<string[]>([]);
   const isRefiningRef = useRef(false);
+  const schemaRef = useRef(schema);
+  schemaRef.current = schema;
 
   useEffect(() => {
     return () => {
@@ -58,7 +60,7 @@ export function useDashboardRefinement({
     setRefinementMessage(null);
 
     try {
-      const currentSchema = schema;
+      const currentSchema = schemaRef.current;
       if (!currentSchema) return;
 
       const response = await fetch('/api/v1/dashboard/refine', {
@@ -129,7 +131,7 @@ export function useDashboardRefinement({
       isRefiningRef.current = false;
       setRefinementQuery('');
     }
-  }, [schema, onRefinement]);
+  }, [onRefinement]);
 
   const processQueue = useCallback(async () => {
     while (refineQueueRef.current.length > 0) {
@@ -143,14 +145,14 @@ export function useDashboardRefinement({
   }, [processRefinement, editMode, handleAutoArrange]);
 
   const refineDashboard = useCallback(async (query: string) => {
-    if (!schema) return;
+    if (!schemaRef.current) return;
 
     refineQueueRef.current.push(query);
 
     if (!isRefiningRef.current) {
       processQueue();
     }
-  }, [schema, processQueue]);
+  }, [processQueue]);
 
   return {
     refinementQuery,

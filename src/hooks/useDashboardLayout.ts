@@ -38,6 +38,8 @@ export function useDashboardLayout({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
   const [editMode, setEditMode] = useState(false);
+  const editModeRef = useRef(false);
+  editModeRef.current = editMode;
 
   useEffect(() => {
     const updateWidth = () => {
@@ -71,32 +73,55 @@ export function useDashboardLayout({
   }, [schema, layoutMap]);
 
   const handleLayoutChange = useCallback((newLayout: LayoutItem[]) => {
+    if (!editModeRef.current) {
+      return;
+    }
+
     setLayoutMap(prevMap => {
       const newMap: Record<string, LayoutItem> = { ...prevMap };
+      let changed = false;
       newLayout.forEach(item => {
+        const prev = prevMap[item.i];
+        if (!prev || prev.x !== item.x || prev.y !== item.y || prev.w !== item.w || prev.h !== item.h) {
+          changed = true;
+        }
         newMap[item.i] = item;
       });
-      return newMap;
+      return changed ? newMap : prevMap;
     });
 
     setSchema(prevSchema => {
       if (!prevSchema) return prevSchema;
+      let anyPositionChanged = false;
       const updatedWidgets = prevSchema.widgets.map(widget => {
         const layoutItem = newLayout.find(l => l.i === widget.id);
         if (layoutItem) {
-          return {
-            ...widget,
-            position: {
-              ...widget.position,
-              column: layoutItem.x + 1,
-              row: layoutItem.y + 1,
-              col_span: layoutItem.w,
-              row_span: layoutItem.h,
-            },
-          };
+          const newCol = layoutItem.x + 1;
+          const newRow = layoutItem.y + 1;
+          const newColSpan = layoutItem.w;
+          const newRowSpan = layoutItem.h;
+          if (
+            widget.position.column !== newCol ||
+            widget.position.row !== newRow ||
+            widget.position.col_span !== newColSpan ||
+            widget.position.row_span !== newRowSpan
+          ) {
+            anyPositionChanged = true;
+            return {
+              ...widget,
+              position: {
+                ...widget.position,
+                column: newCol,
+                row: newRow,
+                col_span: newColSpan,
+                row_span: newRowSpan,
+              },
+            };
+          }
         }
         return widget;
       });
+      if (!anyPositionChanged) return prevSchema;
       return { ...prevSchema, widgets: updatedWidgets };
     });
   }, []);
