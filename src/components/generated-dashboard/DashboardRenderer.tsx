@@ -300,16 +300,14 @@ export function DashboardRenderer({
       if (stored) {
         return { ...stored, i: widget.id };
       }
-      const isKPI = widget.type === 'kpi';
-      const h = isKPI ? Math.max(1, Math.round(widget.position.row_span / 2)) : widget.position.row_span;
       return {
         i: widget.id,
         x: widget.position.column - 1,
         y: widget.position.row - 1,
         w: widget.position.col_span,
-        h,
+        h: widget.position.row_span,
         minW: 2,
-        minH: isKPI ? 1 : 2,
+        minH: 2,
       };
     });
   }, [schema, layoutMap]);
@@ -444,14 +442,12 @@ export function DashboardRenderer({
 
       const newLayoutMap: Record<string, LayoutItem> = {};
 
-      // Place KPIs first (row 0) - halve height for compact display
       kpis.forEach(widget => {
         const w = Math.min(widget.position.col_span || 3, cols);
-        const rawH = widget.position.row_span || 2;
-        const h = Math.max(1, Math.round(rawH / 2));
+        const h = widget.position.row_span || 2;
         const pos = findPosition(w, h);
         place(pos.x, pos.y, w, h);
-        newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 1 };
+        newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
       });
 
       // Place charts (after KPIs)
