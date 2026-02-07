@@ -5,6 +5,7 @@
  */
 
 export { DashboardRenderer } from './DashboardRenderer';
+export { DashboardErrorBoundary } from './DashboardErrorBoundary';
 export { WidgetRenderer } from './WidgetRenderer';
 export type {
   DashboardSchema,

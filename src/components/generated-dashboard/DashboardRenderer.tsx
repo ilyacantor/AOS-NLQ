@@ -11,6 +11,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import GridLayout from 'react-grid-layout';
 import { useQueryRouter } from '../../hooks/useQueryRouter';
+import { DashboardErrorBoundary } from './DashboardErrorBoundary';
 type LayoutItem = {
   i: string;
   x: number;
@@ -176,6 +177,8 @@ export function DashboardRenderer({
   const [isRefining, setIsRefining] = useState(false);
   const [refinementMessage, setRefinementMessage] = useState<string | null>(null);
   const refinementTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const refineQueueRef = useRef<string[]>([]);
+  const isRefiningRef = useRef(false);
 
   // Drag-to-scroll for presets container on desktop
   const presetsRef = useRef<HTMLDivElement>(null);
@@ -349,12 +352,15 @@ export function DashboardRenderer({
 
   // Reset dashboard
   const handleReset = useCallback(() => {
+    refineQueueRef.current = [];
+    isRefiningRef.current = false;
     setSchema(null);
     setWidgetData({});
     setError(null);
     setSuggestions([]);
     setInitialQuery('');
     setRefinementQuery('');
+    setIsRefining(false);
     setLayoutMap({});
   }, []);
 
@@ -389,9 +395,8 @@ export function DashboardRenderer({
     setSchema(prevSchema => {
       if (!prevSchema) return prevSchema;
 
-      const cols = prevSchema.layout.columns; // typically 12
+      const cols = prevSchema.layout.columns;
 
-      // Separate widgets by type for logical grouping
       const kpis = prevSchema.widgets.filter(w => w.type === 'kpi_card');
       const charts = prevSchema.widgets.filter(w =>
         ['line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar'].includes(w.type)
@@ -401,14 +406,12 @@ export function DashboardRenderer({
         !['kpi_card', 'line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar', 'data_table'].includes(w.type)
       );
 
-      // Grid occupation tracker
       const grid: boolean[][] = [];
       const getRow = (y: number) => {
         while (grid.length <= y) grid.push(new Array(cols).fill(false));
         return grid[y];
       };
 
-      // Check if position is available
       const canPlace = (x: number, y: number, w: number, h: number): boolean => {
         if (x + w > cols) return false;
         for (let dy = 0; dy < h; dy++) {
@@ -420,7 +423,6 @@ export function DashboardRenderer({
         return true;
       };
 
-      // Mark position as occupied
       const place = (x: number, y: number, w: number, h: number) => {
         for (let dy = 0; dy < h; dy++) {
           const row = getRow(y + dy);
@@ -430,7 +432,6 @@ export function DashboardRenderer({
         }
       };
 
-      // Find next available position
       const findPosition = (w: number, h: number): { x: number; y: number } => {
         for (let y = 0; ; y++) {
           for (let x = 0; x <= cols - w; x++) {
@@ -443,7 +444,6 @@ export function DashboardRenderer({
 
       const newLayoutMap: Record<string, LayoutItem> = {};
 
-      // Place KPIs first (row 0) - they're typically 3 cols wide, 2 rows tall
       kpis.forEach(widget => {
         const w = Math.min(widget.position.col_span || 3, cols);
         const h = widget.position.row_span || 2;
@@ -452,7 +452,6 @@ export function DashboardRenderer({
         newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
       });
 
-      // Place charts (after KPIs)
       charts.forEach(widget => {
         const w = Math.min(widget.position.col_span || 6, cols);
         const h = widget.position.row_span || 3;
@@ -461,7 +460,6 @@ export function DashboardRenderer({
         newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
       });
 
-      // Place tables
       tables.forEach(widget => {
         const w = Math.min(widget.position.col_span || 4, cols);
         const h = widget.position.row_span || 3;
@@ -470,7 +468,6 @@ export function DashboardRenderer({
         newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
       });
 
-      // Place any other widgets
       others.forEach(widget => {
         const w = Math.min(widget.position.col_span || 3, cols);
         const h = widget.position.row_span || 2;
@@ -479,10 +476,6 @@ export function DashboardRenderer({
         newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
       });
 
-      // Update layout map (separate setState call)
-      setLayoutMap(newLayoutMap);
-
-      // Update schema positions
       const updatedWidgets = prevSchema.widgets.map(widget => {
         const layout = newLayoutMap[widget.id];
         if (layout) {
@@ -499,6 +492,9 @@ export function DashboardRenderer({
         }
         return widget;
       });
+
+      // Defer layoutMap update to avoid calling setState inside setState updater
+      queueMicrotask(() => setLayoutMap(newLayoutMap));
 
       return { ...prevSchema, widgets: updatedWidgets };
     });
@@ -628,20 +624,22 @@ export function DashboardRenderer({
     }
   }, [editMode, handleAutoArrange]);
 
-  // Refine existing dashboard
-  const refineDashboard = useCallback(async (query: string) => {
-    if (!schema) return;
-
+  // Internal refine function - processes one refinement at a time
+  const processRefinement = useCallback(async (query: string) => {
     setIsRefining(true);
+    isRefiningRef.current = true;
     setError(null);
     setRefinementMessage(null);
 
     try {
+      const currentSchema = schema;
+      if (!currentSchema) return;
+
       const response = await fetch('/api/v1/dashboard/refine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          dashboard_id: schema.id,
+          dashboard_id: currentSchema.id,
           refinement_query: query,
         }),
       });
@@ -649,30 +647,19 @@ export function DashboardRenderer({
       const data: DashboardRefinementResponse = await response.json();
 
       if (data.success && data.dashboard) {
-        // Check if changes were actually made
         const changesDescription = data.changes_made && data.changes_made.length > 0
           ? data.changes_made.join(', ')
           : null;
         
-        // Compare widget counts to detect if anything changed
-        const oldWidgetCount = schema.widgets.length;
+        const oldWidgetCount = currentSchema.widgets.length;
         const newWidgetCount = data.dashboard.widgets.length;
         const widgetCountChanged = oldWidgetCount !== newWidgetCount;
 
         setSchema(data.dashboard);
 
-        // Auto-arrange if not in edit mode to fill gaps cleanly
-        if (!editMode) {
-          // Use setTimeout to ensure schema is updated before auto-arrange runs
-          setTimeout(() => {
-            handleAutoArrange();
-          }, 50);
-        }
-
-        // Use pre-resolved widget data from backend if available
         const newWidgetData = data.widget_data && Object.keys(data.widget_data).length > 0
           ? data.widget_data
-          : widgetData;  // Keep existing widget data if no new data
+          : widgetData;
 
         if (data.widget_data && Object.keys(data.widget_data).length > 0) {
           setWidgetData(data.widget_data);
@@ -680,16 +667,13 @@ export function DashboardRenderer({
           fetchWidgetData(data.dashboard);
         }
 
-        // Notify parent with both schema and widget data for state synchronization
         onRefinement?.(data.dashboard, newWidgetData);
 
-        // Clear any existing message timeout
         if (refinementTimeoutRef.current) {
           clearTimeout(refinementTimeoutRef.current);
           refinementTimeoutRef.current = null;
         }
 
-        // Show appropriate message based on what actually changed
         const widgetsAdded = newWidgetCount > oldWidgetCount;
         const widgetsRemoved = newWidgetCount < oldWidgetCount;
 
@@ -704,7 +688,6 @@ export function DashboardRenderer({
         } else if (widgetCountChanged) {
           setRefinementMessage(`Dashboard updated (${newWidgetCount} widgets)`);
         } else {
-          // No visible changes - log to data gaps instead of showing confusing message
           try {
             fetch('/api/v1/rag/learning/log', {
               method: 'POST',
@@ -719,11 +702,9 @@ export function DashboardRenderer({
           } catch {
             // Ignore logging errors
           }
-          // Don't show a message - silent fail is better than confusing user
           setRefinementMessage(null);
         }
 
-        // Clear message after 4 seconds (if one was set)
         refinementTimeoutRef.current = setTimeout(() => setRefinementMessage(null), 4000);
       } else {
         setError(data.error || 'Failed to refine dashboard');
@@ -732,9 +713,36 @@ export function DashboardRenderer({
       setError(err instanceof Error ? err.message : 'Failed to refine dashboard');
     } finally {
       setIsRefining(false);
+      isRefiningRef.current = false;
       setRefinementQuery('');
     }
-  }, [schema, onRefinement, editMode, handleAutoArrange]);
+  }, [schema, onRefinement]);
+
+  // Process the refinement queue sequentially
+  const processQueue = useCallback(async () => {
+    while (refineQueueRef.current.length > 0) {
+      const nextQuery = refineQueueRef.current.shift()!;
+      await processRefinement(nextQuery);
+      // Small delay to let React state settle before next refinement
+      await new Promise(r => setTimeout(r, 100));
+    }
+    // Auto-arrange once after all queued refinements complete
+    if (!editMode) {
+      handleAutoArrange();
+    }
+  }, [processRefinement, editMode, handleAutoArrange]);
+
+  // Refine existing dashboard - queues requests to prevent concurrent modifications
+  const refineDashboard = useCallback(async (query: string) => {
+    if (!schema) return;
+
+    refineQueueRef.current.push(query);
+
+    // Only start processing if not already refining
+    if (!isRefiningRef.current) {
+      processQueue();
+    }
+  }, [schema, processQueue]);
 
   // Fetch data for all widgets (uses pre-resolved data if available, otherwise mock)
   const fetchWidgetData = useCallback(async (
@@ -1108,38 +1116,40 @@ export function DashboardRenderer({
 
       {/* Dashboard Grid with Drag-and-Drop */}
       {schema && !loading && (
-        <div className="flex-1 overflow-auto p-6" ref={containerRef}>
-          {/* @ts-ignore - Type mismatch between react-grid-layout versions */}
-          <GridLayout
-            className="layout"
-            layout={gridLayout}
-            cols={schema.layout.columns}
-            rowHeight={rowHeight}
-            width={containerWidth}
-            onLayoutChange={handleLayoutChange as any}
-            isDraggable={editMode}
-            isResizable={editMode}
-            margin={[schema.layout.gap, schema.layout.gap]}
-            containerPadding={[0, 0]}
-            compactType="vertical"
-            preventCollision={false}
-          >
-            {schema.widgets.map(widget => (
-              <div
-                key={widget.id}
-                className="h-full"
-              >
-                <WidgetRenderer
-                  widget={widget}
-                  data={widgetData[widget.id] || { loading: true }}
-                  onClick={editMode ? undefined : (value) => handleWidgetClick(widget, value)}
-                  onDoubleClick={editMode ? undefined : handleKPIDoubleClick}
-                  rowHeight={rowHeight}
-                />
-              </div>
-            ))}
-          </GridLayout>
-        </div>
+        <DashboardErrorBoundary onReset={handleReset}>
+          <div className="flex-1 overflow-auto p-6" ref={containerRef}>
+            {/* @ts-ignore - Type mismatch between react-grid-layout versions */}
+            <GridLayout
+              className="layout"
+              layout={gridLayout}
+              cols={schema.layout.columns}
+              rowHeight={rowHeight}
+              width={containerWidth}
+              onLayoutChange={handleLayoutChange as any}
+              isDraggable={editMode}
+              isResizable={editMode}
+              margin={[schema.layout.gap, schema.layout.gap]}
+              containerPadding={[0, 0]}
+              compactType="vertical"
+              preventCollision={false}
+            >
+              {schema.widgets.map(widget => (
+                <div
+                  key={widget.id}
+                  className="h-full"
+                >
+                  <WidgetRenderer
+                    widget={widget}
+                    data={widgetData[widget.id] || { loading: true }}
+                    onClick={editMode ? undefined : (value) => handleWidgetClick(widget, value)}
+                    onDoubleClick={editMode ? undefined : handleKPIDoubleClick}
+                    rowHeight={rowHeight}
+                  />
+                </div>
+              ))}
+            </GridLayout>
+          </div>
+        </DashboardErrorBoundary>
       )}
 
       {/* Empty State - Initial Query Input */}
