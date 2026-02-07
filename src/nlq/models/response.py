@@ -103,6 +103,22 @@ class IntentNode(BaseModel):
         description="Semantic classification (e.g., 'Exact Match', 'Likely')"
     )
 
+    # Provenance (DCL integration)
+    source_system: Optional[str] = Field(
+        default=None,
+        description="Source system name (e.g., 'Salesforce CRM', 'SAP ERP')"
+    )
+
+    # Conflict indicator (DCL integration)
+    has_conflict: Optional[bool] = Field(
+        default=None,
+        description="Whether this metric has conflicting values across systems"
+    )
+    conflict_details: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Conflict details: systems, values, delta, root cause"
+    )
+
 
 class IntentMapResponse(BaseModel):
     """Full response for Galaxy visualization."""
@@ -183,6 +199,38 @@ class IntentMapResponse(BaseModel):
     debug_info: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Debug information showing all decisions made during dashboard generation (only in strict mode)"
+    )
+
+    # Entity resolution fields (DCL integration)
+    entity: Optional[str] = Field(
+        default=None,
+        description="Resolved entity name"
+    )
+    entity_id: Optional[str] = Field(
+        default=None,
+        description="DCL global entity ID"
+    )
+    entity_resolution: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Entity resolution details"
+    )
+
+    # Provenance (DCL integration)
+    provenance: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Data provenance for the primary metric"
+    )
+
+    # Conflicts (DCL integration)
+    conflicts: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Data conflicts for this query"
+    )
+
+    # Temporal warnings (DCL integration)
+    temporal_warning: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Warning if comparison crosses definition change"
     )
 
     model_config = ConfigDict(
@@ -361,6 +409,44 @@ class NLQResponse(BaseModel):
     debug_info: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Debug information showing all decisions made during dashboard generation (only in strict mode)"
+    )
+
+    # Entity resolution fields (DCL integration)
+    entity: Optional[str] = Field(
+        default=None,
+        description="Resolved entity name (e.g., 'Acme Corp')"
+    )
+    entity_id: Optional[str] = Field(
+        default=None,
+        description="DCL global entity ID"
+    )
+    entity_resolution: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Entity resolution details: matched systems, confidence, candidates"
+    )
+
+    # Provenance fields (DCL integration)
+    provenance: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Data provenance: source system, table, field, freshness, trust score"
+    )
+
+    # Conflict fields (DCL integration)
+    conflicts: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Data conflicts between systems for this metric/entity"
+    )
+
+    # Temporal warning fields (DCL integration)
+    temporal_warning: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Warning when comparison crosses a definition change boundary"
+    )
+
+    # Persona context
+    persona: Optional[str] = Field(
+        default=None,
+        description="Detected persona (CFO, CRO, COO, etc.)"
     )
 
     model_config = ConfigDict(

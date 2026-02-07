@@ -1,0 +1,573 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "description": "Entity resolution and conflict detection test data for DCL Deep",
+    "created": "2026-02-07",
+    "spec_version": "v3"
+  },
+
+  "entities": {
+    "companies": [
+      {
+        "canonical_name": "Acme Corp",
+        "dcl_global_id": "ent_acme_001",
+        "source_records": [
+          {
+            "source_system": "salesforce_crm",
+            "source_system_id": "sf_001",
+            "source_record_id": "0015000000A1B2C3",
+            "name_in_source": "Acme Corp",
+            "fields": {
+              "revenue": 45000000,
+              "industry": "Technology",
+              "employees": 1200,
+              "address": "123 Main St, San Francisco, CA",
+              "last_updated": "2026-01-15T10:30:00Z"
+            }
+          },
+          {
+            "source_system": "sap_erp",
+            "source_system_id": "sap_001",
+            "source_record_id": "KUNNR_10042",
+            "name_in_source": "ACME CORPORATION",
+            "fields": {
+              "revenue": 42800000,
+              "industry": "Tech/Software",
+              "employees": 1185,
+              "address": "123 Main Street, San Francisco, California",
+              "last_updated": "2026-01-10T08:00:00Z"
+            }
+          },
+          {
+            "source_system": "netsuite_erp",
+            "source_system_id": "ns_001",
+            "source_record_id": "CUST-7891",
+            "name_in_source": "Acme Corporation Inc.",
+            "fields": {
+              "revenue": 45000000,
+              "industry": "Technology",
+              "employees": 1200,
+              "address": "123 Main St, San Francisco, CA 94105",
+              "last_updated": "2026-01-20T14:00:00Z"
+            }
+          }
+        ],
+        "match_keys": {
+          "deterministic": ["domain:acmecorp.com", "ein:12-3456789"],
+          "fuzzy": {
+            "name_variants": ["Acme Corp", "ACME CORPORATION", "Acme Corporation Inc."],
+            "confidence": 0.96
+          }
+        }
+      },
+      {
+        "canonical_name": "Globex Corp",
+        "dcl_global_id": "ent_globex_002",
+        "source_records": [
+          {
+            "source_system": "salesforce_crm",
+            "source_system_id": "sf_001",
+            "source_record_id": "0015000000D4E5F6",
+            "name_in_source": "Globex Corp",
+            "fields": {
+              "revenue": 28000000,
+              "industry": "Manufacturing",
+              "employees": 850,
+              "pipeline": 12500000,
+              "last_updated": "2026-01-18T09:00:00Z"
+            }
+          },
+          {
+            "source_system": "hubspot_crm",
+            "source_system_id": "hs_001",
+            "source_record_id": "HS-COMP-445566",
+            "name_in_source": "Globex Corporation",
+            "fields": {
+              "revenue": 28000000,
+              "industry": "Manufacturing & Industrial",
+              "employees": 840,
+              "pipeline": 12500000,
+              "last_updated": "2026-01-17T11:00:00Z"
+            }
+          }
+        ],
+        "match_keys": {
+          "deterministic": ["domain:globexcorp.com"],
+          "fuzzy": {
+            "name_variants": ["Globex Corp", "Globex Corporation"],
+            "confidence": 0.94
+          }
+        }
+      },
+      {
+        "canonical_name": "Initech",
+        "dcl_global_id": "ent_initech_003",
+        "source_records": [
+          {
+            "source_system": "salesforce_crm",
+            "source_system_id": "sf_001",
+            "source_record_id": "0015000000G7H8I9",
+            "name_in_source": "Initech",
+            "fields": {
+              "revenue": 15000000,
+              "industry": "Consulting",
+              "employees": 420,
+              "last_updated": "2026-01-12T16:00:00Z"
+            }
+          },
+          {
+            "source_system": "sap_erp",
+            "source_system_id": "sap_001",
+            "source_record_id": "KUNNR_20088",
+            "name_in_source": "Initech LLC",
+            "fields": {
+              "revenue": 15200000,
+              "industry": "Professional Services",
+              "employees": 425,
+              "last_updated": "2026-01-05T07:30:00Z"
+            }
+          }
+        ],
+        "match_keys": {
+          "deterministic": ["domain:initech.com"],
+          "fuzzy": {
+            "name_variants": ["Initech", "Initech LLC"],
+            "confidence": 0.92
+          }
+        }
+      },
+      {
+        "canonical_name": "Massive Dynamic",
+        "dcl_global_id": "ent_massive_004",
+        "source_records": [
+          {
+            "source_system": "salesforce_crm",
+            "source_system_id": "sf_001",
+            "source_record_id": "0015000000J1K2L3",
+            "name_in_source": "Massive Dynamic",
+            "fields": {
+              "revenue": 120000000,
+              "industry": "Conglomerate",
+              "employees": 5000,
+              "last_updated": "2026-01-22T13:00:00Z"
+            }
+          },
+          {
+            "source_system": "sap_erp",
+            "source_system_id": "sap_001",
+            "source_record_id": "KUNNR_30099",
+            "name_in_source": "MASSIVE DYNAMIC INC",
+            "fields": {
+              "revenue": 118500000,
+              "industry": "Diversified Holdings",
+              "employees": 4980,
+              "last_updated": "2026-01-08T10:00:00Z"
+            }
+          },
+          {
+            "source_system": "netsuite_erp",
+            "source_system_id": "ns_001",
+            "source_record_id": "CUST-3344",
+            "name_in_source": "Massive Dynamic, Inc.",
+            "fields": {
+              "revenue": 120000000,
+              "industry": "Conglomerate",
+              "employees": 5000,
+              "last_updated": "2026-01-21T09:30:00Z"
+            }
+          }
+        ],
+        "match_keys": {
+          "deterministic": ["domain:massivedynamic.com", "ein:98-7654321"],
+          "fuzzy": {
+            "name_variants": ["Massive Dynamic", "MASSIVE DYNAMIC INC", "Massive Dynamic, Inc."],
+            "confidence": 0.97
+          }
+        }
+      }
+    ],
+
+    "non_matches": [
+      {
+        "entity_a": {
+          "name": "Acme Corp",
+          "source_system": "salesforce_crm",
+          "industry": "Technology"
+        },
+        "entity_b": {
+          "name": "Acme Foods Ltd",
+          "source_system": "sap_erp",
+          "industry": "Food & Beverage"
+        },
+        "reason": "Different industries, different domains (acmecorp.com vs acmefoods.co.uk), different EINs",
+        "should_match": false,
+        "confidence_not_match": 0.98
+      },
+      {
+        "entity_a": {
+          "name": "Alpha Technologies",
+          "source_system": "salesforce_crm",
+          "industry": "Technology"
+        },
+        "entity_b": {
+          "name": "Alpha Labs",
+          "source_system": "hubspot_crm",
+          "industry": "Biotech"
+        },
+        "reason": "Different industries, different domains, similar name prefix but distinct companies",
+        "should_match": false,
+        "confidence_not_match": 0.95
+      }
+    ],
+
+    "ambiguous_entities": [
+      {
+        "search_term": "Alpha",
+        "candidates": [
+          {
+            "name": "Alpha Technologies",
+            "dcl_global_id": "ent_alphatech_010",
+            "source_system": "salesforce_crm",
+            "confidence": 0.75
+          },
+          {
+            "name": "Alpha Labs",
+            "dcl_global_id": "ent_alphalabs_011",
+            "source_system": "hubspot_crm",
+            "confidence": 0.72
+          }
+        ]
+      }
+    ]
+  },
+
+  "conflicts": [
+    {
+      "id": "conflict_001",
+      "entity": "Acme Corp",
+      "entity_id": "ent_acme_001",
+      "metric": "revenue",
+      "severity": "CRITICAL",
+      "systems": {
+        "salesforce_crm": {
+          "value": 45000000,
+          "formatted": "$45.0M",
+          "last_updated": "2026-01-15T10:30:00Z",
+          "trust_score": 0.85,
+          "is_sor": false
+        },
+        "sap_erp": {
+          "value": 42800000,
+          "formatted": "$42.8M",
+          "last_updated": "2026-01-10T08:00:00Z",
+          "trust_score": 0.92,
+          "is_sor": true
+        }
+      },
+      "delta": {
+        "absolute": 2200000,
+        "formatted": "$2.2M",
+        "percentage": 5.14
+      },
+      "root_cause": {
+        "type": "timing",
+        "explanation": "SAP ERP recognizes revenue on invoice date; Salesforce CRM records it at deal close. The $2.2M gap represents deals closed in CRM but not yet invoiced in ERP.",
+        "recommendation": "Trust ERP (SAP) for recognized revenue. CRM figure includes unbilled deals."
+      },
+      "trust_recommendation": {
+        "winner": "sap_erp",
+        "reason": "SAP is the system of record for financial data. Revenue recognition follows GAAP standards in ERP.",
+        "confidence": 0.92
+      },
+      "status": "open",
+      "detected_at": "2026-01-20T00:00:00Z"
+    },
+    {
+      "id": "conflict_002",
+      "entity": "Massive Dynamic",
+      "entity_id": "ent_massive_004",
+      "metric": "revenue",
+      "severity": "HIGH",
+      "systems": {
+        "salesforce_crm": {
+          "value": 120000000,
+          "formatted": "$120.0M",
+          "last_updated": "2026-01-22T13:00:00Z",
+          "trust_score": 0.80,
+          "is_sor": false
+        },
+        "sap_erp": {
+          "value": 118500000,
+          "formatted": "$118.5M",
+          "last_updated": "2026-01-08T10:00:00Z",
+          "trust_score": 0.90,
+          "is_sor": true
+        }
+      },
+      "delta": {
+        "absolute": 1500000,
+        "formatted": "$1.5M",
+        "percentage": 1.27
+      },
+      "root_cause": {
+        "type": "scope",
+        "explanation": "CRM includes revenue from a recently acquired subsidiary not yet integrated into SAP. The $1.5M delta represents the subsidiary's contribution.",
+        "recommendation": "Trust SAP for core business revenue. Add subsidiary data once SAP integration completes."
+      },
+      "trust_recommendation": {
+        "winner": "sap_erp",
+        "reason": "SAP is authoritative for recognized revenue. CRM scope is broader but includes unverified subsidiary data.",
+        "confidence": 0.88
+      },
+      "status": "open",
+      "detected_at": "2026-01-22T00:00:00Z"
+    },
+    {
+      "id": "conflict_003",
+      "entity": "Initech",
+      "entity_id": "ent_initech_003",
+      "metric": "employees",
+      "severity": "LOW",
+      "systems": {
+        "salesforce_crm": {
+          "value": 420,
+          "formatted": "420",
+          "last_updated": "2026-01-12T16:00:00Z",
+          "trust_score": 0.60,
+          "is_sor": false
+        },
+        "sap_erp": {
+          "value": 425,
+          "formatted": "425",
+          "last_updated": "2026-01-05T07:30:00Z",
+          "trust_score": 0.70,
+          "is_sor": false
+        }
+      },
+      "delta": {
+        "absolute": 5,
+        "formatted": "5",
+        "percentage": 1.19
+      },
+      "root_cause": {
+        "type": "stale_data",
+        "explanation": "SAP data is 7 days older than CRM. The 5-person difference likely reflects recent hires recorded in CRM but not yet in SAP HR module.",
+        "recommendation": "Trust the more recent source (CRM, updated Jan 12) for headcount."
+      },
+      "trust_recommendation": {
+        "winner": "salesforce_crm",
+        "reason": "CRM has more recent data. For non-financial metrics like headcount, freshness matters more than SOR designation.",
+        "confidence": 0.75
+      },
+      "status": "open",
+      "detected_at": "2026-01-15T00:00:00Z"
+    }
+  ],
+
+  "no_conflict_control": {
+    "entity": "Globex Corp",
+    "entity_id": "ent_globex_002",
+    "metric": "revenue",
+    "systems": {
+      "salesforce_crm": {
+        "value": 28000000,
+        "formatted": "$28.0M",
+        "last_updated": "2026-01-18T09:00:00Z"
+      },
+      "hubspot_crm": {
+        "value": 28000000,
+        "formatted": "$28.0M",
+        "last_updated": "2026-01-17T11:00:00Z"
+      }
+    },
+    "has_conflict": false,
+    "note": "Both systems agree. No conflict detected."
+  },
+
+  "temporal_versioning": {
+    "definition_changes": [
+      {
+        "concept": "revenue",
+        "change_date": "2025-03-01",
+        "changed_by": "CFO Office",
+        "reason": "Adopted ASC 606 recognition standard",
+        "old_definition": "Revenue recognized at point of sale (cash basis)",
+        "new_definition": "Revenue recognized when performance obligations are satisfied (accrual basis, ASC 606)",
+        "affected_periods": {
+          "before": "All periods before 2025-Q1",
+          "after": "2025-Q1 and later",
+          "note": "Year-over-year comparisons crossing March 2025 are NOT apples-to-apples"
+        }
+      },
+      {
+        "concept": "customers",
+        "change_date": "2025-06-01",
+        "changed_by": "CRO Office",
+        "reason": "Broadened customer definition to include partner-referred accounts",
+        "old_definition": "Active accounts with direct contract and >$0 ARR",
+        "new_definition": "Active accounts with direct OR partner-referred contract and >$0 ARR",
+        "affected_periods": {
+          "before": "All periods before 2025-Q2",
+          "after": "2025-Q2 and later",
+          "note": "Customer count increased ~15% overnight due to inclusion of partner accounts"
+        }
+      }
+    ]
+  },
+
+  "persona_contextual_definitions": {
+    "customers": {
+      "metric_id": "customers",
+      "definitions": [
+        {
+          "persona": "CFO",
+          "value": 2400,
+          "definition": "Active accounts with signed contract and recognized revenue in last 12 months",
+          "rationale": "CFO counts only revenue-generating accounts for financial reporting"
+        },
+        {
+          "persona": "CRO",
+          "value": 8100,
+          "definition": "All accounts in CRM with any engagement in last 12 months (including trials, freemium, prospects with meetings)",
+          "rationale": "CRO tracks full pipeline including pre-revenue accounts for growth planning"
+        },
+        {
+          "persona": "COO",
+          "value": 3200,
+          "definition": "Active accounts consuming product resources (API calls, storage, support tickets) in last 90 days",
+          "rationale": "COO measures operational load from accounts actually using the product"
+        }
+      ],
+      "note": "Same question ('How many customers?'), three correct answers depending on who asks"
+    }
+  },
+
+  "provenance": {
+    "revenue": {
+      "metric_id": "revenue",
+      "lineage": [
+        {
+          "source_system": "sap_erp",
+          "source_table": "BSEG",
+          "source_field": "DMBTR",
+          "transformation": "Aggregate by fiscal period, convert from EUR to USD at month-end rate",
+          "is_system_of_record": true,
+          "trust_score": 0.92,
+          "freshness": "daily",
+          "last_refreshed": "2026-02-07T06:00:00Z"
+        },
+        {
+          "source_system": "salesforce_crm",
+          "source_table": "Opportunity",
+          "source_field": "Amount",
+          "transformation": "Sum of closed-won opportunities by close date",
+          "is_system_of_record": false,
+          "trust_score": 0.85,
+          "freshness": "real-time",
+          "last_refreshed": "2026-02-07T10:30:00Z"
+        },
+        {
+          "source_system": "netsuite_erp",
+          "source_table": "Transaction",
+          "source_field": "amount",
+          "transformation": "Sum of invoice transactions by accounting period",
+          "is_system_of_record": false,
+          "trust_score": 0.88,
+          "freshness": "daily",
+          "last_refreshed": "2026-02-07T05:00:00Z"
+        }
+      ]
+    },
+    "pipeline": {
+      "metric_id": "pipeline",
+      "lineage": [
+        {
+          "source_system": "salesforce_crm",
+          "source_table": "Opportunity",
+          "source_field": "Amount",
+          "transformation": "Sum of open opportunities weighted by stage probability",
+          "is_system_of_record": true,
+          "trust_score": 0.90,
+          "freshness": "real-time",
+          "last_refreshed": "2026-02-07T10:30:00Z"
+        }
+      ]
+    },
+    "customers": {
+      "metric_id": "customers",
+      "lineage": [
+        {
+          "source_system": "salesforce_crm",
+          "source_table": "Account",
+          "source_field": "Type",
+          "transformation": "Count of accounts where Type='Customer' and last activity within 12 months",
+          "is_system_of_record": true,
+          "trust_score": 0.88,
+          "freshness": "real-time",
+          "last_refreshed": "2026-02-07T10:30:00Z"
+        }
+      ]
+    }
+  },
+
+  "golden_records": {
+    "ent_acme_001": {
+      "dcl_global_id": "ent_acme_001",
+      "canonical_name": "Acme Corp",
+      "fields": {
+        "name": {
+          "value": "Acme Corp",
+          "source": "salesforce_crm",
+          "reason": "CRM is SOR for account names"
+        },
+        "revenue": {
+          "value": 42800000,
+          "source": "sap_erp",
+          "reason": "ERP is SOR for financial data (GAAP-compliant)"
+        },
+        "industry": {
+          "value": "Technology",
+          "source": "salesforce_crm",
+          "reason": "CRM has most granular industry classification"
+        },
+        "employees": {
+          "value": 1200,
+          "source": "netsuite_erp",
+          "reason": "Most recently updated source (Jan 20)"
+        },
+        "address": {
+          "value": "123 Main St, San Francisco, CA 94105",
+          "source": "netsuite_erp",
+          "reason": "Most complete address with ZIP code"
+        }
+      }
+    }
+  },
+
+  "source_of_record_tags": {
+    "salesforce_crm": {
+      "sor_for": ["account_name", "pipeline", "opportunity", "contacts"],
+      "trust_score": 0.85,
+      "quality_score": 0.82,
+      "is_primary": false
+    },
+    "sap_erp": {
+      "sor_for": ["revenue", "cost", "financial_data", "invoices"],
+      "trust_score": 0.92,
+      "quality_score": 0.90,
+      "is_primary": true
+    },
+    "netsuite_erp": {
+      "sor_for": ["inventory", "procurement"],
+      "trust_score": 0.88,
+      "quality_score": 0.85,
+      "is_primary": false
+    },
+    "hubspot_crm": {
+      "sor_for": ["marketing_contacts", "campaigns"],
+      "trust_score": 0.78,
+      "quality_score": 0.75,
+      "is_primary": false
+    }
+  }
+}

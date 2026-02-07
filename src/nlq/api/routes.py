@@ -48,6 +48,7 @@ from src.nlq.core.personality import (
 from src.nlq.services.llm_call_counter import get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
 from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
+from src.nlq.services.dcl_enrichment import enrich_response as dcl_enrich_response
 from src.nlq.services.insufficient_data_tracker import get_insufficient_data_tracker, CONFIDENCE_THRESHOLD
 
 # Dashboard generation imports
@@ -3132,6 +3133,23 @@ async def query(request: NLQRequest) -> NLQResponse:
         unit = get_metric_unit(parsed.metric)
         answer, formatted_value = _format_answer(parsed, result, unit)
 
+        # =================================================================
+        # DCL ENRICHMENT — entity resolution, provenance, conflicts, temporal
+        # =================================================================
+        dcl_data = {}
+        try:
+            is_comparison = parsed.intent == QueryIntent.COMPARISON_QUERY
+            dcl_data = dcl_enrich_response(
+                metric=parsed.metric,
+                entity=getattr(parsed, 'entity', None),
+                persona=detect_persona_from_metric(parsed.metric) or detect_persona_from_question(request.question),
+                start_period=parsed.resolved_period,
+                end_period=parsed.comparison_period if is_comparison else None,
+                is_comparison=is_comparison,
+            )
+        except Exception as e:
+            logger.debug(f"DCL enrichment skipped: {e}")
+
         response = NLQResponse(
             success=True,
             answer=answer,
@@ -3141,6 +3159,13 @@ async def query(request: NLQRequest) -> NLQResponse:
             parsed_intent=parsed.intent.value,
             resolved_metric=parsed.metric,
             resolved_period=parsed.resolved_period,
+            entity=dcl_data.get("entity_name"),
+            entity_id=dcl_data.get("entity_id"),
+            entity_resolution=dcl_data.get("entity_resolution"),
+            provenance=dcl_data.get("provenance"),
+            conflicts=dcl_data.get("conflicts"),
+            temporal_warning=dcl_data.get("temporal_warning"),
+            persona=dcl_data.get("persona_value", {}).get("persona") if dcl_data.get("persona_value") else None,
         )
         # Track if confidence is below threshold
         return _track_insufficient_data_if_needed(response, request.question, session_id)
@@ -3618,6 +3643,38 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         # Get primary node
         primary_node_id = nodes[0].id if nodes else None
 
+        # =================================================================
+        # DCL ENRICHMENT — entity resolution, provenance, conflicts, temporal
+        # =================================================================
+        dcl_data = {}
+        try:
+            is_comparison = parsed.intent == QueryIntent.COMPARISON_QUERY
+            dcl_data = dcl_enrich_response(
+                metric=parsed.metric,
+                entity=getattr(parsed, 'entity', None),
+                persona=detect_persona_from_metric(parsed.metric) or detect_persona_from_question(request.question),
+                start_period=parsed.resolved_period,
+                end_period=parsed.comparison_period if is_comparison else None,
+                is_comparison=is_comparison,
+            )
+        except Exception as e:
+            logger.debug(f"Galaxy DCL enrichment skipped: {e}")
+
+        # Annotate nodes with source_system and conflict info from DCL
+        if dcl_data.get("conflicts"):
+            for node in nodes:
+                for conflict in dcl_data["conflicts"]:
+                    if conflict.get("metric") == node.metric:
+                        node.has_conflict = True
+                        node.conflict_details = conflict.get("root_cause", {}).get("explanation")
+                        break
+        if dcl_data.get("provenance"):
+            lineage = dcl_data["provenance"].get("lineage", [])
+            sor = next((l for l in lineage if l.get("is_system_of_record")), None)
+            if sor:
+                for node in nodes:
+                    node.source_system = sor.get("source_system")
+
         response = IntentMapResponse(
             query=request.question,
             query_type=parsed.intent.value,
@@ -3632,6 +3689,12 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
             text_response=text_response,
             needs_clarification=False,
             clarification_prompt=None,
+            entity=dcl_data.get("entity_name"),
+            entity_id=dcl_data.get("entity_id"),
+            entity_resolution=dcl_data.get("entity_resolution"),
+            provenance=dcl_data.get("provenance"),
+            conflicts=dcl_data.get("conflicts"),
+            temporal_warning=dcl_data.get("temporal_warning"),
         )
         # Track if confidence is below threshold
         return _track_intent_map_if_needed(response, request.question, session_id)

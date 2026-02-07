@@ -83,6 +83,20 @@ class QueryParser:
         except ValueError:
             period_type = PeriodType.ANNUAL
 
+        # Extract entity if present
+        entity = raw_parse.get("entity")
+        if entity and isinstance(entity, str):
+            entity = entity.strip()
+            if not entity:
+                entity = None
+
+        # Extract dimension if present
+        dimension = raw_parse.get("dimension")
+        if dimension and isinstance(dimension, str):
+            dimension = dimension.strip()
+            if not dimension:
+                dimension = None
+
         return ParsedQuery(
             intent=intent,
             metric=normalized_metric,
@@ -94,6 +108,8 @@ class QueryParser:
             aggregation_type=raw_parse.get("aggregation_type"),
             aggregation_periods=normalized_agg_periods,
             breakdown_metrics=normalized_breakdown,
+            entity=entity,
+            dimension=dimension,
         )
 
     def parse_without_llm(self, question: str) -> Optional[ParsedQuery]:

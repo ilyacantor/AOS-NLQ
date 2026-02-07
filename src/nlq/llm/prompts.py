@@ -14,6 +14,17 @@ Given a natural language question about financial data, extract:
 4. period_reference: The primary period (e.g., "2024", "Q4 2025", "last_year")
 5. is_relative: Boolean - does this use relative time references?
 6. comparison_period: (For COMPARISON_QUERY only) The second period to compare against
+7. entity: (Optional) Company or customer name mentioned in the query. Extract if the question is about a specific company/entity.
+8. dimension: (Optional) Dimension for breakdowns (e.g., "region", "segment", "product")
+
+Entity extraction rules:
+- Look for company/customer names in possessive form: "Acme's revenue" → entity="Acme"
+- Look for "for" pattern: "revenue for Acme Corp" → entity="Acme Corp"
+- Look for multi-word entities: "Globex Corp's pipeline" → entity="Globex Corp"
+- If entity name looks like a metric name (e.g., "Revenue Corp"), extract it as entity, not metric
+- If no specific company/entity is mentioned, set entity to null
+- Do NOT hallucinate entities — only extract what is explicitly mentioned
+- "our revenue" or "total revenue" → entity=null (no specific entity)
 
 Intent definitions:
 - POINT_QUERY: Single metric, single period (e.g., "What was revenue in 2024?")
@@ -81,7 +92,9 @@ Respond ONLY with valid JSON, no markdown, no explanation:
   "comparison_period": "..." (only for COMPARISON_QUERY),
   "aggregation_type": "..." (only for AGGREGATION_QUERY: "sum" or "average"),
   "aggregation_periods": [...] (only for AGGREGATION_QUERY),
-  "breakdown_metrics": [...] (only for BREAKDOWN_QUERY)
+  "breakdown_metrics": [...] (only for BREAKDOWN_QUERY),
+  "entity": "..." or null (company/customer name if mentioned),
+  "dimension": "..." or null (breakdown dimension if mentioned)
 }"""
 
 

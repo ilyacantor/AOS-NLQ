@@ -132,3 +132,14 @@ class ParsedQuery(BaseModel):
         default=None,
         description="Original metric term before normalization"
     )
+
+    # Entity extraction (DCL integration)
+    entity: Optional[str] = Field(
+        default=None,
+        description="Company/customer entity name extracted from query (e.g., 'Acme Corp')"
+    )
+
+    dimension: Optional[str] = Field(
+        default=None,
+        description="Breakdown dimension extracted from query (e.g., 'region', 'segment')"
+    )
