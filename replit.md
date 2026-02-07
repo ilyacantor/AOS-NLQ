@@ -167,6 +167,12 @@ When Supabase credentials are not configured:
 
 ---
 
+## Recent Changes (2026-02-07)
+- **Fixed KPI triple-click blank screen bug**: Added concurrency guard to `refineDashboard` — KPI clicks now queue and process sequentially instead of firing concurrent requests
+- **Fixed nested setState anti-pattern**: Moved `setLayoutMap` out of `setSchema` updater in `handleAutoArrange` using `queueMicrotask` to prevent layout/schema mismatch
+- **Added DashboardErrorBoundary**: React error boundary wraps the dashboard grid, showing a "Reload Dashboard" button instead of a blank screen on rendering errors
+- **Improved startup reliability**: Auto-query now waits up to 20 seconds for backend readiness before firing, preventing "Failed to connect to backend" errors
+
 ## Recent Changes (2026-02-01)
 - **Added API retry logic**: Frontend now retries failed API calls up to 3 times with increasing delays (500ms, 1000ms, 1500ms) to handle backend startup race conditions
 - **Fixed dimension pattern**: Added "by sales stage" to DIMENSION_PATTERNS so queries like "show pipeline by sales stage" work correctly
