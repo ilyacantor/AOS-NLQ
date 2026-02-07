@@ -205,6 +205,8 @@ export interface DashboardRefinementResponse {
   dashboard?: DashboardSchema;
   widget_data?: Record<string, WidgetData>;
   error?: string;
+  refinement_status?: 'applied' | 'noop' | 'error';
+  noop_reason?: string;
   changes_made: string[];
   confidence: number;
 }

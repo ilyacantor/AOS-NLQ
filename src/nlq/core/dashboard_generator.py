@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 from src.nlq.models.dashboard_schema import (
     AggregationType,
     ChartConfig,
+    ComparisonType,
     DashboardSchema,
     DataBinding,
     DimensionBinding,
@@ -620,7 +621,7 @@ def _generate_full_dashboard(
     # Primary metric trend chart - use first metric (which user explicitly requested)
     primary_metric = metrics[0]  # Safe - we already checked metrics is not empty above
     widgets.append(Widget(
-        id=f"{primary_metric}_trend",
+        id=f"trend_{primary_metric}",
         type=WidgetType.LINE_CHART,
         title=f"{get_display_name(primary_metric)} Trend",
         data=DataBinding(
@@ -696,7 +697,7 @@ def refine_dashboard_schema(
     current_schema: DashboardSchema,
     refinement_query: str,
     requirements: VisualizationRequirements,
-) -> DashboardSchema:
+) -> tuple[DashboardSchema, str, Optional[str]]:
     """
     Refine an existing dashboard schema based on a natural language refinement request.
 
@@ -849,7 +850,7 @@ def refine_dashboard_schema(
         # Add time comparison to existing widgets
         for widget in updated_schema.widgets:
             if widget.data.time:
-                widget.data.time.comparison = "prior_period"
+                widget.data.time.comparison = ComparisonType.PRIOR_PERIOD
 
     # Handle "add X by Y" or "show X by Y" - add a breakdown chart
     if (("add" in q or "show" in q) and " by " in q and requirements.metrics):
@@ -1025,27 +1026,21 @@ def refine_dashboard_schema(
                     kpi_config=KPIConfig(show_trend=True, show_sparkline=True),
                 ))
 
-    # Check if any changes were made
-    if len(updated_schema.widgets) == original_widget_count:
-        # No widgets added - check if any modifications were made
-        widgets_modified = any(
-            w1.model_dump() != w2.model_dump()
-            for w1, w2 in zip(current_schema.widgets, updated_schema.widgets)
+    # Determine refinement result status
+    widgets_added = len(updated_schema.widgets) > original_widget_count
+    widgets_removed = len(updated_schema.widgets) < original_widget_count
+    widgets_modified = any(
+        w1.model_dump() != w2.model_dump()
+        for w1, w2 in zip(current_schema.widgets, updated_schema.widgets[:original_widget_count])
+    ) if not widgets_added and not widgets_removed else False
+
+    if widgets_added or widgets_removed or widgets_modified:
+        updated_schema.version += 1
+        updated_schema.refinement_history.append(refinement_query)
+        return updated_schema, "applied", None
+    else:
+        logger.info(
+            f"[REFINEMENT_NO_OP] No changes for: '{refinement_query}'. "
+            f"Metrics: {requirements.metrics}, Intent: {requirements.intent}"
         )
-        if not widgets_modified:
-            logger.warning(
-                f"[REFINEMENT_NO_OP] No changes made for refinement query: '{refinement_query}'. "
-                f"Metrics requested: {requirements.metrics}, Intent: {requirements.intent}"
-            )
-            if is_strict_mode():
-                raise DashboardGenerationError(
-                    f"Unable to apply refinement: '{refinement_query}'. No matching refinement pattern found.",
-                    FailureCategory.REFINEMENT,
-                    suggestion=f"Try being more specific, e.g., 'Add {requirements.metrics[0] if requirements.metrics else 'revenue'} KPI card' or 'Show {requirements.metrics[0] if requirements.metrics else 'revenue'} trend'"
-                )
-
-    # Update version and history
-    updated_schema.version += 1
-    updated_schema.refinement_history.append(refinement_query)
-
-    return updated_schema
+        return updated_schema, "noop", f"No changes needed for '{refinement_query}'"

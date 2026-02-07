@@ -201,20 +201,28 @@ async def refine_dashboard(request: DashboardRefinementRequest) -> DashboardRefi
         # Detect intent from refinement query
         _, requirements = should_generate_visualization(request.refinement_query)
 
-        # Apply refinement
-        updated_dashboard = refine_dashboard_schema(
+        updated_dashboard, refinement_status, noop_reason = refine_dashboard_schema(
             current_schema=current_dashboard,
             refinement_query=request.refinement_query,
             requirements=requirements,
         )
 
-        # Update cache
         _dashboard_cache[updated_dashboard.id] = updated_dashboard
 
-        # Resolve widget data from fact base
-        widget_data = _resolve_widget_data(updated_dashboard)
+        if refinement_status == "noop":
+            logger.info(f"Refinement no-op for {updated_dashboard.id}: {noop_reason}")
+            return DashboardRefinementResponse(
+                success=True,
+                dashboard=updated_dashboard,
+                widget_data=_resolve_widget_data(updated_dashboard),
+                error=None,
+                refinement_status="noop",
+                noop_reason=noop_reason,
+                changes_made=[],
+                confidence=requirements.confidence,
+            )
 
-        # Determine what changed
+        widget_data = _resolve_widget_data(updated_dashboard)
         changes_made = _detect_changes(current_dashboard, updated_dashboard, request.refinement_query)
 
         logger.info(f"Refined dashboard {updated_dashboard.id}, changes: {changes_made}")
@@ -224,6 +232,7 @@ async def refine_dashboard(request: DashboardRefinementRequest) -> DashboardRefi
             dashboard=updated_dashboard,
             widget_data=widget_data,
             error=None,
+            refinement_status="applied",
             changes_made=changes_made,
             confidence=requirements.confidence,
         )
@@ -234,6 +243,7 @@ async def refine_dashboard(request: DashboardRefinementRequest) -> DashboardRefi
             success=False,
             dashboard=None,
             error=str(e),
+            refinement_status="error",
             changes_made=[],
             confidence=0.0,
         )
@@ -262,7 +272,7 @@ class DashboardFilterResponse(BaseModel):
     success: bool = Field(..., description="Whether filtering was successful")
     widget_data: dict = Field(..., description="Updated widget data with filters applied")
     active_filters: dict = Field(..., description="Currently active filters")
-    error: str = Field(default=None, description="Error message if any")
+    error: Optional[str] = Field(default=None, description="Error message if any")
 
 
 @router.post("/dashboard/filter", response_model=DashboardFilterResponse)

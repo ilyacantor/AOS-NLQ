@@ -377,7 +377,8 @@ class DashboardRefinementResponse(BaseModel):
     dashboard: Optional[DashboardSchema] = Field(default=None, description="Updated dashboard schema")
     widget_data: Optional[Dict[str, Any]] = Field(default=None, description="Pre-resolved widget data from fact base")
     error: Optional[str] = Field(default=None, description="Error message if failed")
+    refinement_status: str = Field(default="applied", description="Refinement outcome: applied, noop, or error")
+    noop_reason: Optional[str] = Field(default=None, description="Reason for no-op if status is noop")
 
-    # Change summary
     changes_made: List[str] = Field(default_factory=list, description="Summary of changes made")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Refinement confidence")
