@@ -300,8 +300,8 @@ export function ProductTour({
   const [stepIndex, setStepIndex] = useState(0)
   // "tryit" pauses the modals; user's next query submission resumes
   const [paused, setPaused] = useState(false)
-  // Track whether we're waiting for a view navigation to complete
-  const [pendingView, setPendingView] = useState<ViewMode | null>(null)
+  // Track previous stepIndex so we only navigate once per step change
+  const prevStepRef = useRef(-1)
 
   const step = STEPS[stepIndex]
 
@@ -310,7 +310,7 @@ export function ProductTour({
     if (visible) {
       setStepIndex(0)
       setPaused(false)
-      setPendingView(null)
+      prevStepRef.current = -1
     }
   }, [visible])
 
@@ -322,25 +322,19 @@ export function ProductTour({
     }
   }, [paused, querySubmitted])
 
-  // Navigate to the required view before showing the step
+  // Navigate to the required view ONCE when entering a new step
+  // Does NOT react to user tab switches — the modal stays visible regardless
   useEffect(() => {
     if (!visible || paused) return
+    if (stepIndex === prevStepRef.current) return
+    prevStepRef.current = stepIndex
 
     const requiredView = step?.requiredView
     if (requiredView && currentView !== requiredView) {
-      setPendingView(requiredView)
       onNavigate(requiredView)
-    } else {
-      setPendingView(null)
     }
-  }, [visible, paused, stepIndex, currentView, step?.requiredView, onNavigate])
-
-  // When the current view matches pendingView, clear the wait
-  useEffect(() => {
-    if (pendingView && currentView === pendingView) {
-      setPendingView(null)
-    }
-  }, [currentView, pendingView])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, paused, stepIndex])
 
   const advance = useCallback(() => {
     if (stepIndex < STEPS.length - 1) {
@@ -389,8 +383,6 @@ export function ProductTour({
   }, [step, advance, onDismiss, onFocusSearch, onNavigate])
 
   if (!visible || paused) return null
-  // Wait for view to switch before showing the modal
-  if (pendingView) return null
 
   return (
     <>
