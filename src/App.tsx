@@ -451,6 +451,25 @@ function App() {
     setShowLanding(true)
   }, [])
 
+  // Tour step-enter handler — runs actions when specific steps become active
+  const handleTourStepEnter = useCallback((stepIndex: number) => {
+    // Step 2 = Dashboard View → open persona dropdown and select CTO
+    if (stepIndex === 2) {
+      setTimeout(() => {
+        const select = document.getElementById('dashboard-persona-select') as HTMLSelectElement | null
+        if (select) {
+          // Briefly flash the dropdown open (native select) then change to CTO
+          select.focus()
+          select.size = select.options.length  // opens native dropdown list
+          setTimeout(() => {
+            select.size = 1  // collapse back
+            handlePersonaSelect('CTO' as Persona)
+          }, 1200)
+        }
+      }, 600)  // wait for dashboard view to mount
+    }
+  }, [handlePersonaSelect])
+
   // Public method to re-trigger tour (called from UserGuide)
   const startTour = useCallback(() => {
     setViewMode('galaxy')
@@ -872,6 +891,7 @@ function App() {
         onFocusSearch={handleTourFocusSearch}
         querySubmitted={tourQuerySubmitted}
         currentView={viewMode}
+        onStepEnter={handleTourStepEnter}
       />
     </div>
   )

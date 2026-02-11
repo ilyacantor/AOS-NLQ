@@ -453,6 +453,7 @@ export function DashboardRenderer({
               {personaOptions.length > 0 && (
                 <>
                   <select
+                    id="dashboard-persona-select"
                     value={persona || ''}
                     onChange={(e) => onPersonaChange?.(e.target.value)}
                     disabled={isGenerating}

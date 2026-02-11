@@ -45,6 +45,8 @@ interface ProductTourProps {
   querySubmitted: boolean
   /** Current view mode so we know when navigation has completed */
   currentView: ViewMode
+  /** Fires when a step becomes active — stepIndex is 0-based */
+  onStepEnter?: (stepIndex: number) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -72,7 +74,7 @@ const STEPS: TourStep[] = [
     title: 'Dashboard View',
     body: 'These are persona-based, self-generating, adjustable-on-the-fly dashboards driven by natural language prompts.\n\nThe drop-down is for selecting layouts pertinent to other personas.',
     primaryCTA: 'Next',
-    targetSelector: '#nav-tab-dashboard',
+    targetSelector: '#dashboard-persona-select',
     requiredView: 'dashboard',
     onPrimary: 'next',
   },
@@ -369,6 +371,7 @@ export function ProductTour({
   onFocusSearch,
   querySubmitted,
   currentView,
+  onStepEnter,
 }: ProductTourProps) {
   const [stepIndex, setStepIndex] = useState(0)
   // "tryit" pauses the modals; user's next query submission resumes
@@ -406,6 +409,9 @@ export function ProductTour({
     if (requiredView && currentView !== requiredView) {
       onNavigate(requiredView)
     }
+
+    // Notify parent so it can run step-specific actions (e.g. open dropdown)
+    onStepEnter?.(stepIndex)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, paused, stepIndex])
 
