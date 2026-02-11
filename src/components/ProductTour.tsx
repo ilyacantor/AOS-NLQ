@@ -438,8 +438,9 @@ export function ProductTour({
     const action = step.onPrimary || 'next'
     switch (action) {
       case 'tryit':
-        setPaused(true)
+        // Focus the search bar, then advance to next step
         onFocusSearch()
+        advance()
         break
       case 'next':
         advance()

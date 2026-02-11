@@ -47,6 +47,13 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const [nodeStates, setNodeStates] = useState<Map<string, NodeState>>(new Map());
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
 
+  // Auto-open left panel when query results arrive
+  useEffect(() => {
+    if (data && data.nodes && data.nodes.length > 0) {
+      setLeftPanelOpen(true);
+    }
+  }, [data]);
+
   // Track drag to differentiate from click
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
   const hasDragged = useRef(false);
