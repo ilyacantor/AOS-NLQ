@@ -96,7 +96,7 @@ const STEPS: TourStep[] = [
   },
   {
     title: 'Tour Complete',
-    body: 'Other key aspects: NLQ learns from every question, reducing and quickly eliminating the need for costly inference.\n\nSidebars contain History — easy to reuse prompts via one-click.',
+    body: 'Note: NLQ learns from every question, reducing and quickly eliminating the need for costly inference.\n\nSidebars contain History — easy to reuse prompts via one-click.',
     primaryCTA: 'Start Exploring',
     secondaryCTA: 'Open User Guide',
     targetSelector: '#nlq-search-input',

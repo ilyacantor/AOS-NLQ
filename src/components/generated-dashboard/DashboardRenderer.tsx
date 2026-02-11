@@ -66,6 +66,87 @@ interface DashboardRendererProps {
 }
 
 // =============================================================================
+// Forecast Comparison
+// =============================================================================
+
+interface ForecastRow {
+  metric: string;
+  current: number;
+  adjusted: number;
+  format: 'currency' | 'percent';
+}
+
+function formatForecastValue(value: number, format: 'currency' | 'percent'): string {
+  if (format === 'currency') {
+    if (Math.abs(value) >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+    if (Math.abs(value) >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
+    return `$${(value / 1e3).toFixed(0)}K`;
+  }
+  return `${value.toFixed(1)}%`;
+}
+
+function formatVariance(current: number, adjusted: number, format: 'currency' | 'percent'): string {
+  const diff = adjusted - current;
+  if (format === 'currency') {
+    const sign = diff >= 0 ? '+' : '';
+    if (Math.abs(diff) >= 1e6) return `${sign}$${(diff / 1e6).toFixed(1)}M`;
+    return `${sign}$${(diff / 1e3).toFixed(0)}K`;
+  }
+  // basis points for percentage metrics
+  const bps = Math.round((diff) * 100);
+  const sign = bps >= 0 ? '+' : '';
+  return `${sign}${bps} bps`;
+}
+
+function ForecastComparison({ rows, onDismiss }: { rows: ForecastRow[]; onDismiss: () => void }) {
+  return (
+    <div className="mx-4 md:mx-6 mb-4 rounded-xl border border-cyan-500/30 bg-slate-900/80 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+          <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          Forecast Comparison
+        </h3>
+        <button onClick={onDismiss} className="text-slate-500 hover:text-slate-300 transition-colors">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-slate-800 text-slate-400">
+            <th className="text-left px-4 py-2 font-medium">Metric</th>
+            <th className="text-right px-4 py-2 font-medium">Current Forecast</th>
+            <th className="text-right px-4 py-2 font-medium">Adjusted Forecast</th>
+            <th className="text-right px-4 py-2 font-medium">Variance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const diff = row.adjusted - row.current;
+            const isPositive = diff > 0;
+            const isNegative = diff < 0;
+            const varColor = isPositive ? 'text-green-400' : isNegative ? 'text-red-400' : 'text-slate-400';
+            return (
+              <tr key={row.metric} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                <td className="px-4 py-2.5 text-slate-200 font-medium">{row.metric}</td>
+                <td className="px-4 py-2.5 text-right text-slate-300">{formatForecastValue(row.current, row.format)}</td>
+                <td className="px-4 py-2.5 text-right text-white font-medium">{formatForecastValue(row.adjusted, row.format)}</td>
+                <td className={`px-4 py-2.5 text-right font-medium ${varColor}`}>
+                  {formatVariance(row.current, row.adjusted, row.format)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// =============================================================================
 // Main Component
 // =============================================================================
 
@@ -130,7 +211,16 @@ export function DashboardRenderer({
 
   // Scenario modeling panel state (CFO only)
   const [scenarioOpen, setScenarioOpen] = useState(false);
-  
+  // Forecast comparison data — populated when user clicks "Apply to Forecast"
+  const [forecastData, setForecastData] = useState<ForecastRow[] | null>(null);
+
+  // Listen for tour event to open the What-If panel
+  useEffect(() => {
+    const handler = () => setScenarioOpen(true);
+    window.addEventListener('tour:open-whatif', handler);
+    return () => window.removeEventListener('tour:open-whatif', handler);
+  }, []);
+
   const baseMetrics = useMemo(() => ({
     revenue: 150000000,
     revenueGrowthPct: 18,
@@ -674,6 +764,11 @@ export function DashboardRenderer({
         </div>
       )}
 
+      {/* Forecast Comparison — shown after Apply to Forecast */}
+      {forecastData && (
+        <ForecastComparison rows={forecastData} onDismiss={() => setForecastData(null)} />
+      )}
+
       {/* Dashboard Grid with Drag-and-Drop */}
       {schema && !loading && (
         <DashboardErrorBoundary onReset={handleReset}>
@@ -978,7 +1073,22 @@ export function DashboardRenderer({
           onToggle={() => setScenarioOpen(!scenarioOpen)}
           baseMetrics={baseMetrics}
           onApply={(adjustments) => {
-            console.log('Scenario adjustments applied:', adjustments);
+            // Compute projected metrics from adjustments
+            const revMult = (1 + adjustments.revenueGrowth / 100) * (1 + adjustments.pricingChange / 100);
+            const adjRevenue = baseMetrics.revenue * revMult;
+            const adjGrowth = baseMetrics.revenueGrowthPct + adjustments.revenueGrowth;
+            const adjGrossMargin = Math.max(0, baseMetrics.grossMarginPct + adjustments.pricingChange * -0.1);
+            const headcountCost = adjustments.headcountChange * 0.3;
+            const opexImpact = adjustments.smSpendChange * 0.4;
+            const revEfficiency = adjustments.revenueGrowth * 0.2;
+            const adjOpMargin = baseMetrics.operatingMarginPct - headcountCost - opexImpact + revEfficiency;
+
+            setForecastData([
+              { metric: 'Revenue', current: baseMetrics.revenue, adjusted: adjRevenue, format: 'currency' },
+              { metric: 'Growth Rate', current: baseMetrics.revenueGrowthPct, adjusted: adjGrowth, format: 'percent' },
+              { metric: 'Gross Margin', current: baseMetrics.grossMarginPct, adjusted: adjGrossMargin, format: 'percent' },
+              { metric: 'Op. Margin', current: baseMetrics.operatingMarginPct, adjusted: adjOpMargin, format: 'percent' },
+            ]);
             setScenarioOpen(false);
           }}
         />

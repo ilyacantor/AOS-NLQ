@@ -458,15 +458,21 @@ function App() {
       setTimeout(() => {
         const select = document.getElementById('dashboard-persona-select') as HTMLSelectElement | null
         if (select) {
-          // Briefly flash the dropdown open (native select) then change to CTO
           select.focus()
-          select.size = select.options.length  // opens native dropdown list
+          select.size = select.options.length
           setTimeout(() => {
-            select.size = 1  // collapse back
+            select.size = 1
             handlePersonaSelect('CTO' as Persona)
           }, 1200)
         }
-      }, 600)  // wait for dashboard view to mount
+      }, 600)
+    }
+    // Step 4 = What-If → switch back to CFO and open the scenario panel
+    if (stepIndex === 4) {
+      handlePersonaSelect('CFO' as Persona)
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('tour:open-whatif'))
+      }, 800)
     }
   }, [handlePersonaSelect])
 
