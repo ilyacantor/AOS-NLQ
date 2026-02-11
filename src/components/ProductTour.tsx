@@ -54,7 +54,7 @@ interface ProductTourProps {
 const STEPS: TourStep[] = [
   {
     title: 'Welcome to NLQ',
-    body: 'This is your command center for information and action. Type a question in plain English or hit a preset.\n\nMention of "Dashboard" or "dash" will take you to the self-building dashboard.',
+    body: 'This is your command center for information and action. Type a question in plain English or hit a preset.\n\nMention of "Dashboard" or "dash" will take you to the self-building dashboard.\n\nTip: You can drag this panel anywhere on screen.',
     primaryCTA: 'Next',
     targetSelector: '#nlq-search-input',
     requiredView: 'galaxy',
