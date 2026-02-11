@@ -367,7 +367,7 @@ export const ScenarioModelingPanel: React.FC<ScenarioModelingPanelProps> = ({
       <button
         onClick={onToggle}
         className={`
-          fixed z-30
+          fixed top-1/3 -translate-y-1/2 z-30
           w-[28px] rounded-l-lg
           bg-slate-800 hover:bg-slate-700
           border border-r-0 border-slate-600
@@ -375,11 +375,10 @@ export const ScenarioModelingPanel: React.FC<ScenarioModelingPanelProps> = ({
           shadow-lg
           transition-all duration-300
           flex flex-col items-center justify-center gap-1
-          px-1
+          px-1 py-3
           ${isOpen ? 'right-96' : 'right-0'}
         `}
         aria-label={isOpen ? 'Close scenario panel' : 'Open scenario panel'}
-        style={{ top: '4%', bottom: '52%' }}
       >
         <svg
           className={`w-4 h-4 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}

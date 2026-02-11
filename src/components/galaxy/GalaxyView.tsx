@@ -66,9 +66,8 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
         // Use the smaller dimension to keep it square, or use both for non-square
-        const size = Math.min(rect.width, rect.height);
-        if (size > 0) {
-          setContainerSize({ width: size, height: size });
+        if (rect.width > 0 && rect.height > 0) {
+          setContainerSize({ width: rect.width, height: rect.height });
         }
       }
     };
