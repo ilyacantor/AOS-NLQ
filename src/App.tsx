@@ -655,7 +655,7 @@ function App() {
               <div className="h-full flex flex-col overflow-hidden">
                 {/* Galaxy visualization — takes available space above chatbox */}
                 {hasGalaxyResponse && (
-                  <div className="flex-1 overflow-hidden min-h-0">
+                  <div id="galaxy-visual" className="flex-1 overflow-hidden min-h-0">
                     <GalaxyView
                       data={galaxyResponse}
                       onNavigateToDashboard={handleNavigateToDashboard}

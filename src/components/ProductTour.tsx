@@ -64,7 +64,7 @@ const STEPS: TourStep[] = [
     title: 'Galaxy View — See How Metrics Connect',
     body: 'When you ask a question, Galaxy View shows your answer as an interactive node map. Related metrics orbit around it so you get more relevant information, and this is helpful in assuring intent is captured.\n\nThe color of each node tells you how confident the system is. Click any node to expand its details in the side panel.',
     primaryCTA: 'Next',
-    targetSelector: '#nav-tab-galaxy',
+    targetSelector: '#galaxy-visual',
     requiredView: 'galaxy',
     onPrimary: 'next',
   },
