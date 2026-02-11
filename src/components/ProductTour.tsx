@@ -197,7 +197,7 @@ function StepDots({ total, current }: { total: number; current: number }) {
 }
 
 // ---------------------------------------------------------------------------
-// Tooltip-style floating card (no overlay — app stays fully visible)
+// Draggable, transparent floating card
 // ---------------------------------------------------------------------------
 
 function TourModal({
@@ -206,6 +206,7 @@ function TourModal({
   totalSteps,
   onPrimary,
   onSecondary,
+  onBack,
   onSkip,
 }: {
   step: TourStep
@@ -213,64 +214,102 @@ function TourModal({
   totalSteps: number
   onPrimary: () => void
   onSecondary?: () => void
+  onBack?: () => void
   onSkip: () => void
 }) {
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: -9999, left: -9999 })
   const cardRef = useRef<HTMLDivElement>(null)
+  const dragState = useRef<{ dragging: boolean; offsetX: number; offsetY: number }>({
+    dragging: false, offsetX: 0, offsetY: 0,
+  })
+  // Track whether user has manually dragged — if so, stop auto-positioning
+  const userDragged = useRef(false)
 
-  // Position the card near the target element
+  // Auto-position near target (only if user hasn't dragged)
   useEffect(() => {
+    if (userDragged.current) return
+
     const place = () => {
       const el = document.querySelector(step.targetSelector)
       if (!el) {
-        // Fallback: bottom-right corner
         setPos({ top: window.innerHeight - 320, left: window.innerWidth - 360 })
         return
       }
       const rect = el.getBoundingClientRect()
       const cardW = 340
-      const cardH = cardRef.current?.offsetHeight || 280
+      const cardH = cardRef.current?.offsetHeight || 260
       const pad = 16
 
-      // Try below the target element
       let top = rect.bottom + pad
       let left = rect.left + rect.width / 2 - cardW / 2
 
-      // Clamp horizontal
       if (left < pad) left = pad
       if (left + cardW > window.innerWidth - pad) left = window.innerWidth - pad - cardW
-
-      // If it would go below viewport, place above the target
-      if (top + cardH > window.innerHeight - pad) {
-        top = rect.top - cardH - pad
-      }
-      // If still off-screen top, just pin it
+      if (top + cardH > window.innerHeight - pad) top = rect.top - cardH - pad
       if (top < pad) top = pad
 
       setPos({ top, left })
     }
 
-    place()
-    // Reposition on resize
+    // Small delay for view transitions
+    const timer = setTimeout(place, 80)
     window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
+    return () => { clearTimeout(timer); window.removeEventListener('resize', place) }
   }, [step.targetSelector, stepIndex])
+
+  // Reset drag flag when step changes so card re-positions for each new step
+  useEffect(() => {
+    userDragged.current = false
+  }, [stepIndex])
+
+  // Drag handlers
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only drag from the title bar area (not buttons)
+    if ((e.target as HTMLElement).closest('button')) return
+    dragState.current = { dragging: true, offsetX: e.clientX - pos.left, offsetY: e.clientY - pos.top }
+    e.preventDefault()
+  }, [pos])
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragState.current.dragging) return
+      userDragged.current = true
+      setPos({
+        top: e.clientY - dragState.current.offsetY,
+        left: e.clientX - dragState.current.offsetX,
+      })
+    }
+    const onMouseUp = () => { dragState.current.dragging = false }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [])
 
   return (
     <div
       ref={cardRef}
-      className="fixed z-[10000] w-[340px] bg-slate-800 border border-cyan-500/30 rounded-xl shadow-2xl p-5 transition-all duration-200"
+      onMouseDown={onMouseDown}
+      className="fixed z-[10000] w-[340px] rounded-xl p-5 select-none"
       style={{
         fontFamily: "'Quicksand', sans-serif",
-        top: pos?.top ?? -9999,
-        left: pos?.left ?? -9999,
-        boxShadow: '0 0 40px 4px rgba(11,202,217,0.12), 0 8px 32px rgba(0,0,0,0.5)',
+        top: pos.top,
+        left: pos.left,
+        background: 'rgba(15, 23, 42, 0.75)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1px solid rgba(11, 202, 217, 0.25)',
+        boxShadow: '0 0 30px 2px rgba(11,202,217,0.08), 0 4px 24px rgba(0,0,0,0.4)',
+        cursor: 'grab',
       }}
     >
       {/* Close button */}
       <button
         onClick={onSkip}
-        className="absolute top-2.5 right-2.5 text-slate-500 hover:text-slate-300 transition-colors"
+        className="absolute top-2.5 right-2.5 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
         aria-label="Close tour"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -290,9 +329,17 @@ function TourModal({
 
       {/* CTA Buttons */}
       <div className="flex items-center gap-2 mt-4">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+          >
+            Back
+          </button>
+        )}
         <button
           onClick={onPrimary}
-          className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+          className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
           style={{ background: '#0bcad9', color: '#020617' }}
         >
           {step.primaryCTA}
@@ -300,7 +347,7 @@ function TourModal({
         {step.secondaryCTA && onSecondary && (
           <button
             onClick={onSecondary}
-            className="px-4 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
+            className="px-4 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer"
             style={{ borderColor: '#0bcad9', color: '#0bcad9' }}
           >
             {step.secondaryCTA}
@@ -313,7 +360,7 @@ function TourModal({
         <StepDots total={totalSteps} current={stepIndex} />
         <button
           onClick={onSkip}
-          className="text-[10px] text-slate-500 hover:text-slate-400 transition-colors"
+          className="text-[10px] text-slate-500 hover:text-slate-400 transition-colors cursor-pointer"
         >
           Skip Tour
         </button>
@@ -381,6 +428,12 @@ export function ProductTour({
     }
   }, [stepIndex, onDismiss])
 
+  const goBack = useCallback(() => {
+    if (stepIndex > 0) {
+      setStepIndex(s => s - 1)
+    }
+  }, [stepIndex])
+
   const handlePrimary = useCallback(() => {
     const action = step.onPrimary || 'next'
     switch (action) {
@@ -430,6 +483,7 @@ export function ProductTour({
         totalSteps={STEPS.length}
         onPrimary={handlePrimary}
         onSecondary={step.secondaryCTA ? handleSecondary : undefined}
+        onBack={stepIndex > 0 ? goBack : undefined}
         onSkip={onDismiss}
       />
     </>
