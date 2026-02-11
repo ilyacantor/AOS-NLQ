@@ -118,7 +118,7 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Landing page & product tour state
-  const [showLanding, setShowLanding] = useState(() => !localStorage.getItem('nlq_tour_completed'))
+  const [showLanding, setShowLanding] = useState(false)
   const [tourVisible, setTourVisible] = useState(false)
   const [tourQuerySubmitted, setTourQuerySubmitted] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -446,6 +446,11 @@ function App() {
     setTimeout(() => searchInputRef.current?.focus(), 100)
   }, [])
 
+  // Launch demo (opens landing page overlay)
+  const startDemo = useCallback(() => {
+    setShowLanding(true)
+  }, [])
+
   // Public method to re-trigger tour (called from UserGuide)
   const startTour = useCallback(() => {
     setViewMode('galaxy')
@@ -454,11 +459,6 @@ function App() {
   }, [])
 
   const hasGalaxyResponse = galaxyResponse !== null
-
-  // ── Landing page gate ──
-  if (showLanding) {
-    return <LandingPage onStart={handleLandingStart} />
-  }
 
   return (
     <div className="h-screen bg-slate-950 flex flex-col overflow-hidden">
@@ -602,6 +602,13 @@ function App() {
           </div>
 
           <div className="flex items-center gap-4 text-slate-500 text-sm">
+            <button
+              onClick={startDemo}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border"
+              style={{ borderColor: '#0bcad9', color: '#0bcad9' }}
+            >
+              Demo
+            </button>
             <LLMCallCounter />
             {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
           </div>
@@ -849,6 +856,13 @@ function App() {
           </div>
         </aside>
       </div>
+
+      {/* Landing Page Overlay (user-triggered) */}
+      {showLanding && (
+        <div className="fixed inset-0 z-[9999]">
+          <LandingPage onStart={handleLandingStart} />
+        </div>
+      )}
 
       {/* Product Tour Overlay */}
       <ProductTour
