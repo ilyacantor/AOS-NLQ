@@ -75,6 +75,8 @@ const personaOptions: { label: string; value: Persona; query: string; refinePres
 
 const quickActions = [
   '2025 KPIs',
+  '2025 P&L',
+  'why did rev incr',
   'whats the margin',
   'are we profitable',
   'how\'s pipeline looking',
