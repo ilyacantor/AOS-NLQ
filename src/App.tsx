@@ -690,16 +690,17 @@ function App() {
         {/* Sidebar Toggle Button - Desktop only */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 z-10 min-h-[44px] min-w-[44px] p-2 bg-slate-800 border border-slate-700 rounded-l-lg hover:bg-slate-700 transition-colors"
+          className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 min-w-[28px] px-1 py-3 bg-slate-800 border border-slate-700 rounded-l-lg hover:bg-slate-700 transition-colors flex-col items-center gap-1"
           style={{ right: sidebarOpen ? '283px' : '0' }}
         >
-          <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             {sidebarOpen ? (
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             ) : (
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             )}
           </svg>
+          <span className="text-[10px] text-slate-400 font-medium" style={{ writingMode: 'vertical-rl' }}>History</span>
         </button>
 
         {/* Mobile Sidebar Backdrop */}

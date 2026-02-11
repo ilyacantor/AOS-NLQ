@@ -368,25 +368,27 @@ export const ScenarioModelingPanel: React.FC<ScenarioModelingPanelProps> = ({
         onClick={onToggle}
         className={`
           fixed top-1/3 -translate-y-1/2 z-30
-          w-10 h-24 rounded-l-lg
+          w-[28px] rounded-l-lg
           bg-slate-800 hover:bg-slate-700
           border border-r-0 border-slate-600
           text-[#0bcad9]
           shadow-lg
           transition-all duration-300
-          flex items-center justify-center
+          flex flex-col items-center gap-1
+          px-1 py-3
           ${isOpen ? 'right-96' : 'right-0'}
         `}
         aria-label={isOpen ? 'Close scenario panel' : 'Open scenario panel'}
       >
         <svg
-          className={`w-5 h-5 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
+        <span className="text-[10px] text-[#0bcad9] font-medium" style={{ writingMode: 'vertical-rl' }}>What-If</span>
       </button>
     </>
   );
