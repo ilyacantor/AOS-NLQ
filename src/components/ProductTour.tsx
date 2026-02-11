@@ -1,17 +1,16 @@
 /**
- * ProductTour — 7-modal onboarding tour for the Business Persona.
+ * ProductTour — 6-modal onboarding tour for the Business Persona.
  *
- * Uses absolute-positioned custom modals (no Driver.js highlight overlay)
+ * Uses absolute-positioned custom modals (no overlay)
  * with a pulsing laser dot that points at the relevant UI element.
  *
  * Tour flow:
  *  1. Welcome & Orientation  (laser → search bar)
- *  2. Quick-Start Presets     (laser → first preset pill)
- *  3. Galaxy View             (laser → Galaxy tab) — navigates to Galaxy first
- *  4. Dashboard View          (laser → Dashboard tab) — navigates to Dashboard first
- *  5. Refine Your Dashboard   (laser → refine input) — stays on Dashboard
- *  6. What-If Scenario        (laser → What-If button) — stays on Dashboard
- *  7. You're Ready            (laser → search bar)
+ *  2. Galaxy View             (laser → Galaxy tab)
+ *  3. Dashboard View          (laser → Dashboard tab) — navigates to Dashboard
+ *  4. Refine Your Dashboard   (laser → refine input) — stays on Dashboard
+ *  5. What-If Scenario        (laser → What-If button) — stays on Dashboard
+ *  6. Tour Complete           (laser → search bar)
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -55,41 +54,31 @@ interface ProductTourProps {
 const STEPS: TourStep[] = [
   {
     title: 'Welcome to NLQ',
-    body: 'This is your new command center for business data. Instead of digging through dashboards or waiting on analysts, just type a question in plain English — like you\'re asking a colleague.\n\nTry something simple: "revenue?", "how\'s pipeline looking?", or even just "hi."',
-    primaryCTA: 'Try It — Type a Question',
-    secondaryCTA: 'Show Me Around First',
+    body: 'This is your command center for information and action. Type a question in plain English or hit a preset.\n\nMention of "Dashboard" or "dash" will take you to the self-building dashboard.',
+    primaryCTA: 'Next',
     targetSelector: '#nlq-search-input',
-    requiredView: 'galaxy',
-    onPrimary: 'tryit',
-    onSecondary: 'next',
-  },
-  {
-    title: 'Not Sure What to Ask? Start Here',
-    body: 'These preset buttons are common questions your team already asks. Tap any one to instantly generate a result — no typing needed.\n\nEach preset is tailored to a real business scenario: KPI overviews, P&L breakdowns, revenue drivers, pipeline health, and more.',
-    primaryCTA: 'Got It — Next',
-    targetSelector: '#nlq-quick-actions button:first-child',
     requiredView: 'galaxy',
     onPrimary: 'next',
   },
   {
     title: 'Galaxy View — See How Metrics Connect',
-    body: 'When you ask a question, Galaxy View shows your answer as an interactive node map. The central node is your answer. Related metrics orbit around it so you can see the bigger picture at a glance.\n\nThe color of each node tells you how confident the system is: green means high confidence, yellow means moderate, and red means low. Click any node to expand its details in the side panel.',
+    body: 'When you ask a question, Galaxy View shows your answer as an interactive node map. Related metrics orbit around it so you get more relevant information, and this is helpful in assuring intent is captured.\n\nThe color of each node tells you how confident the system is. Click any node to expand its details in the side panel.',
     primaryCTA: 'Next',
     targetSelector: '#nav-tab-galaxy',
     requiredView: 'galaxy',
     onPrimary: 'next',
   },
   {
-    title: 'Dashboard View — Your Executive Command Center',
-    body: 'Switch to Dashboard View to see full executive dashboards with KPI cards, trend charts, regional maps, and more — all generated from a single question.\n\nDashboards are built for your role. The system auto-detects whether you\'re asking a finance, sales, ops, or people question and adjusts the layout accordingly. You\'ll see real values, trend arrows, and sparklines at a glance.',
+    title: 'Dashboard View',
+    body: 'These are persona-based, self-generating, adjustable-on-the-fly dashboards driven by natural language prompts.\n\nThe drop-down is for selecting layouts pertinent to other personas.',
     primaryCTA: 'Next',
     targetSelector: '#nav-tab-dashboard',
     requiredView: 'dashboard',
     onPrimary: 'next',
   },
   {
-    title: 'Refine with Words, Not Clicks',
-    body: 'Your dashboard isn\'t static. Use the refinement bar to modify it using natural language. Type commands like "add EBITDA card," "filter to AMER," or "show revenue by region" and the dashboard updates instantly.\n\nYou can also try the suggestion pills below the bar for common refinements — no guessing required.',
+    title: 'Refine Your Dashboard',
+    body: 'Use the refinement bar to modify it using natural language or presets to add or modify dashboard components.\n\nClicking on a KPI card will add a trend chart for that element.',
     primaryCTA: 'Next',
     targetSelector: '#dashboard-refine-input',
     requiredView: 'dashboard',
@@ -97,15 +86,15 @@ const STEPS: TourStep[] = [
   },
   {
     title: 'What-If — Model Scenarios in Real Time',
-    body: 'The What-If panel lets you test business scenarios without touching a spreadsheet. Adjust sliders for revenue growth, pricing, headcount, and operating expenses to see how changes would ripple across your KPIs.\n\nThe KPI Impact Preview updates live as you move each slider, showing you projected revenue, growth rate, margins, and more. When you\'re ready, apply the scenario to your dashboard or reset and try another.',
+    body: 'The What-If panel lets you test business scenarios. Adjust sliders for revenue growth, pricing, headcount, and operating expenses to see how changes would ripple across your KPIs (easily configurable).\n\nThe KPI Impact Preview updates live as you move each slider, showing you projected revenue, growth rate, margins, and more. Then you can apply the scenario to the forecast element in your dashboard.',
     primaryCTA: 'Next',
     targetSelector: '#dashboard-whatif-btn',
     requiredView: 'dashboard',
     onPrimary: 'next',
   },
   {
-    title: "You're All Set",
-    body: "That's everything you need to get started. Just remember: type any question in plain English, and NLQ handles the rest. No training, no SQL, no waiting.\n\nA few tips to keep in mind: you can ask follow-up questions to dig deeper, switch between Galaxy and Dashboard views anytime, and check the User Guide tab if you ever need a refresher.",
+    title: 'Tour Complete',
+    body: 'Other key aspects: NLQ learns from every question, reducing and quickly eliminating the need for costly inference.\n\nSidebars contain History — easy to reuse prompts via one-click.',
     primaryCTA: 'Start Exploring',
     secondaryCTA: 'Open User Guide',
     targetSelector: '#nlq-search-input',
