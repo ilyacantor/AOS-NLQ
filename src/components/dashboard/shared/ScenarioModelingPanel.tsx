@@ -367,7 +367,7 @@ export const ScenarioModelingPanel: React.FC<ScenarioModelingPanelProps> = ({
       <button
         onClick={onToggle}
         className={`
-          fixed top-1/2 -translate-y-1/2 z-30
+          fixed top-1/3 -translate-y-1/2 z-30
           w-10 h-24 rounded-l-lg
           bg-slate-800 hover:bg-slate-700
           border border-r-0 border-slate-600
