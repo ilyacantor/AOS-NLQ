@@ -5,6 +5,8 @@ import { InsufficientDataPanel } from './components/rag/InsufficientDataPanel'
 import { DashboardRenderer, DashboardSchema } from './components/generated-dashboard'
 import { UserGuide } from './components/UserGuide'
 import { useQueryRouter } from './hooks/useQueryRouter'
+import { ProductTour } from './components/ProductTour'
+import { LandingPage } from './components/LandingPage'
 
 async function fetchWithRetry(
   url: string,
@@ -114,6 +116,12 @@ function App() {
   const [lastDuration, setLastDuration] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // Landing page & product tour state
+  const [showLanding, setShowLanding] = useState(() => !localStorage.getItem('nlq_tour_completed'))
+  const [tourVisible, setTourVisible] = useState(false)
+  const [tourQuerySubmitted, setTourQuerySubmitted] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Dashboard state - always use DashboardRenderer
   const [dashboardSchema, setDashboardSchema] = useState<DashboardSchema | null>(null)
@@ -373,6 +381,7 @@ function App() {
     const currentQuery = queryRef.current
     if (currentQuery.trim()) {
       submitGalaxyQuery(currentQuery)
+      setTourQuerySubmitted(true)
     }
   }, [submitGalaxyQuery])
 
@@ -414,7 +423,42 @@ function App() {
     submitGalaxyQuery(queryText)
   }, [submitGalaxyQuery])
 
+  // ── Landing page handler ──
+  const handleLandingStart = useCallback((_persona: 'business' | 'technology') => {
+    setShowLanding(false)
+    setTourVisible(true)
+    setTourQuerySubmitted(false)
+  }, [])
+
+  // ── Tour callbacks ──
+  const handleTourDismiss = useCallback(() => {
+    setTourVisible(false)
+    localStorage.setItem('nlq_tour_completed', '1')
+  }, [])
+
+  const handleTourNavigate = useCallback((view: ViewMode) => {
+    setViewMode(view)
+  }, [])
+
+  const handleTourFocusSearch = useCallback(() => {
+    // Switch to galaxy first so the input is in the DOM
+    setViewMode('galaxy')
+    setTimeout(() => searchInputRef.current?.focus(), 100)
+  }, [])
+
+  // Public method to re-trigger tour (called from UserGuide)
+  const startTour = useCallback(() => {
+    setViewMode('galaxy')
+    setTourQuerySubmitted(false)
+    setTourVisible(true)
+  }, [])
+
   const hasGalaxyResponse = galaxyResponse !== null
+
+  // ── Landing page gate ──
+  if (showLanding) {
+    return <LandingPage onStart={handleLandingStart} />
+  }
 
   return (
     <div className="h-screen bg-slate-950 flex flex-col overflow-hidden">
@@ -521,6 +565,7 @@ function App() {
               <span className="text-slate-500 text-sm hidden lg:inline">View:</span>
               <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-1">
                 <button
+                  id="nav-tab-galaxy"
                   onClick={() => setViewMode('galaxy')}
                   className={`min-h-[44px] px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
                     viewMode === 'galaxy'
@@ -531,6 +576,7 @@ function App() {
                   Galaxy
                 </button>
                 <button
+                  id="nav-tab-dashboard"
                   onClick={() => setViewMode('dashboard')}
                   className={`min-h-[44px] px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
                     viewMode === 'dashboard'
@@ -541,6 +587,7 @@ function App() {
                   Dashboard
                 </button>
                 <button
+                  id="nav-tab-guide"
                   onClick={() => setViewMode('guide')}
                   className={`min-h-[44px] px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
                     viewMode === 'guide'
@@ -632,6 +679,8 @@ function App() {
                   <div className="w-full max-w-2xl">
                     <div className="relative">
                       <input
+                        ref={searchInputRef}
+                        id="nlq-search-input"
                         type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
@@ -651,14 +700,14 @@ function App() {
                   </div>
 
                   {/* Quick Action Buttons */}
-                  <div className="relative w-full max-w-2xl mt-3">
+                  <div id="nlq-quick-actions" className="relative w-full max-w-2xl mt-3">
                     <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-slate-950 to-transparent z-10 pointer-events-none" />
                     <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-slate-950 to-transparent z-10 pointer-events-none" />
                     <div className="flex items-center gap-2 overflow-x-auto px-6 py-1 scrollbar-hide">
                       {quickActions.map((action) => (
                         <button
                           key={action}
-                          onClick={() => submitGalaxyQuery(action)}
+                          onClick={() => { submitGalaxyQuery(action); setTourQuerySubmitted(true) }}
                           className="flex-shrink-0 px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors whitespace-nowrap"
                         >
                           {action}
@@ -677,7 +726,7 @@ function App() {
 
             {/* User Guide View */}
             {viewMode === 'guide' && (
-              <UserGuide />
+              <UserGuide onStartTour={startTour} />
             )}
           </div>
         </main>
@@ -800,6 +849,16 @@ function App() {
           </div>
         </aside>
       </div>
+
+      {/* Product Tour Overlay */}
+      <ProductTour
+        visible={tourVisible}
+        onDismiss={handleTourDismiss}
+        onNavigate={handleTourNavigate}
+        onFocusSearch={handleTourFocusSearch}
+        querySubmitted={tourQuerySubmitted}
+        currentView={viewMode}
+      />
     </div>
   )
 }

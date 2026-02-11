@@ -486,6 +486,7 @@ export function DashboardRenderer({
               {/* What-If button - CFO only */}
               {persona === 'CFO' && (
                 <button
+                  id="dashboard-whatif-btn"
                   onClick={() => setScenarioOpen(true)}
                   className="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-500 transition-colors"
                   title="What-If Scenario Modeling"
@@ -551,6 +552,7 @@ export function DashboardRenderer({
         <div className="px-4 md:px-6 py-2 md:py-3 border-b border-slate-800 bg-slate-900/50">
           <form onSubmit={handleRefinementSubmit} className="flex gap-2">
             <input
+              id="dashboard-refine-input"
               type="text"
               value={refinementQuery}
               onChange={(e) => setRefinementQuery(e.target.value)}

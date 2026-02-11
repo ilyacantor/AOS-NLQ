@@ -1,9 +1,22 @@
-export function UserGuide() {
+interface UserGuideProps {
+  onStartTour?: () => void
+}
+
+export function UserGuide({ onStartTour }: UserGuideProps) {
   return (
     <div className="h-full overflow-auto bg-slate-950 p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
+        <div className="mb-8 flex items-center justify-between">
           <h1 className="text-3xl font-bold text-white">NLQ User Guide</h1>
+          {onStartTour && (
+            <button
+              onClick={onStartTour}
+              className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+              style={{ background: '#0bcad9', color: '#020617' }}
+            >
+              Replay Tour
+            </button>
+          )}
         </div>
 
         <section className="mb-10">
