@@ -735,12 +735,12 @@ function App() {
           </div>
 
           {/* Panel Tabs */}
-          <div className="flex border-b border-slate-800 overflow-x-auto">
+          <div className="flex border-b border-slate-800">
             {(['History', 'Learning', 'Data Gaps'] as PanelTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setPanelTab(tab)}
-                className={`flex-1 min-h-[44px] px-3 md:px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
+                className={`flex-1 min-w-0 min-h-[44px] px-2 md:px-3 py-3 text-xs md:text-sm font-medium transition-colors truncate ${
                   panelTab === tab
                     ? 'text-white border-b-2 border-cyan-400 bg-slate-900/50'
                     : 'text-slate-400 hover:text-slate-200'
