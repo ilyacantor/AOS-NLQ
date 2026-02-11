@@ -121,7 +121,6 @@ function App() {
   const [isGeneratingDashboard, setIsGeneratingDashboard] = useState(false)
   const [dashboardError, setDashboardError] = useState<string | null>(null)
 
-  const [hasLoadedDefault, setHasLoadedDefault] = useState(false)
   const [hasLoadedDefaultDashboard, setHasLoadedDefaultDashboard] = useState(false)
   const sessionId = useSessionId()
 
@@ -367,27 +366,7 @@ function App() {
     setIsLoading(false)
   }, [sessionId, shouldRouteToDashboard, dashboardSchema, generateDashboard])
 
-  // Auto-query "2025 results" for Galaxy view on first load
-  // Wait for backend to be ready before firing the initial query
-  useEffect(() => {
-    if (!hasLoadedDefault && viewMode === 'galaxy') {
-      setHasLoadedDefault(true)
-      const waitForBackend = async () => {
-        for (let i = 0; i < 20; i++) {
-          try {
-            const res = await fetch('/v1/rag/session/stats?session_id=healthcheck')
-            if (res.ok) {
-              submitGalaxyQuery('2025 results')
-              return
-            }
-          } catch { /* backend not ready yet */ }
-          await new Promise(r => setTimeout(r, 1000))
-        }
-        submitGalaxyQuery('2025 results')
-      }
-      waitForBackend()
-    }
-  }, [hasLoadedDefault, viewMode, submitGalaxyQuery])
+  // Default search on load suppressed — Galaxy starts empty with centered chatbox
 
   // Handle form submit
   const handleSubmit = useCallback(() => {
@@ -586,52 +565,6 @@ function App() {
       <div className="flex flex-1 overflow-hidden relative">
         {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          {/* Query Input Section - Only shown in Galaxy view */}
-          {viewMode === 'galaxy' && (
-            <div className="flex flex-col items-center pt-2 pb-1 px-6">
-              <div className="w-full max-w-2xl">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Ask any question, use a preset below, or just say hi..."
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-                  />
-                  {isLoading && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <svg className="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Quick Action Buttons - Horizontally scrollable with fade edges */}
-              <div className="relative w-full max-w-2xl mt-1">
-                {/* Left fade edge */}
-                <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-slate-950 to-transparent z-10 pointer-events-none" />
-                {/* Right fade edge */}
-                <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-slate-950 to-transparent z-10 pointer-events-none" />
-                {/* Scrollable container */}
-                <div className="flex items-center gap-2 overflow-x-auto px-6 py-1 scrollbar-hide">
-                  {quickActions.map((action) => (
-                    <button
-                      key={action}
-                      onClick={() => submitGalaxyQuery(action)}
-                      className="flex-shrink-0 px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors whitespace-nowrap"
-                    >
-                      {action}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Results Area */}
           <div className="flex-1 overflow-hidden">
             {/* Dashboard View - Always uses DashboardRenderer with full controls */}
@@ -663,20 +596,82 @@ function App() {
               </div>
             )}
 
-            {/* Galaxy View */}
-            {viewMode === 'galaxy' && hasGalaxyResponse && (
-              <div className="h-full overflow-hidden">
-                <GalaxyView
-                  data={galaxyResponse}
-                  onNavigateToDashboard={handleNavigateToDashboard}
-                />
-              </div>
-            )}
+            {/* Galaxy View — chatbox centered, visual appears above when results load */}
+            {viewMode === 'galaxy' && (
+              <div className="h-full flex flex-col overflow-hidden">
+                {/* Galaxy visualization — takes available space above chatbox */}
+                {hasGalaxyResponse && (
+                  <div className="flex-1 overflow-hidden min-h-0">
+                    <GalaxyView
+                      data={galaxyResponse}
+                      onNavigateToDashboard={handleNavigateToDashboard}
+                    />
+                  </div>
+                )}
 
-            {/* Empty State for Galaxy */}
-            {viewMode === 'galaxy' && !hasGalaxyResponse && !isLoading && (
-              <div className="h-full flex items-center justify-center text-slate-500">
-                <p>Enter a query above to see results</p>
+                {/* Loading state — replaces visual area while loading */}
+                {isLoading && !hasGalaxyResponse && (
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <p className="text-slate-400 text-sm">Analyzing query...</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Top spacer — pushes chatbox to vertical center when no results */}
+                {!hasGalaxyResponse && !isLoading && (
+                  <div className="flex-1" />
+                )}
+
+                {/* Chatbox — centered in the page, below the visual */}
+                <div className={`flex flex-col items-center px-6 ${hasGalaxyResponse ? 'pt-3 pb-3 border-t border-slate-800/50' : 'pb-4'}`}>
+                  <div className="w-full max-w-2xl">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Ask any question, use a preset below, or just say hi..."
+                        className="w-full px-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-200 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 shadow-lg shadow-black/20"
+                      />
+                      {isLoading && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <svg className="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick Action Buttons */}
+                  <div className="relative w-full max-w-2xl mt-3">
+                    <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-slate-950 to-transparent z-10 pointer-events-none" />
+                    <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-slate-950 to-transparent z-10 pointer-events-none" />
+                    <div className="flex items-center gap-2 overflow-x-auto px-6 py-1 scrollbar-hide">
+                      {quickActions.map((action) => (
+                        <button
+                          key={action}
+                          onClick={() => submitGalaxyQuery(action)}
+                          className="flex-shrink-0 px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors whitespace-nowrap"
+                        >
+                          {action}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom spacer — pushes chatbox to vertical center when no results */}
+                {!hasGalaxyResponse && !isLoading && (
+                  <div className="flex-1" />
+                )}
               </div>
             )}
 

@@ -45,6 +45,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const [selectedNode, setSelectedNode] = useState<IntentNode | null>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [nodeStates, setNodeStates] = useState<Map<string, NodeState>>(new Map());
+  const [leftPanelOpen, setLeftPanelOpen] = useState(false);
 
   // Track drag to differentiate from click
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
@@ -686,11 +687,30 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
 
       {/* ============ DESKTOP LAYOUT ============ */}
       <div className="hidden md:flex flex-1 min-h-0 overflow-hidden">
-        {/* Left Panel - Text Response & Data Table */}
-        <div className="flex-shrink-0 flex flex-col border-r border-slate-800 bg-slate-900/30" style={{ width: '293px' }}>
+        {/* Left Panel Toggle Button — always visible */}
+        <button
+          onClick={() => setLeftPanelOpen(!leftPanelOpen)}
+          className="flex-shrink-0 flex items-center justify-center w-6 bg-slate-900/60 hover:bg-slate-800/80 border-r border-slate-800 transition-colors cursor-pointer"
+          title={leftPanelOpen ? 'Collapse panel' : 'Expand panel'}
+        >
+          <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {leftPanelOpen ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            )}
+          </svg>
+        </button>
+
+        {/* Left Panel - Text Response & Data Table (collapsible, collapsed on load) */}
+        <div
+          className={`flex-shrink-0 flex flex-col border-r border-slate-800 bg-slate-900/30 transition-all duration-300 overflow-hidden ${
+            leftPanelOpen ? 'w-[293px]' : 'w-0'
+          }`}
+        >
           {/* Text Answer - Top Left */}
           {data.text_response && (
-            <div className="p-4 border-b border-slate-800/50">
+            <div className="p-4 border-b border-slate-800/50 min-w-[293px]">
               <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
                 Answer
               </h3>
@@ -707,13 +727,13 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
 
           {/* Data Table - Below Text Answer */}
           {hasMultipleDataElements && (
-            <div className="flex-1 overflow-auto p-3">
+            <div className="flex-1 overflow-auto p-3 min-w-[293px]">
               <DataTable nodes={data.nodes} title="Data Points" />
             </div>
           )}
 
           {/* Legend at bottom of left panel */}
-          <div className="mt-auto border-t border-slate-800/50">
+          <div className="mt-auto border-t border-slate-800/50 min-w-[293px]">
             <GalaxyLegend compact />
           </div>
         </div>
