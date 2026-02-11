@@ -690,8 +690,8 @@ function App() {
         {/* Sidebar Toggle Button - Desktop only */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 min-w-[28px] px-1 py-3 bg-slate-800 border border-slate-700 rounded-l-lg hover:bg-slate-700 transition-colors flex-col items-center gap-1"
-          style={{ right: sidebarOpen ? '283px' : '0' }}
+          className="hidden md:flex absolute right-0 z-10 min-w-[28px] px-1 bg-slate-800 border border-slate-700 rounded-l-lg hover:bg-slate-700 transition-colors flex-col items-center justify-center gap-1"
+          style={{ right: sidebarOpen ? '283px' : '0', top: '52%', bottom: '4%' }}
         >
           <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             {sidebarOpen ? (
