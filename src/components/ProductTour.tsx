@@ -183,7 +183,7 @@ function LaserDot({ targetSelector }: { targetSelector: string }) {
 
 function StepDots({ total, current }: { total: number; current: number }) {
   return (
-    <div className="flex items-center gap-1.5 mt-5">
+    <div className="flex items-center gap-1.5">
       {Array.from({ length: total }).map((_, i) => (
         <div
           key={i}
@@ -197,7 +197,7 @@ function StepDots({ total, current }: { total: number; current: number }) {
 }
 
 // ---------------------------------------------------------------------------
-// Modal Card
+// Tooltip-style floating card (no overlay — app stays fully visible)
 // ---------------------------------------------------------------------------
 
 function TourModal({
@@ -215,71 +215,108 @@ function TourModal({
   onSecondary?: () => void
   onSkip: () => void
 }) {
-  return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center px-4">
-      {/* Overlay */}
-      <div
-        className="absolute inset-0"
-        style={{ background: 'rgba(2, 6, 23, 0.85)' }}
-        onClick={onSkip}
-      />
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
 
-      {/* Modal Card */}
-      <div
-        className="relative bg-slate-800/95 border border-cyan-500/30 rounded-xl shadow-2xl max-w-[420px] w-full p-6"
-        style={{ fontFamily: "'Quicksand', sans-serif" }}
+  // Position the card near the target element
+  useEffect(() => {
+    const place = () => {
+      const el = document.querySelector(step.targetSelector)
+      if (!el) {
+        // Fallback: bottom-right corner
+        setPos({ top: window.innerHeight - 320, left: window.innerWidth - 360 })
+        return
+      }
+      const rect = el.getBoundingClientRect()
+      const cardW = 340
+      const cardH = cardRef.current?.offsetHeight || 280
+      const pad = 16
+
+      // Try below the target element
+      let top = rect.bottom + pad
+      let left = rect.left + rect.width / 2 - cardW / 2
+
+      // Clamp horizontal
+      if (left < pad) left = pad
+      if (left + cardW > window.innerWidth - pad) left = window.innerWidth - pad - cardW
+
+      // If it would go below viewport, place above the target
+      if (top + cardH > window.innerHeight - pad) {
+        top = rect.top - cardH - pad
+      }
+      // If still off-screen top, just pin it
+      if (top < pad) top = pad
+
+      setPos({ top, left })
+    }
+
+    place()
+    // Reposition on resize
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [step.targetSelector, stepIndex])
+
+  return (
+    <div
+      ref={cardRef}
+      className="fixed z-[10000] w-[340px] bg-slate-800 border border-cyan-500/30 rounded-xl shadow-2xl p-5 transition-all duration-200"
+      style={{
+        fontFamily: "'Quicksand', sans-serif",
+        top: pos?.top ?? -9999,
+        left: pos?.left ?? -9999,
+        boxShadow: '0 0 40px 4px rgba(11,202,217,0.12), 0 8px 32px rgba(0,0,0,0.5)',
+      }}
+    >
+      {/* Close button */}
+      <button
+        onClick={onSkip}
+        className="absolute top-2.5 right-2.5 text-slate-500 hover:text-slate-300 transition-colors"
+        aria-label="Close tour"
       >
-        {/* Close button */}
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      {/* Title */}
+      <h2 className="text-base font-semibold text-white mb-2 pr-5">{step.title}</h2>
+
+      {/* Body */}
+      <div className="text-xs text-slate-300 leading-relaxed space-y-2">
+        {step.body.split('\n\n').map((para, i) => (
+          <p key={i}>{para}</p>
+        ))}
+      </div>
+
+      {/* CTA Buttons */}
+      <div className="flex items-center gap-2 mt-4">
+        <button
+          onClick={onPrimary}
+          className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+          style={{ background: '#0bcad9', color: '#020617' }}
+        >
+          {step.primaryCTA}
+        </button>
+        {step.secondaryCTA && onSecondary && (
+          <button
+            onClick={onSecondary}
+            className="px-4 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
+            style={{ borderColor: '#0bcad9', color: '#0bcad9' }}
+          >
+            {step.secondaryCTA}
+          </button>
+        )}
+      </div>
+
+      {/* Step indicator + Skip */}
+      <div className="flex items-center justify-between mt-3">
+        <StepDots total={totalSteps} current={stepIndex} />
         <button
           onClick={onSkip}
-          className="absolute top-3 right-3 text-slate-500 hover:text-slate-300 transition-colors"
-          aria-label="Close tour"
+          className="text-[10px] text-slate-500 hover:text-slate-400 transition-colors"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          Skip Tour
         </button>
-
-        {/* Title */}
-        <h2 className="text-xl font-semibold text-white mb-3 pr-6">{step.title}</h2>
-
-        {/* Body — render newlines as paragraph breaks */}
-        <div className="text-sm text-slate-300 leading-relaxed space-y-3">
-          {step.body.split('\n\n').map((para, i) => (
-            <p key={i}>{para}</p>
-          ))}
-        </div>
-
-        {/* CTA Buttons */}
-        <div className="flex items-center gap-3 mt-5">
-          <button
-            onClick={onPrimary}
-            className="px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
-            style={{ background: '#0bcad9', color: '#020617' }}
-          >
-            {step.primaryCTA}
-          </button>
-          {step.secondaryCTA && onSecondary && (
-            <button
-              onClick={onSecondary}
-              className="px-5 py-2 rounded-lg text-sm font-semibold border transition-colors"
-              style={{ borderColor: '#0bcad9', color: '#0bcad9' }}
-            >
-              {step.secondaryCTA}
-            </button>
-          )}
-        </div>
-
-        {/* Step indicator + Skip */}
-        <div className="flex items-center justify-between">
-          <StepDots total={totalSteps} current={stepIndex} />
-          <button
-            onClick={onSkip}
-            className="text-xs text-slate-500 hover:text-slate-400 transition-colors mt-5"
-          >
-            Skip Tour
-          </button>
-        </div>
       </div>
     </div>
   )
