@@ -588,7 +588,7 @@ function App() {
         <main className="flex-1 flex flex-col overflow-hidden">
           {/* Query Input Section - Only shown in Galaxy view */}
           {viewMode === 'galaxy' && (
-            <div className="flex flex-col items-center pt-4 pb-3 px-6">
+            <div className="flex flex-col items-center pt-2 pb-1 px-6">
               <div className="w-full max-w-2xl">
                 <div className="relative">
                   <input
@@ -611,7 +611,7 @@ function App() {
               </div>
 
               {/* Quick Action Buttons - Horizontally scrollable with fade edges */}
-              <div className="relative w-full max-w-2xl mt-3">
+              <div className="relative w-full max-w-2xl mt-1">
                 {/* Left fade edge */}
                 <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-slate-950 to-transparent z-10 pointer-events-none" />
                 {/* Right fade edge */}
