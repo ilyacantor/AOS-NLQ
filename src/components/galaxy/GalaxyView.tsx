@@ -103,25 +103,28 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const centerX = width / 2;
   const centerY = height / 2;
 
-  // Calculate scale factor to fit visualization in container
+  // Calculate scale factors to fit visualization in container
   // Base design assumes 320 (outer ring) + 50 (node radius + padding) = 370 radius needed
   const baseRadius = 370;
-  const availableRadius = Math.min(width, height) / 2 - 20; // 20px margin from edge
-  // Ensure minimum scale of 0.6 to prevent rings from collapsing together
-  const scale = Math.max(0.6, availableRadius / baseRadius);
+  const availableRadiusX = width / 2 - 40;
+  const availableRadiusY = height / 2 - 30;
+  const scaleX = Math.max(0.6, availableRadiusX / baseRadius);
+  const scaleY = Math.max(0.6, availableRadiusY / baseRadius);
+  // Keep a uniform scale for node sizes (use the smaller dimension so nodes don't get huge)
+  const scale = Math.min(scaleX, scaleY);
 
-  // Scaled ring radii
+  // Scaled ring radii (elliptical)
   const ringRadii = useMemo(() => ({
-    inner: RING_CONFIG.inner.radius * scale,
-    middle: RING_CONFIG.middle.radius * scale,
-    outer: RING_CONFIG.outer.radius * scale,
-  }), [scale]);
+    inner: { rx: RING_CONFIG.inner.radius * scaleX, ry: RING_CONFIG.inner.radius * scaleY },
+    middle: { rx: RING_CONFIG.middle.radius * scaleX, ry: RING_CONFIG.middle.radius * scaleY },
+    outer: { rx: RING_CONFIG.outer.radius * scaleX, ry: RING_CONFIG.outer.radius * scaleY },
+  }), [scaleX, scaleY]);
 
   // Calculate target positions for nodes on their rings
   const targetPositions = useMemo(() => {
     const positions = new Map<string, { x: number; y: number }>();
 
-    const placeNodesOnRing = (nodes: IntentNode[], radius: number) => {
+    const placeNodesOnRing = (nodes: IntentNode[], rx: number, ry: number) => {
       if (nodes.length === 0) return;
       const angleStep = (2 * Math.PI) / nodes.length;
       const startAngle = -Math.PI / 2;
@@ -129,8 +132,8 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
       nodes.forEach((node, i) => {
         const angle = startAngle + angleStep * i;
         positions.set(node.id, {
-          x: centerX + radius * Math.cos(angle),
-          y: centerY + radius * Math.sin(angle),
+          x: centerX + rx * Math.cos(angle),
+          y: centerY + ry * Math.sin(angle),
         });
       });
     };
@@ -139,9 +142,9 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
     const middle = data.nodes.filter(n => n.match_type === 'potential');
     const outer = data.nodes.filter(n => n.match_type === 'hypothesis');
 
-    placeNodesOnRing(inner, ringRadii.inner);
-    placeNodesOnRing(middle, ringRadii.middle);
-    placeNodesOnRing(outer, ringRadii.outer);
+    placeNodesOnRing(inner, ringRadii.inner.rx, ringRadii.inner.ry);
+    placeNodesOnRing(middle, ringRadii.middle.rx, ringRadii.middle.ry);
+    placeNodesOnRing(outer, ringRadii.outer.rx, ringRadii.outer.ry);
 
     return positions;
   }, [data.nodes, centerX, centerY, ringRadii]);
@@ -390,28 +393,31 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             <rect width={width} height={height} fill="url(#bgGradient)" />
 
             {/* Orbital Rings */}
-            <circle
+            <ellipse
               cx={centerX}
               cy={centerY}
-              r={ringRadii.outer}
+              rx={ringRadii.outer.rx}
+              ry={ringRadii.outer.ry}
               fill="none"
               stroke={RING_CONFIG.outer.strokeColor}
               strokeWidth="1"
               strokeDasharray="4 4"
             />
-            <circle
+            <ellipse
               cx={centerX}
               cy={centerY}
-              r={ringRadii.middle}
+              rx={ringRadii.middle.rx}
+              ry={ringRadii.middle.ry}
               fill="none"
               stroke={RING_CONFIG.middle.strokeColor}
               strokeWidth="1"
               strokeDasharray="4 4"
             />
-            <circle
+            <ellipse
               cx={centerX}
               cy={centerY}
-              r={ringRadii.inner}
+              rx={ringRadii.inner.rx}
+              ry={ringRadii.inner.ry}
               fill="none"
               stroke={RING_CONFIG.inner.strokeColor}
               strokeWidth="2"
@@ -420,7 +426,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             {/* Ring Labels */}
             <text
               x={centerX}
-              y={centerY - ringRadii.inner - 8}
+              y={centerY - ringRadii.inner.ry - 8}
               textAnchor="middle"
               fill="#64748b"
               fontSize="10"
@@ -428,7 +434,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               Inner
             </text>
             <text
-              x={centerX + ringRadii.middle + 15}
+              x={centerX + ringRadii.middle.rx + 15}
               y={centerY}
               textAnchor="start"
               fill="#475569"
