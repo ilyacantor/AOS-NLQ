@@ -264,10 +264,10 @@ export function useDashboardLayout({
         newLayoutMap[item.i].w = newW;
       });
 
-      // Expand each widget downward into empty space
+      // Expand each widget downward into empty space (bounded by maxRow)
       items.forEach(item => {
         let newH = item.h;
-        while (true) {
+        while (item.y + newH < maxRow) {
           const nextRow = item.y + newH;
           ensureRow(nextRow);
           // Check if the row below is empty for the full width of this widget
