@@ -96,7 +96,7 @@ const STEPS: TourStep[] = [
   },
   {
     title: 'Tour Complete',
-    body: 'Note: NLQ learns from every question, reducing and quickly eliminating the need for costly inference.\n\nSidebars contain History — easy to reuse prompts via one-click.',
+    body: '• NLQ learns from every question, reducing and quickly eliminating the need for costly inference.\n\n• Sidebars contain History — easy to reuse prompts via one-click.\n\nMost importantly, the same context layer that serves you through natural language serves your AI agents through protocol.',
     primaryCTA: 'Start Exploring',
     secondaryCTA: 'Open User Guide',
     targetSelector: '#nlq-search-input',
