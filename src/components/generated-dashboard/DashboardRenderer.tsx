@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import GridLayout from 'react-grid-layout';
+import GridLayout from 'react-grid-layout/legacy';
 import { useQueryRouter } from '../../hooks/useQueryRouter';
 import { useDashboardRefinement } from '../../hooks/useDashboardRefinement';
 import { DashboardErrorBoundary } from './DashboardErrorBoundary';
