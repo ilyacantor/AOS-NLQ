@@ -127,6 +127,9 @@ export function useDashboardLayout({
   }, []);
 
   const handleAutoArrange = useCallback(() => {
+    // Clear layoutMap so gridLayout reads from schema positions (no stale overrides)
+    setLayoutMap({});
+
     setSchema(prevSchema => {
       if (!prevSchema) return prevSchema;
 
@@ -179,20 +182,18 @@ export function useDashboardLayout({
         }
       };
 
-      const newLayoutMap: Record<string, LayoutItem> = {};
-
       // ----- KPIs: evenly divide across the row -----
+      const placed: Record<string, LayoutItem> = {};
+
       if (kpis.length > 0) {
         const kpiH = kpis[0].position.row_span || 2;
-        // Find first row with enough space (should be row 0)
-        const startY = 0;
         const baseW = Math.floor(cols / kpis.length);
         const extra = cols % kpis.length;
         let x = 0;
         kpis.forEach((widget, idx) => {
           const w = baseW + (idx < extra ? 1 : 0);
-          placeOnGrid(x, startY, w, kpiH);
-          newLayoutMap[widget.id] = { i: widget.id, x, y: startY, w, h: kpiH, minW: 2, minH: 2 };
+          placeOnGrid(x, 0, w, kpiH);
+          placed[widget.id] = { i: widget.id, x, y: 0, w, h: kpiH, minW: 2, minH: 2 };
           x += w;
         });
       }
@@ -204,7 +205,7 @@ export function useDashboardLayout({
           const h = widget.position.row_span || defaultH;
           const pos = findPosition(w, h);
           placeOnGrid(pos.x, pos.y, w, h);
-          newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+          placed[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
         });
       };
 
@@ -213,109 +214,58 @@ export function useDashboardLayout({
       placeGroup(others, 3, 2);
 
       // ----- Gap-fill pass: expand widgets to eliminate dark space -----
-      // Process widgets top-to-bottom, left-to-right
-      const items = Object.values(newLayoutMap).sort((a, b) => a.y - b.y || a.x - b.x);
+      const items = Object.values(placed).sort((a, b) => a.y - b.y || a.x - b.x);
 
-      // Rebuild a clean occupancy grid using widget IDs
-      const occGrid: (string | null)[][] = [];
-      const ensureRow = (y: number) => {
-        while (occGrid.length <= y) occGrid.push(new Array(cols).fill(null));
-      };
-
-      // Find max row
+      // Build occupancy grid (id-based)
       let maxRow = 0;
-      items.forEach(item => {
-        const bottom = item.y + item.h;
-        if (bottom > maxRow) maxRow = bottom;
-      });
-      for (let r = 0; r <= maxRow + 2; r++) ensureRow(r);
+      items.forEach(item => { if (item.y + item.h > maxRow) maxRow = item.y + item.h; });
 
-      // Fill occupancy
+      const occ: (string | null)[][] = [];
+      for (let r = 0; r < maxRow; r++) occ.push(new Array(cols).fill(null));
       items.forEach(item => {
-        for (let dy = 0; dy < item.h; dy++) {
-          for (let dx = 0; dx < item.w; dx++) {
-            ensureRow(item.y + dy);
-            occGrid[item.y + dy][item.x + dx] = item.i;
-          }
-        }
+        for (let dy = 0; dy < item.h; dy++)
+          for (let dx = 0; dx < item.w; dx++)
+            occ[item.y + dy][item.x + dx] = item.i;
       });
 
-      // Expand each widget rightward into empty space
+      // Expand rightward
       items.forEach(item => {
-        let newW = item.w;
-        while (item.x + newW < cols) {
-          // Check if the column to the right is empty for the full height of this widget
-          let canExpand = true;
+        while (item.x + item.w < cols) {
+          let ok = true;
           for (let dy = 0; dy < item.h; dy++) {
-            ensureRow(item.y + dy);
-            if (occGrid[item.y + dy][item.x + newW] !== null) {
-              canExpand = false;
-              break;
-            }
+            if (occ[item.y + dy][item.x + item.w] !== null) { ok = false; break; }
           }
-          if (!canExpand) break;
-          // Claim those cells
-          for (let dy = 0; dy < item.h; dy++) {
-            occGrid[item.y + dy][item.x + newW] = item.i;
-          }
-          newW++;
+          if (!ok) break;
+          for (let dy = 0; dy < item.h; dy++) occ[item.y + dy][item.x + item.w] = item.i;
+          item.w++;
         }
-        item.w = newW;
-        newLayoutMap[item.i].w = newW;
       });
 
-      // Expand each widget downward into empty space (bounded by maxRow)
+      // Expand downward (bounded by maxRow)
       items.forEach(item => {
-        let newH = item.h;
-        while (item.y + newH < maxRow) {
-          const nextRow = item.y + newH;
-          ensureRow(nextRow);
-          // Check if the row below is empty for the full width of this widget
-          let canExpand = true;
+        while (item.y + item.h < maxRow) {
+          const nr = item.y + item.h;
+          let ok = true;
           for (let dx = 0; dx < item.w; dx++) {
-            if (occGrid[nextRow][dx + item.x] !== null) {
-              canExpand = false;
-              break;
-            }
+            if (occ[nr][item.x + dx] !== null) { ok = false; break; }
           }
-          if (!canExpand) break;
-          // Claim those cells
-          for (let dx = 0; dx < item.w; dx++) {
-            occGrid[nextRow][dx + item.x] = item.i;
-          }
-          newH++;
+          if (!ok) break;
+          for (let dx = 0; dx < item.w; dx++) occ[nr][item.x + dx] = item.i;
+          item.h++;
         }
-        item.h = newH;
-        newLayoutMap[item.i].h = newH;
       });
 
-      // ----- Trim trailing empty rows -----
-      // Find actual max row after expansion
-      let actualMaxRow = 0;
-      items.forEach(item => {
-        const bottom = item.y + item.h;
-        if (bottom > actualMaxRow) actualMaxRow = bottom;
-      });
-
-      // ----- Update schema positions -----
+      // ----- Write expanded positions back into schema -----
       const updatedWidgets = prevSchema.widgets.map(widget => {
-        const layout = newLayoutMap[widget.id];
-        if (layout) {
+        const p = placed[widget.id];
+        if (p) {
           return {
             ...widget,
-            position: {
-              ...widget.position,
-              column: layout.x + 1,
-              row: layout.y + 1,
-              col_span: layout.w,
-              row_span: layout.h,
-            },
+            position: { ...widget.position, column: p.x + 1, row: p.y + 1, col_span: p.w, row_span: p.h },
           };
         }
         return widget;
       });
-
-      queueMicrotask(() => setLayoutMap(newLayoutMap));
 
       return { ...prevSchema, widgets: updatedWidgets };
     });
