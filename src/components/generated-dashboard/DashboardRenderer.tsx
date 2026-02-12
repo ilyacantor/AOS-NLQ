@@ -817,7 +817,6 @@ export function DashboardRenderer({
                     data={widgetData[widget.id] || { loading: true }}
                     onClick={editMode ? undefined : (value) => handleWidgetClick(widget, value)}
                     onDoubleClick={editMode ? undefined : handleKPIDoubleClick}
-                    rowHeight={rowHeight}
                   />
                   {/* Per-widget close button — visible on hover */}
                   {schema.widgets.length > 1 && (

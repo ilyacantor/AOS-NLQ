@@ -52,6 +52,13 @@ export function useDashboardLayout({
     return () => window.removeEventListener('resize', updateWidth);
   }, []);
 
+  // Max row_span per widget type — keeps elements compact at rowHeight 55
+  const maxSpanForType = (type: string) => {
+    if (type === 'kpi_card') return 2;
+    if (type === 'data_table') return 5;
+    return 4; // charts
+  };
+
   const gridLayout = useMemo((): LayoutItem[] => {
     if (!schema) return [];
 
@@ -60,12 +67,13 @@ export function useDashboardLayout({
       if (stored) {
         return { ...stored, i: widget.id };
       }
+      const maxH = maxSpanForType(widget.type);
       return {
         i: widget.id,
         x: widget.position.column - 1,
         y: widget.position.row - 1,
         w: widget.position.col_span,
-        h: widget.position.row_span,
+        h: Math.min(widget.position.row_span, maxH),
         minW: 2,
         minH: 2,
       };
@@ -186,7 +194,7 @@ export function useDashboardLayout({
       const placed: Record<string, LayoutItem> = {};
 
       if (kpis.length > 0) {
-        const kpiH = kpis[0].position.row_span || 2;
+        const kpiH = 2; // Compact KPI height
         const baseW = Math.floor(cols / kpis.length);
         const extra = cols % kpis.length;
         let x = 0;
@@ -199,19 +207,19 @@ export function useDashboardLayout({
       }
 
       // ----- Place charts, tables, others with bin-packing -----
-      const placeGroup = (widgets: typeof charts, defaultW: number, defaultH: number) => {
+      const placeGroup = (widgets: typeof charts, defaultW: number, defaultH: number, maxH: number) => {
         widgets.forEach(widget => {
           const w = Math.min(widget.position.col_span || defaultW, cols);
-          const h = widget.position.row_span || defaultH;
+          const h = Math.min(widget.position.row_span || defaultH, maxH);
           const pos = findPosition(w, h);
           placeOnGrid(pos.x, pos.y, w, h);
           placed[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
         });
       };
 
-      placeGroup(charts, 6, 3);
-      placeGroup(tables, 4, 3);
-      placeGroup(others, 3, 2);
+      placeGroup(charts, 6, 4, 4);
+      placeGroup(tables, 4, 4, 5);
+      placeGroup(others, 3, 2, 4);
 
       // ----- Gap-fill pass: expand widgets to eliminate dark space -----
       const items = Object.values(placed).sort((a, b) => a.y - b.y || a.x - b.x);

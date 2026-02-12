@@ -31,7 +31,6 @@ interface WidgetRendererProps {
   data: WidgetData;
   onClick?: (value?: string) => void;
   onDoubleClick?: (widget: Widget) => void;
-  rowHeight: number;
 }
 
 // Domain colors matching the design system
@@ -90,15 +89,7 @@ class WidgetErrorBoundary extends Component<
   }
 }
 
-export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight }: WidgetRendererProps) {
-  // Calculate widget dimensions
-  const height = Math.max(widget.position.row_span * rowHeight - 16, 50); // Account for gap
-
-  // Grid positioning style
-  const style = {
-    gridColumn: `${widget.position.column} / span ${widget.position.col_span}`,
-    gridRow: `${widget.position.row} / span ${widget.position.row_span}`,
-  };
+export function WidgetRenderer({ widget, data, onClick, onDoubleClick }: WidgetRendererProps) {
 
   // Handle click vs double-click for KPI cards
   const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -136,9 +127,9 @@ export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight
   // Loading state
   if (data.loading) {
     return (
-      <div style={style} className="bg-slate-900 border border-slate-800 rounded-xl p-4 animate-pulse">
+      <div className="h-full bg-slate-900 border border-slate-800 rounded-xl p-4 animate-pulse">
         <div className="h-4 w-1/3 bg-slate-800 rounded mb-4" />
-        <div className="h-full bg-slate-800/50 rounded" />
+        <div className="flex-1 bg-slate-800/50 rounded" />
       </div>
     );
   }
@@ -146,7 +137,7 @@ export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight
   // Error state
   if (data.error) {
     return (
-      <div style={style} className="bg-slate-900 border border-red-800/50 rounded-xl p-4">
+      <div className="h-full bg-slate-900 border border-red-800/50 rounded-xl p-4">
         <h3 className="text-sm font-medium text-slate-400 mb-2">{widget.title}</h3>
         <p className="text-red-400 text-sm">{data.error}</p>
       </div>
@@ -154,7 +145,7 @@ export function WidgetRenderer({ widget, data, onClick, onDoubleClick, rowHeight
   }
 
   // Render based on widget type
-  const content = renderWidgetContent(widget, data, onClick, height);
+  const content = renderWidgetContent(widget, data, onClick);
 
   return (
     <WidgetErrorBoundary widget={widget}>
@@ -176,29 +167,28 @@ function renderWidgetContent(
   widget: Widget,
   data: WidgetData,
   onClick?: (value?: string) => void,
-  height: number = 200
 ): React.ReactNode {
   switch (widget.type) {
     case 'kpi_card':
       return <KPICardContent widget={widget} data={data} />;
     case 'line_chart':
-      return <LineChartContent widget={widget} data={data} height={height} onClick={onClick} />;
+      return <LineChartContent widget={widget} data={data} onClick={onClick} />;
     case 'bar_chart':
-      return <BarChartContent widget={widget} data={data} height={height} onClick={onClick} />;
+      return <BarChartContent widget={widget} data={data} onClick={onClick} />;
     case 'horizontal_bar':
-      return <HorizontalBarContent widget={widget} data={data} height={height} onClick={onClick} />;
+      return <HorizontalBarContent widget={widget} data={data} onClick={onClick} />;
     case 'area_chart':
-      return <AreaChartContent widget={widget} data={data} height={height} onClick={onClick} />;
+      return <AreaChartContent widget={widget} data={data} onClick={onClick} />;
     case 'donut_chart':
-      return <DonutChartContent widget={widget} data={data} height={height} onClick={onClick} />;
+      return <DonutChartContent widget={widget} data={data} onClick={onClick} />;
     case 'stacked_bar':
-      return <StackedBarContent widget={widget} data={data} height={height} onClick={onClick} />;
+      return <StackedBarContent widget={widget} data={data} onClick={onClick} />;
     case 'data_table':
       return <DataTableContent widget={widget} data={data} onClick={onClick} />;
     case 'sparkline':
       return <SparklineContent widget={widget} data={data} />;
     case 'map':
-      return <MapWidget widget={widget} data={data} height={height} onClick={onClick} />;
+      return <MapWidget widget={widget} data={data} height={200} onClick={onClick} />;
     default:
       return (
         <div className="p-4">
@@ -264,12 +254,10 @@ function KPICardContent({ widget, data }: { widget: Widget; data: WidgetData }) 
 function LineChartContent({
   widget,
   data,
-  height,
   onClick,
 }: {
   widget: Widget;
   data: WidgetData;
-  height: number;
   onClick?: (value?: string) => void;
 }) {
   const chartData = data.series?.[0]?.data || [];
@@ -279,7 +267,7 @@ function LineChartContent({
   return (
     <div className="p-3 h-full flex flex-col">
       <h3 className="text-xs font-medium text-slate-400 mb-1.5">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: height - 56 }}>
+      <div className="flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart 
             data={chartData}
@@ -336,12 +324,10 @@ function LineChartContent({
 function BarChartContent({
   widget,
   data,
-  height,
   onClick,
 }: {
   widget: Widget;
   data: WidgetData;
-  height: number;
   onClick?: (value?: string) => void;
 }) {
   const chartData = data.series?.[0]?.data || [];
@@ -350,7 +336,7 @@ function BarChartContent({
   return (
     <div className="p-3 h-full flex flex-col">
       <h3 className="text-xs font-medium text-slate-400 mb-1.5">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: height - 56 }}>
+      <div className="flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
@@ -393,12 +379,10 @@ function BarChartContent({
 function HorizontalBarContent({
   widget,
   data,
-  height,
   onClick,
 }: {
   widget: Widget;
   data: WidgetData;
-  height: number;
   onClick?: (value?: string) => void;
 }) {
   const chartData = data.series?.[0]?.data || [];
@@ -407,7 +391,7 @@ function HorizontalBarContent({
   return (
     <div className="p-3 h-full flex flex-col">
       <h3 className="text-xs font-medium text-slate-400 mb-1.5">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: height - 56 }}>
+      <div className="flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
@@ -452,12 +436,10 @@ function HorizontalBarContent({
 function AreaChartContent({
   widget,
   data,
-  height,
   onClick,
 }: {
   widget: Widget;
   data: WidgetData;
-  height: number;
   onClick?: (value?: string) => void;
 }) {
   const chartData = data.series?.[0]?.data || [];
@@ -466,7 +448,7 @@ function AreaChartContent({
   return (
     <div className="p-3 h-full flex flex-col">
       <h3 className="text-xs font-medium text-slate-400 mb-1.5">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: height - 56 }}>
+      <div className="flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart 
             data={chartData}
@@ -518,12 +500,10 @@ function AreaChartContent({
 function DonutChartContent({
   widget,
   data,
-  height,
   onClick,
 }: {
   widget: Widget;
   data: WidgetData;
-  height: number;
   onClick?: (value?: string) => void;
 }) {
   const chartData = data.series?.[0]?.data || [];
@@ -532,7 +512,7 @@ function DonutChartContent({
   return (
     <div className="p-3 h-full flex flex-col">
       <h3 className="text-xs font-medium text-slate-400 mb-1.5">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: height - 56 }}>
+      <div className="flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -578,12 +558,10 @@ function DonutChartContent({
 function StackedBarContent({
   widget,
   data,
-  height,
   onClick,
 }: {
   widget: Widget;
   data: WidgetData;
-  height: number;
   onClick?: (value?: string) => void;
 }) {
   // Transform series data into stacked format
@@ -600,7 +578,7 @@ function StackedBarContent({
   return (
     <div className="p-3 h-full flex flex-col">
       <h3 className="text-xs font-medium text-slate-400 mb-1.5">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: height - 56 }}>
+      <div className="flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart 
             data={chartData}
