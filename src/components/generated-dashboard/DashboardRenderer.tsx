@@ -150,6 +150,25 @@ function ForecastComparison({ rows, onDismiss }: { rows: ForecastRow[]; onDismis
 // Main Component
 // =============================================================================
 
+/** Cap widget row_span at the schema level so every downstream consumer gets compact heights */
+function normalizeSchema(s: DashboardSchema): DashboardSchema {
+  const maxH: Record<string, number> = { kpi_card: 2, data_table: 5 };
+  const defaultMaxH = 4; // charts
+  const changed = s.widgets.some(w => {
+    const cap = maxH[w.type] ?? defaultMaxH;
+    return w.position.row_span > cap;
+  });
+  if (!changed) return s;
+  return {
+    ...s,
+    widgets: s.widgets.map(w => {
+      const cap = maxH[w.type] ?? defaultMaxH;
+      if (w.position.row_span <= cap) return w;
+      return { ...w, position: { ...w.position, row_span: cap } };
+    }),
+  };
+}
+
 export function DashboardRenderer({
   initialSchema,
   initialWidgetData,
@@ -166,11 +185,18 @@ export function DashboardRenderer({
 }: DashboardRendererProps) {
   // Query router for detecting factual queries that should go to Galaxy
   const { routeQuery } = useQueryRouter();
-  const [schema, setSchema] = useState<DashboardSchema | null>(initialSchema || null);
+  const [schema, setSchemaRaw] = useState<DashboardSchema | null>(initialSchema ? normalizeSchema(initialSchema) : null);
+  // Wrapper that always normalizes before setting
+  const setSchema = useCallback((v: React.SetStateAction<DashboardSchema | null>) => {
+    setSchemaRaw(prev => {
+      const next = typeof v === 'function' ? v(prev) : v;
+      return next ? normalizeSchema(next) : next;
+    });
+  }, []);
   // Use pre-resolved data from backend if available, otherwise empty (will fetch mock)
   const [widgetData, setWidgetData] = useState<Record<string, WidgetData>>(initialWidgetData || {});
   // Store the default (initial) schema and data for reset-to-default
-  const defaultSchemaRef = useRef<DashboardSchema | null>(initialSchema || null);
+  const defaultSchemaRef = useRef<DashboardSchema | null>(initialSchema ? normalizeSchema(initialSchema) : null);
   const defaultWidgetDataRef = useRef<Record<string, WidgetData>>(initialWidgetData || {});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
