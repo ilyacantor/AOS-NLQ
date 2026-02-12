@@ -217,11 +217,11 @@ function KPICardContent({ widget, data }: { widget: Widget; data: WidgetData }) 
   const showSparkline = widget.kpi_config?.show_sparkline && data.sparkline_data;
 
   return (
-    <div className="p-4 h-full flex flex-col justify-between">
+    <div className="p-3 h-full flex flex-col justify-between">
       <div>
         <h3 className="text-sm font-medium text-slate-400 mb-1">{widget.title}</h3>
         <div className="flex items-baseline gap-3">
-          <span className="text-3xl font-bold text-white">{data.formatted_value}</span>
+          <span className="text-xl font-bold text-white">{data.formatted_value}</span>
           {trend && widget.kpi_config?.show_trend && (
             <span className={`text-sm font-medium flex items-center gap-1 ${
               trend.direction === 'up' ? 'text-emerald-400' :
@@ -238,7 +238,7 @@ function KPICardContent({ widget, data }: { widget: Widget; data: WidgetData }) 
       </div>
 
       {showSparkline && (
-        <div className="h-12 mt-2">
+        <div className="h-8 mt-1">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data.sparkline_data?.map((v, i) => ({ value: v, i }))}>
               <Area
@@ -277,9 +277,9 @@ function LineChartContent({
   const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
   return (
-    <div className="p-4 h-full flex flex-col">
-      <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: height - 80 }}>
+    <div className="p-3 h-full flex flex-col">
+      <h3 className="text-xs font-medium text-slate-400 mb-1.5">{widget.title}</h3>
+      <div className="flex-1" style={{ minHeight: height - 56 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart 
             data={chartData}
@@ -348,9 +348,9 @@ function BarChartContent({
   const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
   return (
-    <div className="p-4 h-full flex flex-col">
-      <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: height - 80 }}>
+    <div className="p-3 h-full flex flex-col">
+      <h3 className="text-xs font-medium text-slate-400 mb-1.5">{widget.title}</h3>
+      <div className="flex-1" style={{ minHeight: height - 56 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
@@ -405,9 +405,9 @@ function HorizontalBarContent({
   const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
   return (
-    <div className="p-4 h-full flex flex-col">
-      <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: height - 80 }}>
+    <div className="p-3 h-full flex flex-col">
+      <h3 className="text-xs font-medium text-slate-400 mb-1.5">{widget.title}</h3>
+      <div className="flex-1" style={{ minHeight: height - 56 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
@@ -464,9 +464,9 @@ function AreaChartContent({
   const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
   return (
-    <div className="p-4 h-full flex flex-col">
-      <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: height - 80 }}>
+    <div className="p-3 h-full flex flex-col">
+      <h3 className="text-xs font-medium text-slate-400 mb-1.5">{widget.title}</h3>
+      <div className="flex-1" style={{ minHeight: height - 56 }}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart 
             data={chartData}
@@ -530,9 +530,9 @@ function DonutChartContent({
   const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
   return (
-    <div className="p-4 h-full flex flex-col">
-      <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: height - 80 }}>
+    <div className="p-3 h-full flex flex-col">
+      <h3 className="text-xs font-medium text-slate-400 mb-1.5">{widget.title}</h3>
+      <div className="flex-1" style={{ minHeight: height - 56 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -598,9 +598,9 @@ function StackedBarContent({
   const hasDrillDown = widget.interactions.some(i => i.type === 'drill_down' && i.enabled);
 
   return (
-    <div className="p-4 h-full flex flex-col">
-      <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
-      <div className="flex-1" style={{ minHeight: height - 80 }}>
+    <div className="p-3 h-full flex flex-col">
+      <h3 className="text-xs font-medium text-slate-400 mb-1.5">{widget.title}</h3>
+      <div className="flex-1" style={{ minHeight: height - 56 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart 
             data={chartData}
@@ -668,7 +668,7 @@ function DataTableContent({
   if (rows.length === 0) {
     return (
       <div className="p-4">
-        <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
+        <h3 className="text-xs font-medium text-slate-400 mb-1.5">{widget.title}</h3>
         <p className="text-slate-500 text-sm">No data available</p>
       </div>
     );
@@ -677,8 +677,8 @@ function DataTableContent({
   const columns = Object.keys(rows[0]);
 
   return (
-    <div className="p-4 h-full flex flex-col">
-      <h3 className="text-sm font-medium text-slate-400 mb-3">{widget.title}</h3>
+    <div className="p-3 h-full flex flex-col">
+      <h3 className="text-xs font-medium text-slate-400 mb-1.5">{widget.title}</h3>
       <div className="flex-1 overflow-auto">
         <table className="w-full text-sm">
           <thead>
@@ -721,7 +721,7 @@ function SparklineContent({ widget, data }: { widget: Widget; data: WidgetData }
   const sparklineData = data.sparkline_data?.map((v, i) => ({ value: v, i })) || [];
 
   return (
-    <div className="p-4 h-full flex flex-col">
+    <div className="p-3 h-full flex flex-col">
       <h3 className="text-sm font-medium text-slate-400 mb-2">{widget.title}</h3>
       <div className="flex-1">
         <ResponsiveContainer width="100%" height="100%">

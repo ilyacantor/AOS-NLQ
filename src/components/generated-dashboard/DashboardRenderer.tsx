@@ -100,27 +100,27 @@ function formatVariance(current: number, adjusted: number, format: 'currency' | 
 
 function ForecastComparison({ rows, onDismiss }: { rows: ForecastRow[]; onDismiss: () => void }) {
   return (
-    <div className="mx-4 md:mx-6 mb-4 rounded-xl border border-cyan-500/30 bg-slate-900/80 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
-        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-          <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="mx-4 md:mx-6 mb-3 rounded-lg border border-cyan-500/30 bg-slate-900/80 overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-800">
+        <h3 className="text-xs font-semibold text-white flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
           Forecast Comparison
         </h3>
         <button onClick={onDismiss} className="text-slate-500 hover:text-slate-300 transition-colors">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
-      <table className="w-full text-sm">
+      <table className="w-full text-xs">
         <thead>
           <tr className="border-b border-slate-800 text-slate-400">
-            <th className="text-left px-4 py-2 font-medium">Metric</th>
-            <th className="text-right px-4 py-2 font-medium">Current Forecast</th>
-            <th className="text-right px-4 py-2 font-medium">Adjusted Forecast</th>
-            <th className="text-right px-4 py-2 font-medium">Variance</th>
+            <th className="text-left px-3 py-1.5 font-medium">Metric</th>
+            <th className="text-right px-3 py-1.5 font-medium">Current Forecast</th>
+            <th className="text-right px-3 py-1.5 font-medium">Adjusted Forecast</th>
+            <th className="text-right px-3 py-1.5 font-medium">Variance</th>
           </tr>
         </thead>
         <tbody>
@@ -131,10 +131,10 @@ function ForecastComparison({ rows, onDismiss }: { rows: ForecastRow[]; onDismis
             const varColor = isPositive ? 'text-green-400' : isNegative ? 'text-red-400' : 'text-slate-400';
             return (
               <tr key={row.metric} className="border-b border-slate-800/50 hover:bg-slate-800/30">
-                <td className="px-4 py-2.5 text-slate-200 font-medium">{row.metric}</td>
-                <td className="px-4 py-2.5 text-right text-slate-300">{formatForecastValue(row.current, row.format)}</td>
-                <td className="px-4 py-2.5 text-right text-white font-medium">{formatForecastValue(row.adjusted, row.format)}</td>
-                <td className={`px-4 py-2.5 text-right font-medium ${varColor}`}>
+                <td className="px-3 py-1.5 text-slate-200 font-medium">{row.metric}</td>
+                <td className="px-3 py-1.5 text-right text-slate-300">{formatForecastValue(row.current, row.format)}</td>
+                <td className="px-3 py-1.5 text-right text-white font-medium">{formatForecastValue(row.adjusted, row.format)}</td>
+                <td className={`px-3 py-1.5 text-right font-medium ${varColor}`}>
                   {formatVariance(row.current, row.adjusted, row.format)}
                 </td>
               </tr>
@@ -169,6 +169,9 @@ export function DashboardRenderer({
   const [schema, setSchema] = useState<DashboardSchema | null>(initialSchema || null);
   // Use pre-resolved data from backend if available, otherwise empty (will fetch mock)
   const [widgetData, setWidgetData] = useState<Record<string, WidgetData>>(initialWidgetData || {});
+  // Store the default (initial) schema and data for reset-to-default
+  const defaultSchemaRef = useRef<DashboardSchema | null>(initialSchema || null);
+  const defaultWidgetDataRef = useRef<Record<string, WidgetData>>(initialWidgetData || {});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialQuery, setInitialQuery] = useState('');
@@ -301,12 +304,14 @@ export function DashboardRenderer({
       setSchema(initialSchema);
       setLayoutMap({}); // Clear custom positions when new schema is loaded
       setError(null);
+      defaultSchemaRef.current = initialSchema;
     }
   }, [initialSchema]);
 
   useEffect(() => {
     if (initialWidgetData && Object.keys(initialWidgetData).length > 0) {
       setWidgetData(initialWidgetData);
+      defaultWidgetDataRef.current = initialWidgetData;
     }
   }, [initialWidgetData]);
 
@@ -392,27 +397,50 @@ export function DashboardRenderer({
     handleAutoArrange,
   });
 
-  // Reset dashboard
+  // Reset dashboard — reverts to the default persona dashboard state
   const handleReset = useCallback(() => {
-    setSchema(null);
-    setWidgetData({});
-    setError(null);
-    setSuggestions([]);
-    setInitialQuery('');
-    setRefinementQuery('');
-    setLayoutMap({});
+    if (defaultSchemaRef.current) {
+      setSchema(defaultSchemaRef.current);
+      setWidgetData(defaultWidgetDataRef.current);
+      setLayoutMap({});
+      setError(null);
+      setSuggestions([]);
+      setRefinementQuery('');
+      setForecastData(null);
+    } else {
+      setSchema(null);
+      setWidgetData({});
+      setError(null);
+      setSuggestions([]);
+      setInitialQuery('');
+      setRefinementQuery('');
+      setLayoutMap({});
+      setForecastData(null);
+    }
   }, [setRefinementQuery]);
 
-  // Handle widget click (drill-down)
+  // Remove a single widget
+  const handleRemoveWidget = useCallback((widgetId: string) => {
+    setSchema(prev => {
+      if (!prev) return prev;
+      const filtered = prev.widgets.filter(w => w.id !== widgetId);
+      if (filtered.length === 0) return prev; // Don't allow removing the last widget
+      return { ...prev, widgets: filtered };
+    });
+    setWidgetData(prev => {
+      const next = { ...prev };
+      delete next[widgetId];
+      return next;
+    });
+    setLayoutMap(prev => {
+      const next = { ...prev };
+      delete next[widgetId];
+      return next;
+    });
+  }, []);
+
+  // Handle widget click (drill-down) — stays within dashboard (refines)
   const handleWidgetClick = useCallback((widget: Widget, value?: string) => {
-    // Check for explicit drill_down interaction first
-    const drillDown = widget.interactions.find(i => i.type === 'drill_down' && i.enabled);
-    if (drillDown?.drill_down && onDrillDown) {
-      const query = drillDown.drill_down.query_template.replace('{value}', value || '');
-      onDrillDown(query);
-      return;
-    }
-    
     if (widget.type === 'kpi_card') {
       const metric = value || widget.data.metrics[0]?.metric || widget.title;
       const trendId = `trend_${metric}`;
@@ -423,18 +451,16 @@ export function DashboardRenderer({
       if (alreadyExists) {
         return;
       }
-      const refinementQuery = `Add a quarterly trend chart for ${metric}`;
-      refineDashboard(refinementQuery);
+      refineDashboard(`Add a quarterly trend chart for ${metric}`);
       return;
     }
-    
-    // For charts, if a value was clicked, drill into that dimension value
-    if (value && onDrillDown) {
+
+    // For charts, drill into the clicked dimension as a dashboard refinement
+    if (value) {
       const metric = widget.data.metrics[0]?.metric || 'data';
-      const query = `Show me ${metric} for ${value}`;
-      onDrillDown(query);
+      refineDashboard(`Add a detail chart showing ${metric} for ${value}`);
     }
-  }, [onDrillDown, refineDashboard, schema]);
+  }, [refineDashboard, schema]);
 
   // Handle KPI double-click to show time-based chart
   const handleKPIDoubleClick = useCallback((widget: Widget) => {
@@ -479,7 +505,7 @@ export function DashboardRenderer({
     }
   }, [sourceQuery, schema, generateDashboard]);
 
-  const rowHeight = schema?.layout.row_height || 80;
+  const rowHeight = schema?.layout.row_height || 55;
 
   // State for mobile menu and desktop actions dropdown
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -574,18 +600,6 @@ export function DashboardRenderer({
                 {editMode ? '✓ Editing' : '✎ Edit'}
               </button>
 
-              {/* What-If button - CFO only */}
-              {persona === 'CFO' && (
-                <button
-                  id="dashboard-whatif-btn"
-                  onClick={() => setScenarioOpen(true)}
-                  className="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-500 transition-colors"
-                  title="What-If Scenario Modeling"
-                >
-                  📊 What-If
-                </button>
-              )}
-
               {/* Actions dropdown */}
               <div className="relative">
                 <button
@@ -601,6 +615,11 @@ export function DashboardRenderer({
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowActionsMenu(false)} />
                     <div className="absolute right-0 top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[160px]">
+                      {persona === 'CFO' && (
+                        <button id="dashboard-whatif-btn" onClick={() => { setScenarioOpen(true); setShowActionsMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-cyan-300 hover:bg-slate-700 flex items-center gap-2">
+                          <span>📊</span> What-If
+                        </button>
+                      )}
                       <button onClick={() => { handleAutoArrange(); setSaveSuccess('Layout auto-arranged!'); setTimeout(() => setSaveSuccess(null), 2000); setShowActionsMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-cyan-300 hover:bg-slate-700 flex items-center gap-2">
                         <span>⊞</span> Auto Arrange
                       </button>
@@ -791,7 +810,7 @@ export function DashboardRenderer({
               {schema.widgets.map(widget => (
                 <div
                   key={widget.id}
-                  className="h-full"
+                  className="h-full group/widget relative"
                 >
                   <WidgetRenderer
                     widget={widget}
@@ -800,6 +819,16 @@ export function DashboardRenderer({
                     onDoubleClick={editMode ? undefined : handleKPIDoubleClick}
                     rowHeight={rowHeight}
                   />
+                  {/* Per-widget close button — visible on hover */}
+                  {schema.widgets.length > 1 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleRemoveWidget(widget.id); }}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-800/80 text-slate-500 hover:bg-red-600 hover:text-white flex items-center justify-center opacity-0 group-hover/widget:opacity-100 transition-opacity z-10 text-xs"
+                      title="Remove widget"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               ))}
             </GridLayout>

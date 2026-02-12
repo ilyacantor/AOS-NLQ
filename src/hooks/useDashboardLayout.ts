@@ -132,6 +132,7 @@ export function useDashboardLayout({
 
       const cols = prevSchema.layout.columns;
 
+      // ----- Categorise widgets by type -----
       const kpis = prevSchema.widgets.filter(w => w.type === 'kpi_card');
       const charts = prevSchema.widgets.filter(w =>
         ['line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar'].includes(w.type)
@@ -141,6 +142,7 @@ export function useDashboardLayout({
         !['kpi_card', 'line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar', 'data_table'].includes(w.type)
       );
 
+      // ----- Grid helpers -----
       const grid: boolean[][] = [];
       const getRow = (y: number) => {
         while (grid.length <= y) grid.push(new Array(cols).fill(false));
@@ -158,7 +160,7 @@ export function useDashboardLayout({
         return true;
       };
 
-      const place = (x: number, y: number, w: number, h: number) => {
+      const placeOnGrid = (x: number, y: number, w: number, h: number) => {
         for (let dy = 0; dy < h; dy++) {
           const row = getRow(y + dy);
           for (let dx = 0; dx < w; dx++) {
@@ -179,38 +181,123 @@ export function useDashboardLayout({
 
       const newLayoutMap: Record<string, LayoutItem> = {};
 
-      kpis.forEach(widget => {
-        const w = Math.min(widget.position.col_span || 3, cols);
-        const h = widget.position.row_span || 2;
-        const pos = findPosition(w, h);
-        place(pos.x, pos.y, w, h);
-        newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+      // ----- KPIs: evenly divide across the row -----
+      if (kpis.length > 0) {
+        const kpiH = kpis[0].position.row_span || 2;
+        // Find first row with enough space (should be row 0)
+        const startY = 0;
+        const baseW = Math.floor(cols / kpis.length);
+        const extra = cols % kpis.length;
+        let x = 0;
+        kpis.forEach((widget, idx) => {
+          const w = baseW + (idx < extra ? 1 : 0);
+          placeOnGrid(x, startY, w, kpiH);
+          newLayoutMap[widget.id] = { i: widget.id, x, y: startY, w, h: kpiH, minW: 2, minH: 2 };
+          x += w;
+        });
+      }
+
+      // ----- Place charts, tables, others with bin-packing -----
+      const placeGroup = (widgets: typeof charts, defaultW: number, defaultH: number) => {
+        widgets.forEach(widget => {
+          const w = Math.min(widget.position.col_span || defaultW, cols);
+          const h = widget.position.row_span || defaultH;
+          const pos = findPosition(w, h);
+          placeOnGrid(pos.x, pos.y, w, h);
+          newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+        });
+      };
+
+      placeGroup(charts, 6, 3);
+      placeGroup(tables, 4, 3);
+      placeGroup(others, 3, 2);
+
+      // ----- Gap-fill pass: expand widgets to eliminate dark space -----
+      // Process widgets top-to-bottom, left-to-right
+      const items = Object.values(newLayoutMap).sort((a, b) => a.y - b.y || a.x - b.x);
+
+      // Rebuild a clean occupancy grid using widget IDs
+      const occGrid: (string | null)[][] = [];
+      const ensureRow = (y: number) => {
+        while (occGrid.length <= y) occGrid.push(new Array(cols).fill(null));
+      };
+
+      // Find max row
+      let maxRow = 0;
+      items.forEach(item => {
+        const bottom = item.y + item.h;
+        if (bottom > maxRow) maxRow = bottom;
+      });
+      for (let r = 0; r <= maxRow + 2; r++) ensureRow(r);
+
+      // Fill occupancy
+      items.forEach(item => {
+        for (let dy = 0; dy < item.h; dy++) {
+          for (let dx = 0; dx < item.w; dx++) {
+            ensureRow(item.y + dy);
+            occGrid[item.y + dy][item.x + dx] = item.i;
+          }
+        }
       });
 
-      charts.forEach(widget => {
-        const w = Math.min(widget.position.col_span || 6, cols);
-        const h = widget.position.row_span || 3;
-        const pos = findPosition(w, h);
-        place(pos.x, pos.y, w, h);
-        newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+      // Expand each widget rightward into empty space
+      items.forEach(item => {
+        let newW = item.w;
+        while (item.x + newW < cols) {
+          // Check if the column to the right is empty for the full height of this widget
+          let canExpand = true;
+          for (let dy = 0; dy < item.h; dy++) {
+            ensureRow(item.y + dy);
+            if (occGrid[item.y + dy][item.x + newW] !== null) {
+              canExpand = false;
+              break;
+            }
+          }
+          if (!canExpand) break;
+          // Claim those cells
+          for (let dy = 0; dy < item.h; dy++) {
+            occGrid[item.y + dy][item.x + newW] = item.i;
+          }
+          newW++;
+        }
+        item.w = newW;
+        newLayoutMap[item.i].w = newW;
       });
 
-      tables.forEach(widget => {
-        const w = Math.min(widget.position.col_span || 4, cols);
-        const h = widget.position.row_span || 3;
-        const pos = findPosition(w, h);
-        place(pos.x, pos.y, w, h);
-        newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+      // Expand each widget downward into empty space
+      items.forEach(item => {
+        let newH = item.h;
+        while (true) {
+          const nextRow = item.y + newH;
+          ensureRow(nextRow);
+          // Check if the row below is empty for the full width of this widget
+          let canExpand = true;
+          for (let dx = 0; dx < item.w; dx++) {
+            if (occGrid[nextRow][dx + item.x] !== null) {
+              canExpand = false;
+              break;
+            }
+          }
+          if (!canExpand) break;
+          // Claim those cells
+          for (let dx = 0; dx < item.w; dx++) {
+            occGrid[nextRow][dx + item.x] = item.i;
+          }
+          newH++;
+        }
+        item.h = newH;
+        newLayoutMap[item.i].h = newH;
       });
 
-      others.forEach(widget => {
-        const w = Math.min(widget.position.col_span || 3, cols);
-        const h = widget.position.row_span || 2;
-        const pos = findPosition(w, h);
-        place(pos.x, pos.y, w, h);
-        newLayoutMap[widget.id] = { i: widget.id, x: pos.x, y: pos.y, w, h, minW: 2, minH: 2 };
+      // ----- Trim trailing empty rows -----
+      // Find actual max row after expansion
+      let actualMaxRow = 0;
+      items.forEach(item => {
+        const bottom = item.y + item.h;
+        if (bottom > actualMaxRow) actualMaxRow = bottom;
       });
 
+      // ----- Update schema positions -----
       const updatedWidgets = prevSchema.widgets.map(widget => {
         const layout = newLayoutMap[widget.id];
         if (layout) {
