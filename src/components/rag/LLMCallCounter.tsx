@@ -42,7 +42,7 @@ function getSessionId(): string {
 }
 
 export const LLMCallCounter: React.FC<LLMCallCounterProps> = ({
-  refreshInterval = 3000,
+  refreshInterval = 10000,
   detailed = false,
   className = '',
 }) => {

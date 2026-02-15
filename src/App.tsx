@@ -881,14 +881,14 @@ function App() {
 
             {panelTab === 'Learning' && (
               <RAGLearningPanel
-                refreshInterval={5000}
+                refreshInterval={sidebarOpen ? 5000 : 0}
                 maxEntries={50}
               />
             )}
 
             {panelTab === 'Data Gaps' && (
               <InsufficientDataPanel
-                refreshInterval={5000}
+                refreshInterval={sidebarOpen ? 5000 : 0}
                 maxEntries={50}
               />
             )}

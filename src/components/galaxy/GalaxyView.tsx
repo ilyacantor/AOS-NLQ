@@ -175,15 +175,18 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   // Animation time for smooth orbit effect
   const [animTime, setAnimTime] = useState(0);
 
-  // Smooth animation loop - just updates time, positions calculated in render
+  // Throttled animation loop — ~10fps for a subtle 3px orbit wobble.
+  // Full 60fps is unnecessary and wastes CPU with constant re-renders.
   useEffect(() => {
     let rafId: number;
     let lastTime = performance.now();
 
     const animate = (now: number) => {
       const delta = (now - lastTime) / 1000;
-      lastTime = now;
-      setAnimTime(t => t + delta);
+      if (delta >= 0.1) { // ~10fps
+        lastTime = now;
+        setAnimTime(t => t + delta);
+      }
       rafId = requestAnimationFrame(animate);
     };
 

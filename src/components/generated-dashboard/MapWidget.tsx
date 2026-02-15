@@ -83,6 +83,21 @@ const REGION_CENTERS: Record<string, [number, number]> = {
 // formatCurrency imported from ../../utils/formatters
 const formatValue = (value: number) => formatCurrency(value);
 
+// Module-level cache for GeoJSON — fetched at most once per session
+let geoJsonCache: GeoJSON.FeatureCollection | null = null;
+let geoJsonPromise: Promise<GeoJSON.FeatureCollection> | null = null;
+
+function fetchGeoJson(): Promise<GeoJSON.FeatureCollection> {
+  if (geoJsonCache) return Promise.resolve(geoJsonCache);
+  if (!geoJsonPromise) {
+    geoJsonPromise = fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
+      .then(r => r.json())
+      .then((data: GeoJSON.FeatureCollection) => { geoJsonCache = data; return data; })
+      .catch(err => { geoJsonPromise = null; throw err; });
+  }
+  return geoJsonPromise;
+}
+
 export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -184,9 +199,8 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
       map.removeLayer(geoJsonLayerRef.current);
     }
 
-    // Fetch world countries GeoJSON
-    fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
-      .then(response => response.json())
+    // Fetch world countries GeoJSON (cached after first load)
+    fetchGeoJson()
       .then((geojsonData: GeoJSON.FeatureCollection) => {
         const geoJsonLayer = L.geoJSON(geojsonData, {
           style: () => {
