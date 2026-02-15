@@ -1161,7 +1161,27 @@ class DCLSemanticClient:
             return {"error": "No data available (DCL not configured, no local fallback)", "status": "error"}
 
         # Build response based on query type
-        result = {"metric": metric, "data": [], "status": "ok", "source": "local_fallback"}
+        result = {
+            "metric": metric,
+            "data": [],
+            "status": "ok",
+            "source": "local_fallback",
+            "metadata": {
+                "mode": "Demo",
+                "quality_score": 1.0,
+                "freshness_display": "",
+            },
+            "run_provenance": {
+                "run_id": None,
+                "tenant_id": None,
+                "snapshot_name": "fact_base.json",
+                "run_timestamp": None,
+                "source_systems": ["Local Dev"],
+                "freshness": "",
+                "quality_score": 1.0,
+                "mode": "Demo",
+            },
+        }
 
         # Handle dimensional queries
         period_filter = time_range.get("period") if time_range else None
