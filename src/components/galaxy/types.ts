@@ -35,6 +35,19 @@ export interface IntentNode {
   period?: string | null;
   rationale?: string | null;
   semantic_label?: string | null;
+  source_system?: string | null;  // e.g., "Salesforce CRM, NetSuite ERP"
+}
+
+/** Structured run provenance from DCL ingestion pipeline. */
+export interface RunProvenance {
+  run_id?: string | null;           // AAM-generated run ID (e.g., "run_555_sf_revenue")
+  tenant_id?: string | null;        // Tenant/snapshot owner
+  snapshot_name?: string | null;    // Logical dataset name
+  run_timestamp?: string | null;    // ISO 8601 extraction time
+  source_systems?: string[];        // Contributing source systems
+  freshness?: string | null;        // Human-friendly age (e.g., "2h")
+  quality_score?: number | null;    // 0-1 data quality
+  mode?: string | null;             // "Demo", "Live", etc.
 }
 
 export interface IntentMapResponse {
@@ -51,6 +64,7 @@ export interface IntentMapResponse {
   text_response: string;
   needs_clarification: boolean;
   clarification_prompt?: string | null;
+  provenance?: RunProvenance | null;  // DCL run provenance for Trust Badge
 }
 
 // Ring configuration

@@ -25,6 +25,8 @@ class SimpleMetricResult:
     period: str = "2026-Q4"  # Current period by default
     data_quality: float = 1.0  # From DCL metadata.quality_score
     freshness: str = "0h"  # From DCL provenance[].freshness
+    source: str = "local"  # "dcl" when from live DCL, "local" for fact_base fallback
+    run_provenance: Optional[Dict[str, Any]] = None  # DCL run provenance for Trust Badge
 
 
 @dataclass
@@ -86,6 +88,12 @@ def simple_metric_to_galaxy_response(result: SimpleMetricResult, question: str) 
     node_id = f"{result.metric}_1"
     # Detect persona from metric first, then from question, fallback to CFO
     persona = detect_persona_from_metric(result.metric) or detect_persona_from_question(question) or "CFO"
+
+    # Extract source system from run provenance if available
+    source_system = None
+    if result.run_provenance and result.run_provenance.get("source_systems"):
+        source_system = ", ".join(result.run_provenance["source_systems"])
+
     return IntentMapResponse(
         query=question,
         query_type="POINT_QUERY",
@@ -107,12 +115,14 @@ def simple_metric_to_galaxy_response(result: SimpleMetricResult, question: str) 
             formatted_value=result.formatted_value,
             period="2025",
             semantic_label="Direct Answer",
+            source_system=source_system,
         )],
         primary_node_id=node_id,
         primary_answer=result.answer,
         text_response=result.answer,
         needs_clarification=False,
         clarification_prompt=None,
+        provenance=result.run_provenance,
     )
 
 

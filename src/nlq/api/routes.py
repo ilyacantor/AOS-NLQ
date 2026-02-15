@@ -1463,6 +1463,8 @@ def _build_simple_metric_result(metric: str) -> Optional[SimpleMetricResult]:
         period=current_period,
         data_quality=data_quality,
         freshness=freshness,
+        source=result.get("source", "local"),
+        run_provenance=result.get("run_provenance"),
     )
 
 

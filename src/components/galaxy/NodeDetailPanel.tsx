@@ -1,16 +1,19 @@
 import React from 'react';
-import { IntentNode, DOMAIN_COLORS, getFreshnessColor } from './types';
+import { IntentNode, RunProvenance, DOMAIN_COLORS, getFreshnessColor } from './types';
+import { ProvenanceBadge } from './ProvenanceBadge';
 
 interface NodeDetailPanelProps {
   node: IntentNode;
   isPrimary: boolean;
   onClose: () => void;
+  provenance?: RunProvenance | null;
 }
 
 export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
   node,
   isPrimary,
   onClose,
+  provenance,
 }) => {
   const domainColor = DOMAIN_COLORS[node.domain] || DOMAIN_COLORS.finance;
   const freshnessColor = getFreshnessColor(node.freshness);
@@ -161,7 +164,18 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
               <dd className="text-slate-300 text-sm">{node.rationale}</dd>
             </div>
           )}
+
+          {/* Source System */}
+          {node.source_system && (
+            <div>
+              <dt className="text-slate-500 text-xs mb-1">Source</dt>
+              <dd className="text-slate-300 text-sm">{node.source_system}</dd>
+            </div>
+          )}
         </dl>
+
+        {/* Data Provenance (Trust Badge) */}
+        <ProvenanceBadge provenance={provenance} />
       </div>
     </div>
   );

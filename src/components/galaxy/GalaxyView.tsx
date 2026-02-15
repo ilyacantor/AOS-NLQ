@@ -11,6 +11,7 @@ import {
 import { GalaxyHeader } from './GalaxyHeader';
 import { GalaxyLegend } from './GalaxyLegend';
 import { NodeDetailPanel } from './NodeDetailPanel';
+import { ProvenanceBadge } from './ProvenanceBadge';
 import { DataTable } from './DataTable';
 
 interface GalaxyViewProps {
@@ -639,9 +640,12 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             {/* Answer Summary - Always visible */}
             {data.text_response && (
               <div className="mb-3">
-                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                  Answer
-                </h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Answer
+                  </h3>
+                  <ProvenanceBadge provenance={data.provenance} compact />
+                </div>
                 <p className={`text-slate-200 text-sm leading-relaxed ${sheetState === 'collapsed' ? 'line-clamp-2' : ''}`}>
                   {data.text_response}
                 </p>
@@ -689,6 +693,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                 node={selectedNode}
                 isPrimary={selectedNode.id === data.primary_node_id}
                 onClose={() => setSelectedNode(null)}
+                provenance={data.provenance}
               />
             </div>
           </div>
@@ -721,9 +726,12 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
           {/* Text Answer - Top Left */}
           {data.text_response && (
             <div className="p-4 border-b border-slate-800/50 min-w-[293px]">
-              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                Answer
-              </h3>
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  Answer
+                </h3>
+                <ProvenanceBadge provenance={data.provenance} compact />
+              </div>
               <p className="text-slate-200 text-sm leading-relaxed">
                 {data.text_response}
               </p>
@@ -767,6 +775,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             node={selectedNode}
             isPrimary={selectedNode.id === data.primary_node_id}
             onClose={() => setSelectedNode(null)}
+            provenance={data.provenance}
           />
         )}
       </div>

@@ -847,15 +847,17 @@ class DCLSemanticClient:
         DCL returns:
           {metric, metric_name, unit, grain,
            data: [{period, value, dimensions, rank}],
-           metadata: {freshness (ISO), quality_score, record_count, ...},
+           metadata: {freshness (ISO), quality_score, record_count,
+                      run_id, tenant_id, snapshot_name, run_timestamp, ...},
            provenance: [{source_system, freshness ("2h"), quality_score}]}
 
         NLQ callers expect:
           {status: "ok", metric, data: [{period, value, ...}],
-           metadata: {...}, unit, ...}
+           metadata: {...}, unit, source: "dcl", ...}
         """
         normalized: Dict[str, Any] = {
             "status": "ok",
+            "source": "dcl",
             "metric": dcl_response.get("metric"),
             "data": dcl_response.get("data", []),
         }
@@ -875,6 +877,22 @@ class DCLSemanticClient:
             metadata["freshness_display"] = provenance[0].get("freshness", "")
             metadata["provenance"] = provenance
         normalized["metadata"] = metadata
+
+        # Build structured run provenance for UI Trust Badge
+        # These fields will be populated once DCL ships POST /api/dcl/ingest
+        normalized["run_provenance"] = {
+            "run_id": metadata.get("run_id"),
+            "tenant_id": metadata.get("tenant_id"),
+            "snapshot_name": metadata.get("snapshot_name"),
+            "run_timestamp": metadata.get("run_timestamp"),
+            "source_systems": [
+                p.get("source_system") for p in provenance
+                if p.get("source_system")
+            ],
+            "freshness": metadata.get("freshness_display", ""),
+            "quality_score": metadata.get("quality_score"),
+            "mode": metadata.get("mode"),
+        }
 
         # Carry over entity resolution and conflict data when present
         for key in ("entity", "conflicts", "temporal_warning"):

@@ -4,11 +4,13 @@ export { GalaxyHeader } from './GalaxyHeader';
 export { GalaxyLegend } from './GalaxyLegend';
 export { NodeDetailPanel } from './NodeDetailPanel';
 export { NodeTooltip } from './NodeTooltip';
+export { ProvenanceBadge } from './ProvenanceBadge';
 
 // Types
 export type {
   IntentNode,
   IntentMapResponse,
+  RunProvenance,
   MatchType,
   Domain,
   AmbiguityType,
