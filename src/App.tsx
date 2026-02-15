@@ -1,12 +1,22 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { GalaxyView, IntentMapResponse } from './components/galaxy'
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react'
+import type { IntentMapResponse } from './components/galaxy'
+import type { DashboardSchema } from './components/generated-dashboard'
 import { RAGLearningPanel, LLMCallCounter, useSessionId } from './components/rag'
 import { InsufficientDataPanel } from './components/rag/InsufficientDataPanel'
-import { DashboardRenderer, DashboardSchema } from './components/generated-dashboard'
-import { UserGuide } from './components/UserGuide'
 import { useQueryRouter } from './hooks/useQueryRouter'
 import { ProductTour } from './components/ProductTour'
 import { LandingPage } from './components/LandingPage'
+
+// Lazy-load the three view components — only the active view's code is downloaded
+const GalaxyView = React.lazy(() =>
+  import('./components/galaxy/GalaxyView').then(m => ({ default: m.GalaxyView }))
+)
+const DashboardRenderer = React.lazy(() =>
+  import('./components/generated-dashboard/DashboardRenderer')
+)
+const UserGuide = React.lazy(() =>
+  import('./components/UserGuide').then(m => ({ default: m.UserGuide }))
+)
 
 async function fetchWithRetry(
   url: string,
@@ -648,6 +658,7 @@ function App() {
           <div className="flex-1 overflow-hidden">
             {/* Dashboard View - Always uses DashboardRenderer with full controls */}
             {viewMode === 'dashboard' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
               <div className="h-full overflow-hidden flex flex-col">
                 {/* DashboardRenderer - Full builder functionality with integrated persona selector */}
                 <div className="flex-1 overflow-hidden">
@@ -673,6 +684,7 @@ function App() {
                   </div>
                 )}
               </div>
+              </Suspense>
             )}
 
             {/* Galaxy View — chatbox centered, visual appears above when results load */}
@@ -681,10 +693,12 @@ function App() {
                 {/* Galaxy visualization — takes available space above chatbox */}
                 {hasGalaxyResponse && (
                   <div id="galaxy-visual" className="flex-1 overflow-hidden min-h-0">
+                    <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
                     <GalaxyView
                       data={galaxyResponse}
                       onNavigateToDashboard={handleNavigateToDashboard}
                     />
+                    </Suspense>
                   </div>
                 )}
 
@@ -758,7 +772,9 @@ function App() {
 
             {/* User Guide View */}
             {viewMode === 'guide' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
               <UserGuide onStartTour={startTour} />
+              </Suspense>
             )}
           </div>
         </main>
