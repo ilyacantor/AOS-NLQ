@@ -1,0 +1,48 @@
+Handoff Surface 1: Semantic Export (the "catalog")
+Endpoint: GET /api/dcl/semantic-export
+
+This is the metadata contract. NLQ polls this to understand what DCL knows. It returns:
+
+Metrics — every published metric (ARR, MRR, churn, pipeline, etc.) with its ID, aliases, allowed dimensions, allowed grains, ranking rules, and version history
+Entities — dimension definitions (region, segment, rep, team, etc.) with aliases
+Bindings — which source systems feed which metrics, with quality/freshness scores
+Persona concepts — which metrics belong to CFO, CRO, COO, CTO, CHRO
+Metric-entity matrix — the compatibility grid (which dimensions are valid for which metrics)
+NLQ uses this to:
+
+Resolve aliases ("AR" becomes "ar", "accounts receivable" becomes "ar")
+Validate dimension combinations before querying
+Fail fast with helpful messages for unknown metrics
+The data originates from YAML config files in backend/config/definitions/ — metrics.yaml, entities.yaml, bindings.yaml, persona_concepts.yaml.
+
+Handoff Surface 2: Query Execution (the "data")
+Endpoint: POST /api/dcl/query
+
+This is the data contract. NLQ sends a structured query:
+
+{
+  "metric": "arr",
+  "dimensions": ["segment"],
+  "filters": {"region": "AMER"},
+  "time_range": {"start": "2025-Q1", "end": "2025-Q4"},
+  "grain": "quarter",
+  "persona": "CFO"
+}
+DCL executes it with a two-path priority:
+
+Path B (preferred): Ingest buffer — rows pushed by AAM Runners via POST /api/dcl/ingest. If ingested rows contain the requested metric, those are served with full Runner provenance (run_id, tenant_id, snapshot_name, run_timestamp).
+
+Path A (fallback): data/fact_base.json — static seed data used when no ingested rows match.
+
+The response carries full provenance metadata so NLQ can tell the user exactly where the data came from:
+
+metadata.run_id, metadata.tenant_id, metadata.snapshot_name,
+metadata.sources, metadata.freshness, metadata.quality_score
+Handoff Surface 3: Resolver helpers
+GET /api/dcl/semantic-export/resolve/metric?q=AR — quick alias resolution
+GET /api/dcl/semantic-export/resolve/entity?q=account — quick entity resolution
+
+Tombstones (moved endpoints)
+The old NLQ endpoints (/api/nlq/ask, /api/bll/*, /api/execute) return 410 Gone with a redirect note to AOS-NLQ. This is clean — no dead links, clear forwarding.
+
+So the handoff is: DCL publishes the semantic catalog + answers structured queries, NLQ (in AOS-NLQ) consumes both. The ingest buffer is the live data bridge — when Runners push rows, those take priority over static seed data, and the full provenance chain (run_id, tenant, snapshot) flows through to the query response that NLQ receives.
