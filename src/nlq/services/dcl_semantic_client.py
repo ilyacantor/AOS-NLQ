@@ -876,19 +876,27 @@ class DCLSemanticClient:
             # instead of metadata.freshness which is an ISO timestamp
             metadata["freshness_display"] = provenance[0].get("freshness", "")
             metadata["provenance"] = provenance
+        else:
+            metadata.setdefault("freshness_display", "")
         normalized["metadata"] = metadata
 
+        # Derive source_systems from provenance[] OR metadata.sources[]
+        # DCL may provide either: provenance[].source_system (detailed) or
+        # metadata.sources (compact list, e.g. ["salesforce"])
+        source_systems = [
+            p.get("source_system") for p in provenance
+            if p.get("source_system")
+        ]
+        if not source_systems and metadata.get("sources"):
+            source_systems = list(metadata["sources"])
+
         # Build structured run provenance for UI Trust Badge
-        # These fields will be populated once DCL ships POST /api/dcl/ingest
         normalized["run_provenance"] = {
             "run_id": metadata.get("run_id"),
             "tenant_id": metadata.get("tenant_id"),
             "snapshot_name": metadata.get("snapshot_name"),
             "run_timestamp": metadata.get("run_timestamp"),
-            "source_systems": [
-                p.get("source_system") for p in provenance
-                if p.get("source_system")
-            ],
+            "source_systems": source_systems,
             "freshness": metadata.get("freshness_display", ""),
             "quality_score": metadata.get("quality_score"),
             "mode": metadata.get("mode"),

@@ -256,6 +256,63 @@ class TestDCLToNLQContract:
         result = self.client._normalize_dcl_query_response(DCL_QUERY_RESPONSE_PATH_B)
         assert result["unit"] == "USD millions"
 
+    def test_metadata_sources_compact_format(self):
+        """DCL may send compact metadata.sources instead of provenance[].source_system."""
+        compact_response = {
+            "metric": "revenue",
+            "data": [{"period": "2025-Q4", "value": 42.0}],
+            "metadata": {
+                "mode": "Ingest",
+                "run_id": "run_888",
+                "freshness": "2026-02-15T09:00:00Z",
+                "sources": ["salesforce"],
+            },
+            "provenance": [],
+        }
+        result = self.client._normalize_dcl_query_response(compact_response)
+        rp = result["run_provenance"]
+        # metadata.sources should be used when provenance[] is empty
+        assert rp["source_systems"] == ["salesforce"]
+        assert rp["run_id"] == "run_888"
+        assert rp["mode"] == "Ingest"
+
+    def test_mode_drives_badge_state(self):
+        """The mode field drives the 3-state Trust Badge: Verified/Run/Local."""
+        # Ingest → Verified (green)
+        ingest_resp = {
+            "metric": "revenue", "data": [], "metadata": {"mode": "Ingest"}, "provenance": [],
+        }
+        result = self.client._normalize_dcl_query_response(ingest_resp)
+        assert result["run_provenance"]["mode"] == "Ingest"
+
+        # Live → Verified (green)
+        live_resp = {
+            "metric": "revenue", "data": [], "metadata": {"mode": "Live"}, "provenance": [],
+        }
+        result = self.client._normalize_dcl_query_response(live_resp)
+        assert result["run_provenance"]["mode"] == "Live"
+
+        # Demo → Run (blue)
+        demo_resp = {
+            "metric": "revenue", "data": [], "metadata": {"mode": "Demo"}, "provenance": [],
+        }
+        result = self.client._normalize_dcl_query_response(demo_resp)
+        assert result["run_provenance"]["mode"] == "Demo"
+
+        # Farm → Run (blue)
+        farm_resp = {
+            "metric": "revenue", "data": [], "metadata": {"mode": "Farm"}, "provenance": [],
+        }
+        result = self.client._normalize_dcl_query_response(farm_resp)
+        assert result["run_provenance"]["mode"] == "Farm"
+
+        # None → Local (grey)
+        local_resp = {
+            "metric": "revenue", "data": [], "metadata": {}, "provenance": [],
+        }
+        result = self.client._normalize_dcl_query_response(local_resp)
+        assert result["run_provenance"]["mode"] is None
+
 
 # ===========================================================================
 # CONTRACT 3: DCL Catalog → NLQ SemanticCatalog

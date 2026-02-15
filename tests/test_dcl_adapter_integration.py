@@ -429,6 +429,41 @@ class TestQueryResponseNormalization:
         assert rp["run_id"] is None  # No run_id in metadata
         assert rp["freshness"] == ""
 
+    def test_metadata_sources_fallback(self):
+        """When provenance[] is empty, metadata.sources[] is used for source_systems."""
+        response = {
+            "metric": "revenue",
+            "data": [{"period": "2025-Q4", "value": 42.0}],
+            "metadata": {
+                "mode": "Ingest",
+                "run_id": "run_999",
+                "freshness": "2026-02-15T10:00:00Z",
+                "sources": ["salesforce", "netsuite"],
+            },
+            "provenance": [],
+        }
+        result = self.client._normalize_dcl_query_response(response)
+        rp = result["run_provenance"]
+        assert rp["source_systems"] == ["salesforce", "netsuite"]
+        assert rp["mode"] == "Ingest"
+
+    def test_provenance_takes_priority_over_metadata_sources(self):
+        """provenance[].source_system takes priority over metadata.sources[]."""
+        response = {
+            "metric": "revenue",
+            "data": [{"period": "2025-Q4", "value": 42.0}],
+            "metadata": {
+                "sources": ["should_not_appear"],
+            },
+            "provenance": [
+                {"source_system": "Salesforce CRM", "freshness": "1h", "quality_score": 0.95},
+            ],
+        }
+        result = self.client._normalize_dcl_query_response(response)
+        rp = result["run_provenance"]
+        assert rp["source_systems"] == ["Salesforce CRM"]
+        assert "should_not_appear" not in rp["source_systems"]
+
     def test_entity_passthrough(self):
         """Entity resolution data passes through when present."""
         result = self.client._normalize_dcl_query_response(MOCK_DCL_QUERY_RESPONSE_WITH_ENTITY)
