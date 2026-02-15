@@ -30,7 +30,7 @@ export const DataPipelineStatus: React.FC = () => {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch('/v1/pipeline/status');
+      const res = await fetch('/api/v1/pipeline/status');
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
