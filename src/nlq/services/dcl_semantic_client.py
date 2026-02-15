@@ -101,7 +101,8 @@ class DCLSemanticClient:
     """
 
     def __init__(self, dcl_base_url: Optional[str] = None):
-        self.dcl_url = dcl_base_url or os.environ.get("DCL_API_URL")
+        raw_url = dcl_base_url or os.environ.get("DCL_API_URL")
+        self.dcl_url = raw_url.rstrip("/") if raw_url else None
         self._catalog: Optional[SemanticCatalog] = None
         self._cache_time: float = 0
         self._http_client: Optional[httpx.Client] = None
@@ -160,7 +161,7 @@ class DCLSemanticClient:
     def _fetch_from_dcl(self) -> Optional[SemanticCatalog]:
         """Fetch semantic catalog from DCL's semantic-export endpoint."""
         if not self._http_client:
-            self._http_client = httpx.Client(timeout=10.0)
+            self._http_client = httpx.Client(timeout=10.0, follow_redirects=True)
 
         try:
             response = self._http_client.get(f"{self.dcl_url}/api/dcl/semantic-export")
@@ -467,7 +468,7 @@ class DCLSemanticClient:
     def _resolve_metric_via_dcl(self, user_term: str) -> Optional[MetricDefinition]:
         """Call DCL's metric resolution endpoint."""
         if not self._http_client:
-            self._http_client = httpx.Client(timeout=5.0)
+            self._http_client = httpx.Client(timeout=5.0, follow_redirects=True)
 
         try:
             response = self._http_client.get(
@@ -539,7 +540,7 @@ class DCLSemanticClient:
             return None
 
         if not self._http_client:
-            self._http_client = httpx.Client(timeout=5.0)
+            self._http_client = httpx.Client(timeout=5.0, follow_redirects=True)
 
         try:
             response = self._http_client.get(

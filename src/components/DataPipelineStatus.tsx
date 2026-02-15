@@ -51,7 +51,7 @@ export const DataPipelineStatus: React.FC = () => {
 
   // Determine state
   const mode = status?.dcl_mode?.toLowerCase() ?? null;
-  const isVerified = mode === 'ingest' || mode === 'live';
+  const isVerified = mode === 'ingest' || mode === 'live' || mode === 'aam';
   const isSimulation = mode === 'demo' || mode === 'farm';
   const isDisconnected = !status || error || (!isVerified && !isSimulation);
 
