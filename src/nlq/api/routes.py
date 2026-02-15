@@ -4130,6 +4130,76 @@ async def health() -> HealthResponse:
     )
 
 
+class PipelineStatusResponse(BaseModel):
+    """Pipeline status for the permanent UI status light."""
+    dcl_connected: bool
+    dcl_mode: Optional[str] = None  # "Ingest", "Demo", "Live", "Farm", or None
+    metric_count: int = 0
+    last_run_id: Optional[str] = None
+    last_run_timestamp: Optional[str] = None
+    last_source_systems: Optional[List[str]] = None
+    freshness: Optional[str] = None
+
+
+@router.get("/pipeline/status", response_model=PipelineStatusResponse)
+async def pipeline_status() -> PipelineStatusResponse:
+    """
+    Return data pipeline connection status for the UI status light.
+
+    Polls the DCL semantic client to determine:
+    - Whether DCL is connected (live API vs local fallback)
+    - What mode it's running in (Ingest/Demo/Live/Farm)
+    - Last run provenance if available
+
+    The frontend polls this every 30s to keep the header status light current.
+    """
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+
+    dcl_client = get_semantic_client()
+    dcl_connected = dcl_client.dcl_url is not None
+    mode = None
+    metric_count = 0
+    last_run_id = None
+    last_run_timestamp = None
+    last_source_systems = None
+    freshness_display = None
+
+    try:
+        catalog = dcl_client.get_catalog()
+        metric_count = len(catalog.metrics)
+    except Exception:
+        pass
+
+    # Probe DCL with a lightweight query to get current mode and provenance
+    try:
+        probe = dcl_client.query(
+            metric="revenue",
+            time_range={"period": "2025-Q4", "granularity": "quarterly"},
+        )
+        if probe.get("status") != "error":
+            rp = probe.get("run_provenance", {})
+            if rp:
+                mode = rp.get("mode")
+                last_run_id = rp.get("run_id")
+                last_run_timestamp = rp.get("run_timestamp")
+                last_source_systems = rp.get("source_systems") or None
+                freshness_display = rp.get("freshness") or None
+            elif probe.get("metadata", {}).get("mode"):
+                mode = probe["metadata"]["mode"]
+    except Exception:
+        pass
+
+    return PipelineStatusResponse(
+        dcl_connected=dcl_connected,
+        dcl_mode=mode,
+        metric_count=metric_count,
+        last_run_id=last_run_id,
+        last_run_timestamp=last_run_timestamp,
+        last_source_systems=last_source_systems,
+        freshness=freshness_display,
+    )
+
+
 @router.get("/schema", response_model=SchemaResponse)
 async def schema() -> SchemaResponse:
     """

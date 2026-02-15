@@ -3,6 +3,7 @@ import type { IntentMapResponse } from './components/galaxy'
 import type { DashboardSchema } from './components/generated-dashboard'
 import { RAGLearningPanel, LLMCallCounter, useSessionId } from './components/rag'
 import { InsufficientDataPanel } from './components/rag/InsufficientDataPanel'
+import { DataPipelineStatus } from './components/DataPipelineStatus'
 import { useQueryRouter } from './hooks/useQueryRouter'
 import { ProductTour } from './components/ProductTour'
 import { LandingPage } from './components/LandingPage'
@@ -503,6 +504,7 @@ function App() {
         <div className="flex items-center justify-between px-4 py-3 md:hidden">
           <div className="flex items-center gap-2">
             <span className="text-cyan-400 text-xl font-bold">NLQ</span>
+            <DataPipelineStatus />
           </div>
           <div className="flex items-center gap-2">
             {/* View Mode Toggle - Compact for mobile */}
@@ -643,6 +645,7 @@ function App() {
             >
               Demo
             </button>
+            <DataPipelineStatus />
             <LLMCallCounter />
             {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
           </div>
