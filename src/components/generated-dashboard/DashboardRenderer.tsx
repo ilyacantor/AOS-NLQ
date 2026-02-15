@@ -31,7 +31,7 @@ import {
   DashboardGenerationResponse,
 } from '../../types/generated-dashboard';
 import { WidgetRenderer } from './WidgetRenderer';
-import { ScenarioModelingPanel } from '../dashboard/shared/ScenarioModelingPanel';
+import { ScenarioModelingPanel } from './ScenarioModelingPanel';
 
 interface PersonaOption {
   label: string;

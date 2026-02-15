@@ -7,6 +7,7 @@
 
 import React, { useRef, useCallback, Component, ReactNode, Suspense } from 'react';
 import { Widget, WidgetData } from '../../types/generated-dashboard';
+import { COLORS, CHART_COLORS } from '../../config/theme';
 
 const MapWidget = React.lazy(() => import('./MapWidget'));
 import {
@@ -34,16 +35,7 @@ interface WidgetRendererProps {
   onDoubleClick?: (widget: Widget) => void;
 }
 
-// Domain colors matching the design system
-const CHART_COLORS = [
-  '#0BCAD9', // Cyan (primary)
-  '#3B82F6', // Blue
-  '#EC4899', // Pink
-  '#10B981', // Green
-  '#8B5CF6', // Purple
-  '#F97316', // Orange
-  '#EAB308', // Yellow
-];
+// CHART_COLORS and COLORS.primary imported from ../../config/theme
 
 class WidgetErrorBoundary extends Component<
   { widget: Widget; children: ReactNode },
@@ -239,8 +231,8 @@ function KPICardContent({ widget, data }: { widget: Widget; data: WidgetData }) 
               <Area
                 type="monotone"
                 dataKey="value"
-                stroke="#0BCAD9"
-                fill="#0BCAD9"
+                stroke={COLORS.primary}
+                fill={COLORS.primary}
                 fillOpacity={0.2}
                 strokeWidth={1.5}
               />
@@ -299,7 +291,7 @@ function LineChartContent({
                 borderRadius: '8px',
               }}
               labelStyle={{ color: '#f1f5f9' }}
-              cursor={hasDrillDown ? { stroke: '#0BCAD9', strokeWidth: 2 } : undefined}
+              cursor={hasDrillDown ? { stroke: COLORS.primary, strokeWidth: 2 } : undefined}
             />
             {showLegend && <Legend />}
             {data.series?.map((series, i) => (
@@ -312,7 +304,7 @@ function LineChartContent({
                 stroke={series.color || CHART_COLORS[i % CHART_COLORS.length]}
                 strokeWidth={2}
                 dot={{ r: 4, fill: series.color || CHART_COLORS[i % CHART_COLORS.length] }}
-                activeDot={hasDrillDown ? { r: 8, stroke: '#0BCAD9', strokeWidth: 2, cursor: 'pointer' } : { r: 6 }}
+                activeDot={hasDrillDown ? { r: 8, stroke: COLORS.primary, strokeWidth: 2, cursor: 'pointer' } : { r: 6 }}
               />
             ))}
           </LineChart>
@@ -365,7 +357,7 @@ function BarChartContent({
             />
             <Bar
               dataKey="value"
-              fill="#0BCAD9"
+              fill={COLORS.primary}
               radius={[4, 4, 0, 0]}
               onClick={(data: { payload?: { label?: string } }) => hasDrillDown && onClick?.(data.payload?.label)}
               cursor={hasDrillDown ? 'pointer' : undefined}
@@ -422,7 +414,7 @@ function HorizontalBarContent({
             />
             <Bar
               dataKey="value"
-              fill="#0BCAD9"
+              fill={COLORS.primary}
               radius={[0, 4, 4, 0]}
               onClick={(data: { payload?: { label?: string } }) => hasDrillDown && onClick?.(data.payload?.label)}
               cursor={hasDrillDown ? 'pointer' : undefined}
@@ -480,16 +472,16 @@ function AreaChartContent({
                 borderRadius: '8px',
               }}
               labelStyle={{ color: '#f1f5f9' }}
-              cursor={hasDrillDown ? { stroke: '#0BCAD9', strokeWidth: 2 } : undefined}
+              cursor={hasDrillDown ? { stroke: COLORS.primary, strokeWidth: 2 } : undefined}
             />
             <Area
               type="monotone"
               dataKey="value"
-              stroke="#0BCAD9"
-              fill="#0BCAD9"
+              stroke={COLORS.primary}
+              fill={COLORS.primary}
               fillOpacity={0.2}
               strokeWidth={2}
-              activeDot={hasDrillDown ? { r: 8, stroke: '#0BCAD9', strokeWidth: 2, cursor: 'pointer' } : undefined}
+              activeDot={hasDrillDown ? { r: 8, stroke: COLORS.primary, strokeWidth: 2, cursor: 'pointer' } : undefined}
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -712,8 +704,8 @@ function SparklineContent({ widget, data }: { widget: Widget; data: WidgetData }
             <Area
               type="monotone"
               dataKey="value"
-              stroke="#0BCAD9"
-              fill="#0BCAD9"
+              stroke={COLORS.primary}
+              fill={COLORS.primary}
               fillOpacity={0.2}
               strokeWidth={1.5}
             />

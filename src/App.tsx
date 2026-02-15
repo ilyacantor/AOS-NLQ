@@ -639,8 +639,7 @@ function App() {
           <div className="flex items-center gap-4 text-slate-500 text-sm">
             <button
               onClick={startDemo}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border"
-              style={{ borderColor: '#0bcad9', color: '#0bcad9' }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border border-cyan-400 text-cyan-400 hover:bg-cyan-400/10"
             >
               Demo
             </button>

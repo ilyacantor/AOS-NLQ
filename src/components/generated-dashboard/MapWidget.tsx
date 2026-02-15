@@ -12,6 +12,7 @@ import { useEffect, useRef, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Widget, WidgetData } from '../../types/generated-dashboard';
+import { formatCurrency } from '../../utils/formatters';
 
 interface MapWidgetProps {
   widget: Widget;
@@ -79,15 +80,8 @@ const REGION_CENTERS: Record<string, [number, number]> = {
   LATAM: [-15, -55],     // Central South America
 };
 
-// Format currency values
-function formatValue(value: number): string {
-  if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`;
-  } else if (value >= 1000) {
-    return `$${(value / 1000).toFixed(0)}K`;
-  }
-  return `$${value.toFixed(0)}`;
-}
+// formatCurrency imported from ../../utils/formatters
+const formatValue = (value: number) => formatCurrency(value);
 
 export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
