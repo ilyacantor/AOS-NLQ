@@ -23,6 +23,8 @@ class SimpleMetricResult:
     domain: Domain
     answer: str
     period: str = "2026-Q4"  # Current period by default
+    data_quality: float = 1.0  # From DCL metadata.quality_score
+    freshness: str = "0h"  # From DCL provenance[].freshness
 
 
 @dataclass
@@ -90,7 +92,7 @@ def simple_metric_to_galaxy_response(result: SimpleMetricResult, question: str) 
         ambiguity_type=None,
         persona=persona,
         overall_confidence=0.95,
-        overall_data_quality=1.0,
+        overall_data_quality=result.data_quality,
         node_count=1,
         nodes=[IntentNode(
             id=node_id,
@@ -99,8 +101,8 @@ def simple_metric_to_galaxy_response(result: SimpleMetricResult, question: str) 
             match_type=MatchType.EXACT,
             domain=result.domain,
             confidence=0.95,
-            data_quality=1.0,
-            freshness="0h",
+            data_quality=result.data_quality,
+            freshness=result.freshness,
             value=result.value,
             formatted_value=result.formatted_value,
             period="2025",

@@ -1413,6 +1413,11 @@ def _build_simple_metric_result(metric: str) -> Optional[SimpleMetricResult]:
     if not data:
         return None
 
+    # Extract quality metadata from DCL response (defaults for local fallback)
+    metadata = result.get("metadata", {})
+    data_quality = metadata.get("quality_score", 1.0)
+    freshness = metadata.get("freshness_display", "") or "0h"
+
     # Handle different response formats
     if isinstance(data, list) and len(data) > 0:
         # Time series - aggregate or take latest
@@ -1456,6 +1461,8 @@ def _build_simple_metric_result(metric: str) -> Optional[SimpleMetricResult]:
         domain=determine_domain(metric),
         answer=answer,
         period=current_period,
+        data_quality=data_quality,
+        freshness=freshness,
     )
 
 

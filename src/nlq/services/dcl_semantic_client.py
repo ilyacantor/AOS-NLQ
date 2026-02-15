@@ -35,6 +35,23 @@ logger = logging.getLogger(__name__)
 # Cache TTL in seconds (5 minutes)
 CACHE_TTL_SECONDS = 300
 
+# Pack-to-domain mapping (DCL catalog uses pack names, NLQ uses domain names)
+PACK_TO_DOMAIN = {
+    "cfo": "CFO",
+    "cro": "CRO",
+    "coo": "COO",
+    "cto": "CTO",
+    "chro": "CHRO",
+}
+
+# Grain mapping (NLQ callers use long form, DCL expects short form)
+GRAIN_TO_DCL = {
+    "quarterly": "quarter",
+    "monthly": "month",
+    "yearly": "year",
+    "annual": "year",
+}
+
 
 @dataclass
 class MetricDefinition:
@@ -155,7 +172,19 @@ class DCLSemanticClient:
             return None
 
     def _parse_dcl_response(self, data: Dict[str, Any]) -> SemanticCatalog:
-        """Parse DCL's semantic-export response into our catalog format."""
+        """Parse DCL's semantic-export response into our catalog format.
+
+        DCL catalog field mapping:
+          DCL field       -> NLQ field
+          id              -> id (canonical metric key)
+          name            -> display_name
+          pack            -> domain (via PACK_TO_DOMAIN)
+          allowed_dims    -> allowed_dimensions
+          allowed_grains  -> allowed_grains
+          aliases         -> aliases
+          (unit not in catalog — use local _get_metric_units())
+          entities[]      -> dimensions dict {id: allowed_values}
+        """
         catalog = SemanticCatalog()
 
         # Log mode information from DCL
@@ -166,21 +195,31 @@ class DCLSemanticClient:
             last_updated = mode_info.get("last_updated", "")
             logger.info(f"DCL mode: {data_mode}/{run_mode} (updated: {last_updated})")
 
-        # Parse metrics
+        # Parse metrics — DCL uses 'name' (not 'display_name') and 'pack' (not 'domain')
+        local_units = self._get_metric_units()
         for metric_data in data.get("metrics", []):
+            metric_id = metric_data["id"]
             metric = MetricDefinition(
-                id=metric_data["id"],
-                display_name=metric_data.get("display_name", metric_data["id"]),
+                id=metric_id,
+                display_name=metric_data.get("name", metric_id),
                 aliases=metric_data.get("aliases", []),
-                unit=metric_data.get("unit", ""),
+                unit=local_units.get(metric_id, ""),
                 allowed_dimensions=metric_data.get("allowed_dims", []),
                 allowed_grains=metric_data.get("allowed_grains", ["quarterly"]),
-                domain=metric_data.get("domain", ""),
+                domain=PACK_TO_DOMAIN.get(
+                    metric_data.get("pack", ""),
+                    metric_data.get("pack", "").upper(),
+                ),
             )
             catalog.metrics[metric.id] = metric
 
-        # Parse dimensions
-        catalog.dimensions = data.get("dimensions", {})
+        # Parse dimensions from DCL's entities array
+        # DCL sends: [{"id": "customer", "allowed_values": [...], ...}, ...]
+        for entity_data in data.get("entities", []):
+            entity_id = entity_data.get("id", "")
+            allowed_values = entity_data.get("allowed_values", [])
+            if entity_id:
+                catalog.dimensions[entity_id] = allowed_values
 
         # Build alias index
         catalog.build_alias_index()
@@ -440,15 +479,20 @@ class DCLSemanticClient:
             response.raise_for_status()
 
             data = response.json()
-            # Parse DCL's response into our MetricDefinition
+            metric_id = data["id"]
+            local_units = self._get_metric_units()
+            # DCL uses 'name' for display, 'pack' for domain
             return MetricDefinition(
-                id=data["id"],
-                display_name=data.get("display_name", data["id"]),
+                id=metric_id,
+                display_name=data.get("name", metric_id),
                 aliases=data.get("aliases", []),
-                unit=data.get("unit", ""),
+                unit=local_units.get(metric_id, ""),
                 allowed_dimensions=data.get("allowed_dims", []),
                 allowed_grains=data.get("allowed_grains", ["quarterly"]),
-                domain=data.get("domain", ""),
+                domain=PACK_TO_DOMAIN.get(
+                    data.get("pack", ""),
+                    data.get("pack", "").upper(),
+                ),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code != 404:
@@ -738,12 +782,36 @@ class DCLSemanticClient:
             self._http_client = httpx.Client(timeout=30.0)
 
         try:
+            # Transform time_range from NLQ format to DCL format
+            # NLQ sends: {"period": "2025-Q4", "granularity": "quarterly"}
+            # DCL expects: {"start": "2025-Q4", "end": "2025-Q4"} + top-level grain
+            dcl_time_range = {}
+            dcl_grain = grain
+            if time_range:
+                period = time_range.get("period")
+                if period:
+                    dcl_time_range = {"start": period, "end": period}
+                else:
+                    # Pass through start/end if already in DCL format
+                    if "start" in time_range:
+                        dcl_time_range["start"] = time_range["start"]
+                    if "end" in time_range:
+                        dcl_time_range["end"] = time_range["end"]
+                # Extract granularity and convert to DCL grain format
+                granularity = time_range.get("granularity")
+                if granularity and not dcl_grain:
+                    dcl_grain = GRAIN_TO_DCL.get(granularity, granularity)
+
+            # Map grain to DCL short form if provided directly
+            if dcl_grain:
+                dcl_grain = GRAIN_TO_DCL.get(dcl_grain, dcl_grain)
+
             payload = {
                 "metric": metric,
                 "dimensions": dimensions or [],
                 "filters": filters or {},
-                "time_range": time_range or {},
-                "grain": grain,
+                "time_range": dcl_time_range,
+                "grain": dcl_grain,
             }
             if order_by:
                 payload["order_by"] = order_by
@@ -758,11 +826,12 @@ class DCLSemanticClient:
             if response.status_code == 404:
                 return {"error": f"Unknown metric: {metric}", "status": "not_found"}
             elif response.status_code == 400:
-                error_msg = response.json().get("message", "Invalid query")
+                err_body = response.json()
+                error_msg = err_body.get("message", err_body.get("detail", "Invalid query"))
                 return {"error": error_msg, "status": "bad_request"}
 
             response.raise_for_status()
-            return response.json()
+            return self._normalize_dcl_query_response(response.json())
 
         except httpx.HTTPStatusError as e:
             logger.error(f"DCL query failed: {e}")
@@ -770,6 +839,49 @@ class DCLSemanticClient:
         except Exception as e:
             logger.error(f"DCL query error: {e}")
             return {"error": f"DCL unavailable: {e}", "status": "error"}
+
+    def _normalize_dcl_query_response(self, dcl_response: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Normalize DCL query response to the format NLQ callers expect.
+
+        DCL returns:
+          {metric, metric_name, unit, grain,
+           data: [{period, value, dimensions, rank}],
+           metadata: {freshness (ISO), quality_score, record_count, ...},
+           provenance: [{source_system, freshness ("2h"), quality_score}]}
+
+        NLQ callers expect:
+          {status: "ok", metric, data: [{period, value, ...}],
+           metadata: {...}, unit, ...}
+        """
+        normalized: Dict[str, Any] = {
+            "status": "ok",
+            "metric": dcl_response.get("metric"),
+            "data": dcl_response.get("data", []),
+        }
+
+        # Carry over unit from DCL response (top-level, not per-row)
+        if dcl_response.get("unit"):
+            normalized["unit"] = dcl_response["unit"]
+        if dcl_response.get("metric_name"):
+            normalized["metric_name"] = dcl_response["metric_name"]
+
+        # Preserve metadata with human-friendly freshness from provenance
+        metadata = dcl_response.get("metadata", {})
+        provenance = dcl_response.get("provenance", [])
+        if provenance:
+            # Use human-friendly freshness from provenance (e.g., "2h")
+            # instead of metadata.freshness which is an ISO timestamp
+            metadata["freshness_display"] = provenance[0].get("freshness", "")
+            metadata["provenance"] = provenance
+        normalized["metadata"] = metadata
+
+        # Carry over entity resolution and conflict data when present
+        for key in ("entity", "conflicts", "temporal_warning"):
+            if dcl_response.get(key):
+                normalized[key] = dcl_response[key]
+
+        return normalized
 
     def query_ranking(
         self,
