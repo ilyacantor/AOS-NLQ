@@ -93,8 +93,8 @@ export const ProvenanceBadge: React.FC<ProvenanceBadgeProps> = ({
           fullClass: 'bg-blue-900/20 border border-blue-800/30 hover:bg-blue-900/30',
           labelClass: 'text-blue-400 font-medium',
           chevronClass: 'text-blue-500',
-          label: 'Run',
-          compactLabel: 'Run',
+          label: 'Simulation',
+          compactLabel: 'Simulation',
           tooltip: 'Sourced from Graph Build',
         }
       : {
