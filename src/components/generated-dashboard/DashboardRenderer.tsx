@@ -32,6 +32,7 @@ import {
 } from '../../types/generated-dashboard';
 import { WidgetRenderer } from './WidgetRenderer';
 import { ScenarioModelingPanel } from './ScenarioModelingPanel';
+import { generateMockWidgetData } from './mockData';
 
 interface PersonaOption {
   label: string;
@@ -69,82 +70,8 @@ interface DashboardRendererProps {
 // Forecast Comparison
 // =============================================================================
 
-interface ForecastRow {
-  metric: string;
-  current: number;
-  adjusted: number;
-  format: 'currency' | 'percent';
-}
-
-function formatForecastValue(value: number, format: 'currency' | 'percent'): string {
-  if (format === 'currency') {
-    if (Math.abs(value) >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-    if (Math.abs(value) >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
-    return `$${(value / 1e3).toFixed(0)}K`;
-  }
-  return `${value.toFixed(1)}%`;
-}
-
-function formatVariance(current: number, adjusted: number, format: 'currency' | 'percent'): string {
-  const diff = adjusted - current;
-  if (format === 'currency') {
-    const sign = diff >= 0 ? '+' : '';
-    if (Math.abs(diff) >= 1e6) return `${sign}$${(diff / 1e6).toFixed(1)}M`;
-    return `${sign}$${(diff / 1e3).toFixed(0)}K`;
-  }
-  // basis points for percentage metrics
-  const bps = Math.round((diff) * 100);
-  const sign = bps >= 0 ? '+' : '';
-  return `${sign}${bps} bps`;
-}
-
-function ForecastComparison({ rows, onDismiss }: { rows: ForecastRow[]; onDismiss: () => void }) {
-  return (
-    <div className="mx-4 md:mx-6 mb-3 rounded-lg border border-cyan-500/30 bg-slate-900/80 overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-800">
-        <h3 className="text-xs font-semibold text-white flex items-center gap-1.5">
-          <svg className="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-          Forecast Comparison
-        </h3>
-        <button onClick={onDismiss} className="text-slate-500 hover:text-slate-300 transition-colors">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="border-b border-slate-800 text-slate-400">
-            <th className="text-left px-3 py-1.5 font-medium">Metric</th>
-            <th className="text-right px-3 py-1.5 font-medium">Current Forecast</th>
-            <th className="text-right px-3 py-1.5 font-medium">Adjusted Forecast</th>
-            <th className="text-right px-3 py-1.5 font-medium">Variance</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const diff = row.adjusted - row.current;
-            const isPositive = diff > 0;
-            const isNegative = diff < 0;
-            const varColor = isPositive ? 'text-green-400' : isNegative ? 'text-red-400' : 'text-slate-400';
-            return (
-              <tr key={row.metric} className="border-b border-slate-800/50 hover:bg-slate-800/30">
-                <td className="px-3 py-1.5 text-slate-200 font-medium">{row.metric}</td>
-                <td className="px-3 py-1.5 text-right text-slate-300">{formatForecastValue(row.current, row.format)}</td>
-                <td className="px-3 py-1.5 text-right text-white font-medium">{formatForecastValue(row.adjusted, row.format)}</td>
-                <td className={`px-3 py-1.5 text-right font-medium ${varColor}`}>
-                  {formatVariance(row.current, row.adjusted, row.format)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+import { ForecastComparison } from './ForecastComparison';
+import type { ForecastRow } from './ForecastComparison';
 
 // =============================================================================
 // Main Component
@@ -818,14 +745,13 @@ export function DashboardRenderer({
       {schema && !loading && (
         <DashboardErrorBoundary onReset={handleReset}>
           <div className="flex-1 overflow-auto p-6" ref={containerRef}>
-            {/* @ts-ignore - Type mismatch between react-grid-layout versions */}
             <GridLayout
               className="layout"
               layout={gridLayout}
               cols={schema.layout.columns}
               rowHeight={rowHeight}
               width={containerWidth}
-              onLayoutChange={handleLayoutChange as any}
+              onLayoutChange={handleLayoutChange}
               isDraggable={editMode}
               isResizable={editMode}
               margin={[schema.layout.gap, schema.layout.gap]}
@@ -1286,167 +1212,6 @@ function LoadModal({
       </div>
     </div>
   );
-}
-
-// =============================================================================
-// Mock Data Generation (for MVP)
-// =============================================================================
-
-async function generateMockWidgetData(widget: Widget): Promise<WidgetData> {
-  await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 200));
-
-  const metric = widget.data.metrics[0]?.metric || 'revenue';
-
-  switch (widget.type) {
-    case 'kpi_card':
-      return generateKPIData(metric);
-    case 'line_chart':
-    case 'area_chart':
-      return generateTimeSeriesData(metric, widget.data.time?.granularity || 'quarterly');
-    case 'bar_chart':
-    case 'horizontal_bar':
-      return generateCategoryData(metric, widget.data.dimensions[0]?.dimension);
-    case 'stacked_bar':
-      return generateStackedData(widget.data.metrics, widget.data.dimensions[0]?.dimension);
-    case 'donut_chart':
-      return generateDonutData(metric, widget.data.dimensions[0]?.dimension);
-    case 'data_table':
-      return generateTableData(widget.data.metrics, widget.data.dimensions);
-    default:
-      return { loading: false };
-  }
-}
-
-function generateKPIData(metric: string): WidgetData {
-  const values: Record<string, { value: number; format: string; trend: number }> = {
-    revenue: { value: 200, format: '$200M', trend: 15.2 },
-    gross_margin_pct: { value: 65, format: '65.0%', trend: 2.3 },
-    net_income: { value: 45, format: '$45M', trend: 18.5 },
-    pipeline: { value: 575, format: '$575M', trend: 8.7 },
-    churn: { value: 2.5, format: '2.5%', trend: -0.3 },
-    nrr: { value: 118, format: '118%', trend: 3.0 },
-    headcount: { value: 450, format: '450', trend: 12.5 },
-    win_rate: { value: 32, format: '32%', trend: 4.2 },
-    quota_attainment: { value: 95.8, format: '95.8%', trend: 5.1 },
-    magic_number: { value: 0.9, format: '0.9x', trend: 0.1 },
-    ltv_cac: { value: 4.2, format: '4.2x', trend: 0.3 },
-    uptime_pct: { value: 99.95, format: '99.95%', trend: 0.02 },
-    p1_incidents: { value: 3, format: '3', trend: -2 },
-  };
-
-  const data = values[metric] || { value: 100, format: '100', trend: 5.0 };
-  const isPositive = data.trend > 0;
-
-  return {
-    loading: false,
-    value: data.value,
-    formatted_value: data.format,
-    trend: {
-      direction: isPositive ? 'up' : data.trend < 0 ? 'down' : 'flat',
-      percent_change: Math.abs(data.trend),
-      comparison_label: 'vs prior period',
-    },
-    sparkline_data: Array.from({ length: 8 }, () => data.value * (0.8 + Math.random() * 0.4)),
-  };
-}
-
-function generateTimeSeriesData(metric: string, granularity: string): WidgetData {
-  const periods = granularity === 'quarterly'
-    ? ['Q1 2024', 'Q2 2024', 'Q3 2024', 'Q4 2024', 'Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025']
-    : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  const baseValue = metric === 'revenue' ? 40 : metric.includes('pct') ? 60 : 100;
-  const growth = 1.05;
-
-  return {
-    loading: false,
-    categories: periods,
-    series: [{
-      name: metric,
-      data: periods.map((label, i) => ({
-        label,
-        value: Math.round(baseValue * Math.pow(growth, i) * (0.9 + Math.random() * 0.2) * 10) / 10,
-      })),
-    }],
-  };
-}
-
-function generateCategoryData(metric: string, dimension?: string): WidgetData {
-  const categories = dimension === 'rep'
-    ? ['John Smith', 'Sarah Jones', 'Mike Chen', 'Lisa Wang', 'Tom Brown']
-    : dimension === 'product'
-    ? ['Enterprise', 'Professional', 'Team', 'Starter']
-    : ['AMER', 'EMEA', 'APAC', 'LATAM'];
-
-  const baseValue = metric === 'revenue' ? 50 : 20;
-
-  return {
-    loading: false,
-    categories,
-    series: [{
-      name: metric,
-      data: categories.map((label, i) => ({
-        label,
-        value: Math.round(baseValue * (1 - i * 0.15) * (0.8 + Math.random() * 0.4) * 10) / 10,
-      })),
-    }],
-  };
-}
-
-function generateStackedData(metrics: Array<{ metric: string }>, _dimension?: string): WidgetData {
-  const categories = ['Q1', 'Q2', 'Q3', 'Q4'];
-
-  return {
-    loading: false,
-    categories,
-    series: metrics.slice(0, 3).map((m, mi) => ({
-      name: m.metric,
-      data: categories.map((label, i) => ({
-        label,
-        value: Math.round((30 - mi * 5) * (1 + i * 0.1) * (0.8 + Math.random() * 0.4) * 10) / 10,
-      })),
-    })),
-  };
-}
-
-function generateDonutData(metric: string, dimension?: string): WidgetData {
-  const categories = dimension === 'product'
-    ? ['Enterprise', 'Professional', 'Team', 'Starter']
-    : ['AMER', 'EMEA', 'APAC', 'LATAM'];
-
-  return {
-    loading: false,
-    categories,
-    series: [{
-      name: metric,
-      data: categories.map((label, i) => ({
-        label,
-        value: Math.round((40 - i * 8) * (0.8 + Math.random() * 0.4)),
-      })),
-    }],
-  };
-}
-
-function generateTableData(
-  metrics: Array<{ metric: string }>,
-  dimensions: Array<{ dimension: string }>
-): WidgetData {
-  const dimension = dimensions[0]?.dimension || 'region';
-  const categories = dimension === 'rep'
-    ? ['John Smith', 'Sarah Jones', 'Mike Chen', 'Lisa Wang', 'Tom Brown']
-    : ['AMER', 'EMEA', 'APAC', 'LATAM'];
-
-  return {
-    loading: false,
-    rows: categories.map(cat => {
-      const row: Record<string, any> = { [dimension]: cat };
-      metrics.forEach(m => {
-        const baseValue = m.metric === 'revenue' ? 50 : 20;
-        row[m.metric] = Math.round(baseValue * (0.8 + Math.random() * 0.4) * 10) / 10;
-      });
-      return row;
-    }),
-  };
 }
 
 export default DashboardRenderer;
