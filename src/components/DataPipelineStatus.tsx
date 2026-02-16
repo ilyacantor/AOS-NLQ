@@ -51,7 +51,7 @@ export const DataPipelineStatus: React.FC = () => {
 
   // Determine state
   const mode = status?.dcl_mode?.toLowerCase() ?? null;
-  const isLive = mode === 'farm' || mode === 'ingest' || mode === 'live' || mode === 'aam';
+  const isLive = mode === 'farm' || mode === 'ingest' || mode === 'live';
 
   // Format relative time
   const formatRelative = (iso: string | null): string => {
