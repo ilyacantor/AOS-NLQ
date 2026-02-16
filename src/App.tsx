@@ -517,7 +517,7 @@ function App() {
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Galaxy
+                Ask
               </button>
               <button
                 onClick={() => setViewMode('dashboard')}
@@ -610,7 +610,7 @@ function App() {
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  Galaxy
+                  Ask
                 </button>
                 <button
                   id="nav-tab-dashboard"
