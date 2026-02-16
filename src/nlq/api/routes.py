@@ -4157,18 +4157,12 @@ async def pipeline_status() -> PipelineStatusResponse:
 
     dcl_client = get_semantic_client()
     dcl_connected = dcl_client.dcl_url is not None
-    mode = None
+    raw_mode = None
     metric_count = 0
     last_run_id = None
     last_run_timestamp = None
     last_source_systems = None
     freshness_display = None
-
-    try:
-        catalog = dcl_client.get_catalog()
-        metric_count = len(catalog.metrics)
-    except Exception:
-        pass
 
     # Probe DCL with a lightweight query to get current mode and provenance
     try:
@@ -4179,19 +4173,43 @@ async def pipeline_status() -> PipelineStatusResponse:
         if probe.get("status") != "error":
             rp = probe.get("run_provenance", {})
             if rp:
-                mode = rp.get("mode")
+                raw_mode = rp.get("mode")
                 last_run_id = rp.get("run_id")
                 last_run_timestamp = rp.get("run_timestamp")
                 last_source_systems = rp.get("source_systems") or None
                 freshness_display = rp.get("freshness") or None
             elif probe.get("metadata", {}).get("mode"):
-                mode = probe["metadata"]["mode"]
+                raw_mode = probe["metadata"]["mode"]
     except Exception:
         pass
 
+    LIVE_MODES = {"farm", "ingest", "live"}
+    is_live = raw_mode and raw_mode.lower() in LIVE_MODES
+
+    try:
+        catalog = dcl_client.get_catalog()
+        metric_count = len(catalog.metrics)
+    except Exception:
+        pass
+
+    if not is_live:
+        raw_mode = None
+        last_run_id = None
+        last_run_timestamp = None
+        last_source_systems = None
+        freshness_display = None
+        try:
+            import json, os
+            fb_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "fact_base.json")
+            with open(fb_path) as f:
+                fb = json.load(f)
+            metric_count = len(fb)
+        except Exception:
+            pass
+
     return PipelineStatusResponse(
-        dcl_connected=dcl_connected,
-        dcl_mode=mode,
+        dcl_connected=dcl_connected and is_live,
+        dcl_mode=raw_mode,
         metric_count=metric_count,
         last_run_id=last_run_id,
         last_run_timestamp=last_run_timestamp,
