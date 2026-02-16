@@ -51,9 +51,9 @@ export const DataPipelineStatus: React.FC = () => {
 
   // Determine state
   const mode = status?.dcl_mode?.toLowerCase() ?? null;
-  const isVerified = mode === 'ingest' || mode === 'live' || mode === 'aam';
-  const isSimulation = mode === 'demo' || mode === 'farm';
-  const isDisconnected = !status || error || (!isVerified && !isSimulation);
+  const isLive = mode === 'farm' || mode === 'ingest' || mode === 'live';
+  const isRunner = mode === 'aam';
+  const isDemo = mode === 'demo';
 
   // Format relative time
   const formatRelative = (iso: string | null): string => {
@@ -73,18 +73,20 @@ export const DataPipelineStatus: React.FC = () => {
   };
 
   // Light config
-  const light = isVerified
+  const light = isLive
     ? { color: 'bg-emerald-400', ring: 'ring-emerald-400/30', label: 'Live', pulse: true }
-    : isSimulation
-      ? { color: 'bg-blue-400', ring: 'ring-blue-400/30', label: 'Demo', pulse: false }
-      : { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Local', pulse: false };
+    : isRunner
+      ? { color: 'bg-cyan-400', ring: 'ring-cyan-400/30', label: 'Runner', pulse: false }
+      : isDemo
+        ? { color: 'bg-blue-400', ring: 'ring-blue-400/30', label: 'Demo', pulse: false }
+        : { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Local', pulse: false };
 
   return (
     <div className="relative">
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-800/50 transition-colors"
-        title={isVerified ? 'Pipeline: Live Data' : isSimulation ? 'Pipeline: Demo Mode' : 'Pipeline: Local'}
+        title={`Pipeline: ${light.label}`}
       >
         {/* The dot */}
         <span className="relative flex h-2.5 w-2.5">
@@ -108,15 +110,17 @@ export const DataPipelineStatus: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className={`inline-flex rounded-full h-2.5 w-2.5 ${light.color}`} />
                 <span className="text-sm font-medium text-white">
-                  {isVerified ? 'Pipeline Active' : isSimulation ? 'Simulation Mode' : 'Local Mode'}
+                  {isLive ? 'Pipeline Active' : isRunner ? 'Runner Mode' : isDemo ? 'Demo Mode' : 'Local Mode'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                {isVerified
-                  ? 'Live data flowing from Runner → DCL → NLQ'
-                  : isSimulation
-                    ? 'Using demo data from fact_base.json'
-                    : 'No DCL connection — using local data'}
+                {isLive
+                  ? 'Farm → DCL → NLQ — live data flowing'
+                  : isRunner
+                    ? 'AAM Runner loading metrics into DCL'
+                    : isDemo
+                      ? 'Using demo seed data from DCL'
+                      : 'No DCL connection — using local data'}
               </p>
             </div>
 
@@ -134,7 +138,7 @@ export const DataPipelineStatus: React.FC = () => {
               {/* Mode */}
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Mode</span>
-                <span className="text-slate-300">{isVerified ? 'Runner' : status?.dcl_mode ?? 'N/A'}</span>
+                <span className="text-slate-300">{light.label}</span>
               </div>
 
               {/* Metrics */}
