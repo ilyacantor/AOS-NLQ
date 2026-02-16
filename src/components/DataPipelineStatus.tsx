@@ -119,7 +119,7 @@ export const DataPipelineStatus: React.FC = () => {
                   : isRunner
                     ? 'AAM Runner loading metrics into DCL'
                     : isDemo
-                      ? 'Using demo seed data from DCL'
+                      ? 'Using demo data from DCL'
                       : 'No DCL connection — using local data'}
               </p>
             </div>
