@@ -51,8 +51,7 @@ export const DataPipelineStatus: React.FC = () => {
 
   // Determine state
   const mode = status?.dcl_mode?.toLowerCase() ?? null;
-  const isLive = mode === 'farm' || mode === 'ingest' || mode === 'live';
-  const isRunner = mode === 'aam';
+  const isLive = mode === 'farm' || mode === 'ingest' || mode === 'live' || mode === 'aam';
 
   // Format relative time
   const formatRelative = (iso: string | null): string => {
@@ -74,9 +73,7 @@ export const DataPipelineStatus: React.FC = () => {
   // Light config
   const light = isLive
     ? { color: 'bg-emerald-400', ring: 'ring-emerald-400/30', label: 'Live', pulse: true }
-    : isRunner
-      ? { color: 'bg-cyan-400', ring: 'ring-cyan-400/30', label: 'Runner', pulse: false }
-      : { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Local', pulse: false };
+    : { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Local', pulse: false };
 
   return (
     <div className="relative">
@@ -107,15 +104,13 @@ export const DataPipelineStatus: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className={`inline-flex rounded-full h-2.5 w-2.5 ${light.color}`} />
                 <span className="text-sm font-medium text-white">
-                  {isLive ? 'Pipeline Active' : isRunner ? 'Runner Mode' : 'Local Mode'}
+                  {isLive ? 'Pipeline Active' : 'Local Mode'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
                 {isLive
-                  ? 'Farm → DCL → NLQ — live data flowing'
-                  : isRunner
-                    ? 'AAM Runner loading metrics into DCL'
-                    : 'No DCL connection — using fact_base.json'}
+                  ? 'Live data flowing through DCL'
+                  : 'No DCL connection — using fact_base.json'}
               </p>
             </div>
 
