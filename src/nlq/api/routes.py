@@ -4199,11 +4199,8 @@ async def pipeline_status() -> PipelineStatusResponse:
         last_source_systems = None
         freshness_display = None
         try:
-            import json, os
-            fb_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "fact_base.json")
-            with open(fb_path) as f:
-                fb = json.load(f)
-            metric_count = len(fb)
+            local_catalog = dcl_client._build_local_catalog()
+            metric_count = len(local_catalog.metrics)
         except Exception:
             pass
 
