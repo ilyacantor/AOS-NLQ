@@ -134,7 +134,7 @@ export const DataPipelineStatus: React.FC = () => {
               {/* Mode */}
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Mode</span>
-                <span className="text-slate-300">{status?.dcl_mode ?? 'N/A'}</span>
+                <span className="text-slate-300">{isVerified ? 'Runner' : status?.dcl_mode ?? 'N/A'}</span>
               </div>
 
               {/* Metrics */}
