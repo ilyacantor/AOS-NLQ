@@ -639,15 +639,15 @@ function App() {
           </div>
 
           <div className="flex items-center gap-4 text-slate-500 text-sm">
+            <DataPipelineStatus />
+            <LLMCallCounter />
+            {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
             <button
               onClick={startDemo}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border border-cyan-400 text-cyan-400 hover:bg-cyan-400/10"
             >
-              Demo
+              Tour
             </button>
-            <DataPipelineStatus />
-            <LLMCallCounter />
-            {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
           </div>
         </div>
       </header>
