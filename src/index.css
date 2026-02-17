@@ -75,6 +75,12 @@ body {
   overflow: hidden;
 }
 
+/* Easter egg overlay fade-in */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.9) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 /* Product Tour — pulsing laser dot animation */
 @keyframes laser-pulse {
   0%, 100% { transform: scale(1); opacity: 0.6; }

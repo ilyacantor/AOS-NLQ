@@ -48,9 +48,11 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const [nodeStates, setNodeStates] = useState<Map<string, NodeState>>(new Map());
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
 
-  // Auto-open left panel when query results arrive
+  // Auto-open left panel when query results arrive (but close for funny/easter egg responses)
   useEffect(() => {
-    if (data && data.nodes && data.nodes.length > 0) {
+    if (data && data.query_type === 'OFF_TOPIC' && data.nodes.length === 0) {
+      setLeftPanelOpen(false);
+    } else if (data && data.nodes && data.nodes.length > 0) {
       setLeftPanelOpen(true);
     }
   }, [data]);
@@ -100,9 +102,10 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
 
   // Navigate to dashboard space when dashboard query is detected
   const isDashboard = data.query_type === 'DASHBOARD';
+  const isFunnyResponse = data.query_type === 'OFF_TOPIC' && data.nodes.length === 0 && !!data.text_response;
+
   useEffect(() => {
     if (isDashboard && onNavigateToDashboard) {
-      // Navigate to dashboard space instead of showing modal
       onNavigateToDashboard(data.query, data);
     }
   }, [isDashboard, data.query, data, onNavigateToDashboard]);
@@ -609,8 +612,21 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
       {/* ============ MOBILE LAYOUT ============ */}
       <div className="md:hidden flex-1 flex flex-col min-h-0 overflow-hidden relative">
         {/* Full-width SVG visualization */}
-        <div className="flex-1 flex items-center justify-center p-2 overflow-hidden min-h-0">
+        <div className="flex-1 flex items-center justify-center p-2 overflow-hidden min-h-0 relative">
           {svgContent}
+          {isFunnyResponse && (
+            <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+              <div className="pointer-events-auto max-w-sm mx-4 px-6 py-5 rounded-2xl bg-gradient-to-br from-slate-800/95 to-slate-900/95 border border-blue-500/30 shadow-[0_0_40px_rgba(59,130,246,0.15)] backdrop-blur-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">✨</span>
+                  <span className="text-[10px] font-semibold text-blue-400 uppercase tracking-widest">Easter Egg</span>
+                </div>
+                <p className="text-slate-100 text-base leading-relaxed font-medium whitespace-pre-line">
+                  {data.text_response}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Mobile Bottom Sheet */}
@@ -724,7 +740,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
           }`}
         >
           {/* Text Answer - Top Left */}
-          {data.text_response && (
+          {data.text_response && !isFunnyResponse && (
             <div className="p-4 border-b border-slate-800/50 min-w-[293px]">
               <div className="flex items-center gap-2 mb-2">
                 <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -759,6 +775,19 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
         {/* Center - SVG Visualization */}
         <div ref={containerRef} className="flex-1 flex items-center justify-center overflow-hidden min-h-0 relative">
           {svgContent}
+          {isFunnyResponse && (
+            <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+              <div className="pointer-events-auto max-w-md px-8 py-6 rounded-2xl bg-gradient-to-br from-slate-800/95 to-slate-900/95 border border-blue-500/30 shadow-[0_0_60px_rgba(59,130,246,0.2)] backdrop-blur-sm animate-[fadeIn_0.4s_ease-out]">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xl">✨</span>
+                  <span className="text-[11px] font-semibold text-blue-400 uppercase tracking-widest">Easter Egg</span>
+                </div>
+                <p className="text-slate-100 text-lg leading-relaxed font-medium whitespace-pre-line">
+                  {data.text_response}
+                </p>
+              </div>
+            </div>
+          )}
           {/* Reset button - appears in top right of visualization */}
           <button
             onClick={handleResetPositions}
