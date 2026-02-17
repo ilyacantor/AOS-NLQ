@@ -20,6 +20,7 @@ Usage:
     # Returns (False, "Dimension 'customer' not available for 'revenue'. Valid: region, segment, product")
 """
 
+import contextlib
 import contextvars
 import json
 import logging
@@ -111,10 +112,22 @@ class DCLSemanticClient:
         self._http_client: Optional[httpx.Client] = None
         self._mode: str = "dcl" if self.dcl_url else "local"
 
+        # H4: Explicit data source tracking — callers can inspect this
+        self._catalog_source: str = "none"  # "dcl", "local", "local_fallback"
+
         if self.dcl_url:
             logger.info(f"DCL semantic client initialized - DCL mode (endpoint: {self.dcl_url})")
         else:
             logger.info("DCL semantic client initialized - LOCAL DEV mode (using fact_base.json)")
+
+    @property
+    def catalog_source(self) -> str:
+        """Where the current catalog was loaded from: 'dcl', 'local', or 'local_fallback'.
+
+        'local' = intentional dev mode (no DCL_API_URL configured).
+        'local_fallback' = DCL was configured but failed — data may be stale.
+        """
+        return self._catalog_source
 
     @property
     def catalog(self) -> SemanticCatalog:
@@ -151,19 +164,31 @@ class DCLSemanticClient:
                 if catalog:
                     self._catalog = catalog
                     self._cache_time = current_time
+                    self._catalog_source = "dcl"
                     logger.info(f"Loaded semantic catalog from DCL ({len(catalog.metrics)} metrics)")
                     return catalog
             except Exception as e:
-                logger.warning(f"DCL fetch failed: {e} - falling back to local fact_base.json")
+                logger.warning(
+                    f"DCL catalog fetch failed: {e} — falling back to local fact_base.json. "
+                    f"Data may be stale. Check DCL_API_URL or DCL service health."
+                )
 
         # Local dev mode or DCL fallback
-        if not self.dcl_url:
-            logger.debug("Using local fact_base.json (DCL_API_URL not set)")
-
         catalog = self._build_local_catalog()
         self._catalog = catalog
         self._cache_time = current_time
-        logger.info(f"Built semantic catalog from local fact_base ({len(catalog.metrics)} metrics)")
+
+        if self.dcl_url:
+            # DCL was configured but unavailable — this is a fallback
+            self._catalog_source = "local_fallback"
+            logger.warning(
+                f"Using local_fallback catalog ({len(catalog.metrics)} metrics). "
+                f"DCL was configured but unavailable."
+            )
+        else:
+            self._catalog_source = "local"
+            logger.debug(f"Using local catalog ({len(catalog.metrics)} metrics)")
+
         return catalog
 
     def _fetch_from_dcl(self) -> Optional[SemanticCatalog]:
@@ -1340,4 +1365,23 @@ def get_semantic_client() -> DCLSemanticClient:
 
 
 def set_force_local(value: bool):
+    """Legacy setter — prefer using force_local_data() context manager instead."""
     _force_local_ctx.set(value)
+
+
+@contextlib.contextmanager
+def force_local_data():
+    """Context manager that forces DCL client to use local fact_base.json.
+
+    Usage:
+        with force_local_data():
+            result = client.query(...)  # Uses local data
+
+    Replaces the error-prone set_force_local(True) / finally: set_force_local(False)
+    pattern. Guarantees cleanup even if the handler raises.
+    """
+    token = _force_local_ctx.set(True)
+    try:
+        yield
+    finally:
+        _force_local_ctx.reset(token)

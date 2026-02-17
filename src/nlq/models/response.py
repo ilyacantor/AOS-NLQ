@@ -215,6 +215,12 @@ class IntentMapResponse(BaseModel):
         description="Entity resolution details"
     )
 
+    # Data source transparency (H4/H5: never silent about where data comes from)
+    data_source: Optional[str] = Field(
+        default=None,
+        description="Where data was sourced: 'dcl', 'local', or 'local_fallback'"
+    )
+
     # Provenance (DCL integration)
     provenance: Optional[Dict[str, Any]] = Field(
         default=None,
@@ -441,6 +447,12 @@ class NLQResponse(BaseModel):
     temporal_warning: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Warning when comparison crosses a definition change boundary"
+    )
+
+    # Data source transparency (H4/H5: never silent about where data comes from)
+    data_source: Optional[str] = Field(
+        default=None,
+        description="Where data was sourced: 'dcl', 'local', or 'local_fallback'"
     )
 
     # Persona context

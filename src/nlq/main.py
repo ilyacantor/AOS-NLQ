@@ -47,16 +47,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API routes (both prefixes for dev proxy and production)
-app.include_router(router, prefix="/v1")
+# H7: Single canonical prefix — Vite proxy forwards /api/v1 as-is (no rewrite).
 app.include_router(router, prefix="/api/v1")
-
-# Include RAG routes
-app.include_router(rag_router, prefix="/v1")
 app.include_router(rag_router, prefix="/api/v1")
-
-# Include Dashboard routes (self-developing dashboards)
-app.include_router(dashboard_router, prefix="/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 
 # Include DCL routes (Data Connectivity Layer - entity resolution, conflicts, provenance)

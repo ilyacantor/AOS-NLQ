@@ -59,7 +59,12 @@ def _resolve_widget_data(dashboard: DashboardSchema) -> Dict[str, Any]:
 
 
 class DashboardQueryRequest(BaseModel):
-    question: str = Field(..., description="Natural language query for dashboard")
+    question: str = Field(
+        ...,
+        min_length=1,
+        max_length=1000,
+        description="Natural language query for dashboard"
+    )
     reference_date: Optional[str] = Field(default=None, description="Reference date for time calculations")
     conversation_id: Optional[str] = Field(default=None, description="Conversation ID for context")
     data_mode: Optional[str] = Field(default=None, description="Data mode: 'live' for DCL, 'demo' for local fact_base.json")

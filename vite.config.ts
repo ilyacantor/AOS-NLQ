@@ -12,7 +12,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        // H7: Forward /api/v1/* as-is (no rewrite). Backend registers only /api/v1.
       }
     }
   },

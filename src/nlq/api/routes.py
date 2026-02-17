@@ -49,7 +49,7 @@ from src.nlq.services.llm_call_counter import get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
 from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
 from src.nlq.services.dcl_enrichment import enrich_response as dcl_enrich_response
-from src.nlq.services.dcl_semantic_client import set_force_local
+from src.nlq.services.dcl_semantic_client import set_force_local, force_local_data
 from src.nlq.services.insufficient_data_tracker import get_insufficient_data_tracker, CONFIDENCE_THRESHOLD
 
 # Dashboard generation imports
