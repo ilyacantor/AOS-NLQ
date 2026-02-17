@@ -671,7 +671,7 @@ def _generate_full_dashboard(
                     dimensions=[DimensionBinding(dimension="region", sort_by="value", sort_order="desc")],
                     time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
                 ),
-                position=GridPosition(column=1, row=6, col_span=6, row_span=3),
+                position=GridPosition(column=1, row=3, col_span=6, row_span=3),
                 chart_config=ChartConfig(show_legend=False, show_grid=False, animate=True),
             ))
     else:

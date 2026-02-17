@@ -156,7 +156,7 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
     // Create map centered on Atlantic to show all continents
     const map = L.map(mapContainerRef.current, {
       center: [20, 0],
-      zoom: 1.5,
+      zoom: 1,
       minZoom: 1,
       maxZoom: 6,
       worldCopyJump: true,
@@ -181,7 +181,14 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
     // Create layer group for bubbles
     bubblesLayerRef.current = L.layerGroup().addTo(map);
 
+    // ResizeObserver to handle container resizing
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    resizeObserver.observe(mapContainerRef.current);
+
     return () => {
+      resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
       bubblesLayerRef.current = null;
@@ -334,11 +341,22 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
 
       L.marker(center, { icon: label, interactive: false }).addTo(bubblesLayer);
     });
+
+    // Fit map bounds to show all bubbles
+    const bubbleCenters = regionData
+      .filter(r => r.value && REGION_CENTERS[r.region?.toUpperCase() || ''])
+      .map(r => REGION_CENTERS[r.region!.toUpperCase()] as [number, number]);
+
+    if (bubbleCenters.length > 0 && mapRef.current) {
+      const bounds = L.latLngBounds(bubbleCenters.map(c => L.latLng(c[0], c[1])));
+      mapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 3 });
+    }
   }, [regionData, maxValue, hasDrillDown, onClick]);
 
   return (
     <div
       className="p-4 h-full flex flex-col"
+      style={{ maxWidth: '100%', overflow: 'hidden' }}
       onMouseDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
     >
