@@ -15,12 +15,12 @@ from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 import uuid
 
+from src.nlq.config import DEFAULT_TENANT_ID
+
 logger = logging.getLogger(__name__)
 
 # Confidence threshold - queries below this are flagged
 CONFIDENCE_THRESHOLD = 0.7
-
-DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001"
 
 
 @dataclass

@@ -13,10 +13,9 @@ from typing import Optional, List, Dict, Any
 import uuid
 import json
 
+from src.nlq.config import DEFAULT_TENANT_ID
+
 logger = logging.getLogger(__name__)
-
-
-DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001"
 
 @dataclass
 class LearningLogEntry:

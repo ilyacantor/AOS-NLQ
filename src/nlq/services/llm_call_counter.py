@@ -13,9 +13,9 @@ from typing import Dict, Optional
 from dataclasses import dataclass
 import threading
 
-logger = logging.getLogger(__name__)
+from src.nlq.config import DEFAULT_TENANT_ID
 
-DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001"
+logger = logging.getLogger(__name__)
 
 
 @dataclass

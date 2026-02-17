@@ -3,6 +3,11 @@ Configuration management for AOS-NLQ.
 
 Handles environment variables, settings, and configuration loading.
 Uses pydantic-settings for validation and type safety.
+
+IMPORTANT: Module-level constants defined here (like DEFAULT_TENANT_ID)
+are import-safe — they use os.environ directly, not pydantic Settings,
+so they work even before the full app is configured. This allows service
+modules to import them at the top level for dataclass defaults.
 """
 
 import os
@@ -12,6 +17,18 @@ from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
+
+# ---------------------------------------------------------------------------
+# Import-safe constants (no pydantic dependency — safe for dataclass defaults)
+# ---------------------------------------------------------------------------
+
+# Single source of truth for the default tenant ID.
+# Configurable via NLQ_DEFAULT_TENANT_ID env var. Previously hardcoded
+# in 4 separate files; now centralized here.
+DEFAULT_TENANT_ID: str = os.environ.get(
+    "NLQ_DEFAULT_TENANT_ID",
+    "00000000-0000-0000-0000-000000000001",
+)
 
 
 class Settings(BaseSettings):
@@ -42,6 +59,15 @@ class Settings(BaseSettings):
     api_port: int = Field(
         default=8000,
         description="API port to listen on"
+    )
+
+    # Multi-tenancy
+    default_tenant_id: str = Field(
+        default="00000000-0000-0000-0000-000000000001",
+        description=(
+            "Default tenant UUID for single-tenant deployments. "
+            "Set via NLQ_DEFAULT_TENANT_ID env var to override."
+        ),
     )
 
     # Paths
