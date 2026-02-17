@@ -10,27 +10,20 @@ interface PipelineStatus {
   freshness: string | null;
 }
 
-const POLL_INTERVAL = 30000; // 30s
+interface Props {
+  dataMode?: 'live' | 'demo';
+}
 
-/**
- * Permanent data pipeline status light in the app header.
- *
- * Shows a persistent indicator of the 3-light chain:
- *   Green dot  = Live/Ingest mode — verified Runner data flowing
- *   Blue dot   = Demo/Farm mode — simulation data
- *   Grey dot   = Disconnected or local fallback
- *
- * Clicking expands a dropdown with pipeline details.
- * Auto-refreshes every 30s.
- */
-export const DataPipelineStatus: React.FC = () => {
+const POLL_INTERVAL = 30000;
+
+export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
   const [status, setStatus] = useState<PipelineStatus | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState(false);
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/pipeline/status');
+      const res = await fetch(`/api/v1/pipeline/status?data_mode=${dataMode}`);
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
@@ -41,19 +34,20 @@ export const DataPipelineStatus: React.FC = () => {
     } catch {
       setError(true);
     }
-  }, []);
+  }, [dataMode]);
 
   useEffect(() => {
     fetchStatus();
+    if (dataMode === 'demo') return;
     const interval = setInterval(fetchStatus, POLL_INTERVAL);
     return () => clearInterval(interval);
-  }, [fetchStatus]);
+  }, [fetchStatus, dataMode]);
 
-  // Determine state
+  const isDemo = dataMode === 'demo';
+
   const mode = status?.dcl_mode?.toLowerCase() ?? null;
-  const isLive = mode === 'farm' || mode === 'ingest' || mode === 'live';
+  const isLive = !isDemo && (mode === 'farm' || mode === 'ingest' || mode === 'live');
 
-  // Format relative time
   const formatRelative = (iso: string | null): string => {
     if (!iso) return '';
     try {
@@ -70,10 +64,11 @@ export const DataPipelineStatus: React.FC = () => {
     }
   };
 
-  // Light config
-  const light = isLive
-    ? { color: 'bg-emerald-400', ring: 'ring-emerald-400/30', label: 'Live', pulse: true }
-    : { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Local', pulse: false };
+  const light = isDemo
+    ? { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Demo', pulse: false }
+    : isLive
+      ? { color: 'bg-emerald-400', ring: 'ring-emerald-400/30', label: 'Live', pulse: true }
+      : { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Local', pulse: false };
 
   return (
     <div className="relative">
@@ -82,7 +77,6 @@ export const DataPipelineStatus: React.FC = () => {
         className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-800/50 transition-colors"
         title={`Pipeline: ${light.label}`}
       >
-        {/* The dot */}
         <span className="relative flex h-2.5 w-2.5">
           {light.pulse && (
             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${light.color} opacity-50`} />
@@ -92,53 +86,47 @@ export const DataPipelineStatus: React.FC = () => {
         <span className="text-xs text-slate-400 hidden lg:inline">{light.label}</span>
       </button>
 
-      {/* Dropdown panel */}
       {expanded && (
         <>
-          {/* Backdrop to close */}
           <div className="fixed inset-0 z-40" onClick={() => setExpanded(false)} />
 
           <div className="absolute right-0 top-full mt-1 z-50 w-72 bg-slate-900 border border-slate-700 rounded-lg shadow-xl">
-            {/* Header */}
             <div className="px-4 py-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <span className={`inline-flex rounded-full h-2.5 w-2.5 ${light.color}`} />
                 <span className="text-sm font-medium text-white">
-                  {isLive ? 'Pipeline Active' : 'Local Mode'}
+                  {isDemo ? 'Demo Mode' : isLive ? 'Pipeline Active' : 'Local Mode'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                {isLive
-                  ? 'Live data flowing through DCL'
-                  : 'No DCL connection — using fact_base.json'}
+                {isDemo
+                  ? `Using fact_base.json (${status?.metric_count ?? 96} metrics)`
+                  : isLive
+                    ? 'Live data flowing through DCL'
+                    : 'No DCL connection — using fact_base.json'}
               </p>
             </div>
 
-            {/* Status rows */}
             <div className="px-4 py-3 space-y-2.5 text-xs">
-              {/* DCL Connection */}
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">DCL</span>
-                <span className={`flex items-center gap-1.5 ${status?.dcl_connected ? 'text-emerald-400' : 'text-slate-500'}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${status?.dcl_connected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
-                  {status?.dcl_connected ? 'Connected' : 'Local Fallback'}
+                <span className={`flex items-center gap-1.5 ${isDemo ? 'text-slate-500' : status?.dcl_connected ? 'text-emerald-400' : 'text-slate-500'}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${isDemo ? 'bg-slate-500' : status?.dcl_connected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                  {isDemo ? 'Bypassed' : status?.dcl_connected ? 'Connected' : 'Local Fallback'}
                 </span>
               </div>
 
-              {/* Mode */}
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Mode</span>
                 <span className="text-slate-300">{light.label}</span>
               </div>
 
-              {/* Metrics */}
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Metrics</span>
                 <span className="text-slate-300">{status?.metric_count ?? 0} loaded</span>
               </div>
 
-              {/* Last Run (only if available) */}
-              {status?.last_run_id && (
+              {!isDemo && status?.last_run_id && (
                 <>
                   <div className="border-t border-slate-800 pt-2.5 mt-2.5">
                     <span className="text-slate-500 text-[10px] uppercase tracking-wider">Last Ingestion</span>

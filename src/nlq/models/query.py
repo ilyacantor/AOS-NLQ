@@ -61,6 +61,11 @@ class NLQRequest(BaseModel):
         description="Browser session ID for LLM call tracking"
     )
 
+    data_mode: Optional[str] = Field(
+        default=None,
+        description="Data mode: 'live' for DCL, 'demo' for local fact_base.json"
+    )
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {

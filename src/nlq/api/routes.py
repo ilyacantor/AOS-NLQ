@@ -49,6 +49,7 @@ from src.nlq.services.llm_call_counter import get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
 from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
 from src.nlq.services.dcl_enrichment import enrich_response as dcl_enrich_response
+from src.nlq.services.dcl_semantic_client import set_force_local
 from src.nlq.services.insufficient_data_tracker import get_insufficient_data_tracker, CONFIDENCE_THRESHOLD
 
 # Dashboard generation imports
@@ -2760,8 +2761,9 @@ async def query(request: NLQRequest) -> NLQResponse:
 
     Returns the answer with confidence score bounded [0.0, 1.0].
     """
+    if request.data_mode == "demo":
+        set_force_local(True)
     try:
-        # Check for off-topic queries or easter eggs first
         off_topic_response = handle_off_topic_or_easter_egg(request.question)
         if off_topic_response:
             persona = detect_persona_from_question(request.question)
@@ -3195,6 +3197,8 @@ async def query(request: NLQRequest) -> NLQResponse:
             error_code="INTERNAL_ERROR",
             error_message="An unexpected error occurred",
         )
+    finally:
+        set_force_local(False)
 
 
 @router.post("/intent-map", response_model=IntentMapResponse)
@@ -3208,6 +3212,8 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
     - Confidence and data quality metrics
     - Persona and disambiguation info
     """
+    if request.data_mode == "demo":
+        set_force_local(True)
     try:
         # Check for off-topic queries or easter eggs first
         off_topic_response = handle_off_topic_or_easter_egg(request.question)
@@ -3726,8 +3732,9 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
             "INTERNAL_ERROR",
             "An unexpected error occurred",
         )
-        # Track error responses
         return _track_intent_map_if_needed(response, request.question)
+    finally:
+        set_force_local(False)
 
 
 def _handle_ambiguous_query_galaxy(
@@ -4142,7 +4149,7 @@ class PipelineStatusResponse(BaseModel):
 
 
 @router.get("/pipeline/status", response_model=PipelineStatusResponse)
-async def pipeline_status() -> PipelineStatusResponse:
+async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResponse:
     """
     Return data pipeline connection status for the UI status light.
 
@@ -4154,6 +4161,19 @@ async def pipeline_status() -> PipelineStatusResponse:
     The frontend polls this every 30s to keep the header status light current.
     """
     from src.nlq.services.dcl_semantic_client import get_semantic_client
+
+    if data_mode == "demo":
+        dcl_client = get_semantic_client()
+        try:
+            local_catalog = dcl_client._build_local_catalog()
+            metric_count = len(local_catalog.metrics)
+        except Exception:
+            metric_count = 0
+        return PipelineStatusResponse(
+            dcl_connected=False,
+            dcl_mode=None,
+            metric_count=metric_count,
+        )
 
     dcl_client = get_semantic_client()
     dcl_connected = dcl_client.dcl_url is not None

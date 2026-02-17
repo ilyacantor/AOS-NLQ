@@ -178,6 +178,12 @@ When Supabase credentials are not configured:
 
 ---
 
+## Recent Changes (2026-02-17)
+- **Added Data Mode selector**: Navbar dropdown lets users switch between Live (DCL) and Demo (fact_base.json) modes
+- **Backend force_local support**: All API endpoints accept `data_mode` parameter; demo mode uses contextvars to bypass DCL and serve local fact_base data
+- **Pipeline status adapts to mode**: Shows "Demo" grey dot with local metric count in demo mode, polls DCL in live mode
+- **Mobile support**: Data Mode selector also appears in mobile hamburger menu
+
 ## Recent Changes (2026-02-07)
 - **Fixed REFINEMENT_NO_OP crash**: `refine_dashboard_schema` now returns `(schema, 'noop', reason)` tuple instead of raising exception — treats no-op as success
 - **Added refinement_status to API response**: Backend returns `refinement_status` ('applied'|'noop'|'error') and `refinement_reason` fields; frontend handles noop gracefully

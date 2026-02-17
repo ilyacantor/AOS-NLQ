@@ -31,6 +31,7 @@ from src.nlq.models.dashboard_schema import (
     DashboardRefinementResponse,
     DashboardSchema,
 )
+from src.nlq.services.dcl_semantic_client import set_force_local
 
 logger = logging.getLogger(__name__)
 
@@ -58,10 +59,10 @@ def _resolve_widget_data(dashboard: DashboardSchema) -> Dict[str, Any]:
 
 
 class DashboardQueryRequest(BaseModel):
-    """Request model for dashboard generation."""
     question: str = Field(..., description="Natural language query for dashboard")
     reference_date: Optional[str] = Field(default=None, description="Reference date for time calculations")
     conversation_id: Optional[str] = Field(default=None, description="Conversation ID for context")
+    data_mode: Optional[str] = Field(default=None, description="Data mode: 'live' for DCL, 'demo' for local fact_base.json")
 
 
 @router.post("/query/dashboard", response_model=DashboardGenerationResponse)
@@ -80,10 +81,11 @@ async def generate_dashboard(request: DashboardQueryRequest) -> DashboardGenerat
     - "Create a dashboard with revenue, margin, and pipeline KPIs"
     - "Visualize sales trends with ability to drill into reps"
     """
+    if request.data_mode == "demo":
+        set_force_local(True)
     try:
         logger.info(f"Dashboard generation request: {request.question}")
 
-        # Detect visualization intent
         should_viz, requirements = should_generate_visualization(request.question)
 
         if not should_viz:
@@ -170,6 +172,8 @@ async def generate_dashboard(request: DashboardQueryRequest) -> DashboardGenerat
             confidence=0.0,
             suggestions=["Try simplifying your query", "Check that the metrics you're asking about exist"],
         )
+    finally:
+        set_force_local(False)
 
 
 @router.post("/dashboard/refine", response_model=DashboardRefinementResponse)
@@ -184,10 +188,11 @@ async def refine_dashboard(request: DashboardRefinementRequest) -> DashboardRefi
     - "Add comparison to last quarter"
     - "Remove the trend chart"
     """
+    if request.data_mode == "demo":
+        set_force_local(True)
     try:
         logger.info(f"Dashboard refinement request: {request.refinement_query} for {request.dashboard_id}")
 
-        # Get current dashboard from cache
         current_dashboard = _dashboard_cache.get(request.dashboard_id)
         if not current_dashboard:
             return DashboardRefinementResponse(
@@ -247,6 +252,8 @@ async def refine_dashboard(request: DashboardRefinementRequest) -> DashboardRefi
             changes_made=[],
             confidence=0.0,
         )
+    finally:
+        set_force_local(False)
 
 
 @router.get("/dashboard/{dashboard_id}")

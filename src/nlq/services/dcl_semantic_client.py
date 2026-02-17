@@ -20,6 +20,7 @@ Usage:
     # Returns (False, "Dimension 'customer' not available for 'revenue'. Valid: region, segment, product")
 """
 
+import contextvars
 import json
 import logging
 import os
@@ -29,6 +30,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import httpx
+
+_force_local_ctx: contextvars.ContextVar[bool] = contextvars.ContextVar('_force_local_ctx', default=False)
 
 logger = logging.getLogger(__name__)
 
@@ -118,16 +121,21 @@ class DCLSemanticClient:
         """Get the semantic catalog, fetching/refreshing if needed."""
         return self.get_catalog()
 
-    def get_catalog(self, force_refresh: bool = False) -> SemanticCatalog:
+    def get_catalog(self, force_refresh: bool = False, force_local: bool = False) -> SemanticCatalog:
         """
         Fetch semantic catalog from DCL, with caching.
 
         Args:
             force_refresh: If True, bypass cache and fetch fresh
+            force_local: If True, skip DCL and use local fact_base.json
 
         Returns:
             SemanticCatalog with all metric definitions
         """
+        if force_local or _force_local_ctx.get():
+            catalog = self._build_local_catalog()
+            return catalog
+
         current_time = time.time()
 
         # Return cached if valid
@@ -754,6 +762,7 @@ class DCLSemanticClient:
         grain: str = None,
         order_by: str = None,
         limit: int = None,
+        force_local: bool = False,
     ) -> Dict[str, Any]:
         """
         Execute a data query against DCL.
@@ -768,6 +777,7 @@ class DCLSemanticClient:
             grain: Time granularity override (e.g., "monthly", "quarterly")
             order_by: Sort order ("asc" or "desc") for ranking queries
             limit: Number of results to return for ranking queries
+            force_local: If True, skip DCL and use local fact_base.json
 
         Returns:
             Query result from DCL with data points
@@ -775,8 +785,7 @@ class DCLSemanticClient:
         Raises:
             DCLQueryError: If DCL returns an error or is unavailable
         """
-        if not self.dcl_url:
-            # Local dev mode - use fallback data
+        if force_local or _force_local_ctx.get() or not self.dcl_url:
             return self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
 
         if not self._http_client:
@@ -933,7 +942,7 @@ class DCLSemanticClient:
         Returns:
             Query result with ranked data
         """
-        if not self.dcl_url:
+        if _force_local_ctx.get() or not self.dcl_url:
             return self._query_ranking_local(metric, dimension, order_by, limit, time_range)
 
         # DCL mode - use the general query with ranking parameters
@@ -1324,8 +1333,11 @@ _semantic_client: Optional[DCLSemanticClient] = None
 
 
 def get_semantic_client() -> DCLSemanticClient:
-    """Get the singleton DCL semantic client instance."""
     global _semantic_client
     if _semantic_client is None:
         _semantic_client = DCLSemanticClient()
     return _semantic_client
+
+
+def set_force_local(value: bool):
+    _force_local_ctx.set(value)

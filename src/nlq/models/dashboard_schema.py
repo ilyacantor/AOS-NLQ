@@ -363,11 +363,11 @@ class DashboardGenerationResponse(BaseModel):
 
 
 class DashboardRefinementRequest(BaseModel):
-    """Request to refine an existing dashboard."""
 
     dashboard_id: str = Field(..., description="ID of dashboard to refine")
     refinement_query: str = Field(..., description="Natural language refinement request")
     conversation_id: Optional[str] = Field(default=None, description="Conversation ID for context")
+    data_mode: Optional[str] = Field(default=None, description="Data mode: 'live' for DCL, 'demo' for local fact_base.json")
 
 
 class DashboardRefinementResponse(BaseModel):

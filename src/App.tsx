@@ -127,6 +127,7 @@ function App() {
   const [lastDuration, setLastDuration] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [dataMode, setDataMode] = useState<'live' | 'demo'>('live')
 
   // Landing page & product tour state
   const [showLanding, setShowLanding] = useState(false)
@@ -193,7 +194,8 @@ function App() {
           body: JSON.stringify({
             question: queryText,
             reference_date: '2026-01-27',
-            conversation_id: sessionId
+            conversation_id: sessionId,
+            data_mode: dataMode
           })
         })
 
@@ -216,14 +218,14 @@ function App() {
           setDashboardError(errorData.detail || 'Failed to generate dashboard')
         }
       } else {
-        // Refine existing dashboard
         const res = await fetchWithRetry('/api/v1/dashboard/refine', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             dashboard_id: dashboardSchema.id,
             refinement_query: queryText,
-            conversation_id: sessionId
+            conversation_id: sessionId,
+            data_mode: dataMode
           })
         })
 
@@ -308,7 +310,8 @@ function App() {
             body: JSON.stringify({
               dashboard_id: dashboardSchema.id,
               refinement_query: queryText,
-              conversation_id: sessionId
+              conversation_id: sessionId,
+              data_mode: dataMode
             })
           })
           const data = await res.json()
@@ -344,7 +347,8 @@ function App() {
         body: JSON.stringify({
           question: queryText,
           reference_date: '2026-01-27',
-          session_id: sessionId
+          session_id: sessionId,
+          data_mode: dataMode
         })
       })
 
@@ -504,7 +508,7 @@ function App() {
         <div className="flex items-center justify-between px-4 py-3 md:hidden">
           <div className="flex items-center gap-2">
             <span className="text-cyan-400 text-xl font-bold">NLQ</span>
-            <DataPipelineStatus />
+            <DataPipelineStatus dataMode={dataMode} />
           </div>
           <div className="flex items-center gap-2">
             {/* View Mode Toggle - Compact for mobile */}
@@ -574,6 +578,17 @@ function App() {
                   User Guide
                 </button>
                 <div className="flex items-center gap-3 text-slate-500 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-500 text-xs">Data:</span>
+                    <select
+                      value={dataMode}
+                      onChange={(e) => setDataMode(e.target.value as 'live' | 'demo')}
+                      className="bg-slate-800 text-slate-300 text-xs rounded-md px-2 py-1 border border-slate-700 focus:border-cyan-400 focus:outline-none cursor-pointer"
+                    >
+                      <option value="live">Live</option>
+                      <option value="demo">Demo</option>
+                    </select>
+                  </div>
                   <LLMCallCounter />
                   {lastDuration && <span>{lastDuration}</span>}
                 </div>
@@ -639,7 +654,18 @@ function App() {
           </div>
 
           <div className="flex items-center gap-4 text-slate-500 text-sm">
-            <DataPipelineStatus />
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 text-xs">Data:</span>
+              <select
+                value={dataMode}
+                onChange={(e) => setDataMode(e.target.value as 'live' | 'demo')}
+                className="bg-slate-800 text-slate-300 text-xs rounded-md px-2 py-1 border border-slate-700 focus:border-cyan-400 focus:outline-none cursor-pointer"
+              >
+                <option value="live">Live</option>
+                <option value="demo">Demo</option>
+              </select>
+            </div>
+            <DataPipelineStatus dataMode={dataMode} />
             <LLMCallCounter />
             {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
             <button
