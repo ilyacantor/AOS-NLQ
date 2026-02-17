@@ -618,8 +618,34 @@ def _generate_full_dashboard(
         ))
         col += col_span
 
-    # Primary metric trend chart - use first metric (which user explicitly requested)
+    # Primary metric and dimension setup
     primary_metric = metrics[0]  # Safe - we already checked metrics is not empty above
+    requested_dimension = requirements.dimensions[0] if requirements.dimensions else "region"
+    dimension = _get_fallback_dimension(primary_metric, requested_dimension)
+
+    # Determine if map will be shown (affects layout row offsets)
+    has_map = dimension == "region" and primary_metric in ["revenue", "bookings", "pipeline", "arr"]
+
+    # If map is present, it goes first at row 3 left; charts shift to row 6
+    # If no map, charts start at row 3
+    if has_map:
+        chart_row = 6
+        widgets.append(Widget(
+            id=f"map_{primary_metric}_by_region",
+            type=WidgetType.MAP,
+            title=f"{get_display_name(primary_metric)} by Region",
+            data=DataBinding(
+                metrics=[MetricBinding(metric=primary_metric, format=_get_format_string(primary_metric))],
+                dimensions=[DimensionBinding(dimension="region", sort_by="value", sort_order="desc")],
+                time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+            ),
+            position=GridPosition(column=1, row=3, col_span=6, row_span=3),
+            chart_config=ChartConfig(show_legend=False, show_grid=False, animate=True),
+        ))
+    else:
+        chart_row = 3
+
+    # Primary metric trend chart
     widgets.append(Widget(
         id=f"trend_{primary_metric}",
         type=WidgetType.LINE_CHART,
@@ -628,13 +654,9 @@ def _generate_full_dashboard(
             metrics=[MetricBinding(metric=primary_metric, format=_get_format_string(primary_metric))],
             time=TimeBinding(period="last 8 quarters", granularity=TimeGranularity.QUARTERLY),
         ),
-        position=GridPosition(column=1, row=3, col_span=6, row_span=3),
+        position=GridPosition(column=7 if has_map else 1, row=3 if has_map else chart_row, col_span=6, row_span=3),
         chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
     ))
-
-    # Primary metric by dimension - validate dimension first
-    requested_dimension = requirements.dimensions[0] if requirements.dimensions else "region"
-    dimension = _get_fallback_dimension(primary_metric, requested_dimension)
 
     if dimension:
         widgets.append(Widget(
@@ -646,7 +668,7 @@ def _generate_full_dashboard(
                 dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
                 time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
             ),
-            position=GridPosition(column=7, row=3, col_span=6, row_span=3),
+            position=GridPosition(column=1, row=chart_row, col_span=6, row_span=3),
             chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
             interactions=[
                 InteractionConfig(
@@ -659,21 +681,6 @@ def _generate_full_dashboard(
                 )
             ],
         ))
-
-        # Add geographic map widget for CFO-style dashboards with regional data
-        if dimension == "region" and primary_metric in ["revenue", "bookings", "pipeline", "arr"]:
-            widgets.append(Widget(
-                id=f"map_{primary_metric}_by_region",
-                type=WidgetType.MAP,
-                title=f"{get_display_name(primary_metric)} by Region",
-                data=DataBinding(
-                    metrics=[MetricBinding(metric=primary_metric, format=_get_format_string(primary_metric))],
-                    dimensions=[DimensionBinding(dimension="region", sort_by="value", sort_order="desc")],
-                    time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
-                ),
-                position=GridPosition(column=1, row=3, col_span=6, row_span=3),
-                chart_config=ChartConfig(show_legend=False, show_grid=False, animate=True),
-            ))
     else:
         # No breakdown available - add another metric comparison instead
         logger.warning(f"No breakdown for '{primary_metric}', adding metric comparison instead")
@@ -686,7 +693,7 @@ def _generate_full_dashboard(
                     metrics=[MetricBinding(metric=m, format=_get_format_string(m)) for m in metrics[1:4]],
                     time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
                 ),
-                position=GridPosition(column=7, row=3, col_span=6, row_span=3),
+                position=GridPosition(column=7, row=chart_row, col_span=6, row_span=3),
                 chart_config=ChartConfig(show_legend=True, show_grid=True, animate=True),
             ))
 
