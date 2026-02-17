@@ -705,6 +705,7 @@ function App() {
                     personaOptions={personaOptions.map(p => ({ label: p.label, value: p.value }))}
                     onPersonaChange={(value) => handlePersonaSelect(value as Persona)}
                     isGenerating={isGeneratingDashboard}
+                    dataMode={dataMode}
                   />
                 </div>
 

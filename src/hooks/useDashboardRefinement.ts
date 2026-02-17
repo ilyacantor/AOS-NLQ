@@ -16,6 +16,7 @@ interface UseDashboardRefinementProps {
   onRefinement?: (newSchema: DashboardSchema, widgetData?: Record<string, WidgetData>) => void;
   editMode: boolean;
   handleAutoArrange: () => void;
+  dataMode?: 'live' | 'demo';
 }
 
 interface UseDashboardRefinementReturn {
@@ -36,6 +37,7 @@ export function useDashboardRefinement({
   onRefinement,
   editMode,
   handleAutoArrange,
+  dataMode = 'demo',
 }: UseDashboardRefinementProps): UseDashboardRefinementReturn {
   const [refinementQuery, setRefinementQuery] = useState('');
   const [isRefining, setIsRefining] = useState(false);
@@ -69,6 +71,7 @@ export function useDashboardRefinement({
         body: JSON.stringify({
           dashboard_id: currentSchema.id,
           refinement_query: query,
+          data_mode: dataMode,
         }),
       });
 

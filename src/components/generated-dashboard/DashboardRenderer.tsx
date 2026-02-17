@@ -64,6 +64,8 @@ interface DashboardRendererProps {
   onPersonaChange?: (persona: string) => void;
   /** Whether dashboard is being generated */
   isGenerating?: boolean;
+  /** Data mode: 'live' for DCL, 'demo' for local fact_base.json */
+  dataMode?: 'live' | 'demo';
 }
 
 // =============================================================================
@@ -114,6 +116,7 @@ export function DashboardRenderer({
   personaOptions = [],
   onPersonaChange,
   isGenerating = false,
+  dataMode = 'demo',
 }: DashboardRendererProps) {
   // Query router for detecting factual queries that should go to Galaxy
   const { routeQuery } = useQueryRouter();
@@ -291,7 +294,7 @@ export function DashboardRenderer({
       const response = await fetch('/api/v1/query/dashboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: query }),
+        body: JSON.stringify({ question: query, data_mode: dataMode }),
       });
 
       if (!response.ok) {
@@ -353,6 +356,7 @@ export function DashboardRenderer({
     onRefinement,
     editMode,
     handleAutoArrange,
+    dataMode,
   });
 
   // Reset dashboard — reverts to the default persona dashboard state
