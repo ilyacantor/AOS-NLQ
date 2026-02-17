@@ -227,7 +227,7 @@ class TieredIntentResolver:
                     source="cache",
                     embedding_similarity=cache_result.similarity,
                 )
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.warning(f"Cache lookup failed: {e}")
 
         return None
@@ -292,7 +292,7 @@ class TieredIntentResolver:
                     matched_term=result.matched_term,
                 )
 
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.warning(f"Embedding lookup failed: {e}")
 
         return None
@@ -330,7 +330,7 @@ class TieredIntentResolver:
                 complexity=complexity,
             )
 
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"LLM parse failed: {e}")
             return IntentResolutionResult(
                 tier=ResolutionTier.TIER_3_LLM,

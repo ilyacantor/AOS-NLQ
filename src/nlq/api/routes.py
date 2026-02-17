@@ -389,7 +389,7 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
             elif isinstance(data, (int, float)):
                 return data
             return None
-        except Exception as e:
+        except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
             logger.debug(f"Failed to query {metric}: {e}")
             return None
 
@@ -1025,7 +1025,7 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
                     return _build_simple_metric_result(result.canonical_metric)
     except ImportError:
         pass  # Embedding index not available, fall through
-    except Exception as e:
+    except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
         logger.warning(f"Embedding lookup failed: {e}")
 
     return None  # No match, let normal flow handle it
@@ -2567,7 +2567,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                     dashboard=updated_dict,
                     dashboard_data=widget_data,
                 )
-            except Exception as e:
+            except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
                 logger.error(f"Dashboard refinement failed: {e}", exc_info=True)
                 if is_strict_mode():
                     # In strict mode, return error response instead of falling through
@@ -2622,7 +2622,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                     dashboard_data=widget_data,
                     debug_info=debug_info.to_dict() if is_strict_mode() else None,
                 )
-            except Exception as e:
+            except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
                 logger.error(f"Dashboard generation failed: {e}", exc_info=True)
                 if is_strict_mode():
                     # In strict mode, return error response instead of falling through
@@ -2803,7 +2803,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                 end_period=parsed.comparison_period if is_comparison else None,
                 is_comparison=is_comparison,
             )
-        except Exception as e:
+        except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
             logger.debug(f"DCL enrichment skipped: {e}")
 
         response = NLQResponse(
@@ -2834,7 +2834,7 @@ async def query(request: NLQRequest) -> NLQResponse:
             error_code="PARSE_ERROR",
             error_message=str(e),
         )
-    except Exception as e:
+    except (RuntimeError, KeyError, TypeError, ValueError, AttributeError, OSError) as e:
         logger.exception(f"Unexpected error processing query: {e}")
         return NLQResponse(
             success=False,
@@ -3013,7 +3013,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                     response_type="dashboard",
                 )
 
-            except Exception as e:
+            except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
                 logger.error(f"Error applying refinement: {e}", exc_info=True)
                 if is_strict_mode():
                     # In strict mode, return error response instead of falling through
@@ -3125,7 +3125,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                     debug_info=debug_info.to_dict() if is_strict_mode() else None,
                 )
 
-            except Exception as e:
+            except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
                 logger.error(f"Error generating visualization: {e}", exc_info=True)
                 if is_strict_mode():
                     # In strict mode, return error response instead of falling through
@@ -3316,7 +3316,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 end_period=parsed.comparison_period if is_comparison else None,
                 is_comparison=is_comparison,
             )
-        except Exception as e:
+        except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
             logger.debug(f"Galaxy DCL enrichment skipped: {e}")
 
         # Annotate nodes with source_system and conflict info from DCL
@@ -3368,7 +3368,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         )
         # Track error responses
         return _track_intent_map_if_needed(response, request.question)
-    except Exception as e:
+    except (RuntimeError, KeyError, TypeError, ValueError, AttributeError, OSError) as e:
         logger.exception(f"Unexpected error processing galaxy query: {e}")
         response = _create_error_galaxy_response(
             request.question,

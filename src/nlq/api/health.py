@@ -73,13 +73,13 @@ async def health() -> HealthResponse:
         dcl_client = get_semantic_client()
         catalog = dcl_client.get_catalog()
         dcl_available = len(catalog.metrics) > 0
-    except Exception as e:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as e:
         logger.warning(f"DCL health check failed: {e}")
 
     try:
         # Don't actually call Claude for health check to avoid costs
         claude_available = os.environ.get("ANTHROPIC_API_KEY") is not None
-    except Exception as e:
+    except (KeyError, TypeError) as e:
         logger.warning(f"Claude API key check failed: {e}")
 
     session_stats = get_session_stats()
@@ -112,7 +112,7 @@ async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResp
         try:
             local_catalog = dcl_client._build_local_catalog()
             metric_count = len(local_catalog.metrics)
-        except Exception:
+        except (FileNotFoundError, IOError, KeyError, ValueError):
             metric_count = 0
         return PipelineStatusResponse(
             dcl_connected=False,
@@ -145,7 +145,7 @@ async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResp
                 freshness_display = rp.get("freshness") or None
             elif probe.get("metadata", {}).get("mode"):
                 raw_mode = probe["metadata"]["mode"]
-    except Exception:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError):
         pass
 
     LIVE_MODES = {"farm", "ingest", "live"}
@@ -154,7 +154,7 @@ async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResp
     try:
         catalog = dcl_client.get_catalog()
         metric_count = len(catalog.metrics)
-    except Exception:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError):
         pass
 
     if not is_live:
@@ -166,7 +166,7 @@ async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResp
         try:
             local_catalog = dcl_client._build_local_catalog()
             metric_count = len(local_catalog.metrics)
-        except Exception:
+        except (FileNotFoundError, IOError, KeyError, ValueError):
             pass
 
     return PipelineStatusResponse(

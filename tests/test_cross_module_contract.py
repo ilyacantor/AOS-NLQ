@@ -585,9 +585,10 @@ class TestErrorPathContracts:
 
     def test_dcl_down_returns_error(self):
         """NLQ handles DCL being unreachable gracefully."""
+        import httpx
         client = DCLSemanticClient(dcl_base_url="http://mock-dcl:8000")
         mock_http = MagicMock()
-        mock_http.post.side_effect = Exception("Connection refused")
+        mock_http.post.side_effect = httpx.ConnectError("Connection refused")
         client._http_client = mock_http
 
         result = client.query(metric="revenue")

@@ -297,7 +297,7 @@ async def seed_cache(
             status_code=404,
             detail="Seed data not found"
         )
-    except Exception as e:
+    except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
         raise HTTPException(
             status_code=500,
             detail=f"Failed to seed cache: {str(e)}"
@@ -366,7 +366,7 @@ async def get_rag_status(
         cache = get_cache_service()
         if cache:
             cache_stats = cache.get_stats()
-    except Exception:
+    except (RuntimeError, KeyError, TypeError, ValueError, OSError):
         # Cache stats are non-critical, continue with default
         cache_stats = {"available": False, "error": "Failed to retrieve cache stats"}
 

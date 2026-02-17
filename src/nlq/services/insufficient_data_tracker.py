@@ -110,7 +110,7 @@ class InsufficientDataTracker:
             logger.info("Insufficient Data Tracker connected to Supabase")
         except ImportError:
             logger.warning("Supabase library not installed, using memory-only mode")
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             logger.error(f"Failed to initialize Supabase client: {e}")
 
     @property
@@ -187,7 +187,7 @@ class InsufficientDataTracker:
                 self._client.table(self.table_name).insert(data).execute()
                 logger.debug(f"Tracked insufficient data entry: {entry.id}")
                 return True
-            except Exception as e:
+            except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
                 logger.error(f"Failed to log to Supabase: {e}")
                 return False
         else:
@@ -254,7 +254,7 @@ class InsufficientDataTracker:
                     "created_at": entry.timestamp.isoformat(),
                 }
                 self._client.table(self.table_name).insert(data).execute()
-            except Exception as e:
+            except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
                 logger.error(f"Failed to persist to Supabase: {e}")
 
         return entry
@@ -333,7 +333,7 @@ class InsufficientDataTracker:
             result = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
 
             return result.data if result.data else []
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to fetch from Supabase: {e}")
             return self.get_recent_entries(limit)
 

@@ -28,7 +28,7 @@ def _get_dcl_engine():
         try:
             from src.nlq.dcl.engine import get_dcl_engine
             _dcl_engine = get_dcl_engine()
-        except Exception as e:
+        except (ImportError, RuntimeError, OSError) as e:
             logger.warning(f"DCL engine not available: {e}")
             return None
     return _dcl_engine
@@ -84,7 +84,7 @@ def resolve_entity_for_query(entity_term: str) -> Optional[Dict[str, Any]]:
             "candidates": candidates if candidates else None,
             "is_ambiguous": len(matches) > 1 and matches[1].get("confidence", 0) > 0.7,
         }
-    except Exception as e:
+    except (RuntimeError, KeyError, TypeError, AttributeError) as e:
         logger.warning(f"Entity resolution failed for '{entity_term}': {e}")
         return None
 
@@ -112,7 +112,7 @@ def get_provenance_for_metric(metric: str) -> Optional[Dict[str, Any]]:
         if hasattr(provenance, "model_dump"):
             return provenance.model_dump()
         return provenance
-    except Exception as e:
+    except (RuntimeError, KeyError, TypeError, AttributeError) as e:
         logger.debug(f"Provenance lookup failed for '{metric}': {e}")
         return None
 
@@ -155,7 +155,7 @@ def get_conflicts_for_query(
         filtered.sort(key=lambda x: severity_order.get(x.get("severity", "LOW"), 4))
 
         return filtered
-    except Exception as e:
+    except (RuntimeError, KeyError, TypeError, AttributeError) as e:
         logger.debug(f"Conflict lookup failed for '{metric}': {e}")
         return None
 
@@ -196,7 +196,7 @@ def check_temporal_warning(
         if not warning_dict.get("crosses_boundary", False):
             return None
         return warning_dict
-    except Exception as e:
+    except (RuntimeError, KeyError, TypeError, AttributeError) as e:
         logger.debug(f"Temporal check failed for '{metric}': {e}")
         return None
 
@@ -218,7 +218,7 @@ def get_persona_value(metric: str, persona: str) -> Optional[Dict[str, Any]]:
 
     try:
         return engine.get_persona_value(metric, persona)
-    except Exception as e:
+    except (RuntimeError, KeyError, TypeError, AttributeError) as e:
         logger.debug(f"Persona value lookup failed for '{metric}/{persona}': {e}")
         return None
 

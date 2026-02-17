@@ -104,7 +104,7 @@ async def run_evaluation():
             summary="Test suite timed out after 120 seconds",
             failures=["Timeout: tests took too long to complete"],
         )
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError) as e:
         return EvalResult(
             status="error",
             total=0,

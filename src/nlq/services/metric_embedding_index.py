@@ -107,7 +107,7 @@ class MetricEmbeddingIndex:
             try:
                 import openai
                 self._openai = openai.OpenAI()
-            except Exception as e:
+            except (ImportError, OSError, ValueError, RuntimeError) as e:
                 logger.warning(f"Could not initialize OpenAI client: {e}")
                 return
 
@@ -157,7 +157,7 @@ class MetricEmbeddingIndex:
                 for j, embedding_data in enumerate(response.data):
                     term = batch[j]
                     self._embeddings[term] = np.array(embedding_data.embedding)
-            except Exception as e:
+            except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
                 logger.error(f"Failed to generate embeddings: {e}")
                 return
 
@@ -204,7 +204,7 @@ class MetricEmbeddingIndex:
                 model=self._embedding_model
             )
             query_embedding = np.array(response.data[0].embedding)
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to embed query: {e}")
             return None
 

@@ -55,7 +55,7 @@ class DashboardDataResolver:
             try:
                 data = self._resolve_widget_data(widget, reference_year, filters)
                 widget_data[widget.id] = data
-            except Exception as e:
+            except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
                 logger.error(f"Error resolving data for widget {widget.id}: {e}")
                 widget_data[widget.id] = {
                     "loading": False,

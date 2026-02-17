@@ -56,7 +56,7 @@ class DashboardSessionStore:
                     "Dashboard session store: Supabase not available — "
                     "sessions are in-memory only and will be lost on restart"
                 )
-        except Exception:
+        except (ImportError, RuntimeError, OSError):
             self._persistence_available = False
             logger.warning(
                 "Dashboard session store: persistence check failed — "

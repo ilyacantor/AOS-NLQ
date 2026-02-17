@@ -801,7 +801,7 @@ def normalize_metric(raw_metric: str) -> str:
         resolved = semantic_client.resolve_metric(raw_metric)
         if resolved:
             return resolved.id
-    except Exception as e:
+    except (ImportError, RuntimeError, OSError, KeyError) as e:
         # DCL unavailable - fall back to legacy lookup
         import logging
         logging.getLogger(__name__).warning(f"DCL semantic client unavailable, using legacy lookup: {e}")

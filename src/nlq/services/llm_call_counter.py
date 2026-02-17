@@ -88,7 +88,7 @@ class LLMCallCounter:
                     queries_cached=record.queries_cached,
                     queries_learned=record.queries_learned,
                 )
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to load session from DB: {e}")
         return None
 
@@ -109,7 +109,7 @@ class LLMCallCounter:
                 last_call_at=stats.last_call_at,
             )
             self._persistence.upsert_session(record)
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to save session to DB: {e}")
 
     def _get_or_create_session(self, session_id: str) -> SessionStats:
@@ -293,7 +293,7 @@ class LLMCallCounter:
                 )
                 if deleted > 0:
                     logger.info(f"Cleaned up {deleted} stale sessions from database")
-            except Exception as e:
+            except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
                 logger.error(f"Failed to cleanup stale sessions from DB: {e}")
 
     def load_active_sessions(self, since_hours: int = 24) -> int:
@@ -333,7 +333,7 @@ class LLMCallCounter:
             logger.info(f"Loaded {len(records)} active sessions from database")
             return len(records)
             
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to load active sessions: {e}")
             return 0
 

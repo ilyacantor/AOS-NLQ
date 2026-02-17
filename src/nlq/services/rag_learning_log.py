@@ -118,7 +118,7 @@ class RAGLearningLog:
             logger.info("RAG Learning Log connected to Supabase")
         except ImportError:
             logger.warning("Supabase library not installed, using memory-only mode")
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             logger.error(f"Failed to initialize Supabase client: {e}")
 
     @property
@@ -160,7 +160,7 @@ class RAGLearningLog:
                 self._client.table(self.table_name).insert(data).execute()
                 logger.debug(f"Logged learning event: {entry.id}")
                 return True
-            except Exception as e:
+            except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
                 logger.error(f"Failed to log to Supabase: {e}")
                 return False
         else:
@@ -242,7 +242,7 @@ class RAGLearningLog:
             result = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
 
             return result.data if result.data else []
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to fetch from Supabase: {e}")
             return self.get_recent_entries(limit)
 

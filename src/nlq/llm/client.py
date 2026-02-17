@@ -294,7 +294,7 @@ Return ONLY the JSON array, no explanation."""
         except (ClaudeAPIUnavailable, ClaudeAPITimeout) as e:
             logger.warning(f"Claude API unavailable for breakdown '{metric}': {e}")
             return []
-        except Exception as e:
+        except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
             logger.warning(f"Failed to get LLM breakdown for '{metric}': {e}")
             return []
 
@@ -312,6 +312,6 @@ Return ONLY the JSON array, no explanation."""
                 messages=[{"role": "user", "content": "Hello"}],
             )
             return True
-        except Exception as e:
+        except (RuntimeError, OSError, ValueError, KeyError) as e:
             logger.error(f"Claude API health check failed: {e}")
             return False

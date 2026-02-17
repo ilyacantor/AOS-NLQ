@@ -167,7 +167,7 @@ class DCLSemanticClient:
                     self._catalog_source = "dcl"
                     logger.info(f"Loaded semantic catalog from DCL ({len(catalog.metrics)} metrics)")
                     return catalog
-            except Exception as e:
+            except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
                 logger.warning(
                     f"DCL catalog fetch failed: {e} — falling back to local fact_base.json. "
                     f"Data may be stale. Check DCL_API_URL or DCL service health."
@@ -201,7 +201,7 @@ class DCLSemanticClient:
             response.raise_for_status()
             data = response.json()
             return self._parse_dcl_response(data)
-        except Exception as e:
+        except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
             logger.warning(f"DCL fetch failed: {e}")
             return None
 
@@ -275,7 +275,7 @@ class DCLSemanticClient:
         try:
             with open(fact_base_path, 'r') as f:
                 fact_base = json.load(f)
-        except Exception as e:
+        except (FileNotFoundError, IOError, json.JSONDecodeError) as e:
             logger.error(f"Failed to load fact_base.json: {e}")
             return catalog
 
@@ -492,7 +492,7 @@ class DCLSemanticClient:
                 result = self._resolve_metric_via_dcl(user_term)
                 if result:
                     return result
-            except Exception as e:
+            except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
                 logger.debug(f"DCL metric resolution failed for '{user_term}': {e}")
 
         # Fall back to local catalog resolution
@@ -532,7 +532,7 @@ class DCLSemanticClient:
             if e.response.status_code != 404:
                 logger.warning(f"DCL metric resolution error: {e}")
             return None
-        except Exception as e:
+        except (httpx.RequestError, json.JSONDecodeError, KeyError) as e:
             logger.warning(f"DCL metric resolution failed: {e}")
             return None
 
@@ -584,7 +584,7 @@ class DCLSemanticClient:
                 return None
             response.raise_for_status()
             return response.json()
-        except Exception as e:
+        except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError) as e:
             logger.debug(f"DCL entity resolution failed for '{user_term}': {e}")
             return None
 
@@ -871,7 +871,7 @@ class DCLSemanticClient:
         except httpx.HTTPStatusError as e:
             logger.error(f"DCL query failed: {e}")
             return {"error": f"DCL query failed: {e}", "status": "error"}
-        except Exception as e:
+        except (httpx.RequestError, json.JSONDecodeError) as e:
             logger.error(f"DCL query error: {e}")
             return {"error": f"DCL unavailable: {e}", "status": "error"}
 
@@ -998,7 +998,7 @@ class DCLSemanticClient:
         try:
             with open(fact_base_path, 'r') as f:
                 fact_base = json.load(f)
-        except Exception as e:
+        except (FileNotFoundError, IOError, json.JSONDecodeError) as e:
             logger.warning(f"Local ranking query failed - no fact_base.json: {e}")
             return {"error": "No data available", "status": "error"}
 
@@ -1188,10 +1188,9 @@ class DCLSemanticClient:
 
         fact_base_path = Path(__file__).parent.parent.parent.parent / "data" / "fact_base.json"
         try:
-            import json
             with open(fact_base_path, 'r') as f:
                 fact_base = json.load(f)
-        except Exception as e:
+        except (FileNotFoundError, IOError, json.JSONDecodeError) as e:
             logger.warning(f"Local fallback failed - no fact_base.json: {e}")
             return {"error": "No data available (DCL not configured, no local fallback)", "status": "error"}
 

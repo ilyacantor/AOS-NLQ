@@ -810,7 +810,7 @@ class DCLEngine:
                 success=True,
                 result=result,
             )
-        except Exception as e:
+        except (RuntimeError, KeyError, TypeError, ValueError, AttributeError) as e:
             return MCPExecuteResponse(
                 tool_name=tool_name,
                 success=False,

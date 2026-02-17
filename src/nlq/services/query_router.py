@@ -190,7 +190,7 @@ class NLQQueryRouter:
                         "original_cached_query": cache_result.original_query
                     }
                 )
-            except Exception as e:
+            except (RuntimeError, KeyError, TypeError, ValueError) as e:
                 logger.error(f"Data execution error: {e}")
                 return QueryResult(
                     success=False,
@@ -306,7 +306,7 @@ class NLQQueryRouter:
                         "llm_skipped": True
                     }
                 )
-            except Exception as e:
+            except (RuntimeError, KeyError, TypeError, ValueError) as e:
                 logger.warning(f"Cached query execution failed, falling back to LLM: {e}")
                 # Fall through to LLM
 
@@ -343,7 +343,7 @@ class NLQQueryRouter:
                         "llm_skipped": True
                     }
                 )
-            except Exception as e:
+            except (RuntimeError, KeyError, TypeError, ValueError) as e:
                 logger.warning(f"Cached query execution failed, falling back to LLM: {e}")
 
         # Partial hit or miss - call LLM
@@ -426,7 +426,7 @@ class NLQQueryRouter:
                 }
             )
 
-        except Exception as e:
+        except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
             logger.error(f"LLM processing error: {e}")
 
             if self.learning_log:

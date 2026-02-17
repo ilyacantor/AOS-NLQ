@@ -126,7 +126,7 @@ class QueryCacheService:
         except ImportError as e:
             logger.warning(f"Cache service dependencies not installed: {e}")
             self._initialized = False
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             logger.error(f"Failed to initialize cache service: {e}")
             self._initialized = False
 
@@ -211,7 +211,7 @@ class QueryCacheService:
                 confidence=metadata.get("confidence", 1.0) * similarity
             )
 
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Cache lookup error: {e}")
             return self._miss_result()
 
@@ -298,7 +298,7 @@ class QueryCacheService:
             logger.info(f"Cached query {query_id}: {query[:50]}...")
             return query_id
 
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Cache store error: {e}")
             return None
 
@@ -369,7 +369,7 @@ class QueryCacheService:
                     vectors = []
                     logger.info(f"Bulk stored {stored} queries...")
 
-            except Exception as e:
+            except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
                 logger.warning(f"Failed to prepare query for bulk store: {e}")
 
         # Final batch
@@ -396,7 +396,7 @@ class QueryCacheService:
                 "namespace_vectors": namespace_stats.get("vector_count", 0),
                 "dimension": stats.dimension,
             }
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to get stats: {e}")
             return {"available": False, "error": str(e)}
 
@@ -432,7 +432,7 @@ class QueryCacheService:
             else:
                 logger.warning(f"No exact match found to delete: {query[:50]}...")
                 return False
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to delete entry: {e}")
             return False
 
@@ -458,7 +458,7 @@ class QueryCacheService:
             self._index.delete(delete_all=True, namespace=self.config.namespace)
             logger.info(f"Deleted all vectors in namespace {self.config.namespace}")
             return True
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to delete all: {e}")
             return False
 

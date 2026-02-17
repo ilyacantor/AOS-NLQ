@@ -265,7 +265,7 @@ def detect_visualization_intent(query: str) -> VisualizationRequirements:
             resolved_dim = semantic_client.resolve_dimension(dim_term)
             if resolved_dim and resolved_dim not in ["quarter", "month", "year", "week"]:
                 dimensions.append(resolved_dim)
-    except Exception as e:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as e:
         logger.warning(f"[DIMENSION_EXTRACTION] DCL dimension resolution failed for '{query}': {e}")
 
     # Fallback to pattern matching if DCL didn't find anything

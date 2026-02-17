@@ -148,7 +148,7 @@ class SupabasePersistenceService:
         except ImportError:
             logger.warning("supabase-py not installed, persistence disabled")
             self._initialized = False
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             logger.error(f"Failed to initialize Supabase client: {e}")
             self._initialized = False
     
@@ -203,7 +203,7 @@ class SupabasePersistenceService:
                 )
             return None
             
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to get session: {e}")
             return None
     
@@ -245,7 +245,7 @@ class SupabasePersistenceService:
             logger.debug(f"Upserted session {session.session_id}")
             return True
             
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to upsert session: {e}")
             return False
     
@@ -305,7 +305,7 @@ class SupabasePersistenceService:
             self.upsert_session(updated)
             return updated
             
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to increment session stats: {e}")
             return None
     
@@ -358,7 +358,7 @@ class SupabasePersistenceService:
                 for row in result.data
             ]
             
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to get active sessions: {e}")
             return []
     
@@ -396,7 +396,7 @@ class SupabasePersistenceService:
             logger.info(f"Deleted {count} stale sessions")
             return count
             
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to delete stale sessions: {e}")
             return 0
     
@@ -456,7 +456,7 @@ class SupabasePersistenceService:
                 )
             return None
             
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to get cache entry: {e}")
             return None
     
@@ -497,7 +497,7 @@ class SupabasePersistenceService:
             logger.debug(f"Upserted cache entry {entry.query_hash}")
             return True
             
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to upsert cache entry: {e}")
             return False
     
@@ -529,7 +529,7 @@ class SupabasePersistenceService:
                 return self.upsert_cache_entry(existing)
             return False
             
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to increment cache hit: {e}")
             return False
     
@@ -572,7 +572,7 @@ class SupabasePersistenceService:
             logger.debug(f"Logged query: {record.query[:50]}...")
             return True
             
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to log query: {e}")
             return False
     
@@ -631,7 +631,7 @@ class SupabasePersistenceService:
                 for row in result.data
             ]
             
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to get recent queries: {e}")
             return []
     
@@ -694,7 +694,7 @@ class SupabasePersistenceService:
                 "learning_log_count": logs.count or 0,
             }
             
-        except Exception as e:
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
             logger.error(f"Failed to get stats: {e}")
             return {"available": False, "error": str(e)}
 

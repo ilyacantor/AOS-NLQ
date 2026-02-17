@@ -101,7 +101,7 @@ async def health_check():
     try:
         engine = _get_engine()
         engine_ready = engine is not None
-    except Exception:
+    except (ImportError, RuntimeError):
         engine_ready = False
 
     return HealthResponse(
@@ -130,7 +130,7 @@ async def search_entities(term: str):
             candidates=candidates,
             total=len(candidates),
         )
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("Entity search failed for term=%s", term)
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -141,7 +141,7 @@ async def get_entity_by_id(dcl_global_id: str):
     engine = _get_engine()
     try:
         entity = engine.get_entity(dcl_global_id)
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("Entity lookup failed for id=%s", dcl_global_id)
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -167,7 +167,7 @@ async def merge_entities(body: MergeRequest):
         return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("Entity merge failed")
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -181,7 +181,7 @@ async def undo_merge(merge_id: str):
         return result
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("Merge undo failed for merge_id=%s", merge_id)
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -201,7 +201,7 @@ async def get_golden_record(dcl_global_id: str):
     engine = _get_engine()
     try:
         record = engine.get_golden_record(dcl_global_id)
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("Golden record assembly failed for id=%s", dcl_global_id)
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -249,7 +249,7 @@ async def list_conflicts(
             entity=entity,
         )
         return ConflictListResponse(conflicts=conflicts, total=len(conflicts))
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("Conflict listing failed")
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -260,7 +260,7 @@ async def get_conflict(conflict_id: str):
     engine = _get_engine()
     try:
         conflict = engine.get_conflict(conflict_id)
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("Conflict lookup failed for id=%s", conflict_id)
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -296,7 +296,7 @@ async def resolve_conflict(conflict_id: str, body: ConflictResolutionRequest):
         return result
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("Conflict resolution failed for id=%s", conflict_id)
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -313,7 +313,7 @@ async def get_provenance(metric: str):
     engine = _get_engine()
     try:
         record = engine.get_provenance(metric)
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("Provenance lookup failed for metric=%s", metric)
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -352,7 +352,7 @@ async def get_temporal_changelog(concept: str):
             changelog=entries,
             total=len(entries),
         )
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("Temporal changelog failed for concept=%s", concept)
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -375,7 +375,7 @@ async def check_temporal_boundary(
             end_period=end_period,
         )
         return result
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("Temporal boundary check failed")
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -410,7 +410,7 @@ async def get_persona_definitions(metric: str):
             definitions=definitions,
             total=len(definitions),
         )
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("Persona definitions lookup failed for metric=%s", metric)
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -424,7 +424,7 @@ async def get_persona_definition(metric: str, persona: str):
     engine = _get_engine()
     try:
         definition = engine.get_persona_definition(metric, persona)
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception(
             "Persona definition lookup failed for metric=%s persona=%s",
             metric,
@@ -465,7 +465,7 @@ async def enriched_query(body: QueryRequest):
         return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("Enriched query failed")
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -487,7 +487,7 @@ async def list_mcp_tools():
     try:
         tools = engine.list_mcp_tools()
         return MCPToolListResponse(tools=tools, total=len(tools))
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("MCP tool listing failed")
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -508,6 +508,6 @@ async def execute_mcp_tool(body: MCPExecuteRequest):
         return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
         logger.exception("MCP tool execution failed for tool=%s", body.tool_name)
         raise HTTPException(status_code=500, detail=str(exc))

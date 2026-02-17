@@ -166,7 +166,7 @@ async def generate_dashboard(request: DashboardQueryRequest) -> DashboardGenerat
             suggestions=suggestions,
         )
 
-    except Exception as e:
+    except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
         logger.error(f"Dashboard generation failed: {e}", exc_info=True)
         return DashboardGenerationResponse(
             success=False,
@@ -247,7 +247,7 @@ async def refine_dashboard(request: DashboardRefinementRequest) -> DashboardRefi
             confidence=requirements.confidence,
         )
 
-    except Exception as e:
+    except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
         logger.error(f"Dashboard refinement failed: {e}", exc_info=True)
         return DashboardRefinementResponse(
             success=False,
@@ -331,7 +331,7 @@ async def filter_dashboard(request: DashboardFilterRequest) -> DashboardFilterRe
             error=None,
         )
 
-    except Exception as e:
+    except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
         logger.error(f"Filter failed: {e}", exc_info=True)
         return DashboardFilterResponse(
             success=False,
