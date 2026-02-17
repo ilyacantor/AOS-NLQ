@@ -77,21 +77,26 @@ import type { ForecastRow } from './ForecastComparison';
 // Main Component
 // =============================================================================
 
-/** Cap widget row_span at the schema level so every downstream consumer gets compact heights */
+/** Cap widget row_span and col_span at the schema level so every downstream consumer gets compact sizes */
 function normalizeSchema(s: DashboardSchema): DashboardSchema {
-  const maxH: Record<string, number> = { kpi_card: 2, data_table: 5 };
+  const maxH: Record<string, number> = { kpi_card: 2, data_table: 5, map: 3 };
+  const maxW: Record<string, number> = { map: 6 };
   const defaultMaxH = 4; // charts
   const changed = s.widgets.some(w => {
-    const cap = maxH[w.type] ?? defaultMaxH;
-    return w.position.row_span > cap;
+    const capH = maxH[w.type] ?? defaultMaxH;
+    const capW = maxW[w.type];
+    return w.position.row_span > capH || (capW && w.position.col_span > capW);
   });
   if (!changed) return s;
   return {
     ...s,
     widgets: s.widgets.map(w => {
-      const cap = maxH[w.type] ?? defaultMaxH;
-      if (w.position.row_span <= cap) return w;
-      return { ...w, position: { ...w.position, row_span: cap } };
+      const capH = maxH[w.type] ?? defaultMaxH;
+      const capW = maxW[w.type];
+      const needsH = w.position.row_span > capH;
+      const needsW = capW && w.position.col_span > capW;
+      if (!needsH && !needsW) return w;
+      return { ...w, position: { ...w.position, row_span: needsH ? capH : w.position.row_span, col_span: (needsW && capW) ? capW : w.position.col_span } };
     }),
   };
 }

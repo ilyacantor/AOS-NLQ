@@ -355,12 +355,12 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
 
   return (
     <div
-      className="p-4 h-full flex flex-col"
-      style={{ maxWidth: '100%', overflow: 'hidden' }}
+      className="p-4 h-full w-full flex flex-col"
+      style={{ overflow: 'hidden', contain: 'strict' }}
       onMouseDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 shrink-0">
         <h3 className="text-sm font-medium text-slate-400">{widget.title}</h3>
         <div className="text-right">
           <span className="text-lg font-bold text-white">{formatValue(total)}</span>
@@ -368,15 +368,16 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
         </div>
       </div>
 
-      {/* Leaflet Map Container */}
-      <div
-        ref={mapContainerRef}
-        className="flex-1 rounded-lg overflow-hidden"
-        style={{ minHeight: Math.max(height - 100, 200) }}
-      />
+      {/* Leaflet Map Container — absolute-positioned to never exceed parent */}
+      <div className="relative flex-1 min-h-0">
+        <div
+          ref={mapContainerRef}
+          className="absolute inset-0 rounded-lg overflow-hidden"
+        />
+      </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-3 mt-3 justify-center">
+      <div className="flex flex-wrap gap-3 mt-2 justify-center shrink-0">
         {regionData
           .filter(r => r.value > 0)
           .sort((a, b) => (b.value || 0) - (a.value || 0))

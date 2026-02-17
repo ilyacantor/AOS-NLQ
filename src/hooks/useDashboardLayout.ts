@@ -53,10 +53,12 @@ export function useDashboardLayout({
     return () => window.removeEventListener('resize', updateWidth);
   }, []);
 
-  // Max row_span per widget type — keeps elements compact at rowHeight 55
+  const MAX_COL_SPAN: Record<string, number> = { map: 6 };
+
   const maxSpanForType = (type: string) => {
     if (type === 'kpi_card') return 2;
     if (type === 'data_table') return 5;
+    if (type === 'map') return 3;
     return 4; // charts
   };
 
@@ -149,9 +151,10 @@ export function useDashboardLayout({
       const charts = prevSchema.widgets.filter(w =>
         ['line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar'].includes(w.type)
       );
+      const maps = prevSchema.widgets.filter(w => w.type === 'map');
       const tables = prevSchema.widgets.filter(w => w.type === 'data_table');
       const others = prevSchema.widgets.filter(w =>
-        !['kpi_card', 'line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar', 'data_table'].includes(w.type)
+        !['kpi_card', 'line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar', 'data_table', 'map'].includes(w.type)
       );
 
       // ----- Grid helpers -----
@@ -207,10 +210,11 @@ export function useDashboardLayout({
         });
       }
 
-      // ----- Place charts, tables, others with bin-packing -----
+      // ----- Place maps, charts, tables, others with bin-packing -----
       const placeGroup = (widgets: typeof charts, defaultW: number, defaultH: number, maxH: number) => {
         widgets.forEach(widget => {
-          const w = Math.min(widget.position.col_span || defaultW, cols);
+          const maxW = MAX_COL_SPAN[widget.type];
+          const w = Math.min(maxW || widget.position.col_span || defaultW, cols);
           const h = Math.min(widget.position.row_span || defaultH, maxH);
           const pos = findPosition(w, h);
           placeOnGrid(pos.x, pos.y, w, h);
@@ -218,6 +222,7 @@ export function useDashboardLayout({
         });
       };
 
+      placeGroup(maps, 6, 3, 3);
       placeGroup(charts, 6, 4, 4);
       placeGroup(tables, 4, 4, 5);
       placeGroup(others, 3, 2, 4);
@@ -237,9 +242,16 @@ export function useDashboardLayout({
             occ[item.y + dy][item.x + dx] = item.i;
       });
 
-      // Expand rightward
+      // Build widget type lookup for gap-fill constraints
+      const widgetTypeMap: Record<string, string> = {};
+      prevSchema.widgets.forEach(w => { widgetTypeMap[w.id] = w.type; });
+
+      // Expand rightward (respect per-type max col span)
       items.forEach(item => {
+        const wType = widgetTypeMap[item.i] || '';
+        const maxW = MAX_COL_SPAN[wType];
         while (item.x + item.w < cols) {
+          if (maxW && item.w >= maxW) break;
           let ok = true;
           for (let dy = 0; dy < item.h; dy++) {
             if (occ[item.y + dy][item.x + item.w] !== null) { ok = false; break; }
