@@ -617,10 +617,6 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
           {isFunnyResponse && (
             <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
               <div className="pointer-events-auto max-w-sm mx-4 px-6 py-5 rounded-2xl bg-gradient-to-br from-slate-800/95 to-slate-900/95 border border-blue-500/30 shadow-[0_0_40px_rgba(59,130,246,0.15)] backdrop-blur-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">✨</span>
-                  <span className="text-[10px] font-semibold text-blue-400 uppercase tracking-widest">Easter Egg</span>
-                </div>
                 <p className="text-slate-100 text-base leading-relaxed font-medium whitespace-pre-line">
                   {data.text_response}
                 </p>
@@ -778,10 +774,6 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
           {isFunnyResponse && (
             <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
               <div className="pointer-events-auto max-w-md px-8 py-6 rounded-2xl bg-gradient-to-br from-slate-800/95 to-slate-900/95 border border-blue-500/30 shadow-[0_0_60px_rgba(59,130,246,0.2)] backdrop-blur-sm animate-[fadeIn_0.4s_ease-out]">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xl">✨</span>
-                  <span className="text-[11px] font-semibold text-blue-400 uppercase tracking-widest">Easter Egg</span>
-                </div>
                 <p className="text-slate-100 text-lg leading-relaxed font-medium whitespace-pre-line">
                   {data.text_response}
                 </p>
