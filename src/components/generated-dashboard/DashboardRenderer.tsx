@@ -596,6 +596,9 @@ export function DashboardRenderer({
                       <button onClick={() => { setShowLoadModal(true); setShowActionsMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2">
                         <span>📂</span> Load
                       </button>
+                      <button onClick={() => { setSchema(null); setWidgetData({}); setSuggestions([]); setError(null); setShowActionsMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2">
+                        <span>🏗️</span> Build from Scratch
+                      </button>
                       <hr className="my-1 border-slate-700" />
                       <button onClick={() => { handleRunTests(); setShowActionsMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-purple-300 hover:bg-slate-700 flex items-center gap-2">
                         <span>🧪</span> Run Tests
@@ -735,8 +738,8 @@ export function DashboardRenderer({
         </div>
       )}
 
-      {/* Loading State */}
-      {loading && (
+      {/* Loading State — either internal loading or parent isGenerating */}
+      {(loading || (isGenerating && !schema)) && (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <svg className="w-8 h-8 animate-spin text-cyan-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
@@ -822,8 +825,8 @@ export function DashboardRenderer({
         </DashboardErrorBoundary>
       )}
 
-      {/* Empty State - Initial Query Input */}
-      {!schema && !loading && !error && (
+      {/* Empty State - Initial Query Input (blank slate builder) */}
+      {!schema && !loading && !isGenerating && !error && (
         <div className="flex-1 flex items-center justify-center">
           <div className="w-full max-w-2xl px-8">
             <div className="text-center mb-8">
