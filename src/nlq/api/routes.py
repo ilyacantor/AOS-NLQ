@@ -3215,7 +3215,6 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
     if request.data_mode == "demo":
         set_force_local(True)
     try:
-        # Check for off-topic queries or easter eggs first
         off_topic_response = handle_off_topic_or_easter_egg(request.question)
         if off_topic_response:
             persona = detect_persona_from_question(request.question)

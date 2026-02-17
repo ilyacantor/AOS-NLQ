@@ -144,9 +144,11 @@ function App() {
   const [hasLoadedDefaultDashboard, setHasLoadedDefaultDashboard] = useState(false)
   const sessionId = useSessionId()
 
-  // Use ref for query to avoid stale closure issues
   const queryRef = useRef(query)
   queryRef.current = query
+
+  const dataModeRef = useRef(dataMode)
+  dataModeRef.current = dataMode
 
   // Query router for unified routing between Galaxy and Dashboard spaces
   const { routeQuery } = useQueryRouter()
@@ -195,7 +197,7 @@ function App() {
             question: queryText,
             reference_date: '2026-01-27',
             conversation_id: sessionId,
-            data_mode: dataMode
+            data_mode: dataModeRef.current
           })
         })
 
@@ -225,7 +227,7 @@ function App() {
             dashboard_id: dashboardSchema.id,
             refinement_query: queryText,
             conversation_id: sessionId,
-            data_mode: dataMode
+            data_mode: dataModeRef.current
           })
         })
 
@@ -311,7 +313,7 @@ function App() {
               dashboard_id: dashboardSchema.id,
               refinement_query: queryText,
               conversation_id: sessionId,
-              data_mode: dataMode
+              data_mode: dataModeRef.current
             })
           })
           const data = await res.json()
@@ -348,7 +350,7 @@ function App() {
           question: queryText,
           reference_date: '2026-01-27',
           session_id: sessionId,
-          data_mode: dataMode
+          data_mode: dataModeRef.current
         })
       })
 
