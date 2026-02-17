@@ -127,7 +127,7 @@ function App() {
   const [lastDuration, setLastDuration] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [dataMode, setDataMode] = useState<'live' | 'demo'>('live')
+  const [dataMode, setDataMode] = useState<'live' | 'demo'>('demo')
 
   // Landing page & product tour state
   const [showLanding, setShowLanding] = useState(false)
