@@ -569,6 +569,7 @@ export function DashboardRenderer({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
+
                 {showActionsMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowActionsMenu(false)} />
@@ -603,6 +604,31 @@ export function DashboardRenderer({
                   </>
                 )}
               </div>
+
+              {/* Refinement input inline on desktop */}
+              {showRefinementInput && (
+                <>
+                  <div className="w-px h-6 bg-slate-700 mx-1" />
+                  <form onSubmit={handleRefinementSubmit} className="flex gap-2 flex-1 min-w-0">
+                    <input
+                      id="dashboard-refine-input"
+                      type="text"
+                      value={refinementQuery}
+                      onChange={(e) => setRefinementQuery(e.target.value)}
+                      placeholder="Refine dashboard..."
+                      className="flex-1 min-w-0 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                      disabled={isRefining}
+                    />
+                    <button
+                      type="submit"
+                      disabled={isRefining || !refinementQuery.trim()}
+                      className="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                    >
+                      {isRefining ? '...' : 'Go'}
+                    </button>
+                  </form>
+                </>
+              )}
             </div>
           </div>
 
@@ -615,12 +641,11 @@ export function DashboardRenderer({
         </div>
       )}
 
-      {/* Refinement Input - Compact on mobile */}
+      {/* Refinement Input - Mobile only (below header) */}
       {schema && showRefinementInput && (
-        <div className="px-4 md:px-6 py-2 md:py-3 border-b border-slate-800 bg-slate-900/50">
+        <div className="md:hidden px-4 py-2 border-b border-slate-800 bg-slate-900/50">
           <form onSubmit={handleRefinementSubmit} className="flex gap-2">
             <input
-              id="dashboard-refine-input"
               type="text"
               value={refinementQuery}
               onChange={(e) => setRefinementQuery(e.target.value)}
@@ -636,21 +661,24 @@ export function DashboardRenderer({
               {isRefining ? '...' : 'Go'}
             </button>
           </form>
+        </div>
+      )}
 
-          {/* Refinement Message */}
+      {/* Presets, Suggestions, Refinement Message & History — shared row below header */}
+      {schema && showRefinementInput && (
+        <div className="px-4 md:px-6 py-1 border-b border-slate-800">
           {refinementMessage && (
-            <div className="mt-2 px-3 py-1.5 bg-green-900/30 border border-green-700/50 rounded-lg">
+            <div className="mb-1 px-3 py-1 bg-green-900/30 border border-green-700/50 rounded-lg">
               <p className="text-green-300 text-xs">
                 ✓ {refinementMessage}
               </p>
             </div>
           )}
 
-          {/* Preset Refinements - Hidden on mobile, horizontal scroll on tablet+ with drag-to-scroll */}
           {refinePresets.length > 0 && (
             <div
               ref={presetsRef}
-              className="hidden md:flex items-center gap-2 mt-2 overflow-x-auto scrollbar-hide"
+              className="flex items-center gap-2 overflow-x-auto scrollbar-hide"
               style={{ cursor: 'grab' }}
               onMouseDown={handlePresetsMouseDown}
               onMouseMove={handlePresetsMouseMove}
@@ -675,9 +703,8 @@ export function DashboardRenderer({
             </div>
           )}
 
-          {/* Dynamic Suggestions from API - Desktop only */}
           {suggestions.length > 0 && (
-            <div className="hidden md:flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-1">
               {suggestions.map((suggestion, i) => (
                 <button
                   key={i}
@@ -690,9 +717,8 @@ export function DashboardRenderer({
             </div>
           )}
 
-          {/* Refinement History - Desktop only */}
           {schema.refinement_history.length > 0 && (
-            <div className="hidden md:block mt-2 text-xs text-slate-500">
+            <div className="mt-1 text-xs text-slate-500">
               <span>Refinements: </span>
               {schema.refinement_history.map((r, i) => (
                 <span key={i}>
