@@ -40,11 +40,20 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# CORS middleware for frontend integration
+# CORS middleware — origins controlled via CORS_ORIGINS env var.
+# Comma-separated list of allowed origins. Defaults to common dev origins.
+# Set to "*" only if you truly need open access (credentials will be disabled).
+_cors_origins_raw = os.environ.get(
+    "CORS_ORIGINS",
+    "http://localhost:5000,http://localhost:3000,http://localhost:8000",
+)
+_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+_allow_credentials = "*" not in _cors_origins  # Browsers reject credentials + wildcard
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
