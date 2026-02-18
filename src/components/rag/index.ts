@@ -6,4 +6,4 @@
  */
 
 export { RAGLearningPanel } from './RAGLearningPanel';
-export { LLMCallCounter, useSessionId } from './LLMCallCounter';
+export { LLMCallCounter, useSessionId, refreshLLMStats } from './LLMCallCounter';

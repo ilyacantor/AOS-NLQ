@@ -2,7 +2,7 @@
  * LLM Call Counter Component
  *
  * Displays the number of LLM API calls made during the current browser session.
- * Resets when the browser is closed.
+ * Refreshes on-demand after queries complete (no polling).
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -17,11 +17,7 @@ interface SessionStats {
 }
 
 interface LLMCallCounterProps {
-  /** Refresh interval in milliseconds */
-  refreshInterval?: number;
-  /** Show detailed stats or just count */
   detailed?: boolean;
-  /** Custom class name */
   className?: string;
 }
 
@@ -33,7 +29,6 @@ function getSessionId(): string {
   let sessionId = sessionStorage.getItem(key);
 
   if (!sessionId) {
-    // Generate a simple session ID
     sessionId = `ses_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     sessionStorage.setItem(key, sessionId);
   }
@@ -41,8 +36,15 @@ function getSessionId(): string {
   return sessionId;
 }
 
+/**
+ * Notify all LLMCallCounter instances to refresh stats.
+ * Call this after any query/API call completes.
+ */
+export function refreshLLMStats() {
+  window.dispatchEvent(new CustomEvent('llm-stats-refresh'));
+}
+
 export const LLMCallCounter: React.FC<LLMCallCounterProps> = ({
-  refreshInterval = 60000,
   detailed = false,
   className = '',
 }) => {
@@ -60,23 +62,20 @@ export const LLMCallCounter: React.FC<LLMCallCounterProps> = ({
         setStats(data);
       }
     } catch (err) {
-      // Silently fail - counter is not critical
       console.debug('Failed to fetch LLM call stats:', err);
     }
   }, [sessionId]);
 
-  // Initial load and refresh interval
   useEffect(() => {
     fetchStats();
 
-    if (refreshInterval > 0) {
-      const interval = setInterval(fetchStats, refreshInterval);
-      return () => clearInterval(interval);
-    }
-  }, [fetchStats, refreshInterval]);
+    const handler = () => fetchStats();
+    window.addEventListener('llm-stats-refresh', handler);
+    return () => window.removeEventListener('llm-stats-refresh', handler);
+  }, [fetchStats]);
 
   if (!stats) {
-    return null; // Don't show anything until we have data
+    return null;
   }
 
   const { llm_calls, cached_queries, learned_queries } = stats;
@@ -84,21 +83,18 @@ export const LLMCallCounter: React.FC<LLMCallCounterProps> = ({
   if (detailed) {
     return (
       <div className={`flex items-center gap-4 text-xs ${className}`}>
-        {/* LLM Calls */}
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full bg-purple-400" />
           <span className="text-slate-400">AI Calls:</span>
           <span className="text-purple-400 font-mono font-medium">{llm_calls}</span>
         </div>
 
-        {/* Cache Hits */}
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full bg-cyan-400" />
           <span className="text-slate-400">Cached:</span>
           <span className="text-cyan-400 font-mono font-medium">{cached_queries}</span>
         </div>
 
-        {/* Learned */}
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full bg-emerald-400" />
           <span className="text-slate-400">Learned:</span>
@@ -108,7 +104,6 @@ export const LLMCallCounter: React.FC<LLMCallCounterProps> = ({
     );
   }
 
-  // Compact view - just the LLM call count with a small indicator
   return (
     <div
       className={`flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-lg ${className}`}

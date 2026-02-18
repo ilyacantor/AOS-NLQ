@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import type { IntentMapResponse } from './components/galaxy'
 import type { DashboardSchema } from './components/generated-dashboard'
-import { RAGLearningPanel, LLMCallCounter, useSessionId } from './components/rag'
+import { RAGLearningPanel, LLMCallCounter, useSessionId, refreshLLMStats } from './components/rag'
 import { InsufficientDataPanel } from './components/rag/InsufficientDataPanel'
 import { DataPipelineStatus } from './components/DataPipelineStatus'
 import { useQueryRouter } from './hooks/useQueryRouter'
@@ -251,6 +251,7 @@ function App() {
     }
 
     setIsGeneratingDashboard(false)
+    refreshLLMStats()
   }, [dashboardSchema, sessionId])
 
   // Handle persona selection - generate that persona's dashboard
@@ -390,6 +391,7 @@ function App() {
     }
 
     setIsLoading(false)
+    refreshLLMStats()
   }, [sessionId, shouldRouteToDashboard, dashboardSchema, generateDashboard])
 
   // Default search on load suppressed — Galaxy starts empty with centered chatbox

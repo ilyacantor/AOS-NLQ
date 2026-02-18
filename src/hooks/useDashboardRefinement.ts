@@ -6,6 +6,7 @@ import {
   WidgetData,
   DashboardRefinementResponse,
 } from '../types/generated-dashboard';
+import { refreshLLMStats } from '../components/rag';
 
 interface UseDashboardRefinementProps {
   schema: DashboardSchema | null;
@@ -133,6 +134,7 @@ export function useDashboardRefinement({
       setIsRefining(false);
       isRefiningRef.current = false;
       setRefinementQuery('');
+      refreshLLMStats();
     }
   }, [onRefinement]);
 
