@@ -163,7 +163,7 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
       maxBounds: [[-90, -180], [90, 180]],
       maxBoundsViscosity: 1.0,
       attributionControl: false,
-      zoomControl: true,
+      zoomControl: false,
     });
 
     // Set solid ocean background via CSS - bright ocean blue
