@@ -58,6 +58,12 @@ class LLMCallCounter:
         if persist:
             self._init_persistence()
 
+    def enable_persistence(self):
+        """Enable persistence after initialization (used for deferred startup)."""
+        if not self._persist:
+            self._persist = True
+            self._init_persistence()
+
     def _init_persistence(self):
         """Initialize persistence service connection."""
         try:

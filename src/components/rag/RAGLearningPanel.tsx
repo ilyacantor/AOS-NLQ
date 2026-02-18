@@ -146,7 +146,7 @@ function getEntryStyle(entry: LearningLogEntry): { icon: string; color: string; 
 }
 
 export const RAGLearningPanel: React.FC<RAGLearningPanelProps> = ({
-  refreshInterval = 5000,
+  refreshInterval = 0,
   maxEntries = 50,
   persona,
 }) => {
@@ -164,8 +164,7 @@ export const RAGLearningPanel: React.FC<RAGLearningPanelProps> = ({
       // Fetch ALL entries from DB to get accurate cumulative stats
       // Use a high limit to capture all historical data for seeding
       const url = new URL('/api/v1/rag/learning/log/db', window.location.origin);
-      // Fetch more entries for accurate cumulative stats, but only display maxEntries
-      url.searchParams.set('limit', '500');
+      url.searchParams.set('limit', '200');
       if (persona) {
         url.searchParams.set('persona', persona);
       }

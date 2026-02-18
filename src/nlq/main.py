@@ -79,30 +79,39 @@ app.include_router(dcl_router)
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize services on startup."""
+    """Initialize services on startup — heavy inits run in background."""
+    import asyncio
     logger.info("Starting AOS-NLQ server...")
 
-    # Initialize Supabase persistence service first (required by other services)
-    persistence = init_persistence_service()
-    if persistence and persistence.is_available:
-        logger.info("Supabase persistence service initialized")
-        stats = persistence.get_stats()
-        logger.info(f"Persistence stats: {stats}")
-    else:
-        logger.warning("Persistence service not available - sessions will not persist")
+    init_call_counter(persist=False)
 
-    # Initialize RAG cache service
-    init_cache_service_from_env()
+    asyncio.create_task(_deferred_init())
 
-    # Initialize call counter with persistence (sessions loaded automatically via init_call_counter)
-    counter = init_call_counter(persist=persistence is not None and persistence.is_available)
-    stats = counter.get_global_stats()
-    logger.info(f"Call counter initialized: {stats.get('active_sessions', 0)} sessions loaded")
+    logger.info("AOS-NLQ server accepting requests (services initializing in background)")
 
-    # Initialize learning log (singleton)
-    get_learning_log()
 
-    logger.info("AOS-NLQ server started successfully")
+async def _deferred_init():
+    """Heavy service initialization that runs after server is already accepting requests."""
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+
+        persistence = await loop.run_in_executor(None, init_persistence_service)
+        if persistence and persistence.is_available:
+            logger.info("Supabase persistence service initialized")
+            counter = get_call_counter()
+            counter.enable_persistence()
+            counter.load_active_sessions()
+        else:
+            logger.warning("Persistence service not available - sessions will not persist")
+
+        await loop.run_in_executor(None, init_cache_service_from_env)
+
+        get_learning_log()
+
+        logger.info("All background services initialized")
+    except Exception as e:
+        logger.error(f"Background service initialization error: {e}")
 
 
 @app.on_event("shutdown")
