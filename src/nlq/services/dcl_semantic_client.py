@@ -115,6 +115,9 @@ class DCLSemanticClient:
         # H4: Explicit data source tracking — callers can inspect this
         self._catalog_source: str = "none"  # "dcl", "local", "local_fallback"
 
+        self._dcl_consecutive_failures = 0
+        self._dcl_circuit_open_until: float = 0
+
         if self.dcl_url:
             logger.info(f"DCL semantic client initialized - DCL mode (endpoint: {self.dcl_url})")
         else:
@@ -486,8 +489,11 @@ class DCLSemanticClient:
         if not user_term:
             return None
 
+        if _force_local_ctx.get():
+            return self._resolve_metric_locally(user_term)
+
         # Try DCL resolution endpoint first (if configured)
-        if self.dcl_url:
+        if self.dcl_url and time.time() >= self._dcl_circuit_open_until:
             try:
                 result = self._resolve_metric_via_dcl(user_term)
                 if result:
@@ -501,7 +507,7 @@ class DCLSemanticClient:
     def _resolve_metric_via_dcl(self, user_term: str) -> Optional[MetricDefinition]:
         """Call DCL's metric resolution endpoint."""
         if not self._http_client:
-            self._http_client = httpx.Client(timeout=5.0, follow_redirects=True)
+            self._http_client = httpx.Client(timeout=2.0, follow_redirects=True)
 
         try:
             response = self._http_client.get(
@@ -515,7 +521,7 @@ class DCLSemanticClient:
             data = response.json()
             metric_id = data["id"]
             local_units = self._get_metric_units()
-            # DCL uses 'name' for display, 'pack' for domain
+            self._dcl_consecutive_failures = 0
             return MetricDefinition(
                 id=metric_id,
                 display_name=data.get("name", metric_id),
@@ -531,9 +537,17 @@ class DCLSemanticClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code != 404:
                 logger.warning(f"DCL metric resolution error: {e}")
+                self._dcl_consecutive_failures += 1
+                if self._dcl_consecutive_failures >= 3:
+                    self._dcl_circuit_open_until = time.time() + 60
+                    logger.warning("DCL circuit breaker opened for 60s after 3 consecutive failures")
             return None
         except (httpx.RequestError, json.JSONDecodeError, KeyError) as e:
             logger.warning(f"DCL metric resolution failed: {e}")
+            self._dcl_consecutive_failures += 1
+            if self._dcl_consecutive_failures >= 3:
+                self._dcl_circuit_open_until = time.time() + 60
+                logger.warning("DCL circuit breaker opened for 60s after 3 consecutive failures")
             return None
 
     def _resolve_metric_locally(self, user_term: str) -> Optional[MetricDefinition]:

@@ -14,7 +14,7 @@ interface Props {
   dataMode?: 'live' | 'demo';
 }
 
-const POLL_INTERVAL = 30000;
+const POLL_INTERVAL = 120000;
 
 export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
   const [status, setStatus] = useState<PipelineStatus | null>(null);
