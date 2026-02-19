@@ -178,6 +178,17 @@ async def generate_dashboard(request: DashboardQueryRequest) -> DashboardGenerat
             confidence=0.0,
             suggestions=["Try simplifying your query", "Check that the metrics you're asking about exist"],
         )
+    except Exception as e:
+        logger.exception(f"Unhandled error in dashboard generation: {type(e).__name__}: {e}")
+        return DashboardGenerationResponse(
+            success=False,
+            dashboard=None,
+            error=f"{type(e).__name__}: {e}",
+            query=request.question,
+            intent_detected="unknown",
+            confidence=0.0,
+            suggestions=["An unexpected error occurred. Check backend logs for details."],
+        )
     finally:
         set_force_local(False)
 
@@ -254,6 +265,16 @@ async def refine_dashboard(request: DashboardRefinementRequest) -> DashboardRefi
             success=False,
             dashboard=None,
             error=str(e),
+            refinement_status="error",
+            changes_made=[],
+            confidence=0.0,
+        )
+    except Exception as e:
+        logger.exception(f"Unhandled error in dashboard refinement: {type(e).__name__}: {e}")
+        return DashboardRefinementResponse(
+            success=False,
+            dashboard=None,
+            error=f"{type(e).__name__}: {e}",
             refinement_status="error",
             changes_made=[],
             confidence=0.0,
@@ -339,6 +360,14 @@ async def filter_dashboard(request: DashboardFilterRequest) -> DashboardFilterRe
             widget_data={},
             active_filters={},
             error=str(e),
+        )
+    except Exception as e:
+        logger.exception(f"Unhandled error in filter: {type(e).__name__}: {e}")
+        return DashboardFilterResponse(
+            success=False,
+            widget_data={},
+            active_filters={},
+            error=f"{type(e).__name__}: {e}",
         )
 
 

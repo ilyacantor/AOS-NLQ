@@ -2838,22 +2838,45 @@ async def query(request: NLQRequest) -> NLQResponse:
 
     except ValueError as e:
         logger.error(f"Query parsing error: {e}")
+        diag(f"[NLQ-DIAG] /query PARSE_ERROR: {e}")
         return NLQResponse(
             success=False,
             confidence=0.0,
             error_code="PARSE_ERROR",
             error_message=str(e),
-            debug_info={"nlq_diag_trace": _trace} if _trace else None,
+            debug_info={"nlq_diag_trace": _trace, "error": str(e), "error_type": "PARSE_ERROR"} if _trace else {"error": str(e), "error_type": "PARSE_ERROR"},
         )
-    except (RuntimeError, KeyError, TypeError, ValueError, AttributeError, OSError) as e:
+    except HTTPException as e:
+        logger.error(f"HTTP error in query: {e.status_code} - {e.detail}")
+        diag(f"[NLQ-DIAG] /query HTTP_ERROR: {e.status_code} {e.detail}")
+        error_msg = str(e.detail) if e.detail else "HTTP error"
+        return NLQResponse(
+            success=False,
+            confidence=0.0,
+            error_code="CONFIG_ERROR",
+            error_message=error_msg,
+            debug_info={"nlq_diag_trace": _trace, "error": error_msg, "error_type": "CONFIG_ERROR"} if _trace else {"error": error_msg, "error_type": "CONFIG_ERROR"},
+        )
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as e:
         logger.exception(f"Unexpected error processing query: {e}")
         diag(f"[NLQ-DIAG] /query EXCEPTION: {type(e).__name__}: {e}")
         return NLQResponse(
             success=False,
             confidence=0.0,
             error_code="INTERNAL_ERROR",
-            error_message="An unexpected error occurred",
-            debug_info={"nlq_diag_trace": _trace} if _trace else None,
+            error_message=f"{type(e).__name__}: {e}",
+            debug_info={"nlq_diag_trace": _trace, "error": str(e), "error_type": type(e).__name__} if _trace else {"error": str(e), "error_type": type(e).__name__},
+        )
+    except Exception as e:
+        logger.exception(f"Unhandled error in query: {type(e).__name__}: {e}")
+        diag(f"[NLQ-DIAG] /query UNHANDLED: {type(e).__name__}: {e}")
+        error_msg = f"{type(e).__name__}: {e}"
+        return NLQResponse(
+            success=False,
+            confidence=0.0,
+            error_code="UNHANDLED_ERROR",
+            error_message=error_msg,
+            debug_info={"nlq_diag_trace": _trace, "error": error_msg, "error_type": type(e).__name__} if _trace else {"error": error_msg, "error_type": type(e).__name__},
         )
     finally:
         set_force_local(False)
@@ -3376,26 +3399,54 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
 
     except ValueError as e:
         logger.error(f"Query parsing error: {e}")
+        diag(f"[NLQ-DIAG] /query/galaxy PARSE_ERROR: {e}")
         response = _create_error_galaxy_response(
             request.question,
-            "UNKNOWN",
+            "ERROR",
             "PARSE_ERROR",
             str(e),
         )
-        response.debug_info = {"nlq_diag_trace": _trace} if _trace else None
-        # Track error responses
+        response.debug_info = {"nlq_diag_trace": _trace, "error": str(e), "error_type": "PARSE_ERROR"} if _trace else {"error": str(e), "error_type": "PARSE_ERROR"}
         return _track_intent_map_if_needed(response, request.question)
-    except (RuntimeError, KeyError, TypeError, ValueError, AttributeError, OSError) as e:
+    except HTTPException as e:
+        # Catch FastAPI HTTPExceptions (e.g. missing API key) and return structured response
+        logger.error(f"HTTP error in galaxy query: {e.status_code} - {e.detail}")
+        diag(f"[NLQ-DIAG] /query/galaxy HTTP_ERROR: {e.status_code} {e.detail}")
+        error_msg = str(e.detail) if e.detail else "HTTP error during query processing"
+        response = _create_error_galaxy_response(
+            request.question,
+            "ERROR",
+            "CONFIG_ERROR",
+            error_msg,
+        )
+        response.text_response = error_msg
+        response.debug_info = {"nlq_diag_trace": _trace, "error": error_msg, "error_type": "CONFIG_ERROR"} if _trace else {"error": error_msg, "error_type": "CONFIG_ERROR"}
+        return response
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as e:
         logger.exception(f"Unexpected error processing galaxy query: {e}")
         diag(f"[NLQ-DIAG] /query/galaxy EXCEPTION: {type(e).__name__}: {e}")
         response = _create_error_galaxy_response(
             request.question,
-            "UNKNOWN",
+            "ERROR",
             "INTERNAL_ERROR",
-            "An unexpected error occurred",
+            f"{type(e).__name__}: {e}",
         )
-        response.debug_info = {"nlq_diag_trace": _trace} if _trace else None
+        response.debug_info = {"nlq_diag_trace": _trace, "error": str(e), "error_type": type(e).__name__} if _trace else {"error": str(e), "error_type": type(e).__name__}
         return _track_intent_map_if_needed(response, request.question)
+    except Exception as e:
+        # Catch-all for Claude API errors, circuit breaker, timeouts, and anything else
+        logger.exception(f"Unhandled error in galaxy query: {type(e).__name__}: {e}")
+        diag(f"[NLQ-DIAG] /query/galaxy UNHANDLED: {type(e).__name__}: {e}")
+        error_msg = f"{type(e).__name__}: {e}"
+        response = _create_error_galaxy_response(
+            request.question,
+            "ERROR",
+            "UNHANDLED_ERROR",
+            error_msg,
+        )
+        response.text_response = f"Query processing failed: {error_msg}"
+        response.debug_info = {"nlq_diag_trace": _trace, "error": error_msg, "error_type": type(e).__name__} if _trace else {"error": error_msg, "error_type": type(e).__name__}
+        return response
     finally:
         set_force_local(False)
 
@@ -3626,20 +3677,28 @@ def _create_error_galaxy_response(
     error_code: str,
     error_message: str,
 ) -> IntentMapResponse:
-    """Create an error response for Galaxy endpoint."""
-    stumped_msg = get_stumped_response(include_suggestions=True)
+    """Create an error response for Galaxy endpoint.
+
+    For CONFIG_ERROR / UNHANDLED_ERROR we surface the real reason so the
+    frontend can display it.  For PARSE_ERROR / INTERNAL_ERROR we fall back
+    to the friendly "stumped" message.
+    """
+    if error_code in ("CONFIG_ERROR", "UNHANDLED_ERROR"):
+        display_msg = error_message
+    else:
+        display_msg = get_stumped_response(include_suggestions=True)
     return IntentMapResponse(
         query=question,
         query_type=query_type,
         ambiguity_type=None,
         persona=detect_persona_from_question(question) or "CFO",
-        overall_confidence=0.5,
-        overall_data_quality=0.5,
+        overall_confidence=0.0,
+        overall_data_quality=0.0,
         node_count=0,
         nodes=[],
         primary_node_id=None,
-        primary_answer=stumped_msg,
-        text_response=stumped_msg,
+        primary_answer=display_msg,
+        text_response=display_msg,
         needs_clarification=False,
         clarification_prompt=None,
     )

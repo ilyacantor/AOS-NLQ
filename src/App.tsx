@@ -131,6 +131,11 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [dataMode, setDataMode] = useState<'live' | 'demo'>('demo')
 
+  // Backend connectivity state
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'error'>('checking')
+  const [backendMessage, setBackendMessage] = useState<string | null>(null)
+  const [claudeAvailable, setClaudeAvailable] = useState<boolean | null>(null)
+
   // Landing page & product tour state
   const [showLanding, setShowLanding] = useState(false)
   const [tourVisible, setTourVisible] = useState(false)
@@ -177,6 +182,35 @@ function App() {
       }
     }
     loadHistory()
+  }, [])
+
+  // Health check on mount — verify backend is reachable and show diagnostic banner
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const res = await fetch('/api/v1/health')
+        if (res.ok) {
+          const data = await res.json()
+          setBackendStatus('connected')
+          setClaudeAvailable(data.claude_available ?? null)
+          if (!data.claude_available) {
+            setBackendMessage('ANTHROPIC_API_KEY not set — AI queries will fail. Set it in Replit Secrets.')
+          } else {
+            setBackendMessage(null)
+          }
+        } else {
+          setBackendStatus('error')
+          setBackendMessage(`Backend returned ${res.status}. Check Replit console for errors.`)
+        }
+      } catch {
+        setBackendStatus('error')
+        setBackendMessage('Backend unreachable. Make sure "Start Backend" workflow is running in Replit.')
+      }
+    }
+    checkHealth()
+    // Re-check every 30s
+    const interval = setInterval(checkHealth, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   // Generate dashboard via API
@@ -248,7 +282,7 @@ function App() {
       }
     } catch (error) {
       console.error('Dashboard generation failed:', error)
-      setDashboardError('Connection error. Is the server running?')
+      setDashboardError(`Cannot reach backend server: ${error}. Check that both backend (port 8000) and frontend (port 5000) are running.`)
     }
 
     setIsGeneratingDashboard(false)
@@ -357,11 +391,64 @@ function App() {
         })
       })
 
-      const data = await res.json()
       const duration = Math.round(performance.now() - startTime)
+      setLastDuration(`${duration}ms`)
+
+      // Check HTTP status BEFORE parsing JSON
+      if (!res.ok) {
+        let errorDetail = `Server error (${res.status})`
+        try {
+          const errBody = await res.json()
+          errorDetail = errBody.detail || errBody.error || errBody.text_response || errorDetail
+        } catch {
+          // Response wasn't JSON — use status text
+          errorDetail = `${res.status} ${res.statusText}`
+        }
+        console.error('Backend error:', res.status, errorDetail)
+        setGalaxyResponse({
+          query: queryText,
+          query_type: 'ERROR',
+          ambiguity_type: null,
+          persona: 'CFO',
+          overall_confidence: 0,
+          overall_data_quality: 0,
+          node_count: 0,
+          nodes: [],
+          primary_node_id: null,
+          primary_answer: errorDetail,
+          text_response: errorDetail,
+          needs_clarification: false,
+          clarification_prompt: null,
+          debug_info: { error: errorDetail, error_type: 'HTTP_ERROR' },
+        } as IntentMapResponse)
+
+        const newItem: QueryHistoryItem = {
+          id: Date.now().toString(),
+          query: queryText,
+          timestamp,
+          duration: `${duration}ms`,
+          tag: 'ERROR',
+          count: 1,
+        }
+        setQueryHistory(prev => aggregateHistory([newItem, ...prev]))
+        // Auto-open trace panel on errors so user sees diagnostics
+        setSidebarOpen(true)
+        setPanelTab('Trace')
+        setIsLoading(false)
+        refreshLLMStats()
+        return
+      }
+
+      const data = await res.json()
+
+      // If backend returned a structured error response (query_type === 'ERROR'),
+      // auto-show the trace panel for diagnostics
+      if (data.query_type === 'ERROR' || data.debug_info?.error) {
+        setSidebarOpen(true)
+        setPanelTab('Trace')
+      }
 
       setGalaxyResponse(data as IntentMapResponse)
-      setLastDuration(`${duration}ms`)
 
       const newItem: QueryHistoryItem = {
         id: Date.now().toString(),
@@ -373,7 +460,10 @@ function App() {
       }
       setQueryHistory(prev => aggregateHistory([newItem, ...prev]))
     } catch (error) {
-      console.error('Query failed:', error)
+      // This catch only fires on genuine network failures (connection refused, DNS, timeout)
+      console.error('Network error — backend unreachable:', error)
+      const duration = Math.round(performance.now() - startTime)
+      setLastDuration(`${duration}ms`)
       setGalaxyResponse({
         query: queryText,
         query_type: 'ERROR',
@@ -384,11 +474,14 @@ function App() {
         node_count: 0,
         nodes: [],
         primary_node_id: null,
-        primary_answer: 'Failed to connect to backend. Is the server running?',
-        text_response: 'Failed to connect to backend. Is the server running?',
+        primary_answer: 'Cannot reach backend server. Check that both the backend (port 8000) and frontend (port 5000) are running.',
+        text_response: 'Cannot reach backend server. Check that both the backend (port 8000) and frontend (port 5000) are running.',
         needs_clarification: false,
         clarification_prompt: null,
+        debug_info: { error: String(error), error_type: 'NETWORK_ERROR' },
       } as IntentMapResponse)
+      setSidebarOpen(true)
+      setPanelTab('Trace')
     }
 
     setIsLoading(false)
@@ -684,6 +777,26 @@ function App() {
         </div>
       </header>
 
+      {/* Diagnostic Banner — shown when backend is unreachable or misconfigured */}
+      {(backendStatus === 'error' || (backendStatus === 'connected' && claudeAvailable === false)) && backendMessage && (
+        <div className={`px-4 py-2 text-xs flex items-center gap-2 ${
+          backendStatus === 'error'
+            ? 'bg-red-950/80 border-b border-red-800/50 text-red-300'
+            : 'bg-amber-950/80 border-b border-amber-800/50 text-amber-300'
+        }`}>
+          <span className={backendStatus === 'error' ? 'text-red-400' : 'text-amber-400'}>
+            {backendStatus === 'error' ? '\u26D4' : '\u26A0'}
+          </span>
+          <span>{backendMessage}</span>
+          <button
+            onClick={() => setBackendMessage(null)}
+            className="ml-auto text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden relative">
         {/* Main Content */}
@@ -932,6 +1045,7 @@ function App() {
             {panelTab === 'Trace' && (
               <DebugTracePanel
                 trace={(galaxyResponse?.debug_info?.nlq_diag_trace as string[]) ?? null}
+                debugInfo={galaxyResponse?.debug_info ?? null}
               />
             )}
 
