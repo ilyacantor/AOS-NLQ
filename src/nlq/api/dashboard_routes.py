@@ -32,7 +32,7 @@ from src.nlq.models.dashboard_schema import (
     DashboardRefinementResponse,
     DashboardSchema,
 )
-from src.nlq.services.dcl_semantic_client import set_force_local
+from src.nlq.services.dcl_semantic_client import set_force_local, set_data_mode
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +87,8 @@ async def generate_dashboard(request: DashboardQueryRequest) -> DashboardGenerat
     - "Create a dashboard with revenue, margin, and pipeline KPIs"
     - "Visualize sales trends with ability to drill into reps"
     """
+    set_data_mode(request.data_mode)
+    set_data_mode(request.data_mode)
     if request.data_mode == "demo":
         set_force_local(True)
     try:
@@ -191,6 +193,7 @@ async def generate_dashboard(request: DashboardQueryRequest) -> DashboardGenerat
         )
     finally:
         set_force_local(False)
+        set_data_mode(None)
 
 
 @router.post("/dashboard/refine", response_model=DashboardRefinementResponse)
@@ -205,6 +208,7 @@ async def refine_dashboard(request: DashboardRefinementRequest) -> DashboardRefi
     - "Add comparison to last quarter"
     - "Remove the trend chart"
     """
+    set_data_mode(request.data_mode)
     if request.data_mode == "demo":
         set_force_local(True)
     try:
@@ -281,6 +285,7 @@ async def refine_dashboard(request: DashboardRefinementRequest) -> DashboardRefi
         )
     finally:
         set_force_local(False)
+        set_data_mode(None)
 
 
 @router.get("/dashboard/{dashboard_id}")

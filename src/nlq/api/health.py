@@ -31,6 +31,7 @@ class HealthResponse(BaseModel):
     claude_available: bool
     session_count: int = 0
     max_sessions: int = 100
+    live_data_available: bool = False
 
 
 class PipelineStatusResponse(BaseModel):
@@ -86,6 +87,13 @@ async def health() -> HealthResponse:
     except (KeyError, TypeError) as e:
         logger.warning(f"Claude API key check failed: {e}")
 
+    # Check if live ingest data is available
+    live_data_available = False
+    try:
+        live_data_available = dcl_client.has_live_ingest_data()
+    except (RuntimeError, AttributeError):
+        pass
+
     session_stats = get_session_stats()
     return HealthResponse(
         status="healthy" if dcl_available else "degraded",
@@ -94,6 +102,7 @@ async def health() -> HealthResponse:
         claude_available=claude_available,
         session_count=session_stats["total_sessions"],
         max_sessions=session_stats["max_sessions"],
+        live_data_available=live_data_available,
     )
 
 

@@ -35,6 +35,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import httpx
 
 _force_local_ctx: contextvars.ContextVar[bool] = contextvars.ContextVar('_force_local_ctx', default=False)
+_data_mode_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar('_data_mode_ctx', default=None)
 
 # Diagnostic trace collector — route handlers init this to [] before each request,
 # and the DCL client appends messages.  The route handler reads it back and includes
@@ -97,11 +98,26 @@ class MetricDefinition:
 
 
 @dataclass
+class IngestSummary:
+    """Summary of ingested data available in DCL's buffer.
+
+    When DCL's Farm mode has buffered data, the semantic export includes
+    this block so NLQ knows what live data exists before querying.
+    """
+    source_systems: List[str] = field(default_factory=list)
+    row_count: int = 0
+    pipe_count: int = 0
+    tenant_names: List[str] = field(default_factory=list)
+    available: bool = False
+
+
+@dataclass
 class SemanticCatalog:
     """Complete semantic catalog from DCL."""
     metrics: Dict[str, MetricDefinition] = field(default_factory=dict)
     dimensions: Dict[str, List[str]] = field(default_factory=dict)  # dimension -> valid values
     alias_to_metric: Dict[str, str] = field(default_factory=dict)  # alias -> metric_id
+    ingest_summary: Optional[IngestSummary] = None  # Live ingest buffer info from DCL
 
     def build_alias_index(self):
         """Build reverse lookup from aliases to metric IDs.
@@ -272,6 +288,20 @@ class DCLSemanticClient:
             run_mode = mode_info.get("run_mode", "unknown")
             last_updated = mode_info.get("last_updated", "")
             logger.info(f"DCL mode: {data_mode}/{run_mode} (updated: {last_updated})")
+
+        # Parse ingest_summary — tells NLQ what live data is buffered in DCL
+        ingest_raw = data.get("ingest_summary", {})
+        if ingest_raw:
+            catalog.ingest_summary = IngestSummary(
+                source_systems=ingest_raw.get("source_systems", []),
+                row_count=ingest_raw.get("row_count", 0),
+                pipe_count=ingest_raw.get("pipe_count", 0),
+                tenant_names=ingest_raw.get("tenant_names", []),
+                available=True,
+            )
+            diag(f"[NLQ-DIAG] ingest_summary: {catalog.ingest_summary.row_count} rows, "
+                 f"{len(catalog.ingest_summary.source_systems)} sources, "
+                 f"tenants={catalog.ingest_summary.tenant_names}")
 
         # Parse metrics — DCL uses 'name' (not 'display_name') and 'pack' (not 'domain')
         local_units = self._get_metric_units()
@@ -546,7 +576,12 @@ class DCLSemanticClient:
         return self._resolve_metric_locally(user_term)
 
     def _resolve_metric_via_dcl(self, user_term: str) -> Optional[MetricDefinition]:
-        """Call DCL's metric resolution endpoint."""
+        """Call DCL's metric resolution endpoint (supports fuzzy matching).
+
+        DCL now does word-overlap scoring against metric names, descriptions,
+        and aliases.  On 404, the response may include a ``suggestions`` array
+        with the closest candidates — we try the top suggestion as a fallback.
+        """
         if not self._http_client:
             self._http_client = httpx.Client(timeout=2.0, follow_redirects=True)
 
@@ -556,6 +591,19 @@ class DCLSemanticClient:
                 params={"q": user_term}
             )
             if response.status_code == 404:
+                # DCL may return suggestions for close matches
+                try:
+                    body = response.json()
+                    suggestions = body.get("suggestions", [])
+                    if suggestions:
+                        diag(f"[NLQ-DIAG] resolve 404 for '{user_term}', suggestions={suggestions[:3]}")
+                        # Try the top suggestion
+                        top = suggestions[0]
+                        top_id = top if isinstance(top, str) else top.get("id", "")
+                        if top_id:
+                            return self._resolve_metric_locally(top_id)
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    pass
                 return None
             response.raise_for_status()
 
@@ -591,6 +639,43 @@ class DCLSemanticClient:
                 logger.warning("DCL circuit breaker opened for 60s after 3 consecutive failures")
             return None
 
+    def search(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """Search DCL for metrics and entities matching a free-text query.
+
+        Uses the new ``GET /api/dcl/semantic-export/search`` endpoint which
+        does ranked keyword matching across all metrics and entities in a
+        single call.
+
+        Args:
+            query: Free-text search term (e.g. "deploys per week", "revenue by region")
+            limit: Maximum number of results to return
+
+        Returns:
+            List of ranked result dicts, each with at least ``id``, ``type``
+            ('metric' | 'entity'), ``name``, and ``score``.
+            Returns empty list if DCL is unavailable or returns no results.
+        """
+        if not self.dcl_url or _force_local_ctx.get():
+            return []
+
+        if not self._http_client:
+            self._http_client = httpx.Client(timeout=5.0, follow_redirects=True)
+
+        try:
+            response = self._http_client.get(
+                f"{self.dcl_url}/api/dcl/semantic-export/search",
+                params={"q": query, "limit": limit},
+            )
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            results = data.get("results", data) if isinstance(data, dict) else data
+            return results if isinstance(results, list) else []
+        except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError) as e:
+            logger.debug(f"DCL search failed for '{query}': {e}")
+            return []
+
     def _resolve_metric_locally(self, user_term: str) -> Optional[MetricDefinition]:
         """Resolve metric using local catalog."""
         catalog = self.get_catalog()
@@ -613,6 +698,21 @@ class DCLSemanticClient:
                     return catalog.metrics.get(metric_id)
 
         return None
+
+    def has_live_ingest_data(self) -> bool:
+        """Check whether DCL has live ingested data available.
+
+        Uses the cached catalog's ingest_summary. Callers can use this to
+        decide whether to offer the 'Live' data mode toggle or to inform the
+        user that only demo data is available.
+        """
+        catalog = self.get_catalog()
+        return catalog.ingest_summary is not None and catalog.ingest_summary.available
+
+    def get_ingest_summary(self) -> Optional[IngestSummary]:
+        """Return the ingest summary from the cached catalog, or None."""
+        catalog = self.get_catalog()
+        return catalog.ingest_summary
 
     def resolve_entity(self, user_term: str) -> Optional[Dict[str, Any]]:
         """
@@ -867,6 +967,9 @@ class DCLSemanticClient:
             DCLQueryError: If DCL returns an error or is unavailable
         """
         ctx_force = _force_local_ctx.get()
+        # Auto-read data_mode from context when not explicitly provided
+        if data_mode is None:
+            data_mode = _data_mode_ctx.get()
         diag(f"[NLQ-DIAG] query() called: metric={metric}, force_local={force_local}, ctx_force={ctx_force}, dcl_url={bool(self.dcl_url)}, data_mode={data_mode}")
         if force_local or ctx_force or not self.dcl_url:
             # Determine reason for fallback
@@ -1451,6 +1554,21 @@ def get_semantic_client() -> DCLSemanticClient:
 def set_force_local(value: bool):
     """Legacy setter — prefer using force_local_data() context manager instead."""
     _force_local_ctx.set(value)
+
+
+def set_data_mode(value: Optional[str]):
+    """Set the data_mode for the current request context.
+
+    When set to 'live', all DCL queries will include data_mode='live' so DCL
+    checks the ingest buffer first.  When set to 'demo', force_local is also
+    set so queries hit fact_base.json.
+    """
+    _data_mode_ctx.set(value)
+
+
+def get_data_mode() -> Optional[str]:
+    """Return the data_mode set for the current request context."""
+    return _data_mode_ctx.get()
 
 
 @contextlib.contextmanager

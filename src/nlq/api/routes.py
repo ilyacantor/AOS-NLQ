@@ -49,7 +49,7 @@ from src.nlq.services.llm_call_counter import get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
 from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
 from src.nlq.services.dcl_enrichment import enrich_response as dcl_enrich_response
-from src.nlq.services.dcl_semantic_client import set_force_local, force_local_data, diag, diag_init, diag_collect
+from src.nlq.services.dcl_semantic_client import set_force_local, set_data_mode, force_local_data, diag, diag_init, diag_collect
 from src.nlq.services.insufficient_data_tracker import get_insufficient_data_tracker, CONFIDENCE_THRESHOLD
 from src.nlq.core.dates import current_year, current_quarter, prior_year
 
@@ -2415,6 +2415,7 @@ async def query(request: NLQRequest) -> NLQResponse:
     """
     _trace = diag_init()
     diag(f"[NLQ-DIAG] /query endpoint: question='{request.question[:60]}', data_mode={request.data_mode}")
+    set_data_mode(request.data_mode)
     if request.data_mode == "demo":
         set_force_local(True)
     try:
@@ -2880,6 +2881,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         )
     finally:
         set_force_local(False)
+        set_data_mode(None)
 
 
 @router.post("/intent-map", response_model=IntentMapResponse)
@@ -2895,6 +2897,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
     """
     _trace = diag_init()
     diag(f"[NLQ-DIAG] /query/galaxy endpoint: question='{request.question[:60]}', data_mode={request.data_mode}")
+    set_data_mode(request.data_mode)
     if request.data_mode == "demo":
         set_force_local(True)
     try:
@@ -3449,6 +3452,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         return response
     finally:
         set_force_local(False)
+        set_data_mode(None)
 
 
 def _handle_ambiguous_query_galaxy(
