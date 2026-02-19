@@ -11,6 +11,8 @@ If the user requests 1 metric, they get 1 metric. If extraction fails, we fail l
 import uuid
 from typing import Any, Dict, List, Optional
 
+from src.nlq.core.dates import current_year
+
 from src.nlq.core.visualization_intent import (
     ChartTypeHint,
     VisualizationIntent,
@@ -166,7 +168,7 @@ def generate_dashboard_schema(
 
     # Determine default time binding
     time_binding = TimeBinding(
-        period="2025",
+        period=current_year(),
         granularity=TimeGranularity(requirements.time_granularity or "quarterly"),
     )
 
@@ -277,7 +279,7 @@ def _generate_simple_kpi(requirements: VisualizationRequirements) -> List[Widget
                     metric=metric,
                     format=_get_format_string(metric),
                 )],
-                time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+                time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
             ),
             position=GridPosition(column=col, row=1, col_span=3, row_span=2),
             kpi_config=KPIConfig(show_trend=True, show_sparkline=True),
@@ -300,7 +302,7 @@ def _generate_single_metric_trend(requirements: VisualizationRequirements) -> Li
         title=f"Current {get_display_name(metric)}",
         data=DataBinding(
             metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
-            time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+            time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
         ),
         position=GridPosition(column=1, row=1, col_span=3, row_span=2),
         kpi_config=KPIConfig(show_trend=True, show_sparkline=False),
@@ -342,7 +344,7 @@ def _generate_breakdown_chart(requirements: VisualizationRequirements) -> List[W
         title=f"Total {get_display_name(metric)}",
         data=DataBinding(
             metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
-            time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+            time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
         ),
         position=GridPosition(column=1, row=1, col_span=3, row_span=2),
         kpi_config=KPIConfig(show_trend=True, show_sparkline=True),
@@ -371,7 +373,7 @@ def _generate_breakdown_chart(requirements: VisualizationRequirements) -> List[W
         data=DataBinding(
             metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
             dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
-            time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+            time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
         ),
         position=GridPosition(column=4, row=1, col_span=9, row_span=3),
         chart_config=ChartConfig(show_legend=True, show_grid=True, animate=True),
@@ -386,7 +388,7 @@ def _generate_breakdown_chart(requirements: VisualizationRequirements) -> List[W
         data=DataBinding(
             metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
             dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
-            time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+            time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
         ),
         position=GridPosition(column=1, row=3, col_span=3, row_span=3),
         table_config=TableConfig(sortable=True, show_totals=True),
@@ -409,7 +411,7 @@ def _generate_comparison_chart(requirements: VisualizationRequirements) -> List[
             title=get_display_name(metric),
             data=DataBinding(
                 metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
-                time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+                time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
             ),
             position=GridPosition(column=col, row=1, col_span=3, row_span=2),
             kpi_config=KPIConfig(show_trend=True, show_sparkline=True),
@@ -452,7 +454,7 @@ def _generate_drill_down_view(requirements: VisualizationRequirements) -> List[W
         title=f"Total {get_display_name(metric)}",
         data=DataBinding(
             metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
-            time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+            time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
         ),
         position=GridPosition(column=1, row=1, col_span=4, row_span=2),
         kpi_config=KPIConfig(show_trend=True, show_sparkline=True),
@@ -466,7 +468,7 @@ def _generate_drill_down_view(requirements: VisualizationRequirements) -> List[W
         data=DataBinding(
             metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
             dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
-            time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+            time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
         ),
         position=GridPosition(column=5, row=1, col_span=8, row_span=3),
         chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
@@ -512,7 +514,7 @@ def _generate_multi_metric_dashboard(requirements: VisualizationRequirements) ->
             title=get_display_name(metric),
             data=DataBinding(
                 metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
-                time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+                time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
             ),
             position=GridPosition(column=col, row=1, col_span=3, row_span=2),
             kpi_config=KPIConfig(show_trend=True, show_sparkline=True),
@@ -541,7 +543,7 @@ def _generate_multi_metric_dashboard(requirements: VisualizationRequirements) ->
             title="Metrics Overview",
             data=DataBinding(
                 metrics=[MetricBinding(metric=m, format=_get_format_string(m)) for m in metrics[1:4]],
-                time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+                time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
             ),
             position=GridPosition(column=7, row=3, col_span=6, row_span=3),
             chart_config=ChartConfig(show_legend=True, show_grid=True, animate=True),
@@ -611,7 +613,7 @@ def _generate_full_dashboard(
             title=get_display_name(metric),
             data=DataBinding(
                 metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
-                time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+                time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
             ),
             position=GridPosition(column=col, row=1, col_span=col_span, row_span=2),
             kpi_config=KPIConfig(show_trend=True, show_sparkline=True),
@@ -637,7 +639,7 @@ def _generate_full_dashboard(
             data=DataBinding(
                 metrics=[MetricBinding(metric=primary_metric, format=_get_format_string(primary_metric))],
                 dimensions=[DimensionBinding(dimension="region", sort_by="value", sort_order="desc")],
-                time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+                time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
             ),
             position=GridPosition(column=1, row=3, col_span=6, row_span=3),
             chart_config=ChartConfig(show_legend=False, show_grid=False, animate=True),
@@ -666,7 +668,7 @@ def _generate_full_dashboard(
             data=DataBinding(
                 metrics=[MetricBinding(metric=primary_metric, format=_get_format_string(primary_metric))],
                 dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
-                time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+                time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
             ),
             position=GridPosition(column=1, row=chart_row, col_span=6, row_span=3),
             chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
@@ -691,7 +693,7 @@ def _generate_full_dashboard(
                 title="Metrics Comparison",
                 data=DataBinding(
                     metrics=[MetricBinding(metric=m, format=_get_format_string(m)) for m in metrics[1:4]],
-                    time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+                    time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
                 ),
                 position=GridPosition(column=7, row=chart_row, col_span=6, row_span=3),
                 chart_config=ChartConfig(show_legend=True, show_grid=True, animate=True),
@@ -901,7 +903,7 @@ def refine_dashboard_schema(
                         data=DataBinding(
                             metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
                             dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
-                            time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+                            time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
                         ),
                         position=GridPosition(column=1, row=max_row + 1, col_span=6, row_span=3),
                         chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
@@ -949,7 +951,7 @@ def refine_dashboard_schema(
                             data=DataBinding(
                                 metrics=[MetricBinding(metric=metric, format=_get_format_string(metric))],
                                 dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
-                                time=TimeBinding(period="2025", granularity=TimeGranularity.YEARLY),
+                                time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
                             ),
                             position=GridPosition(column=1, row=max_row + 1, col_span=6, row_span=3),
                             chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),

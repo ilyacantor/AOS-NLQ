@@ -5,11 +5,12 @@ This module consolidates duplicated logic between /query and /query/galaxy endpo
 Both endpoints share the same core query processing logic, differing only in response format.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 from src.nlq.models.response import Domain, MatchType, IntentMapResponse, IntentNode, NLQResponse
 from src.nlq.knowledge.display import get_display_name
 from src.nlq.core.personality import detect_persona_from_metric, detect_persona_from_question
+from src.nlq.core.dates import current_year, current_quarter
 
 
 @dataclass
@@ -22,7 +23,7 @@ class SimpleMetricResult:
     display_name: str
     domain: Domain
     answer: str
-    period: str = "2026-Q4"  # Current period by default
+    period: str = field(default_factory=current_quarter)
     data_quality: float = 1.0  # From DCL metadata.quality_score
     freshness: str = "0h"  # From DCL provenance[].freshness
     source: str = "local"  # "dcl" when from live DCL, "local" for fact_base fallback
@@ -113,7 +114,7 @@ def simple_metric_to_galaxy_response(result: SimpleMetricResult, question: str) 
             freshness=result.freshness,
             value=result.value,
             formatted_value=result.formatted_value,
-            period="2025",
+            period=current_year(),
             semantic_label="Direct Answer",
             source_system=source_system,
         )],
@@ -136,7 +137,7 @@ def guided_discovery_to_nlq_response(result: GuidedDiscoveryResult) -> NLQRespon
         confidence=0.9,
         parsed_intent="GUIDED_DISCOVERY",
         resolved_metric=None,
-        resolved_period="2025",
+        resolved_period=current_year(),
         response_type="text",
     )
 
@@ -157,7 +158,7 @@ def guided_discovery_to_galaxy_response(result: GuidedDiscoveryResult, question:
             freshness="0h",
             value=None,
             formatted_value=None,
-            period="2025",
+            period=current_year(),
             semantic_label="Available Metric",
         ))
 

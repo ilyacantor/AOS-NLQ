@@ -15,6 +15,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from src.nlq.core.dates import current_year
 from src.nlq.core.dashboard_generator import (
     generate_dashboard_schema,
     refine_dashboard_schema,
@@ -53,7 +54,7 @@ def _resolve_widget_data(dashboard: DashboardSchema) -> Dict[str, Any]:
 
     return resolver.resolve_dashboard_data(
         dashboard,
-        reference_year="2025",
+        reference_year=current_year(),
         active_filters=active_filters if active_filters else None,
     )
 
@@ -318,7 +319,7 @@ async def filter_dashboard(request: DashboardFilterRequest) -> DashboardFilterRe
         resolver = DashboardDataResolver()
         widget_data = resolver.resolve_dashboard_data(
             dashboard,
-            reference_year="2025",
+            reference_year=current_year(),
             active_filters=request.filters,
         )
 

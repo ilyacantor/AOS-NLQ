@@ -197,7 +197,7 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             question: queryText,
-            reference_date: '2026-01-27',
+            reference_date: new Date().toISOString().split('T')[0],
             conversation_id: sessionId,
             data_mode: dataModeRef.current
           })
@@ -351,7 +351,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           question: queryText,
-          reference_date: '2026-01-27',
+          reference_date: new Date().toISOString().split('T')[0],
           session_id: sessionId,
           data_mode: dataModeRef.current
         })

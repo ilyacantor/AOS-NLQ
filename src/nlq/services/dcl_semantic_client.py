@@ -28,6 +28,8 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from src.nlq.core.dates import current_quarter, current_year
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import httpx
@@ -1061,7 +1063,7 @@ class DCLSemanticClient:
             return {"error": "No data available", "status": "error"}
 
         # Determine period to use
-        period = "2026-Q4"  # Default to current period
+        period = current_quarter()
         if time_range:
             period = time_range.get("period", period)
 
@@ -1098,7 +1100,7 @@ class DCLSemanticClient:
         if isinstance(raw_data, dict):
             # For top_deals, it's different - period is a key to array of deals
             if data_key == "top_deals":
-                deals = raw_data.get(period, raw_data.get("2026", []))
+                deals = raw_data.get(period, raw_data.get(current_year(), []))
                 if isinstance(deals, list):
                     result_data = [
                         {"company": d.get("company"), "value": d.get("value"),
@@ -1277,7 +1279,7 @@ class DCLSemanticClient:
 
         # Handle dimensional queries
         period_filter = time_range.get("period") if time_range else None
-        default_period = "2026-Q4"  # Current period
+        default_period = current_quarter()
 
         if dimensions:
             # Try multiple key patterns:

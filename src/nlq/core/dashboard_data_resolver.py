@@ -8,6 +8,8 @@ NLQ holds no local data - it's a stateless UI layer.
 import logging
 from typing import Any, Dict, List, Optional
 
+from src.nlq.core.dates import current_year
+
 from src.nlq.services.dcl_semantic_client import get_semantic_client
 from src.nlq.knowledge.schema import get_metric_unit
 from src.nlq.knowledge.display import get_display_name
@@ -34,7 +36,7 @@ class DashboardDataResolver:
     def resolve_dashboard_data(
         self,
         schema: DashboardSchema,
-        reference_year: str = "2025",
+        reference_year: Optional[str] = None,
         active_filters: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Dict[str, Any]]:
         """
@@ -48,6 +50,7 @@ class DashboardDataResolver:
         Returns:
             Dict mapping widget_id to widget data
         """
+        reference_year = reference_year or current_year()
         widget_data = {}
         filters = active_filters or {}
 

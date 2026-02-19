@@ -51,6 +51,7 @@ from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
 from src.nlq.services.dcl_enrichment import enrich_response as dcl_enrich_response
 from src.nlq.services.dcl_semantic_client import set_force_local, force_local_data, diag, diag_init, diag_collect
 from src.nlq.services.insufficient_data_tracker import get_insufficient_data_tracker, CONFIDENCE_THRESHOLD
+from src.nlq.core.dates import current_year, current_quarter, prior_year
 
 # Dashboard generation imports
 from src.nlq.core.visualization_intent import (
@@ -283,7 +284,7 @@ def _cached_to_parsed_query(cached: dict) -> ParsedQuery:
         intent=intent,
         metric=normalized_metric,
         period_type=period_type,
-        period_reference=cached.get("period_reference", "2025"),
+        period_reference=cached.get("period_reference", current_year()),
         is_relative=False,  # Cached queries have resolved periods
         comparison_period=cached.get("comparison_period"),
         aggregation_type=cached.get("aggregation_type"),
@@ -346,7 +347,7 @@ def _extract_period_from_dashboard_query(question: str) -> str:
         if year:
             year = f"20{year}" if len(year) == 2 else year
         else:
-            year = "2025"  # Default year
+            year = current_year()
         return f"{year}-{quarter}"
 
     # Check for year mentions
@@ -354,8 +355,8 @@ def _extract_period_from_dashboard_query(question: str) -> str:
     if year_match:
         return f"20{year_match.group(1)}"
 
-    # Default to Q4 2025 (latest full quarter)
-    return "2025-Q4"
+    # Default to current quarter
+    return current_quarter()
 
 
 def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
@@ -368,7 +369,8 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
 
     dcl_client = get_semantic_client()
 
-    def _query_metric_value(metric: str, period: str = "2025") -> Optional[float]:
+    def _query_metric_value(metric: str, period: Optional[str] = None) -> Optional[float]:
+        period = period or current_year()
         """Query a single metric value from DCL."""
         try:
             result = dcl_client.query(
@@ -393,7 +395,8 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
             logger.debug(f"Failed to query {metric}: {e}")
             return None
 
-    def _build_period_data(period: str = "2025") -> dict:
+    def _build_period_data(period: Optional[str] = None) -> dict:
+        period = period or current_year()
         """Build a period data dict by querying DCL for each metric."""
         metrics_to_query = [
             "revenue", "gross_margin_pct", "operating_margin_pct", "net_income",
@@ -415,7 +418,7 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
         return period_data
 
     # Get period data from DCL
-    period_data = _build_period_data("2025")
+    period_data = _build_period_data(current_year())
 
     q = question.lower()
     period = _extract_period_from_dashboard_query(question)
@@ -426,9 +429,9 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
     has_explicit_quarter = any(qtr in q for qtr in ['q1', 'q2', 'q3', 'q4', 'quarter'])
 
     # If asking for a specific quarter, fetch that quarter's data instead
-    if has_explicit_quarter and period != "2025":
+    if has_explicit_quarter and period != current_year():
         period_data = _build_period_data(period)
-    # Default to annual 2025 data (already fetched above)
+    # Default to annual data (already fetched above)
 
     # Detect persona from question or default based on keywords
     persona = _detect_dashboard_persona(question)
@@ -549,9 +552,11 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
         text_lines.append(f"Engineering: {period_data.get('engineering_headcount')} | Sales: {period_data.get('sales_headcount')} | CS: {period_data.get('cs_headcount')}")
 
     elif "kpi" in q:
-        # Comprehensive KPI dashboard - 2025 vs 2024 full year comparison
-        y25 = period_data  # Already have 2025 data
-        y24 = _build_period_data("2024")  # Fetch 2024 for comparison
+        # Comprehensive KPI dashboard - current year vs prior year comparison
+        _cy = current_year()
+        _py = prior_year()
+        y25 = period_data  # Already have current year data
+        y24 = _build_period_data(_py)  # Fetch prior year for comparison
 
         def calc_change(v25, v24, is_pct=False):
             """Calculate YoY change."""
@@ -587,12 +592,12 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
             ("employee_growth_rate", "HC Growth", y25.get('employee_growth_rate'), "%", Domain.PEOPLE),
         ]
         persona = "KPIs"
-        period = "2025 vs 2024"
+        period = f"{_cy} vs {_py}"
 
         # Build detailed comparison text
-        text_lines.append("**2025 vs 2024 Full Year KPIs**")
+        text_lines.append(f"**{_cy} vs {_py} Full Year KPIs**")
         text_lines.append("")
-        text_lines.append("| Persona | Metric | 2024 | 2025 | Change |")
+        text_lines.append(f"| Persona | Metric | {_py} | {_cy} | Change |")
         text_lines.append("|---------|--------|------|------|--------|")
         text_lines.append(f"| **CFO** | Revenue | ${y24.get('revenue')}M | ${y25.get('revenue')}M | {calc_change(y25.get('revenue'), y24.get('revenue'))} |")
         text_lines.append(f"| | Gross Margin | {y24.get('gross_margin_pct')}% | {y25.get('gross_margin_pct')}% | {calc_change(y25.get('gross_margin_pct'), y24.get('gross_margin_pct'), True)} |")
@@ -772,7 +777,7 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
         dimension=intent.dimension,
         order_by=order_by,
         limit=intent.limit,
-        time_range={"period": "2026-Q4"}
+        time_range={"period": current_quarter()}
     )
 
     if "error" in result:
@@ -824,7 +829,7 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
             display_name=name,
             domain=domain,
             answer=response_text,
-            period="2026-Q4",
+            period=current_quarter(),
         )
     else:
         # Multiple results - "top 5 reps", etc.
@@ -857,7 +862,7 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
             display_name=f"{ranking_word} {intent.limit} {intent.dimension}s",
             domain=domain,
             answer=response_text,
-            period="2026-Q4",
+            period=current_quarter(),
         )
 
 
@@ -1044,7 +1049,7 @@ def _build_simple_metric_result(metric: str) -> Optional[SimpleMetricResult]:
 
     # Query DCL for current quarter data (2026-Q4)
     # Default to current period for "what is X" queries
-    current_period = "2026-Q4"
+    current_period = current_quarter()
     result = dcl_client.query(
         metric=metric,
         time_range={"period": current_period, "granularity": "quarterly"}
@@ -1226,7 +1231,7 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
 
     # Query DCL for breakdown data
     dcl_client = get_semantic_client()
-    current_period = "2026-Q4"
+    current_period = current_quarter()
 
     result = dcl_client.query(
         metric=metric,
@@ -2535,7 +2540,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                 data_resolver = DashboardDataResolver()
                 widget_data = data_resolver.resolve_dashboard_data(
                     updated_schema,
-                    reference_year="2025",
+                    reference_year=current_year(),
                 )
 
                 # Update session state
@@ -2564,7 +2569,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                     confidence=refinement_intent.confidence,
                     parsed_intent="REFINEMENT",
                     resolved_metric=viz_requirements.metrics[0] if viz_requirements.metrics else None,
-                    resolved_period="2025",
+                    resolved_period=current_year(),
                     response_type="dashboard",
                     dashboard=updated_dict,
                     dashboard_data=widget_data,
@@ -2602,7 +2607,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                 data_resolver = DashboardDataResolver()
                 widget_data = data_resolver.resolve_dashboard_data(
                     dashboard_schema,
-                    reference_year="2025",
+                    reference_year=current_year(),
                 )
 
                 # Store in session for future refinements
@@ -2618,7 +2623,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                     confidence=viz_requirements.confidence,
                     parsed_intent="VISUALIZATION",
                     resolved_metric=viz_requirements.metrics[0] if viz_requirements.metrics else None,
-                    resolved_period="2025",
+                    resolved_period=current_year(),
                     response_type="dashboard",
                     dashboard=dashboard_dict,
                     dashboard_data=widget_data,
@@ -2971,7 +2976,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 data_resolver = DashboardDataResolver()
                 widget_data = data_resolver.resolve_dashboard_data(
                     updated_schema,
-                    reference_year="2025",
+                    reference_year=current_year(),
                 )
 
                 # Update session state (convert to dict for storage)
@@ -2998,7 +3003,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                         freshness="0h",
                         value=value,
                         formatted_value=formatted,
-                        period="2025",
+                        period=current_year(),
                         semantic_label="Refinement",
                     ))
 
@@ -3081,7 +3086,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 data_resolver = DashboardDataResolver()
                 widget_data = data_resolver.resolve_dashboard_data(
                     dashboard_schema,
-                    reference_year="2025",
+                    reference_year=current_year(),
                 )
 
                 # Store in session for refinement (convert to dict for storage)
@@ -3109,7 +3114,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                         freshness="0h",
                         value=value,
                         formatted_value=formatted,
-                        period="2025",
+                        period=current_year(),
                         semantic_label=widget.title,
                     ))
 

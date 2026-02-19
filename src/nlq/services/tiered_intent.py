@@ -34,6 +34,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
+from src.nlq.core.dates import current_year
+
 if TYPE_CHECKING:
     from src.nlq.services.query_cache_service import QueryCacheService
     from src.nlq.llm.parser import QueryParser
@@ -246,13 +248,13 @@ class TieredIntentResolver:
                 success=True,
                 intent="POINT_QUERY",
                 metric=resolved,
-                period="2025",  # Default to current year
+                period=current_year(),
                 parsed_query={
                     "intent": "POINT_QUERY",
                     "metric": resolved,
                     "period_type": "FULL_YEAR",
                     "period_reference": "CURRENT",
-                    "period_year": 2025,
+                    "period_year": int(current_year()),
                 },
                 confidence=0.95,
                 cost_estimate=0.0,
@@ -277,13 +279,13 @@ class TieredIntentResolver:
                     success=True,
                     intent="POINT_QUERY",
                     metric=result.canonical_metric,
-                    period="2025",  # Default to current year
+                    period=current_year(),
                     parsed_query={
                         "intent": "POINT_QUERY",
                         "metric": result.canonical_metric,
                         "period_type": "FULL_YEAR",
                         "period_reference": "CURRENT",
-                        "period_year": 2025,
+                        "period_year": int(current_year()),
                     },
                     confidence=result.confidence,
                     cost_estimate=0.0001,  # Approximate OpenAI embedding cost
