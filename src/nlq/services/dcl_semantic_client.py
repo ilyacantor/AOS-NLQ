@@ -714,6 +714,65 @@ class DCLSemanticClient:
         catalog = self.get_catalog()
         return catalog.ingest_summary
 
+    def get_ingest_runs(self) -> Dict[str, Any]:
+        """Fetch detailed ingest run data from DCL.
+
+        Calls GET /api/dcl/ingest/runs to get per-source ingest details
+        including row counts, tenants, and source systems.  Falls back
+        to the catalog's ingest_summary when the endpoint is unavailable.
+
+        Returns:
+            Dict with keys: sources (list), tenants (list), total_rows (int),
+            pipe_count (int), available (bool), runs (list of raw run dicts).
+        """
+        # Try the live endpoint first
+        if self.dcl_url and not _force_local_ctx.get():
+            if not self._http_client:
+                self._http_client = httpx.Client(timeout=5.0, follow_redirects=True)
+            try:
+                response = self._http_client.get(
+                    f"{self.dcl_url}/api/dcl/ingest/runs",
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    runs = data if isinstance(data, list) else data.get("runs", [])
+                    # Derive aggregates from the runs list
+                    sources = sorted({r.get("source_system", "unknown") for r in runs if r.get("source_system")})
+                    tenants = sorted({r.get("tenant_id") or r.get("tenant", "unknown") for r in runs if r.get("tenant_id") or r.get("tenant")})
+                    total_rows = sum(r.get("row_count", 0) for r in runs)
+                    diag(f"[NLQ-DIAG] ingest/runs: {len(runs)} runs, {len(sources)} sources, {len(tenants)} tenants, {total_rows} rows")
+                    return {
+                        "sources": sources,
+                        "tenants": tenants,
+                        "total_rows": total_rows,
+                        "pipe_count": len(runs),
+                        "available": len(runs) > 0,
+                        "runs": runs,
+                    }
+            except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError) as e:
+                logger.debug(f"DCL ingest/runs failed, falling back to catalog: {e}")
+
+        # Fall back to cached ingest_summary from semantic export
+        summary = self.get_ingest_summary()
+        if summary and summary.available:
+            return {
+                "sources": summary.source_systems,
+                "tenants": summary.tenant_names,
+                "total_rows": summary.row_count,
+                "pipe_count": summary.pipe_count,
+                "available": True,
+                "runs": [],
+            }
+
+        return {
+            "sources": [],
+            "tenants": [],
+            "total_rows": 0,
+            "pipe_count": 0,
+            "available": False,
+            "runs": [],
+        }
+
     def resolve_entity(self, user_term: str) -> Optional[Dict[str, Any]]:
         """
         Resolve an entity name (e.g., customer, rep) via DCL.

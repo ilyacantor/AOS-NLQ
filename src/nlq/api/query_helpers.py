@@ -47,6 +47,17 @@ class MissingDataResult:
     response_text: str
 
 
+@dataclass
+class IngestStatusResult:
+    """Core result from an ingest/infrastructure status query."""
+    response_text: str
+    sources: List[str]
+    tenants: List[str]
+    total_rows: int
+    pipe_count: int
+    available: bool
+
+
 def determine_domain(metric: str) -> Domain:
     """Determine the domain for a metric."""
     if metric in ["pipeline", "win_rate", "quota_attainment", "sales_cycle_days"]:
@@ -264,6 +275,60 @@ def off_topic_to_nlq_response(off_topic_text: str) -> NLQResponse:
         parsed_intent="OFF_TOPIC",
         resolved_metric=None,
         resolved_period=None,
+    )
+
+
+def ingest_status_to_nlq_response(result: IngestStatusResult) -> NLQResponse:
+    """Convert IngestStatusResult to NLQResponse for /query endpoint."""
+    return NLQResponse(
+        success=True,
+        answer=result.response_text,
+        value=None,
+        unit=None,
+        confidence=0.95,
+        parsed_intent="INGEST_STATUS",
+        resolved_metric=None,
+        resolved_period=None,
+        response_type="text",
+    )
+
+
+def ingest_status_to_galaxy_response(result: IngestStatusResult, question: str) -> IntentMapResponse:
+    """Convert IngestStatusResult to IntentMapResponse for /query/galaxy endpoint."""
+    persona = detect_persona_from_question(question) or "CTO"
+    nodes = []
+    # Create a node for each connected source so Galaxy view shows them
+    for source in result.sources:
+        nodes.append(IntentNode(
+            id=f"ingest_{source.lower().replace(' ', '_')}",
+            metric=source.lower().replace(" ", "_"),
+            display_name=source,
+            match_type=MatchType.EXACT,
+            domain=Domain.OPS,
+            confidence=0.95,
+            data_quality=1.0,
+            freshness="0h",
+            value=None,
+            formatted_value="Connected",
+            period="live",
+            semantic_label="Data Source",
+            source_system=source,
+        ))
+
+    return IntentMapResponse(
+        query=question,
+        query_type="INGEST_STATUS",
+        ambiguity_type=None,
+        persona=persona,
+        overall_confidence=0.95,
+        overall_data_quality=1.0,
+        node_count=len(nodes),
+        nodes=nodes,
+        primary_node_id=nodes[0].id if nodes else None,
+        primary_answer=result.response_text,
+        text_response=result.response_text,
+        needs_clarification=False,
+        clarification_prompt=None,
     )
 
 

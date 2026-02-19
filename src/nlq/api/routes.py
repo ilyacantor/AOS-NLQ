@@ -81,6 +81,7 @@ from src.nlq.api.query_helpers import (
     SimpleMetricResult,
     GuidedDiscoveryResult,
     MissingDataResult,
+    IngestStatusResult,
     determine_domain,
     determine_domain_from_name,
     simple_metric_to_nlq_response,
@@ -89,6 +90,8 @@ from src.nlq.api.query_helpers import (
     guided_discovery_to_galaxy_response,
     missing_data_to_nlq_response,
     missing_data_to_galaxy_response,
+    ingest_status_to_nlq_response,
+    ingest_status_to_galaxy_response,
     people_response_to_galaxy,
     off_topic_to_nlq_response,
     off_topic_to_galaxy_response,
@@ -1390,6 +1393,151 @@ def _try_guided_discovery(question: str) -> Optional[NLQResponse]:
     return None
 
 
+# =============================================================================
+# INGEST / INFRASTRUCTURE STATUS QUERIES
+# =============================================================================
+
+# Keywords that signal the user is asking about data sources, tenants, or ingest status
+_INGEST_KEYWORDS = [
+    "ingest", "ingesting", "ingestion",
+    "source system", "source systems", "data source", "data sources",
+    "connected", "connection", "connections",
+    "pushing data", "sending data", "feeding data",
+    "tenant", "tenants",
+    "pipeline status", "pipeline health", "data pipeline",
+    "splunk", "salesforce", "sap", "snowflake", "jira", "servicenow",
+    "what sources", "which sources", "what systems", "which systems",
+    "data flow", "data feeds",
+]
+
+# Phrases that specifically ask about source connectivity
+_SOURCE_CONNECTIVITY_PATTERNS = [
+    r"\bis\s+\w+\s+connected\b",           # "is splunk connected"
+    r"\bwhat.+(?:pushing|sending|feeding)\b",  # "what is pushing data"
+    r"\bwho.+(?:pushing|sending|feeding)\b",   # "who is pushing data"
+    r"\bwhich\s+(?:sources?|systems?|tenants?)\b",  # "which sources are..."
+    r"\bwhat\s+(?:sources?|systems?|tenants?)\b",   # "what sources are..."
+    r"\b(?:source|system|tenant)\s+(?:list|status|count)\b",
+    r"\bhow\s+many\s+(?:sources?|systems?|pipes?|tenants?)\b",
+    r"\bdata\s+(?:from|into|sources?)\b",
+    r"\bingest(?:ion|ing)?\s+(?:status|summary|runs?|activity)\b",
+]
+
+
+def _is_ingest_question(question: str) -> bool:
+    """Detect if the question is about data sources, tenants, or ingest status."""
+    q = question.lower().strip()
+
+    # Check keyword matches
+    for keyword in _INGEST_KEYWORDS:
+        if keyword in q:
+            return True
+
+    # Check regex patterns
+    for pattern in _SOURCE_CONNECTIVITY_PATTERNS:
+        if _re_simple.search(pattern, q, _re_simple.IGNORECASE):
+            return True
+
+    return False
+
+
+def _format_ingest_answer(question: str, ingest_data: dict) -> str:
+    """Turn raw ingest data into a natural language answer for the user's question."""
+    q = question.lower().strip()
+    sources = ingest_data.get("sources", [])
+    tenants = ingest_data.get("tenants", [])
+    total_rows = ingest_data.get("total_rows", 0)
+    pipe_count = ingest_data.get("pipe_count", 0)
+    available = ingest_data.get("available", False)
+
+    if not available or (not sources and not tenants):
+        return "No live ingest data is currently available. The system is running on demo data."
+
+    # Check if asking about a specific source (e.g., "is Splunk connected?")
+    specific_source = None
+    for src in sources:
+        if src.lower() in q:
+            specific_source = src
+            break
+
+    if specific_source:
+        # Find row count for this source from runs data
+        runs = ingest_data.get("runs", [])
+        source_rows = sum(
+            r.get("row_count", 0) for r in runs
+            if (r.get("source_system") or "").lower() == specific_source.lower()
+        )
+        if source_rows > 0:
+            return f"Yes, {specific_source} is connected and actively pushing data ({source_rows:,} rows ingested)."
+        return f"Yes, {specific_source} is connected as a data source."
+
+    # Check if asking about tenants
+    if "tenant" in q:
+        if tenants:
+            tenant_list = ", ".join(tenants)
+            return f"There {'is' if len(tenants) == 1 else 'are'} {len(tenants)} tenant{'s' if len(tenants) != 1 else ''} pushing data: {tenant_list}. Total rows ingested: {total_rows:,}."
+        return "No tenant data is currently available."
+
+    # Check if asking "how many"
+    if "how many" in q:
+        if "source" in q or "system" in q:
+            return f"There are {len(sources)} source system{'s' if len(sources) != 1 else ''} connected: {', '.join(sources)}."
+        if "tenant" in q:
+            return f"There are {len(tenants)} tenant{'s' if len(tenants) != 1 else ''}: {', '.join(tenants)}."
+        if "pipe" in q:
+            return f"There are {pipe_count} data pipe{'s' if pipe_count != 1 else ''} active."
+        if "row" in q:
+            return f"There are {total_rows:,} rows ingested across all sources."
+
+    # General ingest status summary
+    source_list = ", ".join(sources) if sources else "none detected"
+    parts = [
+        f"{len(sources)} source system{'s' if len(sources) != 1 else ''} connected ({source_list})",
+        f"{total_rows:,} total rows ingested",
+        f"{pipe_count} active data pipe{'s' if pipe_count != 1 else ''}",
+    ]
+    if tenants:
+        parts.append(f"tenant{'s' if len(tenants) != 1 else ''}: {', '.join(tenants)}")
+
+    return "Live ingest status: " + ". ".join(parts) + "."
+
+
+def _try_ingest_status_core(question: str) -> Optional[IngestStatusResult]:
+    """Core logic for ingest status queries — shared between /query and /query/galaxy."""
+    if not _is_ingest_question(question):
+        return None
+
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    dcl_client = get_semantic_client()
+    ingest_data = dcl_client.get_ingest_runs()
+
+    answer = _format_ingest_answer(question, ingest_data)
+    return IngestStatusResult(
+        response_text=answer,
+        sources=ingest_data.get("sources", []),
+        tenants=ingest_data.get("tenants", []),
+        total_rows=ingest_data.get("total_rows", 0),
+        pipe_count=ingest_data.get("pipe_count", 0),
+        available=ingest_data.get("available", False),
+    )
+
+
+def _try_ingest_status_query(question: str) -> Optional[NLQResponse]:
+    """Handle ingest/infrastructure status queries for /query endpoint."""
+    result = _try_ingest_status_core(question)
+    if result:
+        return ingest_status_to_nlq_response(result)
+    return None
+
+
+def _try_ingest_status_query_galaxy(question: str) -> Optional[IntentMapResponse]:
+    """Handle ingest/infrastructure status queries for /query/galaxy endpoint."""
+    result = _try_ingest_status_core(question)
+    if result:
+        return ingest_status_to_galaxy_response(result, question)
+    return None
+
+
 # Patterns that indicate queries about non-existent data
 _MISSING_DATA_PATTERNS = [
     r"\bmars\b",
@@ -2483,6 +2631,14 @@ async def query(request: NLQRequest) -> NLQResponse:
             return guided_result
 
         # =================================================================
+        # INGEST / INFRASTRUCTURE STATUS - Handle "is Splunk connected?",
+        # "what tenants are pushing data?", "ingest status" etc.
+        # =================================================================
+        ingest_result = _try_ingest_status_query(request.question)
+        if ingest_result:
+            return ingest_result
+
+        # =================================================================
         # MISSING DATA CHECK - Handle queries about non-existent data
         # =================================================================
         missing_result = _check_missing_data(request.question)
@@ -2927,6 +3083,13 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         simple_response = _try_simple_metric_query_galaxy(request.question)
         if simple_response:
             return simple_response
+
+        # =================================================================
+        # INGEST / INFRASTRUCTURE STATUS - Handle source/tenant/connection queries
+        # =================================================================
+        ingest_response = _try_ingest_status_query_galaxy(request.question)
+        if ingest_response:
+            return ingest_response
 
         # =================================================================
         # MISSING DATA CHECK - Gracefully handle non-existent data queries
