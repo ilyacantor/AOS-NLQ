@@ -3,6 +3,9 @@
 
 cd "$(dirname "$0")"
 
+echo "Building Tailwind CSS..."
+npx @tailwindcss/cli -i src/index.css -o src/index.built.css --content "src/**/*.{ts,tsx}" --minify
+
 echo "Building React frontend..."
 npm run build
 
