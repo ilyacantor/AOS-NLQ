@@ -3,6 +3,7 @@ import type { IntentMapResponse } from './components/galaxy'
 import type { DashboardSchema } from './components/generated-dashboard'
 import { RAGLearningPanel, LLMCallCounter, useSessionId, refreshLLMStats } from './components/rag'
 import { InsufficientDataPanel } from './components/rag/InsufficientDataPanel'
+import { DebugTracePanel } from './components/DebugTracePanel'
 import { DataPipelineStatus } from './components/DataPipelineStatus'
 import { useQueryRouter } from './hooks/useQueryRouter'
 import { ProductTour } from './components/ProductTour'
@@ -51,7 +52,7 @@ interface QueryHistoryItem {
 
 type ViewMode = 'galaxy' | 'dashboard' | 'guide'
 type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO'
-type PanelTab = 'History' | 'Learning' | 'Data Gaps'
+type PanelTab = 'History' | 'Learning' | 'Data Gaps' | 'Trace'
 
 const personaOptions: { label: string; value: Persona; query: string; refinePresets: string[] }[] = [
   {
@@ -863,7 +864,7 @@ function App() {
 
           {/* Panel Tabs */}
           <div className="flex border-b border-slate-800 overflow-x-auto">
-            {(['History', 'Learning', 'Data Gaps'] as PanelTab[]).map((tab) => (
+            {(['History', 'Learning', 'Data Gaps', 'Trace'] as PanelTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setPanelTab(tab)}
@@ -925,6 +926,12 @@ function App() {
               <InsufficientDataPanel
                 refreshInterval={sidebarOpen ? 5000 : 0}
                 maxEntries={50}
+              />
+            )}
+
+            {panelTab === 'Trace' && (
+              <DebugTracePanel
+                trace={(galaxyResponse?.debug_info?.nlq_diag_trace as string[]) ?? null}
               />
             )}
 
