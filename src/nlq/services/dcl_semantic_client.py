@@ -843,6 +843,7 @@ class DCLSemanticClient:
         order_by: str = None,
         limit: int = None,
         force_local: bool = False,
+        data_mode: str = None,
     ) -> Dict[str, Any]:
         """
         Execute a data query against DCL.
@@ -866,10 +867,18 @@ class DCLSemanticClient:
             DCLQueryError: If DCL returns an error or is unavailable
         """
         ctx_force = _force_local_ctx.get()
-        diag(f"[NLQ-DIAG] query() called: metric={metric}, force_local={force_local}, ctx_force={ctx_force}, dcl_url={bool(self.dcl_url)}")
+        diag(f"[NLQ-DIAG] query() called: metric={metric}, force_local={force_local}, ctx_force={ctx_force}, dcl_url={bool(self.dcl_url)}, data_mode={data_mode}")
         if force_local or ctx_force or not self.dcl_url:
-            diag(f"[NLQ-DIAG] query() -> LOCAL FALLBACK (force_local={force_local}, ctx={ctx_force}, no_url={not self.dcl_url})")
-            return self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
+            # Determine reason for fallback
+            if force_local or ctx_force:
+                reason = "Demo mode selected"
+            else:
+                reason = "DCL not configured (DCL_API_URL not set)"
+            diag(f"[NLQ-DIAG] query() -> LOCAL FALLBACK ({reason})")
+            result = self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
+            result["data_source"] = "demo"
+            result["data_source_reason"] = reason
+            return result
 
         if not self._http_client:
             self._http_client = httpx.Client(timeout=30.0)
@@ -906,6 +915,8 @@ class DCLSemanticClient:
                 "time_range": dcl_time_range,
                 "grain": dcl_grain,
             }
+            if data_mode:
+                payload["data_mode"] = data_mode
             if order_by:
                 payload["order_by"] = order_by
             if limit:
@@ -950,9 +961,23 @@ class DCLSemanticClient:
           {status: "ok", metric, data: [{period, value, ...}],
            metadata: {...}, unit, source: "dcl", ...}
         """
+        # DCL now returns metadata.source: "ingest" or "fact_base"
+        dcl_source = (dcl_response.get("metadata") or {}).get("source", "")
+        if dcl_source == "fact_base":
+            data_source = "demo"
+            data_source_reason = "DCL served from fact_base (no ingested data for this metric)"
+        elif dcl_source == "ingest":
+            data_source = "live"
+            data_source_reason = None
+        else:
+            data_source = "dcl"
+            data_source_reason = None
+
         normalized: Dict[str, Any] = {
             "status": "ok",
             "source": "dcl",
+            "data_source": data_source,
+            "data_source_reason": data_source_reason,
             "metric": dcl_response.get("metric"),
             "data": dcl_response.get("data", []),
         }

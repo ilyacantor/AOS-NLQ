@@ -66,6 +66,7 @@ export interface IntentMapResponse {
   clarification_prompt?: string | null;
   provenance?: RunProvenance | null;  // DCL run provenance for Trust Badge
   debug_info?: Record<string, unknown> | null;  // Diagnostic trace from backend
+  data_source?: string | null;  // "live", "demo", or "dcl"
 }
 
 // Ring configuration

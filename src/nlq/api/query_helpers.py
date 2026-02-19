@@ -28,6 +28,8 @@ class SimpleMetricResult:
     freshness: str = "0h"  # From DCL provenance[].freshness
     source: str = "local"  # "dcl" when from live DCL, "local" for fact_base fallback
     run_provenance: Optional[Dict[str, Any]] = None  # DCL run provenance for Trust Badge
+    data_source: Optional[str] = None  # "live", "demo", or "dcl"
+    data_source_reason: Optional[str] = None  # Why fallback occurred (only when demo)
 
 
 @dataclass
@@ -81,6 +83,7 @@ def simple_metric_to_nlq_response(result: SimpleMetricResult) -> NLQResponse:
         resolved_metric=result.metric,
         resolved_period=result.period,
         response_type="text",
+        data_source=result.data_source,
     )
 
 
@@ -124,6 +127,7 @@ def simple_metric_to_galaxy_response(result: SimpleMetricResult, question: str) 
         needs_clarification=False,
         clarification_prompt=None,
         provenance=result.run_provenance,
+        data_source=result.data_source,
     )
 
 
