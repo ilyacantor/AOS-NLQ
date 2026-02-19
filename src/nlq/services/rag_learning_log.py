@@ -160,8 +160,8 @@ class RAGLearningLog:
                 self._client.table(self.table_name).insert(data).execute()
                 logger.debug(f"Logged learning event: {entry.id}")
                 return True
-            except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
-                logger.error(f"Failed to log to Supabase: {e}")
+            except Exception as e:
+                logger.warning(f"Supabase write failed (non-fatal): {e}")
                 return False
         else:
             logger.debug("Supabase not available, stored in memory only")
@@ -242,8 +242,8 @@ class RAGLearningLog:
             result = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
 
             return result.data if result.data else []
-        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
-            logger.error(f"Failed to fetch from Supabase: {e}")
+        except Exception as e:
+            logger.warning(f"Supabase read failed (non-fatal): {e}")
             return self.get_recent_entries(limit)
 
     def get_stats(self) -> Dict[str, Any]:

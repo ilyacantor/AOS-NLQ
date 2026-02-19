@@ -401,7 +401,6 @@ function App() {
           const errBody = await res.json()
           errorDetail = errBody.detail || errBody.error || errBody.text_response || errorDetail
         } catch {
-          // Response wasn't JSON — use status text
           errorDetail = `${res.status} ${res.statusText}`
         }
         console.error('Backend error:', res.status, errorDetail)
@@ -415,8 +414,8 @@ function App() {
           node_count: 0,
           nodes: [],
           primary_node_id: null,
-          primary_answer: errorDetail,
-          text_response: errorDetail,
+          primary_answer: 'Something went wrong processing your query. Try rephrasing or check the Trace tab for details.',
+          text_response: 'Something went wrong processing your query. Try rephrasing or check the Trace tab for details.',
           needs_clarification: false,
           clarification_prompt: null,
           debug_info: { error: errorDetail, error_type: 'HTTP_ERROR' },
@@ -431,22 +430,12 @@ function App() {
           count: 1,
         }
         setQueryHistory(prev => aggregateHistory([newItem, ...prev]))
-        // Auto-open trace panel on errors so user sees diagnostics
-        setSidebarOpen(true)
-        setPanelTab('Trace')
         setIsLoading(false)
         refreshLLMStats()
         return
       }
 
       const data = await res.json()
-
-      // If backend returned a structured error response (query_type === 'ERROR'),
-      // auto-show the trace panel for diagnostics
-      if (data.query_type === 'ERROR' || data.debug_info?.error) {
-        setSidebarOpen(true)
-        setPanelTab('Trace')
-      }
 
       setGalaxyResponse(data as IntentMapResponse)
 
@@ -460,7 +449,6 @@ function App() {
       }
       setQueryHistory(prev => aggregateHistory([newItem, ...prev]))
     } catch (error) {
-      // This catch only fires on genuine network failures (connection refused, DNS, timeout)
       console.error('Network error — backend unreachable:', error)
       const duration = Math.round(performance.now() - startTime)
       setLastDuration(`${duration}ms`)
@@ -474,14 +462,12 @@ function App() {
         node_count: 0,
         nodes: [],
         primary_node_id: null,
-        primary_answer: 'Cannot reach backend server. Check that both the backend (port 8000) and frontend (port 5000) are running.',
-        text_response: 'Cannot reach backend server. Check that both the backend (port 8000) and frontend (port 5000) are running.',
+        primary_answer: 'Cannot reach the backend server. Make sure both services are running.',
+        text_response: 'Cannot reach the backend server. Make sure both services are running.',
         needs_clarification: false,
         clarification_prompt: null,
         debug_info: { error: String(error), error_type: 'NETWORK_ERROR' },
       } as IntentMapResponse)
-      setSidebarOpen(true)
-      setPanelTab('Trace')
     }
 
     setIsLoading(false)
@@ -776,26 +762,6 @@ function App() {
           </div>
         </div>
       </header>
-
-      {/* Diagnostic Banner — shown when backend is unreachable or misconfigured */}
-      {(backendStatus === 'error' || (backendStatus === 'connected' && claudeAvailable === false)) && backendMessage && (
-        <div className={`px-4 py-2 text-xs flex items-center gap-2 ${
-          backendStatus === 'error'
-            ? 'bg-red-950/80 border-b border-red-800/50 text-red-300'
-            : 'bg-amber-950/80 border-b border-amber-800/50 text-amber-300'
-        }`}>
-          <span className={backendStatus === 'error' ? 'text-red-400' : 'text-amber-400'}>
-            {backendStatus === 'error' ? '\u26D4' : '\u26A0'}
-          </span>
-          <span>{backendMessage}</span>
-          <button
-            onClick={() => setBackendMessage(null)}
-            className="ml-auto text-slate-500 hover:text-slate-300 transition-colors"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
 
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden relative">
