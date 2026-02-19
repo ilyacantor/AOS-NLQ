@@ -148,8 +148,11 @@ class DCLSemanticClient:
         Returns:
             SemanticCatalog with all metric definitions
         """
-        if force_local or _force_local_ctx.get():
+        ctx_force = _force_local_ctx.get()
+        print(f"[NLQ-DIAG] get_catalog called: force_local={force_local}, ctx_force={ctx_force}, dcl_url={self.dcl_url}")
+        if force_local or ctx_force:
             catalog = self._build_local_catalog()
+            print(f"[NLQ-DIAG] get_catalog -> LOCAL ({len(catalog.metrics)} metrics)")
             return catalog
 
         current_time = time.time()
@@ -162,15 +165,20 @@ class DCLSemanticClient:
 
         # Try to fetch from DCL if configured
         if self.dcl_url:
+            print(f"[NLQ-DIAG] Fetching catalog from DCL: {self.dcl_url}/api/dcl/semantic-export")
             try:
                 catalog = self._fetch_from_dcl()
                 if catalog:
                     self._catalog = catalog
                     self._cache_time = current_time
                     self._catalog_source = "dcl"
+                    print(f"[NLQ-DIAG] DCL catalog loaded OK: {len(catalog.metrics)} metrics")
                     logger.info(f"Loaded semantic catalog from DCL ({len(catalog.metrics)} metrics)")
                     return catalog
+                else:
+                    print("[NLQ-DIAG] DCL catalog fetch returned None")
             except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
+                print(f"[NLQ-DIAG] DCL catalog fetch FAILED: {type(e).__name__}: {e}")
                 logger.warning(
                     f"DCL catalog fetch failed: {e} — falling back to local fact_base.json. "
                     f"Data may be stale. Check DCL_API_URL or DCL service health."
@@ -200,11 +208,17 @@ class DCLSemanticClient:
             self._http_client = httpx.Client(timeout=10.0, follow_redirects=True)
 
         try:
-            response = self._http_client.get(f"{self.dcl_url}/api/dcl/semantic-export")
+            url = f"{self.dcl_url}/api/dcl/semantic-export"
+            print(f"[NLQ-DIAG] _fetch_from_dcl GET {url}")
+            response = self._http_client.get(url)
+            print(f"[NLQ-DIAG] _fetch_from_dcl status={response.status_code}, size={len(response.text)} bytes")
             response.raise_for_status()
             data = response.json()
+            metric_ids = list(data.get("metrics", [{}]))[:5]
+            print(f"[NLQ-DIAG] _fetch_from_dcl parsed: {len(data.get('metrics', []))} metrics, mode={data.get('mode', {})}, first_5={[m.get('id','?') if isinstance(m,dict) else '?' for m in metric_ids]}")
             return self._parse_dcl_response(data)
         except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
+            print(f"[NLQ-DIAG] _fetch_from_dcl FAILED: {type(e).__name__}: {e}")
             logger.warning(f"DCL fetch failed: {e}")
             return None
 
@@ -824,7 +838,10 @@ class DCLSemanticClient:
         Raises:
             DCLQueryError: If DCL returns an error or is unavailable
         """
-        if force_local or _force_local_ctx.get() or not self.dcl_url:
+        ctx_force = _force_local_ctx.get()
+        print(f"[NLQ-DIAG] query() called: metric={metric}, force_local={force_local}, ctx_force={ctx_force}, dcl_url={bool(self.dcl_url)}")
+        if force_local or ctx_force or not self.dcl_url:
+            print(f"[NLQ-DIAG] query() -> LOCAL FALLBACK (force_local={force_local}, ctx={ctx_force}, no_url={not self.dcl_url})")
             return self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
 
         if not self._http_client:
@@ -867,10 +884,12 @@ class DCLSemanticClient:
             if limit:
                 payload["limit"] = limit
 
+            print(f"[NLQ-DIAG] query() -> DCL POST {self.dcl_url}/api/dcl/query payload={json.dumps(payload, default=str)[:300]}")
             response = self._http_client.post(
                 f"{self.dcl_url}/api/dcl/query",
                 json=payload
             )
+            print(f"[NLQ-DIAG] query() <- DCL status={response.status_code}, body={response.text[:500]}")
 
             if response.status_code == 404:
                 return {"error": f"Unknown metric: {metric}", "status": "not_found"}

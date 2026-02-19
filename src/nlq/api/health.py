@@ -71,9 +71,12 @@ async def health() -> HealthResponse:
     try:
         # Check DCL connectivity by getting the catalog
         dcl_client = get_semantic_client()
+        print(f"[NLQ-DIAG] /health: dcl_url={dcl_client.dcl_url}, catalog_source={dcl_client.catalog_source}")
         catalog = dcl_client.get_catalog()
         dcl_available = len(catalog.metrics) > 0
+        print(f"[NLQ-DIAG] /health: dcl_available={dcl_available}, metrics={len(catalog.metrics)}, source={dcl_client.catalog_source}")
     except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as e:
+        print(f"[NLQ-DIAG] /health: DCL check FAILED: {e}")
         logger.warning(f"DCL health check failed: {e}")
 
     try:
