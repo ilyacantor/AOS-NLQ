@@ -49,7 +49,7 @@ from src.nlq.services.llm_call_counter import get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
 from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
 from src.nlq.services.dcl_enrichment import enrich_response as dcl_enrich_response
-from src.nlq.services.dcl_semantic_client import set_force_local, force_local_data
+from src.nlq.services.dcl_semantic_client import set_force_local, force_local_data, diag, diag_init, diag_collect
 from src.nlq.services.insufficient_data_tracker import get_insufficient_data_tracker, CONFIDENCE_THRESHOLD
 
 # Dashboard generation imports
@@ -2406,7 +2406,8 @@ async def query(request: NLQRequest) -> NLQResponse:
 
     Returns the answer with confidence score bounded [0.0, 1.0].
     """
-    print(f"[NLQ-DIAG] /query endpoint: question='{request.question[:60]}', data_mode={request.data_mode}, persona={request.persona}")
+    _trace = diag_init()
+    diag(f"[NLQ-DIAG] /query endpoint: question='{request.question[:60]}', data_mode={request.data_mode}")
     if request.data_mode == "demo":
         set_force_local(True)
     try:
@@ -2823,6 +2824,7 @@ async def query(request: NLQRequest) -> NLQResponse:
             conflicts=dcl_data.get("conflicts"),
             temporal_warning=dcl_data.get("temporal_warning"),
             persona=dcl_data.get("persona_value", {}).get("persona") if dcl_data.get("persona_value") else None,
+            debug_info={"nlq_diag_trace": _trace} if _trace else None,
         )
         # Track if confidence is below threshold
         return _track_insufficient_data_if_needed(response, request.question, session_id)
@@ -2834,14 +2836,17 @@ async def query(request: NLQRequest) -> NLQResponse:
             confidence=0.0,
             error_code="PARSE_ERROR",
             error_message=str(e),
+            debug_info={"nlq_diag_trace": _trace} if _trace else None,
         )
     except (RuntimeError, KeyError, TypeError, ValueError, AttributeError, OSError) as e:
         logger.exception(f"Unexpected error processing query: {e}")
+        diag(f"[NLQ-DIAG] /query EXCEPTION: {type(e).__name__}: {e}")
         return NLQResponse(
             success=False,
             confidence=0.0,
             error_code="INTERNAL_ERROR",
             error_message="An unexpected error occurred",
+            debug_info={"nlq_diag_trace": _trace} if _trace else None,
         )
     finally:
         set_force_local(False)
@@ -2858,7 +2863,8 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
     - Confidence and data quality metrics
     - Persona and disambiguation info
     """
-    print(f"[NLQ-DIAG] /query/galaxy endpoint: question='{request.question[:60]}', data_mode={request.data_mode}, persona={request.persona}")
+    _trace = diag_init()
+    diag(f"[NLQ-DIAG] /query/galaxy endpoint: question='{request.question[:60]}', data_mode={request.data_mode}")
     if request.data_mode == "demo":
         set_force_local(True)
     try:
@@ -3356,6 +3362,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
             provenance=dcl_data.get("provenance"),
             conflicts=dcl_data.get("conflicts"),
             temporal_warning=dcl_data.get("temporal_warning"),
+            debug_info={"nlq_diag_trace": _trace} if _trace else None,
         )
         # Track if confidence is below threshold
         return _track_intent_map_if_needed(response, request.question, session_id)
@@ -3368,16 +3375,19 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
             "PARSE_ERROR",
             str(e),
         )
+        response.debug_info = {"nlq_diag_trace": _trace} if _trace else None
         # Track error responses
         return _track_intent_map_if_needed(response, request.question)
     except (RuntimeError, KeyError, TypeError, ValueError, AttributeError, OSError) as e:
         logger.exception(f"Unexpected error processing galaxy query: {e}")
+        diag(f"[NLQ-DIAG] /query/galaxy EXCEPTION: {type(e).__name__}: {e}")
         response = _create_error_galaxy_response(
             request.question,
             "UNKNOWN",
             "INTERNAL_ERROR",
             "An unexpected error occurred",
         )
+        response.debug_info = {"nlq_diag_trace": _trace} if _trace else None
         return _track_intent_map_if_needed(response, request.question)
     finally:
         set_force_local(False)
