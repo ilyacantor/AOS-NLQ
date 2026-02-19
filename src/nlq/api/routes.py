@@ -2406,7 +2406,7 @@ async def query(request: NLQRequest) -> NLQResponse:
 
     Returns the answer with confidence score bounded [0.0, 1.0].
     """
-    print(f"[NLQ-DIAG] /query endpoint: question='{request.question[:60]}', data_mode={request.data_mode}")
+    print(f"[NLQ-DIAG] /query endpoint: question='{request.question[:60]}', data_mode={request.data_mode}, persona={request.persona}")
     if request.data_mode == "demo":
         set_force_local(True)
     try:
@@ -2858,7 +2858,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
     - Confidence and data quality metrics
     - Persona and disambiguation info
     """
-    print(f"[NLQ-DIAG] /query/galaxy endpoint: question='{request.question[:60]}', data_mode={request.data_mode}")
+    print(f"[NLQ-DIAG] /query/galaxy endpoint: question='{request.question[:60]}', data_mode={request.data_mode}, persona={request.persona}")
     if request.data_mode == "demo":
         set_force_local(True)
     try:
