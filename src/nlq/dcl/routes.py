@@ -449,25 +449,91 @@ async def enriched_query(body: QueryRequest):
     """
     Enhanced query endpoint that returns data enriched with DCL metadata.
 
-    Accepts a metric (required) plus optional entity, persona, and time_range.
-    The response includes a ``metadata`` block with entity resolution results,
-    provenance lineage, and any active conflicts -- all optional and
-    non-breaking so callers can adopt incrementally.
+    Accepts a metric (required) plus optional entity, persona, time_range,
+    dimensions, order_by, and limit.
+
+    When dimensions are provided, returns a ``data`` array of dimensional
+    breakdowns.  When no dimensions are provided, returns a single ``value``
+    from the tenant's metric store.
+
+    The response also includes a ``metadata`` block with entity resolution
+    results, provenance lineage, and any active conflicts.
     """
+    from src.nlq.dcl.tenant_data import get_tenant_data_service
+
     engine = _get_engine()
+
+    # Query metric data from the tenant data service
+    tenant_svc = get_tenant_data_service()
+    metric_result = tenant_svc.query(
+        metric=body.metric,
+        dimensions=body.dimensions,
+        order_by=body.order_by,
+        limit=body.limit,
+        period=body.time_range,
+    )
+
+    # Also get DCL metadata (entity resolution, conflicts, provenance)
     try:
-        result = engine.enriched_query(
+        dcl_result = engine.enriched_query(
             metric=body.metric,
             entity=body.entity,
             persona=body.persona,
             time_range=body.time_range,
         )
-        return result
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as exc:
-        logger.exception("Enriched query failed")
-        raise HTTPException(status_code=500, detail=str(exc))
+        metadata = dcl_result.get("metadata") if isinstance(dcl_result, dict) else None
+    except (ValueError, RuntimeError, KeyError, TypeError, AttributeError, OSError):
+        metadata = None
+
+    # Build response combining metric data + DCL metadata
+    value = metric_result.get("value")
+    data = metric_result.get("data")
+    period = metric_result.get("period")
+
+    # Format value for display
+    formatted_value = None
+    if value is not None:
+        formatted_value = str(value)
+
+    return QueryResponse(
+        metric=body.metric,
+        value=value,
+        formatted_value=formatted_value,
+        data=data,
+        period=period,
+        metadata=metadata,
+        entity=body.entity,
+        persona=body.persona,
+    )
+
+
+# =============================================================================
+# INGEST ENDPOINTS
+# =============================================================================
+
+
+@router.get("/ingest/stats")
+async def ingest_stats():
+    """Return ingest statistics for the current tenant.
+
+    Returns source count, total rows buffered, and source list.
+    """
+    from src.nlq.dcl.tenant_data import get_tenant_data_service
+
+    tenant_svc = get_tenant_data_service()
+    return tenant_svc.get_ingest_stats()
+
+
+@router.get("/ingest/runs")
+async def ingest_runs():
+    """Return detailed ingest run data for the current tenant.
+
+    Returns per-source run details including row counts and status.
+    """
+    from src.nlq.dcl.tenant_data import get_tenant_data_service
+
+    tenant_svc = get_tenant_data_service()
+    return tenant_svc.get_ingest_runs()
 
 
 # =============================================================================

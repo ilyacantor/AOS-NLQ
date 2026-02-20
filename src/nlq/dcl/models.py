@@ -1356,6 +1356,9 @@ class QueryRequest(BaseModel):
     entity: Optional[str] = None
     persona: Optional[str] = None
     time_range: Optional[str] = None
+    dimensions: Optional[List[str]] = None
+    order_by: Optional[str] = None
+    limit: Optional[int] = None
 
 
 class QueryResponse(BaseModel):
@@ -1364,6 +1367,8 @@ class QueryResponse(BaseModel):
     metric: str
     value: Optional[Any] = None
     formatted_value: Optional[str] = None
+    data: Optional[List[Dict[str, Any]]] = None
+    period: Optional[str] = None
     metadata: Optional[QueryMetadata] = None
     entity: Optional[str] = None
     persona: Optional[str] = None
