@@ -104,6 +104,6 @@ The NLQ endpoint has no routing path from natural language questions about data 
 | Tier-1 WRONG (misrouted without LLM) | 3 | Q19, Q22, Q23 |
 | Requires LLM (wrong answers with API key) | 11 | Q04, Q06, Q13-15, Q17, Q20-21, Q24-25, Q29 |
 | Ingest not routed | 3 | Q09, Q10, Q30 |
-| **Total correct** | **13/30 (43%)** | |
+| **Total correct** | **12/30 (40%)** | |
 
-**The test harness gives a false sense of security by testing the data layer, not the user-facing NLQ layer.**
+**The original test harness was fraudulent — it sent pre-parsed JSON to `/api/dcl/query` instead of natural language to `/api/v1/query`. It has been rewritten to test the actual NLQ endpoint honestly.**
