@@ -374,6 +374,47 @@ class DCLSemanticClient:
                         metric_dimensions[metric_name] = []
                     metric_dimensions[metric_name].append(dimension)
 
+        # Map short metric names to canonical IDs for dimension inheritance
+        # e.g., attrition_by_department → attrition_rate supports department
+        _metric_dim_aliases = {
+            "attrition": "attrition_rate",
+            "engagement": "engagement_score",
+            "velocity": "sprint_velocity",
+            "time_to_fill": "time_to_fill_days",
+            "incidents": "p1_incidents",
+        }
+        for short_name, canonical in _metric_dim_aliases.items():
+            if short_name in metric_dimensions:
+                if canonical not in metric_dimensions:
+                    metric_dimensions[canonical] = []
+                for dim in metric_dimensions[short_name]:
+                    if dim not in metric_dimensions[canonical]:
+                        metric_dimensions[canonical].append(dim)
+
+        # Add additional well-known dimension support
+        # These are logical dimensions that metrics should support
+        _extra_dims = {
+            "revenue": ["segment", "region", "product"],
+            "arr": ["segment", "region"],
+            "pipeline": ["stage", "region", "rep", "segment"],
+            "headcount": ["department", "team"],
+            "attrition_rate": ["department", "team"],
+            "gross_margin_pct": ["segment", "region"],
+            "win_rate": ["rep", "region"],
+            "sales_cycle_days": ["segment", "rep"],
+            "deploys_per_week": ["team", "service"],
+            "sprint_velocity": ["team"],
+            "enps": ["department", "team"],
+            "time_to_hire_days": ["department"],
+            "time_to_fill_days": ["department"],
+        }
+        for metric_id, dims in _extra_dims.items():
+            if metric_id not in metric_dimensions:
+                metric_dimensions[metric_id] = []
+            for dim in dims:
+                if dim not in metric_dimensions[metric_id]:
+                    metric_dimensions[metric_id].append(dim)
+
         # Build metric definitions with aliases
         metric_aliases = self._get_metric_aliases()
         metric_domains = self._get_metric_domains()
@@ -419,43 +460,91 @@ class DCLSemanticClient:
         """Get common aliases for metrics including common misspellings."""
         return {
             # Financial (with common misspellings)
-            "revenue": ["sales", "top line", "topline", "total revenue",
-                        "reveune", "revnue", "revennue", "revanue"],  # misspellings
+            "revenue": ["sales", "top line", "topline", "total revenue", "total sales",
+                        "reveune", "revnue", "revennue", "revanue", "reveneu"],
             "ar": ["accounts receivable", "receivables", "a/r",
-                   "recievables", "receivbles", "recievbles"],  # misspellings
+                   "recievables", "receivbles", "recievbles"],
             "ap": ["accounts payable", "payables", "a/p"],
+            "cash": ["cash balance", "cash on hand", "cash position", "cash and equivalents"],
             "ebitda": ["earnings before interest taxes depreciation amortization"],
+            "ebitda_margin_pct": ["ebitda margin"],
             "gross_margin_pct": ["gross margin", "gm", "margin"],
-            "net_income": ["profit", "net profit", "bottom line", "profitable", "profitability"],
-            "operating_profit": ["ebit", "operating income"],
+            "gross_profit": ["gross income", "gross margin dollars", "gross profit dollars"],
+            "net_income": ["profit", "net profit", "bottom line", "net income", "net earnings", "earnings"],
+            "net_income_pct": ["net margin", "profit margin", "net income margin"],
+            "operating_profit": ["ebit", "operating income", "op profit", "operating earnings"],
+            "operating_margin_pct": ["operating margin", "op margin", "ebit margin"],
             "cogs": ["cost of goods sold", "cost of sales", "cos"],
+            "sga": ["sg&a", "selling general and administrative", "opex", "operating expenses"],
+            "bookings": ["new bookings", "orders", "new orders", "contract value"],
+            "burn_multiple": ["burn multiple", "cash efficiency"],
+            "d_and_a": ["d&a", "depreciation and amortization"],
 
             # Sales
-            "pipeline": ["sales pipeline", "pipe", "opportunities", "deals"],
+            "pipeline": ["sales pipeline", "pipe", "opportunities", "deals",
+                        "pipline", "pipleine", "pipeine"],
             "arr": ["annual recurring revenue", "recurring revenue"],
-            "nrr": ["net revenue retention", "net retention", "retention rate", "retention"],
-            "win_rate": ["close rate", "conversion rate"],
-            "quota_attainment": ["quota", "attainment"],
-            "gross_churn_pct": ["churn", "churn rate", "customer churn"],
+            "nrr": ["net revenue retention", "net retention", "retention rate", "retention",
+                    "dollar retention", "ndr", "net dollar retention"],
+            "win_rate": ["close rate", "conversion rate", "deal conversion rate", "win rate"],
+            "quota_attainment": ["quota", "attainment", "quota performance"],
+            "gross_churn_pct": ["churn", "churn rate", "customer churn", "gross churn", "revenue churn"],
+            "sales_cycle_days": ["sales cycle", "cycle time", "deal cycle", "time to close"],
+            "avg_deal_size": ["average deal size", "deal size"],
+            "new_logo_revenue": ["new logo revenue", "new logos", "new logo", "new customer revenue",
+                                 "new business"],
 
             # Operations/HR (with common misspellings)
             "headcount": ["employees", "staff", "team size", "hc", "people", "fte",
-                          "employess", "employes", "emplyees",  # misspellings
-                          "personnel", "personnel hires", "hires", "workforce",  # additional aliases
-                          "hiring", "hiring trend"],  # map hiring to headcount trend
-            "attrition_rate": ["attrition", "attrition rate", "turnover rate", "employee turnover", "turnover",
-                               "attriton", "attrtion", "attriton rate"],  # misspellings
-            "engagement_score": ["engagement", "engagment", "engagmnet"],  # misspellings
+                          "head count", "employee count", "full time employees",
+                          "employess", "employes", "emplyees",
+                          "personnel", "workforce", "headcoutn", "hedcount"],
+            "attrition_rate": ["attrition", "attrition rate", "turnover rate", "employee turnover",
+                               "employee turnover rate",
+                               "attriton", "attrtion", "attriton rate"],
+            "engagement_score": ["engagement", "employee engagement",
+                                "engagment", "engagmnet", "engagemnt"],
+            "enps": ["enps", "employee nps", "employee net promoter", "employee net promoter score"],
             "cac": ["customer acquisition cost", "acquisition cost"],
-            "ltv_cac": ["ltv/cac", "lifetime value to cac"],
-            "magic_number": ["sales efficiency", "efficiency", "efficient"],  # yes/no query support
+            "ltv_cac": ["ltv/cac", "ltv cac", "ltv to cac", "lifetime value to cac"],
+            "cac_payback_months": ["cac payback", "payback period", "cac payback period"],
+            "magic_number": ["sales efficiency", "magic number"],
+            "revenue_per_employee": ["revenue per employee", "rev per head", "revenue per head", "rpe"],
+            "time_to_fill_days": ["time to fill", "time to hire", "hiring time", "ttf"],
+            "offer_acceptance_rate": ["offer acceptance", "offer acceptance rate", "acceptance rate",
+                                     "offer accept rate"],
+            "training_hours_per_employee": ["training hours", "l&d hours", "learning hours",
+                                           "training per employee"],
+            "diversity_pct": ["diversity", "diversity %", "diversity percent"],
+            "regrettable_attrition_rate": ["regrettable attrition", "regrettable turnover",
+                                          "regrettable attrition rate"],
+            "hires": ["new hires", "hiring"],
+            "open_roles": ["open positions", "open reqs", "job openings"],
+            "employee_satisfaction": ["employee satisfaction", "esat"],
+            "cost_per_employee": ["cost per head", "employee cost"],
 
             # Tech
-            "uptime_pct": ["uptime", "availability"],
+            "uptime_pct": ["uptime", "availability", "system uptime"],
+            "deploys_per_week": ["deploys per week", "deployment frequency", "deploy frequency",
+                                "deploys", "deployments"],
+            "sprint_velocity": ["sprint velocity", "velocity", "team velocity", "throughput"],
+            "mttr_p1_hours": ["mttr", "mean time to repair", "mean time to resolve",
+                             "mttr p1", "p1 mttr"],
+            "code_coverage_pct": ["code coverage", "test coverage", "coverage"],
+            "features_shipped": ["features shipped", "features", "features released"],
+            "tech_debt_pct": ["tech debt", "technical debt", "debt ratio"],
+            "implementation_days": ["implementation days", "impl time", "implementation time",
+                                   "onboarding days"],
             "p1_incidents": ["incidents", "p1s", "outages"],
             "deployment_success_pct": ["deploy success", "deployment success"],
-            "tech_debt_pct": ["tech debt", "technical debt", "debt ratio"],
+            "lead_time_days": ["lead time", "development lead time"],
+            "change_failure_rate": ["change failure", "deployment failure rate"],
+            "security_vulns": ["security vulnerabilities", "vulnerabilities", "vulns"],
+
+            # Customer Success
             "csat": ["csat score", "customer satisfaction", "satisfaction score"],
+            "nps": ["net promoter score", "nps score"],
+            "customer_count": ["customers", "customer base", "total customers"],
         }
 
     def _get_metric_domains(self) -> Dict[str, str]:
@@ -686,16 +775,41 @@ class DCLSemanticClient:
             metric_id = catalog.alias_to_metric[normalized]
             return catalog.metrics.get(metric_id)
 
+        # Try space/underscore normalization:
+        # "net income" → "net_income", "win rate" → "win_rate", etc.
+        underscore_variant = normalized.replace(" ", "_")
+        if underscore_variant != normalized and underscore_variant in catalog.alias_to_metric:
+            metric_id = catalog.alias_to_metric[underscore_variant]
+            return catalog.metrics.get(metric_id)
+
+        space_variant = normalized.replace("_", " ")
+        if space_variant != normalized and space_variant in catalog.alias_to_metric:
+            metric_id = catalog.alias_to_metric[space_variant]
+            return catalog.metrics.get(metric_id)
+
+        # Try stripping common suffixes that don't change the metric
+        # e.g., "operating margin percentage" → "operating_margin_pct"
+        for suffix in (" percentage", " percent", " pct", " %"):
+            if normalized.endswith(suffix):
+                base = normalized[:-len(suffix)].strip()
+                for variant in (base, base.replace(" ", "_"), base.replace(" ", "_") + "_pct"):
+                    if variant in catalog.alias_to_metric:
+                        return catalog.metrics.get(catalog.alias_to_metric[variant])
+
         # Try fuzzy match on aliases - require minimum length to avoid false positives
-        # e.g., "cu" shouldn't match "customer" -> cac
-        min_fuzzy_length = 3
+        min_fuzzy_length = 4
+        best_match = None
+        best_score = 0
         for alias, metric_id in catalog.alias_to_metric.items():
-            # Only fuzzy match if both terms are long enough
             if len(normalized) >= min_fuzzy_length and len(alias) >= min_fuzzy_length:
-                # Require the shorter one to be a substantial substring (>50% overlap)
                 shorter, longer = (normalized, alias) if len(normalized) <= len(alias) else (alias, normalized)
-                if shorter in longer and len(shorter) >= len(longer) * 0.5:
-                    return catalog.metrics.get(metric_id)
+                if shorter in longer:
+                    score = len(shorter) / len(longer)
+                    if score >= 0.6 and score > best_score:
+                        best_match = metric_id
+                        best_score = score
+        if best_match:
+            return catalog.metrics.get(best_match)
 
         return None
 
@@ -821,11 +935,22 @@ class DCLSemanticClient:
             available = list(catalog.metrics.keys())[:10]
             return (False, f"Unknown metric '{metric_id}'. Available: {', '.join(available)}")
 
-        # Normalize dimension
+        # Normalize dimension with aliases
         dim_normalized = dimension.lower().strip()
+        _dim_aliases = {
+            "customer": "segment", "customers": "segment",
+            "account": "segment", "accounts": "segment",
+            "client": "segment", "clients": "segment",
+            "tier": "segment", "cohort": "segment",
+            "geo": "region", "geography": "region",
+            "territory": "region", "territories": "region",
+            "dept": "department", "org": "department",
+            "phase": "stage", "phases": "stage",
+        }
+        dim_resolved = _dim_aliases.get(dim_normalized, dim_normalized)
 
-        # Check if dimension is allowed
-        if dim_normalized in metric.allowed_dimensions:
+        # Check if dimension is allowed (try both original and resolved)
+        if dim_resolved in metric.allowed_dimensions or dim_normalized in metric.allowed_dimensions:
             return (True, None)
 
         # Not allowed - provide helpful error

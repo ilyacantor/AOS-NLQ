@@ -378,7 +378,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
     ],
     "attrition_rate": [
         "turnover rate",
-        "turnover",
+        "employee turnover",
         "employee turnover rate",
         "attrition pct",
         "attrition percent",
