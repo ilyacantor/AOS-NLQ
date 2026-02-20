@@ -471,11 +471,14 @@ def detect_off_topic(question: str) -> Optional[str]:
     if any(h in q for h in humor):
         return "humor_request"
 
-    # Profanity/frustration
+    # Profanity/frustration — use word-boundary matching for short tokens
+    # to avoid false positives (e.g. "throughput" matching "ugh").
+    import re as _re
     frustration_markers = ["damn", "ugh", "argh", "this sucks", "hate this",
                           "doesn't work", "broken", "stupid", "wtf"]
-    if any(f in q for f in frustration_markers):
-        return "frustration"
+    for fm in frustration_markers:
+        if _re.search(r'\b' + _re.escape(fm) + r'\b', q):
+            return "frustration"
 
     # Compliments
     compliments = ["thank", "thanks", "awesome", "great job", "love you",

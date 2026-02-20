@@ -63,6 +63,7 @@ SUPERLATIVE_PATTERNS = {
         r"(?:who|which|what) (?:has|have) the (?:most|highest|largest|biggest|best) (.+)",
         r"which (.+) has the (?:most|highest|largest|biggest) (.+)",
         r"which (.+) is (?:largest|biggest|highest|best)",
+        r"which (.+) (?:\w+s) the most",
         r"what (?:is|was) (?:the |our )?(?:largest|biggest|highest|best) (.+)",
         r"largest (.+)",
         r"biggest (.+)",
@@ -125,14 +126,25 @@ DIMENSION_ALIASES = {
     "system": "service", "systems": "service",
     # Department
     "department": "department", "departments": "department",
-    "team": "department", "teams": "department",
     "org": "department",
+    # Team (engineering teams — distinct from department)
+    "team": "team", "teams": "team",
     # Deal
     "deal": "deal", "deals": "deal",
     "opportunity": "deal", "opportunities": "deal",
     # Stage
     "stage": "stage", "stages": "stage",
     "pipeline stage": "stage",
+    # Customer / Account
+    "customer": "customer", "customers": "customer",
+    "account": "customer", "accounts": "customer",
+    "client": "customer", "clients": "customer",
+    # Product
+    "product": "product", "products": "product",
+    # Category
+    "category": "category", "categories": "category",
+    # Cohort → segment
+    "cohort": "segment", "cohorts": "segment",
 }
 
 # Metric aliases for ranking queries
@@ -167,6 +179,31 @@ METRIC_ALIASES = {
     "deal value": "deal_value",
     "value": "deal_value",
     "deal size": "deal_value",
+    # Churn
+    "churn": "gross_churn_pct",
+    "churn rate": "gross_churn_pct",
+    "customer churn": "gross_churn_pct",
+    "churn risk": "churn_risk",
+    # Gross margin
+    "gross margin": "gross_margin_pct",
+    "margin": "gross_margin_pct",
+    # Deploy frequency
+    "deploy frequency": "deploys_per_week",
+    "deploys": "deploys_per_week",
+    "deployments": "deploys_per_week",
+    # SLA / SLO
+    "sla compliance": "slo_attainment",
+    "sla": "slo_attainment",
+    # Throughput / Velocity
+    "throughput": "sprint_velocity",
+    "velocity": "sprint_velocity",
+    # DSO
+    "dso": "dso",
+    "days sales outstanding": "dso",
+    # NRR
+    "nrr": "nrr",
+    "net revenue retention": "nrr",
+    "net retention": "nrr",
 }
 
 
@@ -181,6 +218,13 @@ def is_superlative_query(query: str) -> bool:
         True if query contains superlative patterns
     """
     query_lower = query.lower().strip()
+
+    # Exclude known metric synonyms that contain superlative words
+    # "top line" = revenue, "bottom line" = net income — NOT ranking queries
+    metric_phrases = ["top line", "top-line", "topline", "bottom line", "bottom-line", "bottomline"]
+    for phrase in metric_phrases:
+        if phrase in query_lower:
+            return False
 
     # Check for superlative keywords
     superlative_keywords = [
@@ -303,6 +347,8 @@ def detect_superlative_intent(query: str) -> Optional[RankingIntent]:
                             metric = "revenue"
                         elif dimension == "department":
                             metric = "headcount"
+                        elif dimension == "team":
+                            metric = "sprint_velocity"
                         elif dimension == "service":
                             metric = "slo_attainment"
                         elif dimension == "rep":
@@ -311,6 +357,12 @@ def detect_superlative_intent(query: str) -> Optional[RankingIntent]:
                             metric = "deal_value"
                         elif dimension == "stage":
                             metric = "pipeline"
+                        elif dimension == "customer":
+                            metric = "churn_risk"
+                        elif dimension == "product":
+                            metric = "gross_margin_pct"
+                        elif dimension == "category":
+                            metric = "cloud_spend"
                         else:
                             metric = "revenue"  # default
                         break
@@ -372,34 +424,37 @@ def _extract_dimension_and_metric(
             break
 
     # Infer metric from dimension if not explicitly mentioned
-    if dimension == "rep" and metric == "quota_attainment":
-        # For reps, default to quota_attainment unless other metric mentioned
-        if "win rate" in full_query or "close rate" in full_query:
-            metric = "win_rate"
-        elif "pipeline" in full_query or "pipe" in full_query:
-            metric = "pipeline"
-        elif "revenue" in full_query or "sales" in full_query:
+    if not metric_found:
+        if dimension == "rep":
+            metric = "quota_attainment"
+            if "win rate" in full_query or "close rate" in full_query:
+                metric = "win_rate"
+            elif "pipeline" in full_query or "pipe" in full_query:
+                metric = "pipeline"
+            elif "revenue" in full_query or "sales" in full_query:
+                metric = "revenue"
+        elif dimension == "service":
+            metric = "slo_attainment"
+        elif dimension == "region":
             metric = "revenue"
-    elif dimension == "service":
-        # For services, default to SLO
-        metric = "slo_attainment"
-    elif dimension == "region":
-        # For regions, default to revenue
-        metric = "revenue"
-        if "pipeline" in full_query:
+            if "pipeline" in full_query:
+                metric = "pipeline"
+        elif dimension == "segment":
+            metric = "revenue"
+        elif dimension == "department":
+            metric = "headcount"
+        elif dimension == "team":
+            metric = "sprint_velocity"
+        elif dimension == "deal":
+            metric = "deal_value"
+        elif dimension == "stage":
             metric = "pipeline"
-    elif dimension == "segment":
-        # For segments, default to revenue
-        metric = "revenue"
-    elif dimension == "department":
-        # For departments, default to headcount
-        metric = "headcount"
-    elif dimension == "deal":
-        # For deals, default to deal value
-        metric = "deal_value"
-    elif dimension == "stage":
-        # For pipeline stages, default to pipeline value
-        metric = "pipeline"
+        elif dimension == "customer":
+            metric = "churn_risk"
+        elif dimension == "product":
+            metric = "gross_margin_pct"
+        elif dimension == "category":
+            metric = "cloud_spend"
 
     return dimension, metric
 

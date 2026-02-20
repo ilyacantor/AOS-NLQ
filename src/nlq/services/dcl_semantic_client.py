@@ -906,6 +906,28 @@ class DCLSemanticClient:
             all_dims.update(metric.allowed_dimensions)
         return sorted(all_dims)
 
+    def get_latest_period(self) -> str:
+        """Return the latest period available in the data source.
+
+        In DCL mode, returns current_quarter() (DCL handles period resolution).
+        In local mode, scans fact_base quarterly data for the last entry.
+        """
+        if self.dcl_url and not _force_local_ctx.get():
+            return current_quarter()
+
+        # Local mode: find latest period from fact_base
+        fact_base_path = Path(__file__).parent.parent.parent.parent / "data" / "fact_base.json"
+        try:
+            with open(fact_base_path, 'r') as f:
+                fact_base = json.load(f)
+            quarterly = fact_base.get("quarterly", [])
+            if quarterly:
+                latest = quarterly[-1]
+                return latest.get("period", current_quarter())
+        except (FileNotFoundError, IOError, json.JSONDecodeError):
+            pass
+        return current_quarter()
+
     def get_all_metrics(self) -> List[str]:
         """Return list of all available metric IDs."""
         return list(self.get_catalog().metrics.keys())
@@ -1250,7 +1272,7 @@ class DCLSemanticClient:
             return {"error": "No data available", "status": "error"}
 
         # Determine period to use
-        period = current_quarter()
+        period = self.get_latest_period()
         if time_range:
             period = time_range.get("period", period)
 
@@ -1466,7 +1488,7 @@ class DCLSemanticClient:
 
         # Handle dimensional queries
         period_filter = time_range.get("period") if time_range else None
-        default_period = current_quarter()
+        default_period = self.get_latest_period()
 
         if dimensions:
             # Try multiple key patterns:

@@ -358,8 +358,9 @@ def _extract_period_from_dashboard_query(question: str) -> str:
     if year_match:
         return f"20{year_match.group(1)}"
 
-    # Default to current quarter
-    return current_quarter()
+    # Default to latest available period
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    return get_semantic_client().get_latest_period()
 
 
 def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
@@ -780,7 +781,7 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
         dimension=intent.dimension,
         order_by=order_by,
         limit=intent.limit,
-        time_range={"period": current_quarter()}
+        time_range={"period": dcl_client.get_latest_period()}
     )
 
     if "error" in result:
@@ -791,12 +792,15 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
         return None
 
     # Determine unit based on metric
-    if intent.metric in ("quota_attainment", "win_rate", "slo_attainment"):
+    if intent.metric in ("quota_attainment", "win_rate", "slo_attainment",
+                          "gross_margin_pct", "gross_churn_pct", "churn_pct", "nrr"):
         unit = "%"
-    elif intent.metric in ("revenue", "pipeline", "deal_value"):
+    elif intent.metric in ("revenue", "pipeline", "deal_value", "cloud_spend"):
         unit = "USD millions"
     elif intent.metric == "headcount":
         unit = "employees"
+    elif intent.metric in ("deploys_per_week",):
+        unit = "/week"
     else:
         unit = ""
 
@@ -811,12 +815,15 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
         value = top_item.get("value") or top_item.get("attainment_pct") or top_item.get("pipeline") or 0
 
         # Format value with appropriate unit
-        if intent.metric in ("quota_attainment", "win_rate", "slo_attainment"):
+        if intent.metric in ("quota_attainment", "win_rate", "slo_attainment",
+                              "gross_margin_pct", "gross_churn_pct", "churn_pct", "nrr"):
             value_str = f"{value}%"
-        elif intent.metric in ("revenue", "pipeline", "deal_value"):
+        elif intent.metric in ("revenue", "pipeline", "deal_value", "cloud_spend"):
             value_str = f"${value}M"
         elif intent.metric == "headcount":
             value_str = f"{int(value)} employees"
+        elif intent.metric == "deploys_per_week":
+            value_str = f"{value}/week"
         else:
             value_str = str(value)
 
@@ -832,7 +839,7 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
             display_name=name,
             domain=domain,
             answer=response_text,
-            period=current_quarter(),
+            period=dcl_client.get_latest_period(),
         )
     else:
         # Multiple results - "top 5 reps", etc.
@@ -865,7 +872,7 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
             display_name=f"{ranking_word} {intent.limit} {intent.dimension}s",
             domain=domain,
             answer=response_text,
-            period=current_quarter(),
+            period=dcl_client.get_latest_period(),
         )
 
 
@@ -1050,9 +1057,8 @@ def _build_simple_metric_result(metric: str) -> Optional[SimpleMetricResult]:
 
     dcl_client = get_semantic_client()
 
-    # Query DCL for current quarter data (2026-Q4)
-    # Default to current period for "what is X" queries
-    current_period = current_quarter()
+    # Default to latest available period for "what is X" queries
+    current_period = dcl_client.get_latest_period()
     result = dcl_client.query(
         metric=metric,
         time_range={"period": current_period, "granularity": "quarterly"}
@@ -1236,7 +1242,7 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
 
     # Query DCL for breakdown data
     dcl_client = get_semantic_client()
-    current_period = current_quarter()
+    current_period = dcl_client.get_latest_period()
 
     result = dcl_client.query(
         metric=metric,
