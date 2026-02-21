@@ -111,7 +111,6 @@ Variables identical across multiple services — set once, link everywhere.
 | `SLACK_WEBHOOK_URL` | *(from shared group)* | |
 | `ANTHROPIC_API_KEY` | *(from shared group)* | |
 | `OPENAI_API_KEY` | *(from shared group)* | |
-| `PORTKEY_API_KEY` | *(secret)* | AI gateway |
 | `GEMINI_API_KEY` | *(from shared group)* | |
 | `PINECONE_API_KEY` | *(from shared group)* | |
 | `API_KEY` | *(secret)* | Platform inbound API auth |
