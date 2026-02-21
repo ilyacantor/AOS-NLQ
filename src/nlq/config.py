@@ -34,9 +34,11 @@ DEFAULT_TENANT_ID: str = os.environ.get(
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    # Required
+    # Required — reads bare ANTHROPIC_API_KEY (no NLQ_ prefix) to match
+    # render.yaml and direct os.environ.get() call sites in llm/client.py.
     anthropic_api_key: str = Field(
         ...,
+        validation_alias="ANTHROPIC_API_KEY",
         description="Anthropic API key for Claude"
     )
 
