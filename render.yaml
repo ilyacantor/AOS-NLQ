@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: aos-nlq
+    runtime: python
+    plan: free
+    region: oregon
+    branch: dev
+    buildCommand: pip install -r requirements.txt && npm install && npm run build
+    startCommand: uvicorn src.nlq.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.11"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DCL_API_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_API_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_INDEX
+        sync: false
+      - key: PINECONE_NAMESPACE
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AI_INTEGRATIONS_OPENAI_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: RAG_CACHE_ENABLED
+        sync: false
+      - key: CACHE_THRESHOLD_EXACT
+        value: "0.95"
+      - key: CACHE_THRESHOLD_HIGH
+        value: "0.92"
+      - key: CACHE_THRESHOLD_PARTIAL
+        value: "0.85"
+      - key: NLQ_DEFAULT_TENANT_ID
+        value: "00000000-0000-0000-0000-000000000001"
