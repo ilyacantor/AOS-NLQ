@@ -1649,67 +1649,244 @@ class DCLSemanticClient:
 
             Returns {"can_answer": False, "reason": "..."} on failure/unavailable.
         """
-        if _force_local_ctx.get() or not self.dcl_url:
-            return {
-                "can_answer": False,
-                "reason": "Graph resolution unavailable (no DCL endpoint configured)",
-                "source": "local_fallback",
+        if _force_local_ctx.get():
+            return self._resolve_via_catalog(concepts, dimensions, filters)
+
+        # Try DCL's graph resolution endpoint first
+        if self.dcl_url:
+            if not self._http_client:
+                self._http_client = httpx.Client(timeout=30.0, follow_redirects=True)
+
+            payload = {
+                "concepts": concepts,
+                "dimensions": dimensions or [],
+                "filters": filters or [],
             }
 
-        if not self._http_client:
-            self._http_client = httpx.Client(timeout=30.0, follow_redirects=True)
+            try:
+                response = self._http_client.post(
+                    f"{self.dcl_url}/api/dcl/resolve",
+                    json=payload,
+                )
 
-        payload = {
-            "concepts": concepts,
-            "dimensions": dimensions or [],
-            "filters": filters or [],
-        }
+                if response.status_code not in (404, 405):
+                    response.raise_for_status()
+                    result = response.json()
+                    result.setdefault("can_answer", False)
+                    result.setdefault("confidence", 0.0)
+                    result.setdefault("warnings", [])
+                    result.setdefault("source", "dcl_graph")
+                    return result
 
-        try:
-            response = self._http_client.post(
-                f"{self.dcl_url}/api/dcl/resolve",
-                json=payload,
-            )
+                # 404/405 = endpoint not deployed yet, fall through to catalog
+                diag("[NLQ-DIAG] DCL /api/dcl/resolve not available, using catalog fallback")
 
-            if response.status_code == 404:
+            except httpx.ConnectError:
+                logger.warning("DCL server unreachable for graph resolution, using catalog")
+            except httpx.TimeoutException:
+                logger.warning("DCL graph resolution timed out, using catalog")
+            except Exception as e:
+                logger.warning(f"DCL graph resolution failed: {e}, using catalog")
+
+        # Catalog-based fallback — uses DCL's semantic catalog to resolve
+        return self._resolve_via_catalog(concepts, dimensions, filters)
+
+    # -----------------------------------------------------------------
+    # Hierarchy data used by catalog-based graph resolution.
+    # Maps parent dimension values to their children.  When DCL's graph
+    # endpoint comes online this moves to DCL; for now NLQ mirrors the
+    # contour map so the boss-query demo works end-to-end.
+    # -----------------------------------------------------------------
+    _HIERARCHY: Dict[str, Dict[str, List[str]]] = {
+        "division": {
+            "Cloud": ["Cloud East", "Cloud West"],
+            "Professional Services": ["PS Americas", "PS EMEA"],
+            "Platform": ["Platform Core", "Platform Edge"],
+        },
+        "region": {
+            "North America": ["US", "Canada"],
+            "EMEA": ["UK", "Germany"],
+            "APAC": ["Japan", "Australia"],
+        },
+        "cost_center": {
+            "Engineering": ["Cloud Engineering", "Platform Engineering"],
+            "Sales": ["Enterprise Sales", "Mid-Market Sales"],
+        },
+    }
+
+    # System-of-record mapping per metric domain
+    _SYSTEM_MAP: Dict[str, Dict[str, str]] = {
+        "cfo": {"primary": "netsuite_erp", "secondary": "salesforce_crm"},
+        "cro": {"primary": "salesforce_crm"},
+        "chro": {"primary": "workday_hcm"},
+        "coo": {"primary": "netsuite_erp", "secondary": "workday_hcm"},
+        "cto": {"primary": "jira_eng", "secondary": "datadog_ops"},
+    }
+
+    # Authoritative system for organizational dimensions.
+    # Used to resolve cross-system joins: if a metric lives in netsuite_erp
+    # but the dimension lives in workday_hcm, the join crosses systems.
+    _DIMENSION_SYSTEM: Dict[str, str] = {
+        "cost_center": "workday_hcm",
+        "department": "workday_hcm",
+        "division": "workday_hcm",
+        "job_level": "workday_hcm",
+        "region": "netsuite_erp",
+        "segment": "netsuite_erp",
+        "product": "salesforce_crm",
+    }
+
+    def _resolve_via_catalog(
+        self,
+        concepts: List[str],
+        dimensions: Optional[List[str]] = None,
+        filters: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Resolve a query using the DCL semantic catalog.
+
+        This is a fallback for when DCL's /api/dcl/resolve endpoint is
+        unavailable.  Uses the cached catalog to find concept→system
+        mappings, validate dimensions, resolve hierarchy filters, and
+        build cross-system join paths.
+        """
+        catalog = self.get_catalog()
+        dims = dimensions or []
+        fltrs = filters or []
+
+        # --- Resolve concepts ---
+        resolved_concepts = []
+        all_warnings: List[str] = []
+        provenance_systems: List[str] = []
+
+        for concept_name in concepts:
+            metric = catalog.metrics.get(concept_name)
+            if not metric:
+                # Try alias resolution
+                metric_id = catalog.alias_to_metric.get(concept_name.lower())
+                metric = catalog.metrics.get(metric_id) if metric_id else None
+
+            if not metric:
                 return {
                     "can_answer": False,
-                    "reason": "Graph resolve endpoint not available on DCL server",
-                    "source": "dcl_404",
+                    "reason": f"Concept '{concept_name}' not recognized in semantic catalog",
+                    "source": "catalog_fallback",
                 }
 
-            response.raise_for_status()
-            result = response.json()
+            pack = metric.domain.lower() if metric.domain else "unknown"
+            systems = self._SYSTEM_MAP.get(pack, {})
+            primary = systems.get("primary", "unknown")
+            provenance_systems.append(primary)
+            if systems.get("secondary"):
+                provenance_systems.append(systems["secondary"])
 
-            # Ensure required fields are present
-            result.setdefault("can_answer", False)
-            result.setdefault("confidence", 0.0)
-            result.setdefault("warnings", [])
-            result.setdefault("source", "dcl_graph")
+            resolved_concepts.append({
+                "concept": metric.id,
+                "display_name": metric.display_name,
+                "system": primary,
+                "field": metric.id,
+                "confidence": 0.9,
+            })
 
-            return result
+        # --- Validate dimensions & build join paths ---
+        join_paths = []
+        for dim in dims:
+            # Check if any resolved concept supports this dimension directly
+            direct_match = any(
+                dim in (catalog.metrics.get(rc["concept"]) or metric).allowed_dimensions
+                for rc in resolved_concepts
+            )
 
-        except httpx.ConnectError:
-            logger.warning("DCL server unreachable for graph resolution")
-            return {
-                "can_answer": False,
-                "reason": "DCL server unreachable",
-                "source": "connection_error",
-            }
-        except httpx.TimeoutException:
-            logger.warning("DCL graph resolution timed out")
-            return {
-                "can_answer": False,
-                "reason": "Graph resolution timed out",
-                "source": "timeout",
-            }
-        except Exception as e:
-            logger.warning(f"DCL graph resolution failed: {e}")
-            return {
-                "can_answer": False,
-                "reason": f"Graph resolution error: {e}",
-                "source": "error",
-            }
+            if direct_match:
+                join_paths.append({
+                    "dimension": dim,
+                    "type": "direct",
+                    "confidence": 0.9,
+                })
+            else:
+                # Dimension exists in catalog but needs cross-system join
+                dim_exists = dim in catalog.dimensions or any(
+                    dim in m.allowed_dimensions for m in catalog.metrics.values()
+                )
+                if dim_exists:
+                    # Use authoritative dimension→system mapping first,
+                    # then fall back to scanning metrics in the catalog.
+                    owner_system = self._DIMENSION_SYSTEM.get(dim)
+                    if not owner_system:
+                        for m in catalog.metrics.values():
+                            if dim in m.allowed_dimensions:
+                                owner_pack = m.domain.lower() if m.domain else ""
+                                owner_systems = self._SYSTEM_MAP.get(owner_pack, {})
+                                owner_system = owner_systems.get("primary", "unknown")
+                                break
+
+                    join_paths.append({
+                        "dimension": dim,
+                        "type": "cross_system_join",
+                        "source_system": provenance_systems[0] if provenance_systems else "unknown",
+                        "join_system": owner_system or "unknown",
+                        "confidence": 0.6,
+                    })
+                    all_warnings.append(
+                        f"Cross-system join required for '{dim}' — "
+                        f"data reconciliation between systems may affect accuracy"
+                    )
+                else:
+                    all_warnings.append(f"Dimension '{dim}' not found in catalog")
+
+        # --- Resolve filters (hierarchy expansion) ---
+        filters_resolved = {}
+        for f in fltrs:
+            dim_name = f.get("dimension", "")
+            value = f.get("value", "")
+            hierarchy = self._HIERARCHY.get(dim_name, {})
+            # Case-insensitive hierarchy lookup (query text is lowered)
+            children = hierarchy.get(value)
+            if not children:
+                for hkey, hvals in hierarchy.items():
+                    if hkey.lower() == value.lower():
+                        children = hvals
+                        value = hkey  # Use canonical casing
+                        break
+            if children:
+                filters_resolved[dim_name] = {
+                    "original": value,
+                    "expanded": children,
+                    "type": "hierarchy_expansion",
+                }
+            else:
+                filters_resolved[dim_name] = {
+                    "original": value,
+                    "expanded": [value],
+                    "type": "exact_match",
+                }
+
+        # --- Compute overall confidence ---
+        if not join_paths:
+            confidence = 0.9
+        else:
+            path_confidences = [jp["confidence"] for jp in join_paths]
+            confidence = min(path_confidences) * 0.9  # Reduce for multi-hop
+
+        can_answer = confidence >= 0.3 and len(resolved_concepts) > 0
+
+        # --- Build provenance ---
+        unique_systems = sorted(set(provenance_systems))
+        provenance = [
+            {"source_system": sys, "freshness": "catalog", "quality_score": 0.9}
+            for sys in unique_systems
+        ]
+
+        return {
+            "can_answer": can_answer,
+            "confidence": round(confidence, 2),
+            "resolved_concepts": resolved_concepts,
+            "join_paths": join_paths,
+            "filters_resolved": filters_resolved,
+            "provenance": provenance,
+            "warnings": all_warnings,
+            "source": "catalog_fallback",
+        }
 
     def close(self):
         """Close HTTP client."""

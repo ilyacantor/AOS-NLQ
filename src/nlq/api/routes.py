@@ -1248,6 +1248,26 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
     metric_term = by_match.group(1).strip()
     dim_term = by_match.group(2).strip()
 
+    # Extract "for [filter]" suffix after the dimension match
+    # e.g., "revenue by cost center for the Cloud division" → filter_dim="division", filter_val="Cloud"
+    filter_dim = None
+    filter_val = None
+    remainder = q[by_match.end():].strip().rstrip("?.!,;")
+    for_match = re.search(r"for\s+(?:the\s+)?(.+?)(?:\s+(?:division|department|region|segment|team))?$", remainder)
+    if for_match:
+        filter_text = for_match.group(0)
+        # Try to extract "for the X Y" where Y is a dimension name
+        dim_val_match = re.search(
+            r"for\s+(?:the\s+)?(.+?)\s+(division|department|region|segment|team|cost center|service line)$",
+            filter_text,
+        )
+        if dim_val_match:
+            filter_val = dim_val_match.group(1).strip()
+            filter_dim = _DIMENSION_ALIASES.get(dim_val_match.group(2), dim_val_match.group(2))
+        else:
+            # Just a value filter without explicit dimension name
+            filter_val = for_match.group(1).strip().rstrip("?")
+
     # Handle plural dimension terms (e.g., "stages" -> "stage", "departments" -> "department")
     if dim_term.endswith("s") and dim_term not in ("business", "success"):
         dim_term = dim_term[:-1]  # Remove trailing 's'
@@ -1275,9 +1295,63 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
         time_range={"period": current_period, "granularity": "quarterly"}
     )
 
-    # If query failed or returned no data, provide helpful error message
+    # If flat query failed, try graph resolution (cross-system join path)
     if result.get("error") or not result.get("data"):
-        # Get valid dimensions to provide helpful suggestion
+        # Build filter list from extracted "for X" clause
+        graph_filters = []
+        if filter_val:
+            graph_filters.append({
+                "dimension": filter_dim or dimension,
+                "operator": "equals",
+                "value": filter_val,
+            })
+        graph_result = dcl_client.resolve_via_graph(
+            concepts=[metric],
+            dimensions=[dimension],
+            filters=graph_filters if graph_filters else None,
+        )
+        if graph_result.get("can_answer"):
+            # Graph found a resolution path — return it
+            confidence = graph_result.get("confidence", 0.5)
+            join_paths = graph_result.get("join_paths", [])
+            provenance = graph_result.get("provenance", [])
+            filters_resolved = graph_result.get("filters_resolved", {})
+            warnings = graph_result.get("warnings", [])
+            resolved = graph_result.get("resolved_concepts", [])
+
+            # Build answer describing the resolution path
+            path_desc_parts = []
+            for jp in join_paths:
+                if jp.get("type") == "cross_system_join":
+                    path_desc_parts.append(
+                        f"{jp['dimension']} via cross-system join "
+                        f"({jp.get('source_system', '?')} → {jp.get('join_system', '?')})"
+                    )
+            path_desc = "; ".join(path_desc_parts) if path_desc_parts else "graph resolution"
+            systems = [p.get("source_system", "") for p in provenance if p.get("source_system")]
+
+            return NLQResponse(
+                success=True,
+                answer=f"{metric.replace('_', ' ').title()} by {dim_term} resolved via {path_desc}.",
+                value=None,
+                unit=None,
+                confidence=confidence,
+                parsed_intent="GRAPH_RESOLUTION",
+                resolved_metric=metric,
+                resolved_period=current_period,
+                response_type="text",
+                data_source="dcl" if graph_result.get("source") == "dcl_graph" else "graph_catalog",
+                provenance={
+                    "source_systems": systems,
+                    "join_paths": join_paths,
+                    "filters_resolved": filters_resolved,
+                    "resolved_concepts": resolved,
+                    "warnings": warnings,
+                    "resolution_source": graph_result.get("source", "unknown"),
+                },
+            )
+
+        # Graph can't answer either — provide helpful fallback
         valid_dims = dcl_client.get_valid_dimensions(metric)
         if valid_dims:
             valid_list = ", ".join(valid_dims)
@@ -1293,9 +1367,7 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
                 resolved_period=current_period,
                 response_type="text",
             )
-        # Metric not in catalog or no dimensions — still return a clean rejection
-        # rather than None, which would cause fallthrough to LLM misrouting.
-        error_detail = result.get("error", "")
+        # Metric not in catalog or no dimensions — return clean rejection.
         return NLQResponse(
             success=True,
             answer=f"Cannot answer: {metric.replace('_', ' ')} by {dim_term} "
