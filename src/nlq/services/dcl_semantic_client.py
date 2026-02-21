@@ -563,7 +563,7 @@ class DCLSemanticClient:
         if _force_local_ctx.get():
             return self._resolve_metric_locally(user_term)
 
-        # Try DCL resolution endpoint first (if configured)
+        # Try DCL resolution endpoint for fuzzy/semantic matching
         if self.dcl_url and time.time() >= self._dcl_circuit_open_until:
             try:
                 result = self._resolve_metric_via_dcl(user_term)
@@ -572,7 +572,7 @@ class DCLSemanticClient:
             except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
                 logger.debug(f"DCL metric resolution failed for '{user_term}': {e}")
 
-        # Fall back to local catalog resolution
+        # Fall back to local catalog resolution (fuzzy matching)
         return self._resolve_metric_locally(user_term)
 
     def _resolve_metric_via_dcl(self, user_term: str) -> Optional[MetricDefinition]:

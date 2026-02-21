@@ -794,7 +794,16 @@ def normalize_metric(raw_metric: str) -> str:
     if not raw_metric:
         return raw_metric
 
-    # Try DCL semantic client first (single source of truth)
+    # Check static synonym lookup first for exact matches — this prevents
+    # DCL's fuzzy resolution from overriding known aliases (e.g., DCL maps
+    # "sprint velocity" → time_to_fill via "hiring velocity" fuzzy match,
+    # but the static lookup correctly maps it to sprint_velocity).
+    key = raw_metric.lower().strip()
+    static_hit = _METRIC_REVERSE_LOOKUP.get(key)
+    if static_hit:
+        return static_hit
+
+    # Try DCL semantic client for fuzzy/semantic resolution
     try:
         from src.nlq.services.dcl_semantic_client import get_semantic_client
         semantic_client = get_semantic_client()
@@ -806,9 +815,8 @@ def normalize_metric(raw_metric: str) -> str:
         import logging
         logging.getLogger(__name__).warning(f"DCL semantic client unavailable, using legacy lookup: {e}")
 
-    # Legacy fallback - use static lookup
-    key = raw_metric.lower().strip()
-    return _METRIC_REVERSE_LOOKUP.get(key, raw_metric.lower().replace(" ", "_"))
+    # Final fallback - convert spaces to underscores
+    return raw_metric.lower().replace(" ", "_")
 
 
 def normalize_period(raw_period: str) -> str:

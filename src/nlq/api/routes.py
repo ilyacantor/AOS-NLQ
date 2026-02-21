@@ -982,6 +982,14 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
                 stripped = True
                 break
 
+    # Strip entity/filter suffixes (e.g., "revenue for North America" → "revenue")
+    # This ensures the metric is correctly identified even when a filter is present.
+    # The filter itself isn't applied here — that requires graph resolution.
+    import re as _re
+    for_match = _re.search(r"\s+for\s+(?:the\s+)?(.+)$", metric_query)
+    if for_match:
+        metric_query = metric_query[:for_match.start()].strip()
+
     # Strip period suffixes (e.g., "revenue 2025", "margin this year", "arr q3")
     # Include common misspellings
     period_suffixes = [
@@ -1175,7 +1183,19 @@ _DIMENSION_ALIASES = {
     "tier": "segment",
     "market segment": "segment",
     "market_segment": "segment",
+    "board segment": "segment",
+    "board_segment": "segment",
     "segmnet": "segment",  # misspelling
+    # Service line aliases
+    "service line": "service_line",
+    "service_line": "service_line",
+    "service": "service_line",
+    # Cost center aliases (maps to cost_center dimension if available)
+    "cost center": "cost_center",
+    "cost_center": "cost_center",
+    # Product aliases
+    "product line": "product",
+    "product_line": "product",
 }
 
 
@@ -1232,6 +1252,11 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
     if dim_term.endswith("s") and dim_term not in ("business", "success"):
         dim_term = dim_term[:-1]  # Remove trailing 's'
 
+    # Handle multi-concept queries: "revenue and headcount by department"
+    # Split on " and " and use the first concept for the breakdown query
+    if " and " in metric_term:
+        metric_term = metric_term.split(" and ")[0].strip()
+
     # Normalize metric
     metric = normalize_metric(metric_term)
     if not metric:
@@ -1268,7 +1293,21 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
                 resolved_period=current_period,
                 response_type="text",
             )
-        return None
+        # Metric not in catalog or no dimensions — still return a clean rejection
+        # rather than None, which would cause fallthrough to LLM misrouting.
+        error_detail = result.get("error", "")
+        return NLQResponse(
+            success=True,
+            answer=f"Cannot answer: {metric.replace('_', ' ')} by {dim_term} "
+                   f"is not a valid combination in the data catalog.",
+            value=None,
+            unit=None,
+            confidence=0.3,
+            parsed_intent="DATA_NOT_AVAILABLE",
+            resolved_metric=metric,
+            resolved_period=current_period,
+            response_type="text",
+        )
 
     # Format as dashboard data
     breakdown_data = result.get("data", [])
@@ -1280,7 +1319,14 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
     for item in breakdown_data:
         if isinstance(item, dict):
             # Extract dimension key and value
-            dim_key = item.get(dimension, item.get("label", ""))
+            # DCL returns dimensions nested: {"dimensions": {"region": "AMER"}, "value": 24.0}
+            # Local returns flat: {"region": "AMER", "value": 24.0}
+            dims_dict = item.get("dimensions", {})
+            dim_key = (
+                (dims_dict.get(dimension) if isinstance(dims_dict, dict) else None)
+                or item.get(dimension)
+                or item.get("label", "")
+            )
             val = item.get("value")
 
             # Handle nested value dicts (e.g., {'pipeline': 6.4, 'qualified': 3.84})
@@ -1333,6 +1379,10 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
         }
     }
 
+    # Extract provenance and data_source from DCL result
+    data_source = result.get("data_source")
+    provenance_data = result.get("run_provenance") or (result.get("metadata") or {}).get("provenance")
+
     return NLQResponse(
         success=True,
         answer=f"Here's {metric.replace('_', ' ')} by {dimension}",
@@ -1344,6 +1394,8 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
         resolved_period=current_period,
         response_type="dashboard",
         dashboard_data=dashboard_data,
+        data_source=data_source,
+        provenance=provenance_data if isinstance(provenance_data, dict) else None,
     )
 
 
