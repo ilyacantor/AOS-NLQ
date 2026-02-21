@@ -306,6 +306,16 @@ class QueryResult(BaseModel):
         description="Confidence score, always bounded [0.0, 1.0]"
     )
 
+    query_type: Optional[str] = Field(
+        default=None,
+        description="Query execution type (e.g., 'trend', 'graph_resolution')"
+    )
+
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Additional execution metadata (provenance, warnings, etc.)"
+    )
+
 
 class RelatedMetric(BaseModel):
     """A related metric for Text View (equivalent to Galaxy View node)."""

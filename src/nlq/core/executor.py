@@ -106,6 +106,10 @@ class QueryExecutor:
         """
         Execute a parsed query against DCL.
 
+        Tries graph resolution first via POST /api/dcl/resolve. If the graph
+        can answer (can_answer=True), uses the graph result. Otherwise falls
+        back to the existing flat query path.
+
         Args:
             parsed_query: Structured query from the parser
 
@@ -115,6 +119,17 @@ class QueryExecutor:
         CRITICAL: This method performs validation checks before returning
         results to ensure we never return empty/invalid data silently.
         """
+        # =====================================================================
+        # GRAPH RESOLUTION — try semantic graph first, fall back to flat query
+        # =====================================================================
+        graph_result = self._try_graph_resolution(parsed_query)
+        if graph_result is not None:
+            return graph_result
+
+        # =====================================================================
+        # FLAT QUERY PATH — existing behavior (fallback)
+        # =====================================================================
+
         # Execute the query based on intent
         # Note: Breakdown queries skip metric validation since they use breakdown_metrics
         if parsed_query.intent == QueryIntent.BREAKDOWN_QUERY:
@@ -151,6 +166,99 @@ class QueryExecutor:
 
         # Note: Period validation removed - DCL handles this and returns empty if no data
         return self._execute_point_query(parsed_query)
+
+    def _try_graph_resolution(self, parsed_query: ParsedQuery) -> Optional[QueryResult]:
+        """
+        Attempt to resolve query via DCL's semantic graph traversal.
+
+        Returns QueryResult if graph can answer, None to fall back to flat query.
+        """
+        concepts = [parsed_query.metric] if parsed_query.metric else []
+        if not concepts:
+            return None
+
+        # Extract dimensions from parsed query
+        dimensions = []
+        if parsed_query.dimension:
+            dimensions.append(parsed_query.dimension)
+
+        # Extract filters from parsed query (entity-based filtering)
+        filters = []
+        if parsed_query.entity:
+            filters.append({"dimension": "entity", "value": parsed_query.entity})
+
+        try:
+            graph_response = self.dcl_client.resolve_via_graph(
+                concepts=concepts,
+                dimensions=dimensions if dimensions else None,
+                filters=filters if filters else None,
+            )
+        except Exception as e:
+            logger.debug(f"Graph resolution attempt failed: {e}")
+            return None
+
+        # If graph can't answer, fall back to flat query
+        if not graph_response.get("can_answer", False):
+            reason = graph_response.get("reason", "")
+            source = graph_response.get("source", "")
+            if reason:
+                logger.info(f"Graph cannot answer (source={source}): {reason}")
+            return None
+
+        # Graph answered — format into QueryResult
+        return self._format_graph_result(graph_response, parsed_query)
+
+    def _format_graph_result(
+        self,
+        graph_response: Dict[str, Any],
+        parsed_query: ParsedQuery,
+    ) -> QueryResult:
+        """
+        Format a successful graph resolution into NLQ's QueryResult.
+
+        Extracts value, confidence, provenance, and warnings from the
+        graph response and packages them into the standard QueryResult format.
+        """
+        confidence = graph_response.get("confidence", 0.0)
+        warnings = graph_response.get("warnings", [])
+
+        # Build metadata from graph provenance
+        metadata = {
+            "resolution_source": "dcl_graph",
+            "provenance": graph_response.get("provenance"),
+            "join_paths": graph_response.get("join_paths"),
+            "filters_resolved": graph_response.get("filters_resolved"),
+            "warnings": warnings,
+            "resolved_concepts": graph_response.get("resolved_concepts"),
+        }
+
+        # Extract primary value from resolved concepts
+        resolved_concepts = graph_response.get("resolved_concepts", [])
+        value = None
+        if resolved_concepts:
+            primary = resolved_concepts[0]
+            value = primary.get("value")
+            # If no direct value, package the full resolution as the value
+            if value is None:
+                value = {
+                    "concept": primary.get("concept", parsed_query.metric),
+                    "system": primary.get("system"),
+                    "field": primary.get("field"),
+                    "confidence": primary.get("confidence", confidence),
+                    "provenance": graph_response.get("provenance"),
+                }
+
+        # If graph returned data directly, use it
+        if graph_response.get("data"):
+            value = graph_response["data"]
+
+        return QueryResult(
+            success=True,
+            value=value,
+            confidence=bounded_confidence(confidence),
+            query_type="graph_resolution",
+            metadata=metadata,
+        )
 
     def _execute_point_query(self, parsed_query: ParsedQuery) -> QueryResult:
         """Execute a single metric, single period query."""

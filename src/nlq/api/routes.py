@@ -2965,9 +2965,21 @@ async def query(request: NLQRequest) -> NLQResponse:
         # DCL ENRICHMENT — entity resolution, provenance, conflicts, temporal
         # =================================================================
         dcl_data = {}
+
+        # If graph resolution was used, extract provenance from graph metadata
+        graph_metadata = result.metadata if result.query_type == "graph_resolution" else None
+        if graph_metadata:
+            if graph_metadata.get("provenance"):
+                dcl_data["provenance"] = graph_metadata["provenance"]
+            if graph_metadata.get("warnings"):
+                dcl_data["graph_warnings"] = graph_metadata["warnings"]
+            if graph_metadata.get("filters_resolved"):
+                dcl_data["filters_resolved"] = graph_metadata["filters_resolved"]
+
+        # Standard DCL enrichment (entity resolution, conflicts, temporal)
         try:
             is_comparison = parsed.intent == QueryIntent.COMPARISON_QUERY
-            dcl_data = dcl_enrich_response(
+            enrichment = dcl_enrich_response(
                 metric=parsed.metric,
                 entity=getattr(parsed, 'entity', None),
                 persona=detect_persona_from_metric(parsed.metric) or detect_persona_from_question(request.question),
@@ -2975,6 +2987,10 @@ async def query(request: NLQRequest) -> NLQResponse:
                 end_period=parsed.comparison_period if is_comparison else None,
                 is_comparison=is_comparison,
             )
+            # Merge enrichment into dcl_data (graph provenance takes precedence)
+            for key, val in enrichment.items():
+                if key not in dcl_data:
+                    dcl_data[key] = val
         except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
             logger.debug(f"DCL enrichment skipped: {e}")
 

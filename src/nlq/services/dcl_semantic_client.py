@@ -1614,6 +1614,103 @@ class DCLSemanticClient:
 
         return {"error": f"Metric '{metric}' not found in local data", "status": "not_found"}
 
+    # =========================================================================
+    # GRAPH RESOLUTION API - Semantic graph traversal via DCL
+    # =========================================================================
+
+    def resolve_via_graph(
+        self,
+        concepts: List[str],
+        dimensions: Optional[List[str]] = None,
+        filters: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Resolve a query via DCL's semantic graph traversal.
+
+        Calls POST /api/dcl/resolve with a structured QueryIntent.
+        The graph engine finds data paths across systems, validates
+        dimension combinations, resolves hierarchies, and returns
+        confidence-scored results with full provenance.
+
+        Args:
+            concepts: List of concept names to resolve (e.g., ["revenue"])
+            dimensions: Optional dimensions to slice by (e.g., ["region", "cost_center"])
+            filters: Optional filters (e.g., [{"dimension": "division", "value": "Cloud"}])
+
+        Returns:
+            Graph resolution result dict with:
+            - can_answer (bool): Whether the graph can resolve this query
+            - confidence (float): Path confidence score
+            - resolved_concepts: List of resolved concept mappings
+            - provenance: Full provenance chain (systems, edges, paths)
+            - warnings: List of any warnings (e.g., cross-system join issues)
+            - join_paths: Cross-system join paths if applicable
+            - filters_resolved: Hierarchy/overlay resolution of filter values
+
+            Returns {"can_answer": False, "reason": "..."} on failure/unavailable.
+        """
+        if _force_local_ctx.get() or not self.dcl_url:
+            return {
+                "can_answer": False,
+                "reason": "Graph resolution unavailable (no DCL endpoint configured)",
+                "source": "local_fallback",
+            }
+
+        if not self._http_client:
+            self._http_client = httpx.Client(timeout=30.0, follow_redirects=True)
+
+        payload = {
+            "concepts": concepts,
+            "dimensions": dimensions or [],
+            "filters": filters or [],
+        }
+
+        try:
+            response = self._http_client.post(
+                f"{self.dcl_url}/api/dcl/resolve",
+                json=payload,
+            )
+
+            if response.status_code == 404:
+                return {
+                    "can_answer": False,
+                    "reason": "Graph resolve endpoint not available on DCL server",
+                    "source": "dcl_404",
+                }
+
+            response.raise_for_status()
+            result = response.json()
+
+            # Ensure required fields are present
+            result.setdefault("can_answer", False)
+            result.setdefault("confidence", 0.0)
+            result.setdefault("warnings", [])
+            result.setdefault("source", "dcl_graph")
+
+            return result
+
+        except httpx.ConnectError:
+            logger.warning("DCL server unreachable for graph resolution")
+            return {
+                "can_answer": False,
+                "reason": "DCL server unreachable",
+                "source": "connection_error",
+            }
+        except httpx.TimeoutException:
+            logger.warning("DCL graph resolution timed out")
+            return {
+                "can_answer": False,
+                "reason": "Graph resolution timed out",
+                "source": "timeout",
+            }
+        except Exception as e:
+            logger.warning(f"DCL graph resolution failed: {e}")
+            return {
+                "can_answer": False,
+                "reason": f"Graph resolution error: {e}",
+                "source": "error",
+            }
+
     def close(self):
         """Close HTTP client."""
         if self._http_client:
