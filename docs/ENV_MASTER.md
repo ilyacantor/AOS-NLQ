@@ -65,12 +65,12 @@ Variables identical across multiple services — set once, link everywhere.
 | `SUPABASE_DB_PASSWORD` | Supabase DB password | |
 | `DCL_URL` | DCL service URL | Base URL — AAM derives `/api/dcl/ingest` from this |
 | `AAM_DCL_API_KEY` | *(secret)* | Auth key AAM sends to DCL ingest endpoint |
-| `FARM_INTAKE_URL` | Farm service URL | e.g. `https://autonomos.farm/api/farm/manifest-intake` |
+| `FARM_INTAKE_URL` | Farm service URL | e.g. `https://farmv2.onrender.com/api/farm/manifest-intake` |
 | `AAM_BASE_URL` | AAM's own public URL | Used for self-referencing HTTP calls |
 
 ---
 
-### Farm (`aos-farm` on Render / `https://autonomos.farm`)
+### Farm (`aos-farm` on Render / `https://farmv2.onrender.com`)
 
 | Variable | Value to set | Notes |
 |---|---|---|
@@ -92,7 +92,7 @@ Variables identical across multiple services — set once, link everywhere.
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL connection string | Already in render.yaml as `sync: false` |
 | `REDIS_URL` | Redis connection string | |
-| `AOS_FARM_URL` | `https://autonomos.farm` | **Must use this name** — render.yaml declares `AOS_FARM_URL`, code now reads it |
+| `AOS_FARM_URL` | `https://farmv2.onrender.com` | **Must use this name** — render.yaml declares `AOS_FARM_URL`, code now reads it |
 | `AOD_API_KEY` | *(secret)* | AOD's own API key for inbound auth |
 | `AOD_CORS_ORIGINS` | Allowed origins | |
 | `AOD_ENVIRONMENT` | `production` | |
