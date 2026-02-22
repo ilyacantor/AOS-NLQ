@@ -91,8 +91,8 @@ async def health() -> HealthResponse:
     live_data_available = False
     try:
         live_data_available = dcl_client.has_live_ingest_data()
-    except (RuntimeError, AttributeError):
-        pass
+    except (RuntimeError, AttributeError) as e:
+        logger.warning("Live ingest data check failed: %s", e)
 
     session_stats = get_session_stats()
     return HealthResponse(
@@ -158,8 +158,8 @@ async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResp
                 freshness_display = rp.get("freshness") or None
             elif probe.get("metadata", {}).get("mode"):
                 raw_mode = probe["metadata"]["mode"]
-    except (RuntimeError, KeyError, TypeError, AttributeError, OSError):
-        pass
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as e:
+        logger.warning("DCL probe query failed in pipeline_status: %s", e)
 
     LIVE_MODES = {"farm", "ingest", "live"}
     is_live = raw_mode and raw_mode.lower() in LIVE_MODES
@@ -167,8 +167,8 @@ async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResp
     try:
         catalog = dcl_client.get_catalog()
         metric_count = len(catalog.metrics)
-    except (RuntimeError, KeyError, TypeError, AttributeError, OSError):
-        pass
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as e:
+        logger.warning("DCL catalog check failed in pipeline_status: %s", e)
 
     if not is_live:
         raw_mode = None
@@ -179,8 +179,8 @@ async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResp
         try:
             local_catalog = dcl_client._build_local_catalog()
             metric_count = len(local_catalog.metrics)
-        except (FileNotFoundError, IOError, KeyError, ValueError):
-            pass
+        except (FileNotFoundError, IOError, KeyError, ValueError) as e:
+            logger.debug("Local catalog build failed; metric_count stays at 0: %s", e)
 
     return PipelineStatusResponse(
         dcl_connected=dcl_connected and is_live,

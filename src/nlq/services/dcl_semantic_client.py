@@ -602,8 +602,8 @@ class DCLSemanticClient:
                         top_id = top if isinstance(top, str) else top.get("id", "")
                         if top_id:
                             return self._resolve_metric_locally(top_id)
-                except (json.JSONDecodeError, KeyError, TypeError):
-                    pass
+                except (json.JSONDecodeError, KeyError, TypeError) as e:
+                    logger.debug("Failed to parse DCL suggestions from 404 response body: %s", e)
                 return None
             response.raise_for_status()
 
@@ -924,8 +924,8 @@ class DCLSemanticClient:
             if quarterly:
                 latest = quarterly[-1]
                 return latest.get("period", current_quarter())
-        except (FileNotFoundError, IOError, json.JSONDecodeError):
-            pass
+        except (FileNotFoundError, IOError, json.JSONDecodeError) as e:
+            logger.debug("Could not read fact_base for latest period; defaulting to current_quarter(): %s", e)
         return current_quarter()
 
     def get_all_metrics(self) -> List[str]:
