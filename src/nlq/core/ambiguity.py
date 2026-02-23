@@ -67,6 +67,8 @@ AMBIGUITY_PATTERNS = {
     AmbiguityType.BROAD_REQUEST: [
         r"p&l",                         # CFO - P&L (any mention)
         r"profit.* loss",               # CFO - profit and loss
+        r"why.*(rev|margin|churn|cost|expense|profit|growth|incr|decr|drop|rise|fell|spike)",  # Causal "why" questions
+        r"what.*(drove|driving|caused|behind)",  # Causal "what drove" questions
         r"full (report|breakdown)",     # Comprehensive request
         r"^support metrics",            # COO - support metrics
         r"^ops summary",                # COO - operations summary
@@ -196,6 +198,13 @@ AMBIGUITY_CANDIDATES = {
     },
     AmbiguityType.BROAD_REQUEST: {
         "p&l": ["revenue", "cogs", "gross_profit", "sga", "operating_profit", "net_income"],
+        "rev": ["revenue", "bookings", "new_logos", "expansion_revenue", "nrr"],
+        "margin": ["gross_margin_pct", "operating_margin_pct", "cogs", "sga"],
+        "churn": ["gross_churn_pct", "nrr", "customer_count", "csat"],
+        "cost": ["cogs", "sga", "cloud_spend", "cac"],
+        "expense": ["sga", "selling_expense", "ga_expense", "cloud_spend"],
+        "profit": ["net_income", "operating_profit", "gross_profit", "revenue", "cogs", "sga"],
+        "growth": ["revenue", "arr", "bookings", "customer_count"],
         "support metrics": ["first_response_hours", "resolution_hours", "csat"],
         "ops summary": ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months"],
         "platform overview": ["uptime_pct", "features_shipped", "cloud_spend", "engineering_headcount"],

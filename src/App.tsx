@@ -89,15 +89,15 @@ const personaOptions: { label: string; value: Persona; query: string; refinePres
 
 const quickActions = [
   'hi',
-  'whats the margin',
-  'revenue',
-  'are we profitable',
-  'churn?',
+  'why did rev incr',
   '2025 KPIs in dash',
   '2025 P&L',
+  'platform stable?',
+  'whats the margin',
+  'are we profitable',
+  'churn?',
   'headcount',
   'pipeline',
-  'platform stable?',
   'how are we doing',
   'nrr',
   'arr',
@@ -510,6 +510,8 @@ function App() {
   // Handle navigation from GalaxyView when it detects a dashboard query
   // (query_type === 'DASHBOARD' from the intent-map API)
   const handleNavigateToDashboard = useCallback((queryText: string, _data: IntentMapResponse) => {
+    // Clear galaxy response so returning to Ask tab doesn't re-trigger navigation
+    setGalaxyResponse(null)
     // Switch to dashboard view and generate the dashboard
     setViewMode('dashboard')
     generateDashboard(queryText, true)

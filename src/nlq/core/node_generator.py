@@ -50,6 +50,10 @@ def format_value(metric: str, value: Any) -> str:
     if value is None:
         return "N/A"
 
+    # Guard against non-numeric values (e.g. dicts from breakdown queries)
+    if not isinstance(value, (int, float)):
+        return str(value)
+
     unit = get_metric_unit(metric)
 
     # Percentage

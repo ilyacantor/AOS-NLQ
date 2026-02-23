@@ -3971,9 +3971,16 @@ def _generate_nodes_for_intent(parsed, result) -> list:
 
     elif parsed.intent == QueryIntent.BREAKDOWN_QUERY:
         data = result.value
-        return generate_nodes_for_breakdown_query(
-            data["breakdown"],
-            data["period"],
+        if isinstance(data, dict) and "breakdown" in data:
+            return generate_nodes_for_breakdown_query(
+                data["breakdown"],
+                data["period"],
+            )
+        # Data source doesn't support breakdowns — fall back to point query
+        return generate_nodes_for_point_query(
+            parsed.metric,
+            result.value,
+            parsed.resolved_period,
         )
 
     else:
