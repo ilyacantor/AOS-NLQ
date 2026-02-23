@@ -101,8 +101,9 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const sheetRef = useRef<HTMLDivElement>(null);
 
   // Navigate to dashboard space when dashboard query is detected
-  const isDashboard = data.query_type === 'DASHBOARD';
+  const isDashboard = data.response_type === 'dashboard' || data.query_type === 'DASHBOARD';
   const isFunnyResponse = data.query_type === 'OFF_TOPIC' && data.nodes.length === 0 && !!data.text_response;
+  const isTextOnlyResponse = !isFunnyResponse && data.query_type !== 'OFF_TOPIC' && data.nodes.length === 0 && !!data.text_response;
 
   useEffect(() => {
     if (isDashboard && onNavigateToDashboard) {
@@ -623,6 +624,15 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               </div>
             </div>
           )}
+          {isTextOnlyResponse && (
+            <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+              <div className="pointer-events-auto max-w-sm mx-4 px-6 py-5 rounded-2xl bg-gradient-to-br from-slate-800/95 to-slate-900/95 border border-slate-500/30 shadow-[0_0_40px_rgba(100,116,139,0.15)] backdrop-blur-sm">
+                <p className="text-slate-200 text-base leading-relaxed whitespace-pre-line">
+                  {data.text_response}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Mobile Bottom Sheet */}
@@ -787,6 +797,15 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
               <div className="pointer-events-auto max-w-md px-8 py-6 rounded-2xl bg-gradient-to-br from-slate-800/95 to-slate-900/95 border border-blue-500/30 shadow-[0_0_60px_rgba(59,130,246,0.2)] backdrop-blur-sm animate-[fadeIn_0.4s_ease-out]">
                 <p className="text-slate-100 text-lg leading-relaxed font-medium whitespace-pre-line">
+                  {data.text_response}
+                </p>
+              </div>
+            </div>
+          )}
+          {isTextOnlyResponse && (
+            <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+              <div className="pointer-events-auto max-w-md px-8 py-6 rounded-2xl bg-gradient-to-br from-slate-800/95 to-slate-900/95 border border-slate-500/30 shadow-[0_0_60px_rgba(100,116,139,0.2)] backdrop-blur-sm animate-[fadeIn_0.4s_ease-out]">
+                <p className="text-slate-200 text-lg leading-relaxed whitespace-pre-line">
                   {data.text_response}
                 </p>
               </div>

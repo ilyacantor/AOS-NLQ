@@ -64,6 +64,9 @@ export interface IntentMapResponse {
   text_response: string;
   needs_clarification: boolean;
   clarification_prompt?: string | null;
+  response_type?: string | null;  // "dashboard", "visualization", etc.
+  dashboard?: any;  // Dashboard schema when response_type is "dashboard"
+  dashboard_data?: Record<string, unknown> | null;  // Dashboard widget data
   provenance?: RunProvenance | null;  // DCL run provenance for Trust Badge
   debug_info?: Record<string, unknown> | null;  // Diagnostic trace from backend
   data_source?: string | null;  // "live", "demo", or "dcl"

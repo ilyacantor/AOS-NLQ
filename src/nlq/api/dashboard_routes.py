@@ -88,7 +88,6 @@ async def generate_dashboard(request: DashboardQueryRequest) -> DashboardGenerat
     - "Visualize sales trends with ability to drill into reps"
     """
     set_data_mode(request.data_mode)
-    set_data_mode(request.data_mode)
     if request.data_mode == "demo":
         set_force_local(True)
     try:

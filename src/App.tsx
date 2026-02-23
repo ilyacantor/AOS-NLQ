@@ -89,18 +89,18 @@ const personaOptions: { label: string; value: Persona; query: string; refinePres
 
 const quickActions = [
   'hi',
-  'why did rev incr',
-  '2025 KPIs in dash',
-  '2025 P&L',
-  'platform stable?',
-  'how\'s pipeline looking',
   'whats the margin',
+  'revenue',
   'are we profitable',
   'churn?',
-  'are we efficient',
-  'how\'s velocity',
-  'pto days',
-  '401k match',
+  '2025 KPIs in dash',
+  'headcount',
+  'pipeline',
+  'platform stable?',
+  'how are we doing',
+  'give me the p&l',
+  'nrr',
+  'arr',
 ]
 
 function aggregateHistory(items: QueryHistoryItem[]): QueryHistoryItem[] {

@@ -3489,10 +3489,8 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
 
         reference_date = request.reference_date or date.today()
         resolver = PeriodResolver(reference_date)
-        claude_client = get_claude_client()
-        executor = QueryExecutor(claude_client=claude_client)
 
-        # Check for ambiguity first
+        # Check for ambiguity first (before Claude client — these paths don't need LLM)
         ambiguity_type, candidates, clarification = detect_ambiguity(request.question)
 
         if ambiguity_type and ambiguity_type != AmbiguityType.NONE:
@@ -3504,6 +3502,9 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 clarification,
                 resolver,
             )
+
+        claude_client = get_claude_client()
+        executor = QueryExecutor(claude_client=claude_client)
 
         # Get session ID from request body
         session_id = request.session_id or "default"
