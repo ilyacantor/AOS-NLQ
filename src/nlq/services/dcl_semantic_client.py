@@ -1150,7 +1150,20 @@ class DCLSemanticClient:
                 return {"error": error_msg, "status": "bad_request"}
 
             response.raise_for_status()
-            return self._normalize_dcl_query_response(response.json())
+            normalized = self._normalize_dcl_query_response(response.json())
+
+            # LIVE MODE: Fail loudly if DCL returned demo data when live was requested
+            if data_mode == "live":
+                result_source = normalized.get("data_source", "")
+                if result_source == "demo":
+                    reason = normalized.get("data_source_reason", "DCL returned demo data")
+                    raise RuntimeError(
+                        f"LIVE MODE FAILURE: {reason}. "
+                        f"Metric '{metric}' not available in live ingested data. "
+                        f"Check DCL ingest buffer or switch to Demo mode."
+                    )
+
+            return normalized
 
         except httpx.HTTPStatusError as e:
             logger.error(f"DCL query failed: {e}")
