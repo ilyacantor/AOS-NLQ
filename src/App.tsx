@@ -94,11 +94,11 @@ const quickActions = [
   'are we profitable',
   'churn?',
   '2025 KPIs in dash',
+  '2025 P&L',
   'headcount',
   'pipeline',
   'platform stable?',
   'how are we doing',
-  'give me the p&l',
   'nrr',
   'arr',
 ]

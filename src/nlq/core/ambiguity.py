@@ -65,7 +65,8 @@ AMBIGUITY_PATTERNS = {
         r"^bugs under control",         # CTO - bugs
     ],
     AmbiguityType.BROAD_REQUEST: [
-        r"give me the p&l",             # CFO - P&L
+        r"p&l",                         # CFO - P&L (any mention)
+        r"profit.* loss",               # CFO - profit and loss
         r"full (report|breakdown)",     # Comprehensive request
         r"^support metrics",            # COO - support metrics
         r"^ops summary",                # COO - operations summary
