@@ -1052,6 +1052,20 @@ class DCLSemanticClient:
         if data_mode is None:
             data_mode = _data_mode_ctx.get()
         diag(f"[NLQ-DIAG] query() called: metric={metric}, force_local={force_local}, ctx_force={ctx_force}, dcl_url={bool(self.dcl_url)}, data_mode={data_mode}")
+
+        # LIVE MODE: Prevent fallback to local fact_base - fail loudly instead
+        if data_mode == "live" and (force_local or ctx_force):
+            raise RuntimeError(
+                "LIVE MODE FAILURE: force_local=True but data_mode='live'. "
+                "Cannot serve demo data in live mode. Check request configuration."
+            )
+
+        if data_mode == "live" and not self.dcl_url:
+            raise RuntimeError(
+                "LIVE MODE FAILURE: DCL_API_URL not configured. "
+                "Live mode requires DCL endpoint. Set DCL_API_URL environment variable or switch to Demo mode."
+            )
+
         if force_local or ctx_force or not self.dcl_url:
             # Determine reason for fallback
             if force_local or ctx_force:
@@ -1114,10 +1128,25 @@ class DCLSemanticClient:
             diag(f"[NLQ-DIAG] query() <- DCL status={response.status_code}, body={response.text[:500]}")
 
             if response.status_code == 404:
-                return {"error": f"Unknown metric: {metric}", "status": "not_found"}
+                error_msg = f"Unknown metric: {metric}"
+                if data_mode == "live":
+                    raise RuntimeError(
+                        f"LIVE MODE FAILURE: {error_msg}. "
+                        f"Metric not found in DCL catalog. Check metric name or switch to Demo mode."
+                    )
+                return {"error": error_msg, "status": "not_found"}
             elif response.status_code == 400:
                 err_body = response.json()
-                error_msg = err_body.get("message", err_body.get("detail", "Invalid query"))
+                error_detail = err_body.get("detail", {})
+                if isinstance(error_detail, dict):
+                    error_msg = error_detail.get("error", str(error_detail))
+                else:
+                    error_msg = str(error_detail) if error_detail else "Invalid query"
+                if data_mode == "live":
+                    raise RuntimeError(
+                        f"LIVE MODE FAILURE: Invalid query - {error_msg}. "
+                        f"Check query parameters or switch to Demo mode."
+                    )
                 return {"error": error_msg, "status": "bad_request"}
 
             response.raise_for_status()
@@ -1125,10 +1154,22 @@ class DCLSemanticClient:
 
         except httpx.HTTPStatusError as e:
             logger.error(f"DCL query failed: {e}")
-            return {"error": f"DCL query failed: {e}", "status": "error"}
+            error_msg = f"DCL query failed with status {e.response.status_code}"
+            if data_mode == "live":
+                raise RuntimeError(
+                    f"LIVE MODE FAILURE: {error_msg}. "
+                    f"DCL endpoint returned error. Check DCL service health or switch to Demo mode."
+                )
+            return {"error": error_msg, "status": "error"}
         except (httpx.RequestError, json.JSONDecodeError) as e:
             logger.error(f"DCL query error: {e}")
-            return {"error": f"DCL unavailable: {e}", "status": "error"}
+            error_msg = f"DCL unavailable: {e}"
+            if data_mode == "live":
+                raise RuntimeError(
+                    f"LIVE MODE FAILURE: {error_msg}. "
+                    f"Cannot reach DCL endpoint at {self.dcl_url}. Check network connectivity or switch to Demo mode."
+                )
+            return {"error": error_msg, "status": "error"}
 
     def _normalize_dcl_query_response(self, dcl_response: Dict[str, Any]) -> Dict[str, Any]:
         """

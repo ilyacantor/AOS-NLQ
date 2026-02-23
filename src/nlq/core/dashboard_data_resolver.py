@@ -108,6 +108,8 @@ class DashboardDataResolver:
         grain: str = None,
     ) -> Dict[str, Any]:
         """Execute query against DCL and handle errors."""
+        from src.nlq.services.dcl_semantic_client import get_data_mode
+
         result = self.dcl_client.query(
             metric=metric,
             dimensions=dimensions,
@@ -118,6 +120,18 @@ class DashboardDataResolver:
 
         if result.get("status") == "error" or result.get("error"):
             logger.warning(f"DCL query error for '{metric}': {result.get('error')}")
+
+        # LIVE MODE: Fail loudly if we got demo data when live was requested
+        current_mode = get_data_mode()
+        if current_mode == "live":
+            data_source = result.get("data_source", "")
+            if data_source == "demo":
+                reason = result.get("data_source_reason", "DCL returned demo data instead of live data")
+                raise RuntimeError(
+                    f"LIVE MODE FAILURE: {reason}. "
+                    f"Metric '{metric}' not available in live ingested data. "
+                    f"Check DCL ingest buffer or switch to Demo mode."
+                )
 
         return result
 

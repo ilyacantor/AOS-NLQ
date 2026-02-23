@@ -170,14 +170,27 @@ async def generate_dashboard(request: DashboardQueryRequest) -> DashboardGenerat
 
     except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
         logger.error(f"Dashboard generation failed: {e}", exc_info=True)
+        error_str = str(e)
+
+        # Provide clear error messages for live mode failures
+        suggestions = []
+        if "LIVE MODE FAILURE" in error_str:
+            suggestions = [
+                "Switch to Demo mode to use local test data",
+                "Check DCL service status",
+                "Verify this metric has ingested data in DCL"
+            ]
+        else:
+            suggestions = ["Try simplifying your query", "Check that the metrics you're asking about exist"]
+
         return DashboardGenerationResponse(
             success=False,
             dashboard=None,
-            error=str(e),
+            error=error_str,
             query=request.question,
             intent_detected="unknown",
             confidence=0.0,
-            suggestions=["Try simplifying your query", "Check that the metrics you're asking about exist"],
+            suggestions=suggestions,
         )
     except Exception as e:
         logger.exception(f"Unhandled error in dashboard generation: {type(e).__name__}: {e}")
@@ -264,11 +277,16 @@ async def refine_dashboard(request: DashboardRefinementRequest) -> DashboardRefi
 
     except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
         logger.error(f"Dashboard refinement failed: {e}", exc_info=True)
+        error_str = str(e)
+
+        # Provide clear status for live mode failures
+        refinement_status = "live_mode_error" if "LIVE MODE FAILURE" in error_str else "error"
+
         return DashboardRefinementResponse(
             success=False,
             dashboard=None,
-            error=str(e),
-            refinement_status="error",
+            error=error_str,
+            refinement_status=refinement_status,
             changes_made=[],
             confidence=0.0,
         )
