@@ -78,7 +78,7 @@ export const DataTable: React.FC<DataTableProps> = ({ nodes, title }) => {
                           }}
                         />
                         <span className="text-slate-300 truncate">
-                          {node.semantic_label || node.display_name}
+                          {node.display_name}
                         </span>
                       </div>
                     </td>
