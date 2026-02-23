@@ -58,20 +58,7 @@ class DashboardDataResolver:
             try:
                 data = self._resolve_widget_data(widget, reference_year, filters)
                 widget_data[widget.id] = data
-            except RuntimeError as e:
-                # LIVE MODE: Propagate RuntimeError (fail loudly)
-                error_str = str(e)
-                logger.error(f"[RESOLVER] RuntimeError for widget {widget.id}: {error_str[:100]}")
-                if "LIVE MODE FAILURE" in error_str:
-                    logger.error(f"[RESOLVER] Re-raising LIVE MODE FAILURE")
-                    raise
-                # Other RuntimeErrors: log and show per-widget error
-                logger.error(f"Error resolving data for widget {widget.id}: {e}")
-                widget_data[widget.id] = {
-                    "loading": False,
-                    "error": f"Failed to load data: {str(e)}"
-                }
-            except (KeyError, TypeError, ValueError, OSError) as e:
+            except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
                 logger.error(f"Error resolving data for widget {widget.id}: {e}")
                 widget_data[widget.id] = {
                     "loading": False,
@@ -121,8 +108,6 @@ class DashboardDataResolver:
         grain: str = None,
     ) -> Dict[str, Any]:
         """Execute query against DCL and handle errors."""
-        from src.nlq.services.dcl_semantic_client import get_data_mode
-
         result = self.dcl_client.query(
             metric=metric,
             dimensions=dimensions,
@@ -133,19 +118,6 @@ class DashboardDataResolver:
 
         if result.get("status") == "error" or result.get("error"):
             logger.warning(f"DCL query error for '{metric}': {result.get('error')}")
-
-        # LIVE MODE: Fail loudly if we got demo data when live was requested
-        current_mode = get_data_mode()
-        logger.info(f"[DASHBOARD-RESOLVER] metric={metric}, data_mode={current_mode}, data_source={result.get('data_source')}")
-        if current_mode == "live":
-            data_source = result.get("data_source", "")
-            if data_source == "demo":
-                reason = result.get("data_source_reason", "DCL returned demo data instead of live data")
-                raise RuntimeError(
-                    f"LIVE MODE FAILURE: {reason}. "
-                    f"Metric '{metric}' not available in live ingested data. "
-                    f"Check DCL ingest buffer or switch to Demo mode."
-                )
 
         return result
 
