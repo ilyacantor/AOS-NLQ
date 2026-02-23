@@ -3135,6 +3135,7 @@ async def query(request: NLQRequest) -> NLQResponse:
             temporal_warning=dcl_data.get("temporal_warning"),
             persona=dcl_data.get("persona_value", {}).get("persona") if dcl_data.get("persona_value") else None,
             debug_info={"nlq_diag_trace": _trace} if _trace else None,
+            data_source=result.data_source,  # Structural integrity: source attribution
         )
         # Track if confidence is below threshold
         return _track_insufficient_data_if_needed(response, request.question, session_id)

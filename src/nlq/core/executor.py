@@ -39,6 +39,7 @@ class QueryExecutor:
         self.dcl_client = get_semantic_client()
         self.claude_client = claude_client
         self.confidence_calculator = ConfidenceCalculator()
+        self._last_data_source = None  # Track data source for structural integrity
 
     def _is_year_period(self, period: str) -> bool:
         """Check if a period string represents a full year (e.g., '2025' vs '2025-Q1')."""
@@ -67,7 +68,11 @@ class QueryExecutor:
 
         if result.get("error") or result.get("status") == "error":
             logger.debug(f"DCL query failed for {metric}/{period}: {result.get('error')}")
+            self._last_data_source = None
             return None
+
+        # Capture data_source for structural integrity (source attribution)
+        self._last_data_source = result.get("data_source")
 
         return self._extract_value_from_dcl(result, aggregate=self._is_year_period(period))
 
@@ -295,7 +300,8 @@ class QueryExecutor:
         return QueryResult(
             success=True,
             value=result,
-            confidence=bounded_confidence(confidence)
+            confidence=bounded_confidence(confidence),
+            data_source=self._last_data_source
         )
 
     def _execute_comparison_query(self, parsed_query: ParsedQuery) -> QueryResult:

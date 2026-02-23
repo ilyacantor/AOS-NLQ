@@ -316,6 +316,11 @@ class QueryResult(BaseModel):
         description="Additional execution metadata (provenance, warnings, etc.)"
     )
 
+    data_source: Optional[str] = Field(
+        default=None,
+        description="Data source: 'live' (ingested), 'demo' (fact_base), or 'dcl'"
+    )
+
 
 class RelatedMetric(BaseModel):
     """A related metric for Text View (equivalent to Galaxy View node)."""
