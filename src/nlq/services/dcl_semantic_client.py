@@ -192,7 +192,16 @@ class DCLSemanticClient:
             SemanticCatalog with all metric definitions
         """
         ctx_force = _force_local_ctx.get()
-        diag(f"[NLQ-DIAG] get_catalog called: force_local={force_local}, ctx_force={ctx_force}, dcl_url={self.dcl_url}")
+        data_mode = _data_mode_ctx.get()
+        diag(f"[NLQ-DIAG] get_catalog called: force_local={force_local}, ctx_force={ctx_force}, dcl_url={self.dcl_url}, data_mode={data_mode}")
+
+        # LIVE MODE: Never use local fact_base catalog
+        if data_mode == "live" and (force_local or ctx_force):
+            raise RuntimeError(
+                "LIVE MODE FAILURE: Cannot load catalog from local fact_base in live mode. "
+                "Check request configuration."
+            )
+
         if force_local or ctx_force:
             catalog = self._build_local_catalog()
             diag(f"[NLQ-DIAG] get_catalog -> LOCAL ({len(catalog.metrics)} metrics)")
@@ -220,14 +229,34 @@ class DCLSemanticClient:
                     return catalog
                 else:
                     diag("[NLQ-DIAG] DCL catalog fetch returned None")
+                    # LIVE MODE: Fail loudly if DCL returned empty catalog
+                    if data_mode == "live":
+                        raise RuntimeError(
+                            "LIVE MODE FAILURE: DCL catalog fetch returned empty result. "
+                            "Check DCL service health."
+                        )
             except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
                 diag(f"[NLQ-DIAG] DCL catalog fetch FAILED: {type(e).__name__}: {e}")
+                # LIVE MODE: Fail loudly instead of falling back to fact_base
+                if data_mode == "live":
+                    raise RuntimeError(
+                        f"LIVE MODE FAILURE: DCL catalog fetch failed: {e}. "
+                        f"Cannot fall back to local fact_base in live mode. "
+                        f"Check DCL_API_URL or DCL service health."
+                    )
                 logger.warning(
                     f"DCL catalog fetch failed: {e} — falling back to local fact_base.json. "
                     f"Data may be stale. Check DCL_API_URL or DCL service health."
                 )
 
-        # Local dev mode or DCL fallback
+        # LIVE MODE: Cannot use local catalog when DCL is required
+        if data_mode == "live":
+            raise RuntimeError(
+                "LIVE MODE FAILURE: DCL_API_URL not configured. "
+                "Live mode requires DCL for catalog. Set DCL_API_URL environment variable."
+            )
+
+        # Local dev mode or DCL fallback (demo mode only)
         catalog = self._build_local_catalog()
         self._catalog = catalog
         self._cache_time = current_time
@@ -560,7 +589,14 @@ class DCLSemanticClient:
         if not user_term:
             return None
 
+        data_mode = _data_mode_ctx.get()
+
         if _force_local_ctx.get():
+            if data_mode == "live":
+                raise RuntimeError(
+                    "LIVE MODE FAILURE: Cannot resolve metrics from local catalog in live mode. "
+                    "Check request configuration."
+                )
             return self._resolve_metric_locally(user_term)
 
         # Try DCL resolution endpoint for fuzzy/semantic matching
@@ -572,7 +608,7 @@ class DCLSemanticClient:
             except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
                 logger.debug(f"DCL metric resolution failed for '{user_term}': {e}")
 
-        # Fall back to local catalog resolution (fuzzy matching)
+        # Fall back to catalog-based resolution (uses DCL catalog if available)
         return self._resolve_metric_locally(user_term)
 
     def _resolve_metric_via_dcl(self, user_term: str) -> Optional[MetricDefinition]:
@@ -912,7 +948,12 @@ class DCLSemanticClient:
         In DCL mode, returns current_quarter() (DCL handles period resolution).
         In local mode, scans fact_base quarterly data for the last entry.
         """
+        data_mode = _data_mode_ctx.get()
         if self.dcl_url and not _force_local_ctx.get():
+            return current_quarter()
+
+        # LIVE MODE: Don't read fact_base for period detection
+        if data_mode == "live":
             return current_quarter()
 
         # Local mode: find latest period from fact_base
@@ -1290,6 +1331,19 @@ class DCLSemanticClient:
         Returns:
             Query result with ranked data
         """
+        data_mode = _data_mode_ctx.get()
+
+        # LIVE MODE: Never fall back to local ranking data
+        if data_mode == "live" and (_force_local_ctx.get() or not self.dcl_url):
+            if not self.dcl_url:
+                raise RuntimeError(
+                    "LIVE MODE FAILURE: DCL_API_URL not configured. "
+                    "Live ranking queries require DCL endpoint."
+                )
+            raise RuntimeError(
+                "LIVE MODE FAILURE: Cannot serve ranking data from local fact_base in live mode."
+            )
+
         if _force_local_ctx.get() or not self.dcl_url:
             return self._query_ranking_local(metric, dimension, order_by, limit, time_range)
 
@@ -1703,7 +1757,13 @@ class DCLSemanticClient:
 
             Returns {"can_answer": False, "reason": "..."} on failure/unavailable.
         """
+        data_mode = _data_mode_ctx.get()
         if _force_local_ctx.get():
+            if data_mode == "live":
+                raise RuntimeError(
+                    "LIVE MODE FAILURE: Cannot use local graph resolution in live mode. "
+                    "Check request configuration."
+                )
             return self._resolve_via_catalog(concepts, dimensions, filters)
 
         # Try DCL's graph resolution endpoint first
