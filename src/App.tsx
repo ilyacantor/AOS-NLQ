@@ -129,7 +129,9 @@ function App() {
   const [lastDuration, setLastDuration] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [dataMode, setDataMode] = useState<'live' | 'demo'>('demo')
+  const [dataMode, setDataMode] = useState<'live' | 'demo'>(
+    (import.meta.env.VITE_DEFAULT_DATA_MODE === 'demo' ? 'demo' : 'live') as 'live' | 'demo'
+  )
 
   // Backend connectivity state
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'error'>('checking')

@@ -416,54 +416,59 @@ def _extract_metrics_from_query(query: str) -> List[str]:
             matched_indices.add(i)
             logger.debug(f"Resolved '{word}' -> '{metric.id}'")
 
-    # If no specific metrics found, check for persona-specific dashboard requests
-    # But DO NOT silently default to random metrics
+    # Check for persona-specific dashboard requests FIRST so we can merge
+    # resolved metrics with persona defaults for consistent layout
     extraction_method = "semantic_resolution" if metrics else None
 
-    if not metrics:
-        # Check for EXPLICIT persona-specific dashboard requests
-        # These are OK because user explicitly asked for a persona dashboard
-        persona_metrics = None
-        persona_detected = None
+    persona_metrics = None
+    persona_detected = None
 
-        if any(term in q for term in ["ops dashboard", "operations dashboard", "coo dashboard"]):
-            persona_metrics = ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months", "ltv_cac"]
-            persona_detected = "COO"
-        elif any(term in q for term in ["sales dashboard", "cro dashboard", "growth dashboard"]):
-            persona_metrics = ["pipeline", "win_rate", "quota_attainment", "sales_cycle_days"]
-            persona_detected = "CRO"
-        elif any(term in q for term in ["finance dashboard", "cfo dashboard", "financial dashboard"]):
-            persona_metrics = ["revenue", "gross_margin_pct", "net_income", "arr"]
-            persona_detected = "CFO"
-        elif any(term in q for term in ["engineering dashboard", "cto dashboard", "tech dashboard"]):
-            persona_metrics = ["uptime_pct", "p1_incidents", "deployment_frequency"]
-            persona_detected = "CTO"
-        elif any(term in q for term in ["customer dashboard", "cs dashboard", "success dashboard"]):
-            persona_metrics = ["nrr", "gross_churn_pct", "customer_count"]
-            persona_detected = "CS"
+    if any(term in q for term in ["ops dashboard", "operations dashboard", "coo dashboard"]):
+        persona_metrics = ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months", "ltv_cac"]
+        persona_detected = "COO"
+    elif any(term in q for term in ["sales dashboard", "cro dashboard", "growth dashboard"]):
+        persona_metrics = ["pipeline", "win_rate", "quota_attainment", "sales_cycle_days"]
+        persona_detected = "CRO"
+    elif any(term in q for term in ["finance dashboard", "cfo dashboard", "financial dashboard"]):
+        persona_metrics = ["revenue", "gross_margin_pct", "net_income", "arr"]
+        persona_detected = "CFO"
+    elif any(term in q for term in ["engineering dashboard", "cto dashboard", "tech dashboard"]):
+        persona_metrics = ["uptime_pct", "p1_incidents", "deployment_frequency"]
+        persona_detected = "CTO"
+    elif any(term in q for term in ["customer dashboard", "cs dashboard", "success dashboard"]):
+        persona_metrics = ["nrr", "gross_churn_pct", "customer_count"]
+        persona_detected = "CS"
 
-        if persona_metrics:
+    if persona_metrics:
+        if metrics:
+            # Merge: keep resolved metrics, fill remaining slots from persona defaults
+            for pm in persona_metrics:
+                if pm not in metrics and len(metrics) < 4:
+                    metrics.append(pm)
+            extraction_method = f"semantic_resolution+persona_fill:{persona_detected}"
+            logger.info(f"[METRIC_EXTRACTION] Merged resolved + {persona_detected} defaults: {metrics}")
+        else:
             metrics = persona_metrics
             extraction_method = f"persona_default:{persona_detected}"
             logger.info(f"[METRIC_EXTRACTION] Using {persona_detected} persona metrics: {metrics}")
+    elif not metrics:
+        # Check for generic year+summary queries (e.g., "2025 results", "2024 summary")
+        # These should default to CFO persona since they're asking for a business overview
+        import re
+        if re.search(r"\b20\d{2}\b", q) and any(term in q for term in ["results", "summary", "overview", "performance", "p&l", "dashboard", "dash", "kpi", "kpis"]):
+            metrics = ["revenue", "gross_margin_pct", "operating_profit", "net_income"]
+            extraction_method = "year_summary_default:CFO"
+            logger.info(f"[METRIC_EXTRACTION] Year summary query detected, using CFO metrics: {metrics}")
         else:
-            # Check for generic year+summary queries (e.g., "2025 results", "2024 summary")
-            # These should default to CFO persona since they're asking for a business overview
-            import re
-            if re.search(r"\b20\d{2}\b", q) and any(term in q for term in ["results", "summary", "overview", "performance", "p&l", "dashboard", "dash", "kpi", "kpis"]):
-                metrics = ["revenue", "gross_margin_pct", "operating_profit", "net_income"]
-                extraction_method = "year_summary_default:CFO"
-                logger.info(f"[METRIC_EXTRACTION] Year summary query detected, using CFO metrics: {metrics}")
-            else:
-                # NO SILENT DEFAULT - log a warning and return empty
-                # The caller must decide what to do
-                logger.warning(
-                    f"[METRIC_EXTRACTION] No metrics found in query: '{query}'. "
-                    f"Returning empty list - caller must handle this explicitly."
-                )
-                extraction_method = "none_found"
-                # Return empty - let the caller decide what to do
-                return []
+            # NO SILENT DEFAULT - log a warning and return empty
+            # The caller must decide what to do
+            logger.warning(
+                f"[METRIC_EXTRACTION] No metrics found in query: '{query}'. "
+                f"Returning empty list - caller must handle this explicitly."
+            )
+            extraction_method = "none_found"
+            # Return empty - let the caller decide what to do
+            return []
 
     # Final validation: ensure all returned metrics exist in catalog
     valid_metrics, errors = semantic_client.validate_metrics(metrics)

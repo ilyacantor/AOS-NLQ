@@ -231,14 +231,33 @@ async def get_learning_log_from_db(
 @router.get("/cache/stats")
 async def get_cache_stats():
     """
-    Get RAG cache statistics from Pinecone.
+    Get RAG cache statistics from Pinecone + hit rate health.
 
-    Returns the number of cached queries and other metadata.
+    Returns vector counts, hit rate, and a healthy flag (true if hit rate >= 60%).
     """
     cache = get_cache_service()
-    if cache:
-        return cache.get_stats()
-    return {"available": False, "error": "Cache service not initialized"}
+    pinecone_stats = cache.get_stats() if cache else {"available": False, "error": "Cache service not initialized"}
+
+    log = get_learning_log()
+    learning_stats = log.get_stats()
+    hit_rate = learning_stats.get("cache_hit_rate", 0)
+    total_queries = learning_stats.get("total_queries", 0)
+    healthy = hit_rate >= 0.60 or total_queries < 10  # need sample size before judging
+
+    if not healthy:
+        logger.warning(
+            f"Cache hit rate below 60%%: {hit_rate:.1%} over {total_queries} queries. "
+            f"Tier 1 resolution may be degraded."
+        )
+
+    return {
+        **pinecone_stats,
+        "hit_rate": round(hit_rate, 4),
+        "total_queries": total_queries,
+        "from_cache": learning_stats.get("from_cache", 0),
+        "from_llm": learning_stats.get("from_llm", 0),
+        "healthy": healthy,
+    }
 
 
 @router.delete("/cache/entry")

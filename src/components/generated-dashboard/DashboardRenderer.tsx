@@ -116,7 +116,7 @@ export function DashboardRenderer({
   personaOptions = [],
   onPersonaChange,
   isGenerating = false,
-  dataMode = 'demo',
+  dataMode = 'live',
 }: DashboardRendererProps) {
   // Query router for detecting factual queries that should go to Galaxy
   const { routeQuery } = useQueryRouter();
@@ -407,10 +407,17 @@ export function DashboardRenderer({
       const metric = value || widget.data.metrics[0]?.metric || widget.title;
       const trendId = `trend_${metric}`;
       const altTrendId = `${metric}_trend`;
-      const alreadyExists = schema?.widgets.some(
+      const existingId = schema?.widgets.find(
         w => w.id === trendId || w.id === altTrendId
-      );
-      if (alreadyExists) {
+      )?.id;
+      if (existingId) {
+        // Scroll to the existing trend widget and flash-highlight it
+        const el = document.querySelector(`[data-widget-id="${existingId}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-2', 'ring-cyan-400', 'transition-all');
+          setTimeout(() => el.classList.remove('ring-2', 'ring-cyan-400', 'transition-all'), 1500);
+        }
         return;
       }
       refineDashboard(`Add a quarterly trend chart for ${metric}`);
@@ -800,6 +807,7 @@ export function DashboardRenderer({
               {schema.widgets.map(widget => (
                 <div
                   key={widget.id}
+                  data-widget-id={widget.id}
                   className="h-full group/widget relative"
                 >
                   <WidgetRenderer
