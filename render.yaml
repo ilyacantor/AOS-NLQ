@@ -13,7 +13,7 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: DCL_API_URL
-        sync: false
+        value: "https://aos-dclv2.onrender.com"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_API_URL
