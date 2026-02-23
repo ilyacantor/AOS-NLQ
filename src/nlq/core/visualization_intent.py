@@ -450,7 +450,7 @@ def _extract_metrics_from_query(query: str) -> List[str]:
             # Check for generic year+summary queries (e.g., "2025 results", "2024 summary")
             # These should default to CFO persona since they're asking for a business overview
             import re
-            if re.search(r"\b20\d{2}\b", q) and any(term in q for term in ["results", "summary", "overview", "performance", "p&l", "dashboard"]):
+            if re.search(r"\b20\d{2}\b", q) and any(term in q for term in ["results", "summary", "overview", "performance", "p&l", "dashboard", "dash", "kpi", "kpis"]):
                 metrics = ["revenue", "gross_margin_pct", "operating_profit", "net_income"]
                 extraction_method = "year_summary_default:CFO"
                 logger.info(f"[METRIC_EXTRACTION] Year summary query detected, using CFO metrics: {metrics}")
