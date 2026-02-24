@@ -1024,19 +1024,24 @@ class DCLSemanticClient:
             if metric_id in catalog.metrics:
                 valid_metrics.append(metric_id)
             else:
-                # Try to find similar metrics to suggest
-                similar = self.search_metrics(metric_id)
-                if similar:
-                    suggestions = [m.id for m in similar[:3]]
-                    error_messages.append(
-                        f"Metric '{metric_id}' not found. Did you mean: {', '.join(suggestions)}?"
-                    )
+                # Try negotiation (e.g., gross_margin_pct → gross_margin in DCL)
+                negotiated = self._negotiate_metric_id(metric_id)
+                if negotiated != metric_id and negotiated in catalog.metrics:
+                    valid_metrics.append(negotiated)
                 else:
-                    # List some available metrics
-                    available = list(catalog.metrics.keys())[:5]
-                    error_messages.append(
-                        f"Metric '{metric_id}' not found. Available metrics include: {', '.join(available)}"
-                    )
+                    # Try to find similar metrics to suggest
+                    similar = self.search_metrics(metric_id)
+                    if similar:
+                        suggestions = [m.id for m in similar[:3]]
+                        error_messages.append(
+                            f"Metric '{metric_id}' not found. Did you mean: {', '.join(suggestions)}?"
+                        )
+                    else:
+                        # List some available metrics
+                        available = list(catalog.metrics.keys())[:5]
+                        error_messages.append(
+                            f"Metric '{metric_id}' not found. Available metrics include: {', '.join(available)}"
+                        )
 
         return valid_metrics, error_messages
 

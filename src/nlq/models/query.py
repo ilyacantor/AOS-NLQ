@@ -62,7 +62,7 @@ class NLQRequest(BaseModel):
     )
 
     data_mode: Optional[str] = Field(
-        default=None,
+        default="live",
         description="Data mode: 'live' for DCL, 'demo' for local fact_base.json"
     )
 

@@ -136,6 +136,8 @@ class DashboardDataResolver:
         metric = metrics[0].metric
 
         # Query DCL for current year value
+        # Try yearly grain first; if DCL rejects it (not all metrics support
+        # yearly aggregation), fall back to quarterly grain with latest quarter.
         result = self._query_dcl(
             metric=metric,
             filters=filters,
@@ -143,14 +145,23 @@ class DashboardDataResolver:
         )
 
         if result.get("error"):
-            return {"loading": False, "error": result["error"]}
+            # Retry with quarterly grain — DCL may not support yearly for this metric
+            logger.info(f"KPI yearly query failed for '{metric}', retrying with quarterly grain")
+            result = self._query_dcl(
+                metric=metric,
+                filters=filters,
+                time_range={"period": "last 4 quarters", "granularity": "quarterly"},
+                grain="quarterly",
+            )
+            if result.get("error"):
+                return {"loading": False, "error": result["error"]}
 
         # Extract value from DCL response
         value = self._extract_value_from_result(result)
         if value is None:
             return {"loading": False, "error": f"No data for '{metric}'"}
 
-        # Get prior year for trend
+        # Get prior year for trend (best-effort — trend is optional)
         prior_year = str(int(reference_year) - 1)
         prior_result = self._query_dcl(
             metric=metric,
@@ -158,6 +169,16 @@ class DashboardDataResolver:
             time_range={"period": prior_year, "granularity": "yearly"},
         )
         prior_value = self._extract_value_from_result(prior_result)
+        if prior_value is None and prior_result.get("error"):
+            # Retry with quarterly grain
+            prior_result = self._query_dcl(
+                metric=metric,
+                filters=filters,
+                time_range={"period": "last 8 quarters", "granularity": "quarterly"},
+                grain="quarterly",
+            )
+            # Use the oldest quarter value as a rough prior
+            prior_value = self._extract_value_from_result(prior_result)
 
         # Calculate trend
         trend = None
@@ -252,6 +273,7 @@ class DashboardDataResolver:
         dimension = dimensions[0].dimension if dimensions else "region"
 
         # Query DCL for dimensional breakdown
+        # Try yearly grain; fall back to quarterly if DCL rejects yearly
         result = self._query_dcl(
             metric=metric,
             dimensions=[dimension],
@@ -260,7 +282,16 @@ class DashboardDataResolver:
         )
 
         if result.get("error"):
-            return {"loading": False, "error": result["error"]}
+            logger.info(f"Category yearly query failed for '{metric}', retrying with quarterly")
+            result = self._query_dcl(
+                metric=metric,
+                dimensions=[dimension],
+                filters=filters,
+                time_range={"period": "last 4 quarters", "granularity": "quarterly"},
+                grain="quarterly",
+            )
+            if result.get("error"):
+                return {"loading": False, "error": result["error"]}
 
         # Extract breakdown data
         breakdown = self._extract_dimensional_data(result, dimension, metric)
@@ -377,6 +408,15 @@ class DashboardDataResolver:
                     filters=filters,
                     time_range={"period": reference_year, "granularity": "yearly"},
                 )
+                if result.get("error"):
+                    logger.info(f"Table yearly query failed for '{metric}', retrying with quarterly")
+                    result = self._query_dcl(
+                        metric=metric,
+                        dimensions=[dimension],
+                        filters=filters,
+                        time_range={"period": "last 4 quarters", "granularity": "quarterly"},
+                        grain="quarterly",
+                    )
 
                 breakdown = self._extract_dimensional_data(result, dimension, metric)
                 for item in breakdown:

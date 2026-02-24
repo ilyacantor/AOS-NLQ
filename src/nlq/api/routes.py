@@ -889,7 +889,14 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
     3. Try embedding-based lookup (CHEAP, ~$0.0001)
     4. Return None to fall through to LLM (EXPENSIVE)
     """
-    # Step 0: Check for superlative/ranking queries first
+    # Step 0a: Dashboard queries must NOT be handled here — they need the
+    # visualization intent handler downstream. Without this guard,
+    # " dashboard" gets stripped as a conversational suffix and
+    # "CRO dashboard" becomes a point query for "CRO" (wrong).
+    if _is_dashboard_query(question):
+        return None
+
+    # Step 0b: Check for superlative/ranking queries first
     superlative_result = _try_superlative_query(question)
     if superlative_result:
         return superlative_result

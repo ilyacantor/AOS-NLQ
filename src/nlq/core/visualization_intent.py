@@ -469,20 +469,23 @@ def _extract_metrics_from_query(query: str) -> List[str]:
     persona_metrics = None
     persona_detected = None
 
+    # Persona metric lists are ordered by priority. Provide extras so that
+    # after validation filters out metrics DCL doesn't have, we still have
+    # enough for a useful dashboard (target: 4 widgets).
     if any(term in q for term in ["ops dashboard", "operations dashboard", "coo dashboard"]):
-        persona_metrics = ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months", "ltv_cac"]
+        persona_metrics = ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months", "ltv_cac", "attrition_rate"]
         persona_detected = "COO"
     elif any(term in q for term in ["sales dashboard", "cro dashboard", "growth dashboard"]):
-        persona_metrics = ["pipeline", "win_rate", "quota_attainment", "sales_cycle_days"]
+        persona_metrics = ["pipeline", "win_rate", "quota_attainment", "sales_cycle_days", "arr", "revenue"]
         persona_detected = "CRO"
     elif any(term in q for term in ["finance dashboard", "cfo dashboard", "financial dashboard"]):
-        persona_metrics = ["revenue", "gross_margin_pct", "net_income", "arr"]
+        persona_metrics = ["revenue", "gross_margin_pct", "arr", "ebitda", "net_income", "operating_profit"]
         persona_detected = "CFO"
     elif any(term in q for term in ["engineering dashboard", "cto dashboard", "tech dashboard"]):
-        persona_metrics = ["uptime_pct", "p1_incidents", "deployment_frequency"]
+        persona_metrics = ["uptime_pct", "p1_incidents", "deployment_frequency", "mttr", "open_bugs"]
         persona_detected = "CTO"
     elif any(term in q for term in ["customer dashboard", "cs dashboard", "success dashboard"]):
-        persona_metrics = ["nrr", "gross_churn_pct", "customer_count"]
+        persona_metrics = ["nrr", "gross_churn_pct", "customer_count", "nps", "csat"]
         persona_detected = "CS"
 
     if persona_metrics:
@@ -502,7 +505,7 @@ def _extract_metrics_from_query(query: str) -> List[str]:
         # These should default to CFO persona since they're asking for a business overview
         import re
         if re.search(r"\b20\d{2}\b", q) and any(term in q for term in ["results", "summary", "overview", "performance", "p&l", "dashboard", "dash", "kpi", "kpis"]):
-            metrics = ["revenue", "gross_margin_pct", "operating_profit", "net_income"]
+            metrics = ["revenue", "gross_margin_pct", "arr", "ebitda", "operating_profit", "net_income"]
             extraction_method = "year_summary_default:CFO"
             logger.info(f"[METRIC_EXTRACTION] Year summary query detected, using CFO metrics: {metrics}")
         else:

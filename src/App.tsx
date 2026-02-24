@@ -123,7 +123,12 @@ function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('galaxy')
   const [selectedPersona, setSelectedPersona] = useState<Persona>('CFO')
   const [panelTab, setPanelTab] = useState<PanelTab>('History')
-  const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([])
+  const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('nlq_query_history')
+      return saved ? JSON.parse(saved) : []
+    } catch { return [] }
+  })
   const [isLoading, setIsLoading] = useState(false)
   const [galaxyResponse, setGalaxyResponse] = useState<IntentMapResponse | null>(null)
   const [lastDuration, setLastDuration] = useState('')
@@ -150,6 +155,13 @@ function App() {
 
   const [hasLoadedDefaultDashboard, setHasLoadedDefaultDashboard] = useState(false)
   const sessionId = useSessionId()
+
+  // Persist query history to localStorage
+  useEffect(() => {
+    if (queryHistory.length > 0) {
+      localStorage.setItem('nlq_query_history', JSON.stringify(queryHistory.slice(0, 100)))
+    }
+  }, [queryHistory])
 
   const queryRef = useRef(query)
   queryRef.current = query
