@@ -1174,10 +1174,10 @@ _DIMENSION_ALIASES = {
     "territory": "region",
     "territories": "region",
     "reigon": "region",  # misspelling
-    # Department aliases
+    # Department aliases — "team" is NOT aliased here because DCL has
+    # native "team" and "department" as separate dimensions
     "dept": "department",
     "org": "department",
-    "team": "department",
     "departmnet": "department",  # misspelling
     # Stage aliases
     "phase": "stage",
@@ -1193,11 +1193,12 @@ _DIMENSION_ALIASES = {
     "board segment": "segment",
     "board_segment": "segment",
     "segmnet": "segment",  # misspelling
-    # Service line aliases
+    # Service aliases — "service" passes through as-is (DCL has native "service" dimension)
     "service line": "service_line",
     "service_line": "service_line",
-    "service": "service_line",
-    # Cost center aliases (maps to cost_center dimension if available)
+    # Category aliases — DCL uses "resource_type" for cloud_spend breakdowns
+    "category": "resource_type",
+    # Cost center aliases
     "cost center": "cost_center",
     "cost_center": "cost_center",
     # Product aliases
@@ -1285,6 +1286,13 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
     if dim_term.endswith("s") and dim_term not in ("business", "success"):
         dim_term = dim_term[:-1]  # Remove trailing 's'
 
+    # Strip possessive/article words that leak into metric_term
+    # e.g., "our cloud spend" → "cloud spend", "the revenue" → "revenue"
+    _STRIP_WORDS = {"our", "my", "the", "their", "your", "its", "current", "total", "overall"}
+    metric_words = metric_term.split()
+    metric_words = [w for w in metric_words if w.lower() not in _STRIP_WORDS]
+    metric_term = " ".join(metric_words)
+
     # Handle multi-concept queries: "revenue and headcount by department"
     # Split on " and " and use the first concept for the breakdown query
     if " and " in metric_term:
@@ -1302,10 +1310,14 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
     dcl_client = get_semantic_client()
     current_period = dcl_client.get_latest_period()
 
+    # Don't force granularity for breakdown queries — breakdowns are categorical
+    # (e.g., revenue by region) not temporal. Forcing grain="quarter" causes DCL
+    # to return 0 rows for metrics stored at other grains (e.g., deploy_frequency
+    # stored at grain="week"). Let DCL use native grain.
     result = dcl_client.query(
         metric=metric,
         dimensions=[dimension],
-        time_range={"period": current_period, "granularity": "quarterly"}
+        time_range={"period": current_period}
     )
 
     # If flat query failed, try graph resolution (cross-system join path)

@@ -1064,9 +1064,12 @@ class DCLSemanticClient:
     # METRIC NAME NEGOTIATION — translate NLQ canonical names to DCL IDs
     # =========================================================================
 
-    # Known cross-mappings where NLQ and DCL use different canonical names
+    # Known cross-mappings where NLQ and DCL use different canonical names.
+    # DCL sometimes uses base names where NLQ uses _pct suffixed names,
+    # or vice versa — and both exist in DCL catalog but only one has data.
     _NLQ_TO_DCL_CROSSMAP: Dict[str, str] = {
         "gross_churn_pct": "churn_rate",
+        "uptime_pct": "uptime",  # DCL has breakdown data under "uptime", not "uptime_pct"
     }
 
     def _negotiate_metric_id(self, nlq_metric: str) -> str:
@@ -1077,30 +1080,31 @@ class DCLSemanticClient:
         use a different ID for the same concept (e.g. ``gross_margin``).
 
         Resolution order:
-        1. If ``nlq_metric`` exists in DCL catalog as-is → return unchanged.
-        2. If ``nlq_metric`` ends with ``_pct`` and the base name exists → return base.
-        3. Check known cross-mappings (``_NLQ_TO_DCL_CROSSMAP``) → return mapped.
+        1. Check known cross-mappings first (explicit overrides take priority).
+        2. If ``nlq_metric`` exists in DCL catalog as-is → return unchanged.
+        3. If ``nlq_metric`` ends with ``_pct`` and the base name exists → return base.
         4. No match → return unchanged (let DCL return 404 if invalid).
         """
         catalog = self.get_catalog()
         available = set(catalog.metrics.keys())
 
-        # 1. Exact match — no translation needed
+        # 1. Known cross-mappings (explicit overrides — e.g., uptime_pct → uptime
+        #    when both exist in DCL but only one has breakdown data)
+        mapped = self._NLQ_TO_DCL_CROSSMAP.get(nlq_metric)
+        if mapped and mapped in available:
+            diag(f"[NLQ-DIAG] negotiate: {nlq_metric} → {mapped} (crossmap)")
+            return mapped
+
+        # 2. Exact match — no translation needed
         if nlq_metric in available:
             return nlq_metric
 
-        # 2. Strip _pct suffix (e.g. gross_margin_pct → gross_margin)
+        # 3. Strip _pct suffix (e.g. gross_margin_pct → gross_margin)
         if nlq_metric.endswith("_pct"):
             base = nlq_metric[:-4]
             if base in available:
                 diag(f"[NLQ-DIAG] negotiate: {nlq_metric} → {base} (stripped _pct)")
                 return base
-
-        # 3. Known cross-mappings
-        mapped = self._NLQ_TO_DCL_CROSSMAP.get(nlq_metric)
-        if mapped and mapped in available:
-            diag(f"[NLQ-DIAG] negotiate: {nlq_metric} → {mapped} (crossmap)")
-            return mapped
 
         # 4. No translation found
         return nlq_metric
@@ -1266,17 +1270,20 @@ class DCLSemanticClient:
           {status: "ok", metric, data: [{period, value, ...}],
            metadata: {...}, unit, source: "dcl", ...}
         """
-        # DCL now returns metadata.source: "ingest" or "fact_base"
+        # DCL returns metadata.source: "ingest" or "fact_base"
+        # data_source reflects where NLQ got the data from:
+        #   "live"  = DCL ingest (real ingested data)
+        #   "dcl"   = DCL served it from seed/fact_base (pipeline works, data not yet ingested)
+        #   "demo"  = NLQ's own local fallback (pipeline bypassed — only set in _query_local_fallback)
         dcl_source = (dcl_response.get("metadata") or {}).get("source", "")
-        if dcl_source == "fact_base":
-            data_source = "demo"
-            data_source_reason = "DCL served from fact_base (no ingested data for this metric)"
-        elif dcl_source == "ingest":
+        if dcl_source == "ingest":
             data_source = "live"
             data_source_reason = None
         else:
+            # DCL returned data (fact_base or unknown source) — pipeline is working,
+            # but this metric doesn't have ingested data yet
             data_source = "dcl"
-            data_source_reason = None
+            data_source_reason = f"DCL served from {dcl_source or 'unknown'} (no ingested data for this metric)" if dcl_source == "fact_base" else None
 
         normalized: Dict[str, Any] = {
             "status": "ok",
