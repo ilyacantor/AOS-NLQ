@@ -304,6 +304,27 @@ def detect_visualization_intent(query: str) -> VisualizationRequirements:
     # Extract metrics (simplified - in production would use Claude)
     metrics = _extract_metrics_from_query(q)
 
+    # --- Single-metric override ---
+    # "show me EBITDA" should be a point query, not a dashboard.
+    # If exactly one metric is resolved, no dimension/breakdown keywords are
+    # present, and answer_score is non-trivial OR viz_score came only from
+    # a weak trigger like "show me", force SIMPLE_ANSWER.
+    _dimension_keywords = {"by", "across", "breakdown", "break down", "per"}
+    has_dimension_keyword = any(kw in q for kw in _dimension_keywords)
+    has_dashboard_keyword = any(kw in q for kw in ("dashboard", "overview", "summary", "kpis", "kpi"))
+    if (
+        len(metrics) == 1
+        and not dimensions
+        and not has_dimension_keyword
+        and not has_dashboard_keyword
+        and not time_dimension
+        and not comparison_requested
+        and viz_score > 0 and viz_score <= 0.9
+    ):
+        # Cap viz_score so answer_score wins
+        viz_score = 0.0
+        answer_score = max(answer_score, 0.7)
+
     # Determine final intent
     if "dashboard" in q:
         intent = VisualizationIntent.FULL_DASHBOARD

@@ -168,6 +168,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
     "cash": [
         "cash balance",
         "cash on hand",
+        "cash position",
         "cash and equivalents",
         "cash & equivalents",
     ],
@@ -245,7 +246,12 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
     "arr": [
         "annual recurring revenue",
         "recurring revenue",
-        "mrr",  # Often used interchangeably
+    ],
+
+    # MRR (Monthly Recurring Revenue) — separate metric in DCL
+    "mrr": [
+        "monthly recurring revenue",
+        "monthly revenue",
     ],
 
     # Quota & Sales Performance
@@ -620,6 +626,11 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "p2s",
         "priority 2 incidents",
         "high priority incidents",
+    ],
+    "mttr": [
+        "mean time to repair",
+        "mean time to resolve",
+        "system incidents",
     ],
     "mttr_p1_hours": [
         "mttr p1",

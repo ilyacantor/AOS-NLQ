@@ -1037,6 +1037,51 @@ class DCLSemanticClient:
             return f"Metric '{metric_id}' not found. Available metrics include: {', '.join(available)}"
 
     # =========================================================================
+    # METRIC NAME NEGOTIATION — translate NLQ canonical names to DCL IDs
+    # =========================================================================
+
+    # Known cross-mappings where NLQ and DCL use different canonical names
+    _NLQ_TO_DCL_CROSSMAP: Dict[str, str] = {
+        "gross_churn_pct": "churn_rate",
+    }
+
+    def _negotiate_metric_id(self, nlq_metric: str) -> str:
+        """Translate an NLQ canonical metric name to the DCL metric ID.
+
+        NLQ's synonym table resolves user terms to NLQ-canonical names
+        (e.g. "gross margin" → ``gross_margin_pct``).  DCL's catalog may
+        use a different ID for the same concept (e.g. ``gross_margin``).
+
+        Resolution order:
+        1. If ``nlq_metric`` exists in DCL catalog as-is → return unchanged.
+        2. If ``nlq_metric`` ends with ``_pct`` and the base name exists → return base.
+        3. Check known cross-mappings (``_NLQ_TO_DCL_CROSSMAP``) → return mapped.
+        4. No match → return unchanged (let DCL return 404 if invalid).
+        """
+        catalog = self.get_catalog()
+        available = set(catalog.metrics.keys())
+
+        # 1. Exact match — no translation needed
+        if nlq_metric in available:
+            return nlq_metric
+
+        # 2. Strip _pct suffix (e.g. gross_margin_pct → gross_margin)
+        if nlq_metric.endswith("_pct"):
+            base = nlq_metric[:-4]
+            if base in available:
+                diag(f"[NLQ-DIAG] negotiate: {nlq_metric} → {base} (stripped _pct)")
+                return base
+
+        # 3. Known cross-mappings
+        mapped = self._NLQ_TO_DCL_CROSSMAP.get(nlq_metric)
+        if mapped and mapped in available:
+            diag(f"[NLQ-DIAG] negotiate: {nlq_metric} → {mapped} (crossmap)")
+            return mapped
+
+        # 4. No translation found
+        return nlq_metric
+
+    # =========================================================================
     # DATA QUERY API - All data access goes through DCL
     # =========================================================================
 
@@ -1132,8 +1177,11 @@ class DCLSemanticClient:
             if dcl_grain:
                 dcl_grain = GRAIN_TO_DCL.get(dcl_grain, dcl_grain)
 
+            # Negotiate metric name: NLQ canonical → DCL catalog ID
+            dcl_metric = self._negotiate_metric_id(metric)
+
             payload = {
-                "metric": metric,
+                "metric": dcl_metric,
                 "dimensions": dimensions or [],
                 "filters": filters or {},
                 "time_range": dcl_time_range,

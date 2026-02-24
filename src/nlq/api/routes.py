@@ -1268,6 +1268,12 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
             # Just a value filter without explicit dimension name
             filter_val = for_match.group(1).strip().rstrip("?")
 
+    # Temporal dimensions should route to trend query, not breakdown query.
+    # "revenue by quarter" is a time series, not a categorical breakdown.
+    _TEMPORAL_DIMENSIONS = {"quarter", "quarters", "month", "months", "year", "years", "week", "weeks"}
+    if dim_term.lower() in _TEMPORAL_DIMENSIONS:
+        return None
+
     # Handle plural dimension terms (e.g., "stages" -> "stage", "departments" -> "department")
     if dim_term.endswith("s") and dim_term not in ("business", "success"):
         dim_term = dim_term[:-1]  # Remove trailing 's'

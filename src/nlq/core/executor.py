@@ -141,15 +141,22 @@ class QueryExecutor:
             return self._execute_breakdown_query(parsed_query)
 
         # Check 1: Does the metric exist in DCL catalog?
+        # Try negotiating the name first — NLQ may use a different canonical
+        # name than DCL (e.g. gross_margin_pct vs gross_margin).
         catalog = self.dcl_client.get_catalog()
         available_metrics = set(catalog.metrics.keys())
         if parsed_query.metric not in available_metrics:
-            return QueryResult(
-                success=False,
-                error="UNKNOWN_METRIC",
-                message=f"Metric '{parsed_query.metric}' not found. Available: {', '.join(sorted(available_metrics)[:10])}...",
-                confidence=0.0
-            )
+            negotiated = self.dcl_client._negotiate_metric_id(parsed_query.metric)
+            if negotiated != parsed_query.metric and negotiated in available_metrics:
+                logger.info(f"Negotiated metric: {parsed_query.metric} → {negotiated}")
+                parsed_query.metric = negotiated
+            else:
+                return QueryResult(
+                    success=False,
+                    error="UNKNOWN_METRIC",
+                    message=f"Metric '{parsed_query.metric}' not found. Available: {', '.join(sorted(available_metrics)[:10])}...",
+                    confidence=0.0
+                )
 
         # Route to appropriate handler
         if parsed_query.intent == QueryIntent.COMPARISON_QUERY:
@@ -257,12 +264,17 @@ class QueryExecutor:
         if graph_response.get("data"):
             value = graph_response["data"]
 
+        # Extract data_source from graph response
+        graph_source = graph_response.get("source", "")
+        data_source = "dcl" if graph_source == "dcl_graph" else graph_source or None
+
         return QueryResult(
             success=True,
             value=value,
             confidence=bounded_confidence(confidence),
             query_type="graph_resolution",
             metadata=metadata,
+            data_source=data_source,
         )
 
     def _execute_point_query(self, parsed_query: ParsedQuery) -> QueryResult:
@@ -355,7 +367,8 @@ class QueryExecutor:
                 "difference": diff,
                 "pct_change": pct_change
             },
-            confidence=bounded_confidence(0.95)
+            confidence=bounded_confidence(0.95),
+            data_source=self._last_data_source
         )
 
     def _execute_trend_query(self, parsed_query: ParsedQuery) -> QueryResult:
@@ -421,7 +434,8 @@ class QueryExecutor:
             metadata={
                 "metric": metric,
                 "periods": [d["period"] for d in trend_data]
-            }
+            },
+            data_source=self._last_data_source
         )
 
     def _execute_aggregation_query(self, parsed_query: ParsedQuery) -> QueryResult:
@@ -466,7 +480,8 @@ class QueryExecutor:
                 "periods": [v[0] for v in values],
                 "values": [v[1] for v in values],
             },
-            confidence=bounded_confidence(0.95)
+            confidence=bounded_confidence(0.95),
+            data_source=self._last_data_source
         )
 
     def _execute_breakdown_query(self, parsed_query: ParsedQuery) -> QueryResult:
