@@ -404,10 +404,10 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
         """Build a period data dict by querying DCL for each metric."""
         metrics_to_query = [
             "revenue", "gross_margin_pct", "operating_margin_pct", "net_income",
-            "cash", "arr", "burn_multiple", "pipeline", "win_rate",
-            "gross_churn_pct", "nrr", "sales_cycle_days", "quota_attainment",
+            "cash", "arr", "burn_multiple", "pipeline", "win_rate_pct",
+            "gross_churn_pct", "nrr", "sales_cycle_days", "quota_attainment_pct",
             "new_logo_revenue", "headcount", "revenue_per_employee",
-            "magic_number", "cac_payback_months", "ltv_cac", "attrition_rate",
+            "magic_number", "cac_payback_months", "ltv_cac", "attrition_rate_pct",
             "implementation_days", "uptime_pct", "deploys_per_week",
             "mttr_p1_hours", "sprint_velocity", "tech_debt_pct",
             "code_coverage_pct", "features_shipped", "hires",
@@ -458,7 +458,7 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
         if "pipeline" in q:
             requested_metrics.append(("pipeline", "Pipeline", period_data.get('pipeline'), "M", Domain.GROWTH))
         if "win" in q and "rate" in q:
-            requested_metrics.append(("win_rate", "Win Rate", period_data.get('win_rate'), "%", Domain.GROWTH))
+            requested_metrics.append(("win_rate_pct", "Win Rate", period_data.get('win_rate_pct'), "%", Domain.GROWTH))
         if "churn" in q:
             requested_metrics.append(("gross_churn_pct", "Churn", period_data.get('gross_churn_pct'), "%", Domain.GROWTH))
         if "nrr" in q or "retention" in q:
@@ -499,17 +499,17 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
     elif persona == "CRO":
         metrics = [
             ("pipeline", "Pipeline", period_data.get('pipeline'), "M", Domain.GROWTH),
-            ("win_rate", "Win Rate", period_data.get('win_rate'), "%", Domain.GROWTH),
+            ("win_rate_pct", "Win Rate", period_data.get('win_rate_pct'), "%", Domain.GROWTH),
             ("gross_churn_pct", "Churn", period_data.get('gross_churn_pct'), "%", Domain.GROWTH),
             ("nrr", "NRR", period_data.get('nrr'), "%", Domain.GROWTH),
             ("sales_cycle_days", "Sales Cycle", period_data.get('sales_cycle_days'), "days", Domain.GROWTH),
-            ("quota_attainment", "Quota Attainment", period_data.get('quota_attainment'), "%", Domain.GROWTH),
+            ("quota_attainment_pct", "Quota Attainment", period_data.get('quota_attainment_pct'), "%", Domain.GROWTH),
             ("new_logo_revenue", "New Logo Revenue", period_data.get('new_logo_revenue'), "M", Domain.GROWTH),
         ]
         text_lines.append(f"**CRO Dashboard ({period})**")
-        text_lines.append(f"Pipeline: ${period_data.get('pipeline')}M | Win Rate: {period_data.get('win_rate')}%")
+        text_lines.append(f"Pipeline: ${period_data.get('pipeline')}M | Win Rate: {period_data.get('win_rate_pct')}%")
         text_lines.append(f"Churn: {period_data.get('gross_churn_pct')}% | NRR: {period_data.get('nrr')}%")
-        text_lines.append(f"Sales Cycle: {period_data.get('sales_cycle_days')} days | Quota: {period_data.get('quota_attainment')}%")
+        text_lines.append(f"Sales Cycle: {period_data.get('sales_cycle_days')} days | Quota: {period_data.get('quota_attainment_pct')}%")
 
     elif persona == "COO":
         metrics = [
@@ -518,13 +518,13 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
             ("magic_number", "Magic Number", period_data.get('magic_number'), "", Domain.OPS),
             ("cac_payback_months", "CAC Payback", period_data.get('cac_payback_months'), "mo", Domain.OPS),
             ("ltv_cac", "LTV/CAC", period_data.get('ltv_cac'), "x", Domain.OPS),
-            ("attrition_rate", "Attrition Rate", period_data.get('attrition_rate'), "%", Domain.OPS),
+            ("attrition_rate_pct", "Attrition Rate", period_data.get('attrition_rate_pct'), "%", Domain.OPS),
             ("implementation_days", "Impl. Days", period_data.get('implementation_days'), "days", Domain.OPS),
         ]
         text_lines.append(f"**COO Dashboard ({period})**")
         text_lines.append(f"Headcount: {period_data.get('headcount')} | Rev/Employee: ${period_data.get('revenue_per_employee')}M")
         text_lines.append(f"Magic Number: {period_data.get('magic_number')} | CAC Payback: {period_data.get('cac_payback_months')} months")
-        text_lines.append(f"LTV/CAC: {period_data.get('ltv_cac')}x | Attrition: {period_data.get('attrition_rate')}%")
+        text_lines.append(f"LTV/CAC: {period_data.get('ltv_cac')}x | Attrition: {period_data.get('attrition_rate_pct')}%")
 
     elif persona == "CTO":
         metrics = [
@@ -545,14 +545,14 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
         metrics = [
             ("headcount", "Headcount", period_data.get('headcount'), "", Domain.PEOPLE),
             ("hires", "New Hires", period_data.get('hires'), "", Domain.PEOPLE),
-            ("attrition_rate", "Attrition", period_data.get('attrition_rate'), "%", Domain.PEOPLE),
+            ("attrition_rate_pct", "Attrition", period_data.get('attrition_rate_pct'), "%", Domain.PEOPLE),
             ("engineering_headcount", "Engineering", period_data.get('engineering_headcount'), "", Domain.PEOPLE),
             ("sales_headcount", "Sales", period_data.get('sales_headcount'), "", Domain.PEOPLE),
             ("cs_headcount", "Customer Success", period_data.get('cs_headcount'), "", Domain.PEOPLE),
             ("csat", "CSAT", period_data.get('csat'), "/5", Domain.PEOPLE),
         ]
         text_lines.append(f"**People Dashboard ({period})**")
-        text_lines.append(f"Headcount: {period_data.get('headcount')} | Hires: {period_data.get('hires')} | Attrition: {period_data.get('attrition_rate')}%")
+        text_lines.append(f"Headcount: {period_data.get('headcount')} | Hires: {period_data.get('hires')} | Attrition: {period_data.get('attrition_rate_pct')}%")
         text_lines.append(f"Engineering: {period_data.get('engineering_headcount')} | Sales: {period_data.get('sales_headcount')} | CS: {period_data.get('cs_headcount')}")
 
     elif "kpi" in q:
@@ -582,7 +582,7 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
             # CRO (Growth - Pink)
             ("pipeline", "Pipeline", y25.get('pipeline'), "M", Domain.GROWTH),
             ("nrr", "NRR", y25.get('nrr'), "%", Domain.GROWTH),
-            ("win_rate", "Win Rate", y25.get('win_rate'), "%", Domain.GROWTH),
+            ("win_rate_pct", "Win Rate", y25.get('win_rate_pct'), "%", Domain.GROWTH),
             # COO (Ops - Green)
             ("headcount", "Headcount", y25.get('headcount'), "", Domain.OPS),
             ("magic_number", "Magic Number", y25.get('magic_number'), "", Domain.OPS),
@@ -608,7 +608,7 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
         text_lines.append(f"| | Net Income | ${y24.get('net_income')}M | ${y25.get('net_income')}M | {calc_change(y25.get('net_income'), y24.get('net_income'))} |")
         text_lines.append(f"| **CRO** | Pipeline | ${y24.get('pipeline')}M | ${y25.get('pipeline')}M | {calc_change(y25.get('pipeline'), y24.get('pipeline'))} |")
         text_lines.append(f"| | NRR | {y24.get('nrr')}% | {y25.get('nrr')}% | {calc_change(y25.get('nrr'), y24.get('nrr'), True)} |")
-        text_lines.append(f"| | Win Rate | {y24.get('win_rate')}% | {y25.get('win_rate')}% | {calc_change(y25.get('win_rate'), y24.get('win_rate'), True)} |")
+        text_lines.append(f"| | Win Rate | {y24.get('win_rate_pct')}% | {y25.get('win_rate_pct')}% | {calc_change(y25.get('win_rate_pct'), y24.get('win_rate_pct'), True)} |")
         text_lines.append(f"| **COO** | Headcount | {y24.get('headcount')} | {y25.get('headcount')} | {calc_change(y25.get('headcount'), y24.get('headcount'))} |")
         text_lines.append(f"| | Magic Number | {y24.get('magic_number')} | {y25.get('magic_number')} | {calc_change(y25.get('magic_number'), y24.get('magic_number'))} |")
         text_lines.append(f"| | LTV/CAC | {y24.get('ltv_cac')}x | {y25.get('ltv_cac')}x | {calc_change(y25.get('ltv_cac'), y24.get('ltv_cac'))} |")
@@ -792,7 +792,7 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
         return None
 
     # Determine unit based on metric
-    if intent.metric in ("quota_attainment", "win_rate", "slo_attainment",
+    if intent.metric in ("quota_attainment_pct", "win_rate_pct", "slo_attainment_pct",
                           "gross_margin_pct", "gross_churn_pct", "churn_pct", "nrr"):
         unit = "%"
     elif intent.metric in ("revenue", "pipeline", "deal_value", "cloud_spend"):
@@ -815,7 +815,7 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
         value = top_item.get("value") or top_item.get("attainment_pct") or top_item.get("pipeline") or 0
 
         # Format value with appropriate unit
-        if intent.metric in ("quota_attainment", "win_rate", "slo_attainment",
+        if intent.metric in ("quota_attainment_pct", "win_rate_pct", "slo_attainment_pct",
                               "gross_margin_pct", "gross_churn_pct", "churn_pct", "nrr"):
             value_str = f"{value}%"
         elif intent.metric in ("revenue", "pipeline", "deal_value", "cloud_spend"):
@@ -850,7 +850,7 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
             name = item.get(intent.dimension) or item.get("name") or item.get("company") or "Unknown"
             value = item.get("value") or item.get("attainment_pct") or item.get("pipeline") or 0
 
-            if intent.metric in ("quota_attainment", "win_rate", "slo_attainment"):
+            if intent.metric in ("quota_attainment_pct", "win_rate_pct", "slo_attainment_pct"):
                 value_str = f"{value}%"
             elif intent.metric in ("revenue", "pipeline", "deal_value"):
                 value_str = f"${value}M"
@@ -1505,7 +1505,7 @@ _GUIDED_DISCOVERY_DOMAINS = {
     },
     "sales": {
         "pattern": r"\b(?:what can you show me|what do you have|tell me about|show me available)\b.*\bsales",
-        "metrics": ["revenue", "pipeline", "win_rate", "quota_attainment", "sales_cycle_days"],
+        "metrics": ["revenue", "pipeline", "win_rate_pct", "quota_attainment_pct", "sales_cycle_days"],
         "response": "For sales, I can show you:\n- Revenue ($150M for 2025)\n- Pipeline ($431M)\n- Win Rate (42%)\n- Quota Attainment (95.8%)\n- Sales Cycle (85 days)\n\nWould you like to see a sales dashboard or drill into a specific metric?"
     },
     "finance": {
@@ -1996,10 +1996,10 @@ def _handle_ambiguous_query_text(
 
         # "are we hitting quota" -> "Yes, 95.8% attainment"
         if "quota" in q or "hitting" in q:
-            attainment = get_val("quota_attainment", current_year)
+            attainment = get_val("quota_attainment_pct", current_year)
             answer = f"Yes, {round(attainment, 1) if attainment else 0}% attainment"
             return NLQResponse(success=True, answer=answer, value=attainment, unit="%",
-                confidence=0.95, parsed_intent="YES_NO", resolved_metric="quota_attainment", resolved_period=current_year,
+                confidence=0.95, parsed_intent="YES_NO", resolved_metric="quota_attainment_pct", resolved_period=current_year,
                 related_metrics=related_metrics)
 
         # "are we efficient" -> "Yes, Rev/employee up to $444K"
@@ -2133,7 +2133,7 @@ def _handle_ambiguous_query_text(
         # "forecast looking good?" -> "Yes, on track: $230M bookings, 44% win rate"
         if "forecast" in q:
             bookings = get_val("bookings", current_year)
-            win_rate = get_val("win_rate", current_year)
+            win_rate = get_val("win_rate_pct", current_year)
             answer = f"Yes, on track: ${round(bookings, 0) if bookings else 0}M bookings, {round(win_rate, 0) if win_rate else 0}% win rate"
             return NLQResponse(success=True, answer=answer, value=bookings, unit="$M",
                 confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="bookings", resolved_period=current_year,
@@ -2141,10 +2141,10 @@ def _handle_ambiguous_query_text(
 
         # "attrition bad?" -> "Moderate - 2.7% Q4, manageable"
         if "attrition" in q:
-            attrition = get_val("attrition_rate", f"Q4 {current_year}")
+            attrition = get_val("attrition_rate_pct", f"Q4 {current_year}")
             answer = f"Moderate - {round(attrition, 1) if attrition else 0}% Q4, manageable"
             return NLQResponse(success=True, answer=answer, value=attrition, unit="%",
-                confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="attrition_rate", resolved_period=f"Q4 {current_year}",
+                confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="attrition_rate_pct", resolved_period=f"Q4 {current_year}",
                 related_metrics=related_metrics)
 
         # "are we overstaffed" -> "No, Rev/emp improving to $444K"
@@ -2231,7 +2231,7 @@ def _handle_ambiguous_query_text(
         if "pipeline" in q:
             pipeline = get_val("pipeline", current_year)
             qualified = get_val("qualified_pipeline", current_year)
-            win_rate = get_val("win_rate", current_year)
+            win_rate = get_val("win_rate_pct", current_year)
             answer = f"${round(pipeline, 0) if pipeline else 0}M pipeline, ${round(qualified, 0) if qualified else 0}M qualified, {round(win_rate, 0) if win_rate else 0}% win rate"
             return NLQResponse(success=True, answer=answer, value=pipeline, unit="$M",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="pipeline", resolved_period=current_year,
@@ -2509,7 +2509,7 @@ def _handle_ambiguous_query_text(
         # "hows the funnel" -> "Pipeline $575M, Win rate 44%, Cycle 80 days"
         if "funnel" in q:
             pipeline = get_val("pipeline", current_year)
-            win_rate = get_val("win_rate", current_year)
+            win_rate = get_val("win_rate_pct", current_year)
             cycle = get_val("sales_cycle_days", current_year)
             answer = f"Pipeline ${round(pipeline, 0) if pipeline else 0}M, Win rate {round(win_rate, 0) if win_rate else 0}%, Cycle {int(cycle) if cycle else 0} days"
             return NLQResponse(success=True, answer=answer, value=pipeline, unit="$M",
@@ -2530,7 +2530,7 @@ def _handle_ambiguous_query_text(
         if "q4 go" in q:
             bookings = get_val("bookings", f"Q4 {last_year}")
             logos = get_val("new_logos", f"Q4 {last_year}")
-            win_rate = get_val("win_rate", last_year)
+            win_rate = get_val("win_rate_pct", last_year)
             answer = f"Bookings ${round(bookings, 1) if bookings else 0}M, {int(logos) if logos else 0} new logos, {round(win_rate, 0) if win_rate else 0}% win rate"
             return NLQResponse(success=True, answer=answer, value=bookings, unit="$M",
                 confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="bookings", resolved_period=f"Q4 {last_year}",
@@ -2623,12 +2623,12 @@ def _handle_ambiguous_query_text(
 
         # "close rate trend" -> "40% → 42% → 44% (improving)"
         if "close rate" in q or "win rate" in q:
-            wr_yb = get_val("win_rate", year_before)
-            wr_ly = get_val("win_rate", last_year)
-            wr_cy = get_val("win_rate", current_year)
+            wr_yb = get_val("win_rate_pct", year_before)
+            wr_ly = get_val("win_rate_pct", last_year)
+            wr_cy = get_val("win_rate_pct", current_year)
             answer = f"{round(wr_yb, 0) if wr_yb else 0}% → {round(wr_ly, 0) if wr_ly else 0}% → {round(wr_cy, 0) if wr_cy else 0}% (improving)"
             return NLQResponse(success=True, answer=answer, value=wr_cy, unit="%",
-                confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="win_rate", resolved_period=current_year,
+                confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="win_rate_pct", resolved_period=current_year,
                 related_metrics=related_metrics)
 
         # "compare quarters" -> "Q1 vs Q4 2025: $34.5M → $55.7M (+62%)"

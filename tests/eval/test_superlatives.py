@@ -223,7 +223,7 @@ class TestRankingIntentExtraction:
     def test_mvp_defaults_to_quota_attainment(self):
         intent = detect_superlative_intent("Who's our MVP?")
         assert intent is not None
-        assert intent.metric == "quota_attainment"
+        assert intent.metric == "quota_attainment_pct"
         assert intent.dimension == "rep"
 
 
@@ -235,19 +235,19 @@ class TestTopRepQueries:
     """Test 'top rep' queries - Sarah Williams should always be #1."""
 
     def test_top_rep_by_quota(self, dcl_client):
-        result = query_ranking(dcl_client, "quota_attainment", "rep", "desc", 1)
+        result = query_ranking(dcl_client, "quota_attainment_pct", "rep", "desc", 1)
         assert extract_top_name(result, "rep") == GROUND_TRUTH["top_rep_quota"]
 
     def test_top_rep_quota_value(self, dcl_client):
-        result = query_ranking(dcl_client, "quota_attainment", "rep", "desc", 1)
+        result = query_ranking(dcl_client, "quota_attainment_pct", "rep", "desc", 1)
         assert extract_top_value(result) == GROUND_TRUTH["top_rep_quota_value"]
 
     def test_top_rep_by_win_rate(self, dcl_client):
-        result = query_ranking(dcl_client, "win_rate", "rep", "desc", 1)
+        result = query_ranking(dcl_client, "win_rate_pct", "rep", "desc", 1)
         assert extract_top_name(result, "rep") == GROUND_TRUTH["top_rep_win_rate"]
 
     def test_top_rep_win_rate_value(self, dcl_client):
-        result = query_ranking(dcl_client, "win_rate", "rep", "desc", 1)
+        result = query_ranking(dcl_client, "win_rate_pct", "rep", "desc", 1)
         assert extract_top_value(result) == GROUND_TRUTH["top_rep_win_rate_value"]
 
     def test_top_rep_by_pipeline(self, dcl_client):
@@ -267,15 +267,15 @@ class TestWorstRepQueries:
     """Test 'worst rep' queries."""
 
     def test_worst_rep_by_quota(self, dcl_client):
-        result = query_ranking(dcl_client, "quota_attainment", "rep", "asc", 1)
+        result = query_ranking(dcl_client, "quota_attainment_pct", "rep", "asc", 1)
         assert extract_top_name(result, "rep") == GROUND_TRUTH["worst_rep_quota"]
 
     def test_worst_rep_quota_value(self, dcl_client):
-        result = query_ranking(dcl_client, "quota_attainment", "rep", "asc", 1)
+        result = query_ranking(dcl_client, "quota_attainment_pct", "rep", "asc", 1)
         assert extract_top_value(result) == GROUND_TRUTH["worst_rep_quota_value"]
 
     def test_worst_rep_by_win_rate(self, dcl_client):
-        result = query_ranking(dcl_client, "win_rate", "rep", "asc", 1)
+        result = query_ranking(dcl_client, "win_rate_pct", "rep", "asc", 1)
         assert extract_top_name(result, "rep") == GROUND_TRUTH["worst_rep_win_rate"]
 
     def test_worst_rep_by_pipeline(self, dcl_client):
@@ -291,13 +291,13 @@ class TestTopNQueries:
     """Test 'top 5', 'top 10' queries."""
 
     def test_top_5_reps_quota(self, dcl_client):
-        result = query_ranking(dcl_client, "quota_attainment", "rep", "desc", 5)
+        result = query_ranking(dcl_client, "quota_attainment_pct", "rep", "desc", 5)
         names = extract_names_list(result, "rep")
         assert len(names) == 5
         assert names == GROUND_TRUTH["top_5_reps_quota"]
 
     def test_top_3_reps_quota(self, dcl_client):
-        result = query_ranking(dcl_client, "quota_attainment", "rep", "desc", 3)
+        result = query_ranking(dcl_client, "quota_attainment_pct", "rep", "desc", 3)
         names = extract_names_list(result, "rep")
         assert len(names) == 3
         assert names[0] == "Sarah Williams"
@@ -314,7 +314,7 @@ class TestBottomNQueries:
     """Test 'bottom 5', 'bottom 10' queries."""
 
     def test_bottom_5_reps_quota(self, dcl_client):
-        result = query_ranking(dcl_client, "quota_attainment", "rep", "asc", 5)
+        result = query_ranking(dcl_client, "quota_attainment_pct", "rep", "asc", 5)
         names = extract_names_list(result, "rep")
         assert len(names) == 5
         # Bottom 5 should include Thomas Anderson as first (worst)
@@ -396,21 +396,21 @@ class TestServiceRankings:
     """Test service SLO superlative queries."""
 
     def test_best_service_slo(self, dcl_client):
-        result = query_ranking(dcl_client, "slo_attainment", "service", "desc", 1)
+        result = query_ranking(dcl_client, "slo_attainment_pct", "service", "desc", 1)
         name = extract_top_name(result, "service")
         # Accept either - they're tied at 99.9%
         assert name in GROUND_TRUTH["best_services_slo"]
 
     def test_best_service_slo_value(self, dcl_client):
-        result = query_ranking(dcl_client, "slo_attainment", "service", "desc", 1)
+        result = query_ranking(dcl_client, "slo_attainment_pct", "service", "desc", 1)
         assert extract_top_value(result) == GROUND_TRUTH["best_service_slo_pct"]
 
     def test_worst_service_slo(self, dcl_client):
-        result = query_ranking(dcl_client, "slo_attainment", "service", "asc", 1)
+        result = query_ranking(dcl_client, "slo_attainment_pct", "service", "asc", 1)
         assert extract_top_name(result, "service") == GROUND_TRUTH["worst_service_slo"]
 
     def test_worst_service_slo_value(self, dcl_client):
-        result = query_ranking(dcl_client, "slo_attainment", "service", "asc", 1)
+        result = query_ranking(dcl_client, "slo_attainment_pct", "service", "asc", 1)
         assert extract_top_value(result) == GROUND_TRUTH["worst_service_slo_pct"]
 
 

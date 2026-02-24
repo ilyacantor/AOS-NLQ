@@ -60,7 +60,7 @@ class IngestStatusResult:
 
 def determine_domain(metric: str) -> Domain:
     """Determine the domain for a metric."""
-    if metric in ["pipeline", "win_rate", "quota_attainment", "sales_cycle_days"]:
+    if metric in ["pipeline", "win_rate_pct", "quota_attainment_pct", "sales_cycle_days"]:
         return Domain.GROWTH
     elif metric in ["headcount"]:
         return Domain.PEOPLE

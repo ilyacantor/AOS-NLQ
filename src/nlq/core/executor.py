@@ -555,7 +555,7 @@ class QueryExecutor:
             # Revenue & Sales
             "revenue": ["new_logo_revenue", "expansion_revenue", "renewal_revenue"],
             "arr": ["new_logo_revenue", "expansion_revenue", "renewal_revenue"],
-            "bookings": ["new_logo_revenue", "expansion_revenue", "pipeline", "win_rate"],
+            "bookings": ["new_logo_revenue", "expansion_revenue", "pipeline", "win_rate_pct"],
             # Profitability
             "gross_profit": ["revenue", "cogs"],
             "gross_margin_pct": ["revenue", "cogs", "gross_profit"],
@@ -568,9 +568,9 @@ class QueryExecutor:
             "sga": ["selling_expenses", "g_and_a_expenses"],
             "cloud_spend": ["cloud_spend_pct_revenue", "revenue"],
             # Pipeline & Sales
-            "pipeline": ["qualified_pipeline", "win_rate", "sales_cycle_days", "avg_deal_size"],
-            "win_rate": ["pipeline", "qualified_pipeline", "avg_deal_size", "sales_cycle_days"],
-            "quota_attainment": ["reps_at_quota_pct", "sales_headcount", "pipeline", "win_rate"],
+            "pipeline": ["qualified_pipeline", "win_rate_pct", "sales_cycle_days", "avg_deal_size"],
+            "win_rate_pct": ["pipeline", "qualified_pipeline", "avg_deal_size", "sales_cycle_days"],
+            "quota_attainment_pct": ["reps_at_quota_pct", "sales_headcount", "pipeline", "win_rate_pct"],
             # Retention & Churn
             "gross_churn_pct": ["logo_churn_pct", "nrr", "customer_count"],
             "nrr": ["gross_churn_pct", "expansion_revenue", "renewal_revenue"],
@@ -581,8 +581,8 @@ class QueryExecutor:
             "burn_multiple": ["revenue", "operating_profit", "net_income"],
             # People
             "headcount": ["engineering_headcount", "product_headcount", "sales_headcount", "marketing_headcount", "cs_headcount", "ga_headcount"],
-            "attrition_rate": ["headcount", "hires", "attrition"],
-            "attrition": ["headcount", "hires", "attrition_rate"],
+            "attrition_rate_pct": ["headcount", "hires", "attrition"],
+            "attrition": ["headcount", "hires", "attrition_rate_pct"],
             # Customer Success
             "nps": ["csat", "support_tickets", "resolution_hours"],
             "csat": ["nps", "support_tickets", "resolution_hours", "first_response_hours"],

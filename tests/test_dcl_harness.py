@@ -239,11 +239,11 @@ class TestProvenanceInResponses:
         assert prov is not None
         assert prov.system_of_record == "salesforce_crm"
 
-    def test_provenance_for_customers(self, dcl_engine, scenario_data):
-        """Customers metric has provenance data."""
-        prov = dcl_engine.get_provenance("customers")
+    def test_provenance_for_customer_count(self, dcl_engine, scenario_data):
+        """Customer count metric has provenance data."""
+        prov = dcl_engine.get_provenance("customer_count")
         assert prov is not None
-        assert prov.metric == "customers"
+        assert prov.metric == "customer_count"
 
     def test_provenance_lineage_structure(self, dcl_engine, scenario_data):
         """Revenue provenance has correct lineage structure."""
@@ -411,7 +411,7 @@ class TestTemporalWarnings:
 
     def test_customers_definition_change(self, dcl_engine, scenario_data):
         """Customer definition changed on 2025-06-01 (partner-referred)."""
-        changelog = dcl_engine.get_temporal_changelog("customers")
+        changelog = dcl_engine.get_temporal_changelog("customer_count")
         assert len(changelog) >= 1
         change = changelog[0]
         assert change.change_date == "2025-06-01"
@@ -431,7 +431,7 @@ class TestTemporalWarnings:
 
     def test_boundary_crossed_customers(self, dcl_engine, scenario_data):
         """Q1 2025 vs Q3 2025 crosses customer definition boundary."""
-        check = dcl_engine.check_temporal_boundary("customers", "2025-Q1", "2025-Q3")
+        check = dcl_engine.check_temporal_boundary("customer_count", "2025-Q1", "2025-Q3")
         assert check.crosses_boundary is True
         assert check.change_date == "2025-06-01"
 
@@ -614,8 +614,8 @@ class TestRegression:
         assert dcl_engine.get_entity("ent_initech_003") is not None
 
     def test_persona_definitions_loaded(self, dcl_engine):
-        """Persona definitions for 'customers' are loaded correctly."""
-        defs = dcl_engine.get_persona_definitions("customers")
+        """Persona definitions for 'customer_count' are loaded correctly."""
+        defs = dcl_engine.get_persona_definitions("customer_count")
         assert len(defs) == 3
         personas = {d.persona for d in defs}
         assert "CFO" in personas
@@ -624,9 +624,9 @@ class TestRegression:
 
     def test_persona_values_match_fixture(self, dcl_engine, scenario_data):
         """Persona values match entity_test_scenarios.json."""
-        fixture_defs = scenario_data["persona_contextual_definitions"]["customers"]["definitions"]
+        fixture_defs = scenario_data["persona_contextual_definitions"]["customer_count"]["definitions"]
         for fixture_def in fixture_defs:
-            engine_def = dcl_engine.get_persona_definition("customers", fixture_def["persona"])
+            engine_def = dcl_engine.get_persona_definition("customer_count", fixture_def["persona"])
             assert engine_def is not None
             assert engine_def.value == fixture_def["value"]
 

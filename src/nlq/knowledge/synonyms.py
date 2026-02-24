@@ -255,7 +255,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
     ],
 
     # Quota & Sales Performance
-    "quota_attainment": [
+    "quota_attainment_pct": [
         "quota",
         "quota attainment",
         "quota performance",
@@ -297,7 +297,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
     ],
 
     # Win Rate
-    "win_rate": [
+    "win_rate_pct": [
         "win rate",
         "close rate",
         "conversion rate",
@@ -382,12 +382,13 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "headcoutn",
         "headcunt",
     ],
-    "attrition_rate": [
+    "attrition_rate_pct": [
         "turnover rate",
         "turnover",
         "employee turnover rate",
         "attrition pct",
         "attrition percent",
+        "attrition rate",
         # Common misspellings
         "attrtion",
         "attriton",
@@ -696,10 +697,11 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "ttf",
         "hiring time",
     ],
-    "offer_acceptance_rate": [
+    "offer_acceptance_rate_pct": [
         "offer acceptance",
         "acceptance rate",
         "offer accept rate",
+        "offer acceptance rate",
     ],
     "employee_satisfaction": [
         "employee sat",

@@ -118,7 +118,7 @@ CHART_TYPE_PATTERNS = {
 METRIC_PATTERNS = {
     r"\brevenue\b": "revenue",
     r"\bpipeline\b": "pipeline",
-    r"\bwin\s*rate\b": "win_rate",
+    r"\bwin\s*rate\b": "win_rate_pct",
     r"\bmargin\b": "gross_margin_pct",
     r"\bgross\s*margin\b": "gross_margin_pct",
     r"\bnet\s*income\b": "net_income",
@@ -131,7 +131,7 @@ METRIC_PATTERNS = {
     r"\barr\b": "arr",
     r"\bcustomer\s*count\b": "customer_count",
     r"\bcustomers\b": "customer_count",
-    r"\bquota\b": "quota_attainment",
+    r"\bquota\b": "quota_attainment_pct",
     r"\bsales\s*cycle\b": "sales_cycle_days",
     r"\bcsat\b": "csat",
     r"\btech\s*debt\b": "tech_debt_pct",

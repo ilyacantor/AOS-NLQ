@@ -473,10 +473,10 @@ def _extract_metrics_from_query(query: str) -> List[str]:
     # after validation filters out metrics DCL doesn't have, we still have
     # enough for a useful dashboard (target: 4 widgets).
     if any(term in q for term in ["ops dashboard", "operations dashboard", "coo dashboard"]):
-        persona_metrics = ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months", "ltv_cac", "attrition_rate"]
+        persona_metrics = ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months", "ltv_cac", "attrition_rate_pct"]
         persona_detected = "COO"
     elif any(term in q for term in ["sales dashboard", "cro dashboard", "growth dashboard"]):
-        persona_metrics = ["pipeline", "win_rate", "quota_attainment", "sales_cycle_days", "arr", "revenue"]
+        persona_metrics = ["pipeline", "win_rate_pct", "quota_attainment_pct", "sales_cycle_days", "arr", "revenue"]
         persona_detected = "CRO"
     elif any(term in q for term in ["finance dashboard", "cfo dashboard", "financial dashboard"]):
         persona_metrics = ["revenue", "gross_margin_pct", "arr", "ebitda", "net_income", "operating_profit"]

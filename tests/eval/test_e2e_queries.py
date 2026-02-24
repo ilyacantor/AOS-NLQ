@@ -33,18 +33,18 @@ E2E_QUERY_CASES = [
     # === CRO / Sales Questions ===
     ("What's in our pipeline?", "pipeline", True, "CRO"),
     ("Show me pipeline by rep", "pipeline", True, "CRO"),
-    ("What's our win rate?", "win_rate", True, "CRO"),
+    ("What's our win rate?", "win_rate_pct", True, "CRO"),
     ("Pipeline by stage", "pipeline", True, "CRO"),
     ("What's our churn rate?", "gross_churn_pct", True, "CRO"),
     ("Show NRR", "nrr", True, "CRO"),
-    ("What's our quota attainment?", "quota_attainment", True, "CRO"),
+    ("What's our quota attainment?", "quota_attainment_pct", True, "CRO"),
 
     # === COO / Operations Questions ===
     ("How many employees do we have?", "headcount", True, "COO"),
     ("Headcount by department", "headcount", True, "COO"),
     ("What's our revenue per employee?", "revenue_per_employee", True, "COO"),
     ("Show me the magic number", "magic_number", True, "COO"),
-    ("What's our attrition rate?", "attrition_rate", True, "COO"),
+    ("What's our attrition rate?", "attrition_rate_pct", True, "COO"),
     ("CAC payback period", "cac_payback_months", True, "COO"),
 
     # === CTO / Engineering Questions ===
@@ -60,8 +60,8 @@ E2E_QUERY_CASES = [
     ("eNPS by department", "enps", True, "CHRO"),
     ("What's our engagement score?", "engagement_score", True, "CHRO"),
     ("Time to hire", "time_to_hire_days", True, "CHRO"),
-    ("Offer acceptance rate", "offer_acceptance_rate", True, "CHRO"),
-    ("Attrition by department", "attrition_rate", True, "CHRO"),
+    ("Offer acceptance rate", "offer_acceptance_rate_pct", True, "CHRO"),
+    ("Attrition by department", "attrition_rate_pct", True, "CHRO"),
 ]
 
 
@@ -125,8 +125,8 @@ class TestEndToEndQueries:
             ("Pipeline by stage", "pipeline", ["stage"]),
             ("Headcount by department", "headcount", ["department"]),
             ("eNPS by department", "enps", ["department"]),
-            ("Win rate by rep", "win_rate", ["rep"]),
-            ("Attrition by department", "attrition_rate", ["department"]),
+            ("Win rate by rep", "win_rate_pct", ["rep"]),
+            ("Attrition by department", "attrition_rate_pct", ["department"]),
         ]
 
         failures = []

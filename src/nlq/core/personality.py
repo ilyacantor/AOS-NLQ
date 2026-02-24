@@ -694,7 +694,7 @@ def detect_persona_from_metric(metric: str) -> str:
     metric = metric.lower() if metric else ""
 
     # CRO metrics
-    cro_metrics = {"bookings", "pipeline", "arr", "nrr", "churn", "win_rate",
+    cro_metrics = {"bookings", "pipeline", "arr", "nrr", "churn", "win_rate_pct",
                    "quota", "deal", "logo", "expansion", "sales_cycle"}
     if any(m in metric for m in cro_metrics):
         return "CRO"

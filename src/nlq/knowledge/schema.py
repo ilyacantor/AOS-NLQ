@@ -273,8 +273,8 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         unit="USD millions",
         description="Pipeline that meets qualification criteria"
     ),
-    "win_rate": MetricDefinition(
-        name="win_rate",
+    "win_rate_pct": MetricDefinition(
+        name="win_rate_pct",
         display_name="Win Rate",
         metric_type=MetricType.PERCENTAGE,
         unit="%",
@@ -333,8 +333,8 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         unit="USD millions",
         description="Total sales quota"
     ),
-    "quota_attainment": MetricDefinition(
-        name="quota_attainment",
+    "quota_attainment_pct": MetricDefinition(
+        name="quota_attainment_pct",
         display_name="Quota Attainment",
         metric_type=MetricType.PERCENTAGE,
         unit="%",
@@ -444,8 +444,8 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         unit="people",
         description="Number of employees who left"
     ),
-    "attrition_rate": MetricDefinition(
-        name="attrition_rate",
+    "attrition_rate_pct": MetricDefinition(
+        name="attrition_rate_pct",
         display_name="Attrition Rate",
         metric_type=MetricType.PERCENTAGE,
         unit="%",
@@ -749,10 +749,10 @@ METRIC_PERSONAS = {
 
     # CRO metrics
     "bookings": "CRO", "arr": "CRO", "pipeline": "CRO",
-    "win_rate": "CRO", "nrr": "CRO", "gross_churn_pct": "CRO",
+    "win_rate_pct": "CRO", "nrr": "CRO", "gross_churn_pct": "CRO",
     "new_logo_revenue": "CRO", "expansion_revenue": "CRO",
     "renewal_revenue": "CRO", "customer_count": "CRO",
-    "quota_attainment": "CRO", "sales_quota": "CRO",
+    "quota_attainment_pct": "CRO", "sales_quota": "CRO",
     "reps_at_quota_pct": "CRO", "sales_headcount": "CRO",
     "qualified_pipeline": "CRO", "sales_cycle_days": "CRO",
     "avg_deal_size": "CRO", "logo_churn_pct": "CRO", "new_logos": "CRO",
@@ -761,7 +761,7 @@ METRIC_PERSONAS = {
     "headcount": "COO", "revenue_per_employee": "COO",
     "magic_number": "COO", "cac_payback_months": "COO", "ltv_cac": "COO",
     "nps": "COO", "csat": "COO", "ps_utilization": "COO",
-    "implementation_days": "COO", "attrition": "COO", "attrition_rate": "COO",
+    "implementation_days": "COO", "attrition": "COO", "attrition_rate_pct": "COO",
     "cost_per_employee": "COO", "employee_growth_rate": "COO",
     "engineering_headcount": "COO", "product_headcount": "COO",
     "marketing_headcount": "COO", "cs_headcount": "COO", "ga_headcount": "COO",
@@ -785,9 +785,9 @@ METRIC_PERSONAS = {
     # CHRO (People) metrics - HR and workforce
     "total_headcount": "CHRO", "turnover_rate": "CHRO",
     "voluntary_turnover": "CHRO", "involuntary_turnover": "CHRO",
-    "time_to_hire": "CHRO", "offer_acceptance_rate": "CHRO",
+    "time_to_hire": "CHRO", "offer_acceptance_rate_pct": "CHRO",
     "employee_satisfaction": "CHRO", "engagement_score": "CHRO",
-    "training_hours": "CHRO", "promotion_rate": "CHRO",
+    "training_hours": "CHRO", "promotion_rate_pct": "CHRO",
     "diversity_pct": "CHRO", "gender_ratio": "CHRO",
     "open_positions": "CHRO", "recruiting_pipeline": "CHRO",
     "compensation_ratio": "CHRO", "benefits_cost": "CHRO",

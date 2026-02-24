@@ -34,7 +34,7 @@ class SuperlativeType(str, Enum):
 @dataclass
 class RankingIntent:
     """Structured ranking intent extracted from query."""
-    metric: str                    # e.g., "quota_attainment", "win_rate", "pipeline"
+    metric: str                    # e.g., "quota_attainment_pct", "win_rate_pct", "pipeline"
     dimension: str                 # e.g., "rep", "region", "service", "department"
     ranking_type: SuperlativeType  # "max", "min", "top_n", "bottom_n"
     limit: int = 1                 # How many results
@@ -45,7 +45,7 @@ class RankingIntent:
 # Metrics where lower is better (for "best"/"worst" interpretation)
 LOWER_IS_BETTER_METRICS = {
     "churn", "churn_pct", "gross_churn_pct", "logo_churn_pct",
-    "attrition", "attrition_rate",
+    "attrition", "attrition_rate_pct",
     "cycle_time", "sales_cycle_days",
     "mttr", "mttr_p1_hours", "mttr_p2_hours",
     "incidents", "p1_incidents", "p2_incidents",
@@ -150,14 +150,14 @@ DIMENSION_ALIASES = {
 # Metric aliases for ranking queries
 METRIC_ALIASES = {
     # Quota/Performance
-    "quota attainment": "quota_attainment",
-    "quota": "quota_attainment",
-    "attainment": "quota_attainment",
-    "performance": "quota_attainment",
+    "quota attainment": "quota_attainment_pct",
+    "quota": "quota_attainment_pct",
+    "attainment": "quota_attainment_pct",
+    "performance": "quota_attainment_pct",
     # Win rate
-    "win rate": "win_rate",
-    "close rate": "win_rate",
-    "conversion": "win_rate",
+    "win rate": "win_rate_pct",
+    "close rate": "win_rate_pct",
+    "conversion": "win_rate_pct",
     # Pipeline
     "pipeline": "pipeline",
     "pipe": "pipeline",
@@ -166,10 +166,10 @@ METRIC_ALIASES = {
     "revenue": "revenue",
     "sales": "revenue",
     # SLO
-    "slo": "slo_attainment",
-    "slo attainment": "slo_attainment",
-    "uptime": "slo_attainment",
-    "reliability": "slo_attainment",
+    "slo": "slo_attainment_pct",
+    "slo attainment": "slo_attainment_pct",
+    "uptime": "slo_attainment_pct",
+    "reliability": "slo_attainment_pct",
     # Headcount
     "headcount": "headcount",
     "employees": "headcount",
@@ -192,8 +192,8 @@ METRIC_ALIASES = {
     "deploys": "deploys_per_week",
     "deployments": "deploys_per_week",
     # SLA / SLO
-    "sla compliance": "slo_attainment",
-    "sla": "slo_attainment",
+    "sla compliance": "slo_attainment_pct",
+    "sla": "slo_attainment_pct",
     # Throughput / Velocity
     "throughput": "sprint_velocity",
     "velocity": "sprint_velocity",
@@ -295,7 +295,7 @@ def detect_superlative_intent(query: str) -> Optional[RankingIntent]:
                 # Handle special patterns like "crushing it", "mvp"
                 if "crushing it" in query_lower or "mvp" in query_lower or "star performer" in query_lower:
                     return RankingIntent(
-                        metric="quota_attainment",
+                        metric="quota_attainment_pct",
                         dimension="rep",
                         ranking_type=SuperlativeType.MAX,
                         limit=1,
@@ -317,7 +317,7 @@ def detect_superlative_intent(query: str) -> Optional[RankingIntent]:
                             break
 
                     # Resolve metric from second group
-                    metric = "quota_attainment"  # default
+                    metric = "quota_attainment_pct"  # default
                     for alias, canonical in METRIC_ALIASES.items():
                         if alias in metric_part:
                             metric = canonical
@@ -350,9 +350,9 @@ def detect_superlative_intent(query: str) -> Optional[RankingIntent]:
                         elif dimension == "team":
                             metric = "sprint_velocity"
                         elif dimension == "service":
-                            metric = "slo_attainment"
+                            metric = "slo_attainment_pct"
                         elif dimension == "rep":
-                            metric = "quota_attainment"
+                            metric = "quota_attainment_pct"
                         elif dimension == "deal":
                             metric = "deal_value"
                         elif dimension == "stage":
@@ -407,7 +407,7 @@ def _extract_dimension_and_metric(
 
     # Default dimension and metric
     dimension = "rep"
-    metric = "quota_attainment"
+    metric = "quota_attainment_pct"
 
     # Check for explicit metric mentions FIRST (higher priority)
     metric_found = False
@@ -426,15 +426,15 @@ def _extract_dimension_and_metric(
     # Infer metric from dimension if not explicitly mentioned
     if not metric_found:
         if dimension == "rep":
-            metric = "quota_attainment"
+            metric = "quota_attainment_pct"
             if "win rate" in full_query or "close rate" in full_query:
-                metric = "win_rate"
+                metric = "win_rate_pct"
             elif "pipeline" in full_query or "pipe" in full_query:
                 metric = "pipeline"
             elif "revenue" in full_query or "sales" in full_query:
                 metric = "revenue"
         elif dimension == "service":
-            metric = "slo_attainment"
+            metric = "slo_attainment_pct"
         elif dimension == "region":
             metric = "revenue"
             if "pipeline" in full_query:

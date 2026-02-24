@@ -185,7 +185,7 @@ class TestBaseMetricsCRO:
 
     def test_win_rate(self, api_client):
         result = process_nlq("What's our win rate?", api_client)
-        assert extract_value(result) == POINT["win_rate"]
+        assert extract_value(result) == POINT["win_rate_pct"]
 
     def test_churn(self, api_client):
         result = process_nlq("What's our churn rate?", api_client)
@@ -217,7 +217,7 @@ class TestBaseMetricsCHRO:
 
     def test_attrition_rate(self, api_client):
         result = process_nlq("What's our attrition rate?", api_client)
-        assert extract_value(result) == POINT["attrition_rate"]
+        assert extract_value(result) == POINT["attrition_rate_pct"]
 
     def test_headcount_by_department(self, api_client):
         result = process_nlq("Show headcount by department", api_client)
@@ -353,7 +353,7 @@ class TestHeadcountAliases:
 
 class TestAttritionAliases:
     """Attrition rate = 1.2 regardless of how you ask"""
-    EXPECTED = POINT["attrition_rate"]
+    EXPECTED = POINT["attrition_rate_pct"]
 
     def test_attrition_rate(self, api_client):
         assert extract_value(process_nlq("What's our attrition rate?", api_client)) == self.EXPECTED
@@ -370,7 +370,7 @@ class TestAttritionAliases:
 
 class TestWinRateAliases:
     """Win rate = 45.5 regardless of how you ask"""
-    EXPECTED = POINT["win_rate"]
+    EXPECTED = POINT["win_rate_pct"]
 
     def test_win_rate(self, api_client):
         assert extract_value(process_nlq("What's our win rate?", api_client)) == self.EXPECTED
@@ -442,10 +442,10 @@ class TestSpellingErrors:
         assert extract_breakdown(result) is not None
 
     def test_attrtion(self, api_client):
-        assert extract_value(process_nlq("What's attrtion rate?", api_client)) == POINT["attrition_rate"]
+        assert extract_value(process_nlq("What's attrtion rate?", api_client)) == POINT["attrition_rate_pct"]
 
     def test_attriton(self, api_client):
-        assert extract_value(process_nlq("Show attriton", api_client)) == POINT["attrition_rate"]
+        assert extract_value(process_nlq("Show attriton", api_client)) == POINT["attrition_rate_pct"]
 
     def test_engagment(self, api_client):
         assert extract_value(process_nlq("What's engagment score?", api_client)) == POINT["engagement_score"]
@@ -592,7 +592,7 @@ class TestMakeCommands:
         assert result is not None and result.get("Engineering") == 145
 
     def test_make_graph(self, api_client):
-        assert extract_value(process_nlq("Make a graph of win rate", api_client)) == POINT["win_rate"]
+        assert extract_value(process_nlq("Make a graph of win rate", api_client)) == POINT["win_rate_pct"]
 
     def test_make_visualization(self, api_client):
         assert extract_value(process_nlq("Make a visualization of churn", api_client)) == POINT["churn_pct"]
@@ -676,7 +676,7 @@ class TestAddCommands:
         assert result is not None and result.get("Engineering") == 145
 
     def test_add_metric(self, api_client):
-        assert extract_value(process_nlq("Add win rate metric", api_client)) == POINT["win_rate"]
+        assert extract_value(process_nlq("Add win rate metric", api_client)) == POINT["win_rate_pct"]
 
     def test_add_kpi(self, api_client):
         assert extract_value(process_nlq("Add NRR as a KPI", api_client)) == POINT["nrr"]

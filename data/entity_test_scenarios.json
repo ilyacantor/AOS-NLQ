@@ -400,7 +400,7 @@
         }
       },
       {
-        "concept": "customers",
+        "concept": "customer_count",
         "change_date": "2025-06-01",
         "changed_by": "CRO Office",
         "reason": "Broadened customer definition to include partner-referred accounts",
@@ -416,8 +416,8 @@
   },
 
   "persona_contextual_definitions": {
-    "customers": {
-      "metric_id": "customers",
+    "customer_count": {
+      "metric_id": "customer_count",
       "definitions": [
         {
           "persona": "CFO",
@@ -493,8 +493,8 @@
         }
       ]
     },
-    "customers": {
-      "metric_id": "customers",
+    "customer_count": {
+      "metric_id": "customer_count",
       "lineage": [
         {
           "source_system": "salesforce_crm",

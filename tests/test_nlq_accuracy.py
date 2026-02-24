@@ -385,7 +385,7 @@ def run_misspelling_tests(fb: FactBase) -> Tuple[int, int, List[Tuple[str, str, 
     # Common metrics to test misspellings for
     test_metrics = [
         "revenue", "gross_margin_pct", "ebitda", "pipeline", "headcount",
-        "churn_pct", "quota_attainment", "attrition_rate", "nrr", "arr"
+        "churn_pct", "quota_attainment_pct", "attrition_rate_pct", "nrr", "arr"
     ]
 
     passed = 0

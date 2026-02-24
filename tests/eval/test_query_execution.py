@@ -34,12 +34,12 @@ QUERY_EXECUTION_CASES = [
     ("pipeline", [], 1, "CRO"),
     ("pipeline", ["rep"], 1, "CRO"),
     ("pipeline", ["stage"], 1, "CRO"),
-    ("win_rate", [], 1, "CRO"),
-    ("win_rate", ["rep"], 1, "CRO"),
+    ("win_rate_pct", [], 1, "CRO"),
+    ("win_rate_pct", ["rep"], 1, "CRO"),
     ("gross_churn_pct", [], 1, "CRO"),
     ("nrr", [], 1, "CRO"),
     ("sales_cycle_days", [], 1, "CRO"),
-    ("quota_attainment", [], 1, "CRO"),
+    ("quota_attainment_pct", [], 1, "CRO"),
 
     # === COO / Operations Metrics ===
     ("headcount", [], 1, "COO"),
@@ -48,7 +48,7 @@ QUERY_EXECUTION_CASES = [
     ("magic_number", [], 1, "COO"),
     ("cac_payback_months", [], 1, "COO"),
     ("ltv_cac", [], 1, "COO"),
-    ("attrition_rate", [], 1, "COO"),
+    ("attrition_rate_pct", [], 1, "COO"),
 
     # === CTO / Engineering Metrics ===
     ("uptime_pct", [], 1, "CTO"),
@@ -61,12 +61,12 @@ QUERY_EXECUTION_CASES = [
 
     # === CHRO / People Metrics ===
     ("headcount", ["department"], 1, "CHRO"),
-    ("attrition_rate", ["department"], 1, "CHRO"),
+    ("attrition_rate_pct", ["department"], 1, "CHRO"),
     ("enps", [], 1, "CHRO"),
     ("enps", ["department"], 1, "CHRO"),
     ("engagement_score", [], 1, "CHRO"),
     ("time_to_hire_days", [], 1, "CHRO"),
-    ("offer_acceptance_rate", [], 1, "CHRO"),
+    ("offer_acceptance_rate_pct", [], 1, "CHRO"),
     ("diversity_pct", [], 1, "CHRO"),
 ]
 

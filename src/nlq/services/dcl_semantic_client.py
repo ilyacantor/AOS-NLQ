@@ -123,7 +123,7 @@ class SemanticCatalog:
         """Build reverse lookup from aliases to metric IDs.
 
         Two-pass approach ensures aliases take precedence over canonical IDs.
-        This allows "attrition" (alias) to map to "attrition_rate" even though
+        This allows "attrition" (alias) to map to "attrition_rate_pct" even though
         there's also a metric with canonical ID "attrition".
         """
         self.alias_to_metric = {}
@@ -465,8 +465,8 @@ class DCLSemanticClient:
             "pipeline": ["sales pipeline", "pipe", "opportunities", "deals"],
             "arr": ["annual recurring revenue", "recurring revenue"],
             "nrr": ["net revenue retention", "net retention", "retention rate", "retention"],
-            "win_rate": ["close rate", "conversion rate"],
-            "quota_attainment": ["quota", "attainment"],
+            "win_rate_pct": ["close rate", "conversion rate", "win rate"],
+            "quota_attainment_pct": ["quota", "attainment", "quota attainment"],
             "gross_churn_pct": ["churn", "churn rate", "customer churn"],
 
             # Operations/HR (with common misspellings)
@@ -474,8 +474,8 @@ class DCLSemanticClient:
                           "employess", "employes", "emplyees",  # misspellings
                           "personnel", "personnel hires", "hires", "workforce",  # additional aliases
                           "hiring", "hiring trend"],  # map hiring to headcount trend
-            "attrition_rate": ["attrition", "attrition rate", "turnover rate", "employee turnover", "turnover",
-                               "attriton", "attrtion", "attriton rate"],  # misspellings
+            "attrition_rate_pct": ["attrition", "attrition rate", "turnover rate", "employee turnover", "turnover",
+                                  "attriton", "attrtion", "attriton rate"],  # misspellings
             "engagement_score": ["engagement", "engagment", "engagmnet"],  # misspellings
             "cac": ["customer acquisition cost", "acquisition cost"],
             "ltv_cac": ["ltv/cac", "lifetime value to cac"],
@@ -498,8 +498,8 @@ class DCLSemanticClient:
             "cogs": "CFO", "sga": "CFO", "cash": "CFO",
 
             # CRO
-            "pipeline": "CRO", "arr": "CRO", "nrr": "CRO", "win_rate": "CRO",
-            "quota_attainment": "CRO", "gross_churn_pct": "CRO", "bookings": "CRO",
+            "pipeline": "CRO", "arr": "CRO", "nrr": "CRO", "win_rate_pct": "CRO",
+            "quota_attainment_pct": "CRO", "gross_churn_pct": "CRO", "bookings": "CRO",
             "sales_cycle_days": "CRO", "avg_deal_size": "CRO",
 
             # COO
@@ -511,8 +511,8 @@ class DCLSemanticClient:
             "sprint_velocity": "CTO", "code_coverage_pct": "CTO", "tech_debt_pct": "CTO",
 
             # CHRO
-            "attrition_rate": "CHRO", "engagement_score": "CHRO",
-            "time_to_fill_days": "CHRO", "offer_acceptance_rate": "CHRO",
+            "attrition_rate_pct": "CHRO", "engagement_score": "CHRO",
+            "time_to_fill_days": "CHRO", "offer_acceptance_rate_pct": "CHRO",
         }
 
     def _get_metric_units(self) -> Dict[str, str]:
@@ -526,8 +526,8 @@ class DCLSemanticClient:
 
             # Percentages
             "gross_margin_pct": "%", "net_income_pct": "%", "gross_churn_pct": "%",
-            "nrr": "%", "win_rate": "%", "quota_attainment": "%", "uptime_pct": "%",
-            "code_coverage_pct": "%", "attrition_rate": "%",
+            "nrr": "%", "win_rate_pct": "%", "quota_attainment_pct": "%", "uptime_pct": "%",
+            "code_coverage_pct": "%", "attrition_rate_pct": "%",
 
             # Counts
             "headcount": "people", "p1_incidents": "count", "deploys_per_week": "count",
@@ -1068,8 +1068,7 @@ class DCLSemanticClient:
     # DCL sometimes uses base names where NLQ uses _pct suffixed names,
     # or vice versa — and both exist in DCL catalog but only one has data.
     _NLQ_TO_DCL_CROSSMAP: Dict[str, str] = {
-        "gross_churn_pct": "churn_rate",
-        "uptime_pct": "uptime",  # DCL has breakdown data under "uptime", not "uptime_pct"
+        "gross_churn_pct": "churn_rate_pct",
     }
 
     def _negotiate_metric_id(self, nlq_metric: str) -> str:
@@ -1355,7 +1354,7 @@ class DCLSemanticClient:
         This is specialized for superlative queries like "who is our top rep?"
 
         Args:
-            metric: Metric to rank by (e.g., "quota_attainment", "win_rate", "revenue")
+            metric: Metric to rank by (e.g., "quota_attainment_pct", "win_rate_pct", "revenue")
             dimension: Dimension to rank (e.g., "rep", "region", "service")
             order_by: "desc" for highest first, "asc" for lowest first
             limit: Number of results to return
@@ -1415,10 +1414,10 @@ class DCLSemanticClient:
 
         # Map metric + dimension to data source
         data_source_map = {
-            ("quota_attainment", "rep"): "quota_by_rep",
-            ("win_rate", "rep"): "win_rate_by_rep",
+            ("quota_attainment_pct", "rep"): "quota_by_rep",
+            ("win_rate_pct", "rep"): "win_rate_by_rep",
             ("pipeline", "rep"): "pipeline_by_rep",
-            ("slo_attainment", "service"): "slo_attainment_by_service",
+            ("slo_attainment_pct", "service"): "slo_attainment_by_service",
             ("revenue", "region"): "revenue_by_region",
             ("revenue", "segment"): "revenue_by_segment",
             ("pipeline", "region"): "pipeline_by_region",
@@ -1507,7 +1506,7 @@ class DCLSemanticClient:
 
             def get_sort_value(item):
                 # Try common value field names in priority order
-                for key in ("value", "attainment_pct", "pipeline", "slo_attainment", "revenue", "headcount"):
+                for key in ("value", "attainment_pct", "pipeline", "slo_attainment_pct", "revenue", "headcount"):
                     if key in item:
                         v = item[key]
                         return v if isinstance(v, (int, float)) else 0
@@ -1554,7 +1553,7 @@ class DCLSemanticClient:
             # Get the value field - look for 'value' or other numeric fields
             def get_sort_key(item):
                 # Try common value field names
-                for key in ("value", "attainment_pct", "pipeline", "revenue", "slo_attainment", "headcount"):
+                for key in ("value", "attainment_pct", "pipeline", "revenue", "slo_attainment_pct", "headcount"):
                     if key in item:
                         val = item[key]
                         return val if isinstance(val, (int, float)) else 0

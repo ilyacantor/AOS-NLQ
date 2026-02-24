@@ -41,9 +41,9 @@ DIMENSION_VALIDATION_CASES = [
     ("pipeline", "segment", True, "pipeline by segment should work"),
     ("pipeline", "department", False, "pipeline does not support department dimension"),
 
-    ("win_rate", "rep", True, "win_rate by rep should work"),
-    ("win_rate", "region", True, "win_rate by region should work"),
-    ("win_rate", "department", False, "win_rate does not support department dimension"),
+    ("win_rate_pct", "rep", True, "win_rate by rep should work"),
+    ("win_rate_pct", "region", True, "win_rate by region should work"),
+    ("win_rate_pct", "department", False, "win_rate does not support department dimension"),
 
     ("sales_cycle_days", "segment", True, "sales cycle by segment should work"),
     ("sales_cycle_days", "rep", True, "sales cycle by rep should work"),
@@ -54,9 +54,9 @@ DIMENSION_VALIDATION_CASES = [
     ("headcount", "rep", False, "headcount does not support rep dimension"),
     ("headcount", "stage", False, "headcount does not support stage dimension"),
 
-    ("attrition_rate", "department", True, "attrition by department should work"),
-    ("attrition_rate", "team", True, "attrition by team should work"),
-    ("attrition_rate", "rep", False, "attrition does not support rep dimension"),
+    ("attrition_rate_pct", "department", True, "attrition by department should work"),
+    ("attrition_rate_pct", "team", True, "attrition by team should work"),
+    ("attrition_rate_pct", "rep", False, "attrition does not support rep dimension"),
 
     # === CTO / Engineering Metrics ===
     ("uptime_pct", "service", True, "uptime by service should work"),
