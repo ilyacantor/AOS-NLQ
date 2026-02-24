@@ -177,7 +177,7 @@ def generate_dashboard_schema(
         title=title,
         description=f"Generated from: {query}",
         source_query=query,
-        layout=LayoutConfig(columns=12, row_height=50, gap=16, padding=24),
+        layout=LayoutConfig(columns=12, row_height=80, gap=16, padding=24),
         widgets=widgets,
         time_range=time_binding,
         confidence=requirements.confidence,
@@ -597,11 +597,13 @@ def _generate_full_dashboard(
             details="No padding applied - using exactly what was requested",
         )
 
-    # Fixed 3-col layout for KPI cards to ensure consistent appearance.
-    # With col_span=3, up to 4 KPIs fit in a 12-col grid.
-    # Fewer KPIs simply leave empty space on the right — stable layout.
+    # Calculate column span based on number of metrics
+    # If 1 metric: full width (12 cols)
+    # If 2 metrics: 6 cols each
+    # If 3 metrics: 4 cols each
+    # If 4 metrics: 3 cols each
     num_kpis = len(kpi_metrics)
-    col_span = 3
+    col_span = 12 // num_kpis if num_kpis > 0 else 12
 
     col = 1
     for metric in kpi_metrics:
