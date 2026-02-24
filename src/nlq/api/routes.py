@@ -3161,7 +3161,21 @@ async def query(request: NLQRequest) -> NLQResponse:
             error_message=error_msg,
             debug_info={"nlq_diag_trace": _trace, "error": error_msg, "error_type": "CONFIG_ERROR"} if _trace else {"error": error_msg, "error_type": "CONFIG_ERROR"},
         )
-    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as e:
+    except RuntimeError as e:
+        error_msg = str(e)
+        is_live = "LIVE MODE" in error_msg
+        code = "CONFIG_ERROR" if is_live else "INTERNAL_ERROR"
+        logger.error(f"{'Live mode' if is_live else 'Runtime'} error processing query: {e}")
+        diag(f"[NLQ-DIAG] /query {code}: {e}")
+        return NLQResponse(
+            success=False,
+            answer=error_msg if is_live else None,
+            confidence=0.0,
+            error_code=code,
+            error_message=error_msg,
+            debug_info={"nlq_diag_trace": _trace, "error": error_msg, "error_type": code} if _trace else {"error": error_msg, "error_type": code},
+        )
+    except (KeyError, TypeError, AttributeError, OSError) as e:
         logger.exception(f"Unexpected error processing query: {e}")
         diag(f"[NLQ-DIAG] /query EXCEPTION: {type(e).__name__}: {e}")
         return NLQResponse(
@@ -3736,7 +3750,21 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         response.text_response = error_msg
         response.debug_info = {"nlq_diag_trace": _trace, "error": error_msg, "error_type": "CONFIG_ERROR"} if _trace else {"error": error_msg, "error_type": "CONFIG_ERROR"}
         return response
-    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as e:
+    except RuntimeError as e:
+        error_msg = str(e)
+        is_live = "LIVE MODE" in error_msg
+        code = "CONFIG_ERROR" if is_live else "INTERNAL_ERROR"
+        logger.error(f"{'Live mode' if is_live else 'Runtime'} error in galaxy query: {e}")
+        diag(f"[NLQ-DIAG] /query/galaxy {code}: {e}")
+        response = _create_error_galaxy_response(
+            request.question,
+            "ERROR",
+            code,
+            error_msg,
+        )
+        response.debug_info = {"nlq_diag_trace": _trace, "error": error_msg, "error_type": code} if _trace else {"error": error_msg, "error_type": code}
+        return _track_intent_map_if_needed(response, request.question)
+    except (KeyError, TypeError, AttributeError, OSError) as e:
         logger.exception(f"Unexpected error processing galaxy query: {e}")
         diag(f"[NLQ-DIAG] /query/galaxy EXCEPTION: {type(e).__name__}: {e}")
         response = _create_error_galaxy_response(
