@@ -396,37 +396,62 @@ def _extract_metrics_from_query(query: str) -> List[str]:
     words = q.split()
     matched_indices = set()  # Track which words were already matched
 
+    # Stopwords: non-metric terms that should never be sent for metric resolution.
+    # Includes UI/action verbs, pronouns, prepositions, persona labels, and
+    # dashboard/visualization keywords that DCL's fuzzy matcher may incorrectly
+    # resolve to metrics (e.g., DCL maps "cfo dashboard" → "ar").
+    _STOPWORDS = {
+        # Prepositions, articles, conjunctions
+        'the', 'a', 'an', 'and', 'or', 'by', 'for', 'to', 'in', 'on', 'at',
+        'of', 'from', 'into', 'with',
+        # Pronouns / question words
+        'what', 'is', 'our', 'how', 'much', 'many', 'who', 'are', 'we', 'my',
+        'tell', 'give', 'did', 'do', 'does', 'was', 'were', 'been', 'be',
+        # Action/UI verbs
+        'show', 'me', 'add', 'compare', 'vs', 'versus', 'trend',
+        'chart', 'graph', 'display', 'build', 'create', 'make', 'get',
+        'visualize', 'see', 'view', 'look', 'looking',
+        # Dashboard/visualization terms — NOT metric names
+        'dashboard', 'dash', 'kpi', 'kpis', 'overview', 'summary',
+        'report', 'panel', 'view', 'page',
+        # Persona labels — NOT metric names (DCL fuzzy-matches these to wrong metrics)
+        'cfo', 'cro', 'coo', 'cto', 'chro', 'ceo', 'vp',
+        'finance', 'sales', 'ops', 'operations', 'engineering', 'tech',
+        'customer', 'people', 'hr', 'executive',
+    }
+
     # Try multi-word phrases first (e.g., "accounts receivable", "gross margin")
     for i in range(len(words)):
         if i in matched_indices:
             continue
 
-        # Try 3-word phrases
+        # Try 3-word phrases — but skip if ALL words are stopwords
         if i + 2 < len(words):
-            phrase = " ".join(words[i:i+3])
-            metric = semantic_client.resolve_metric(phrase)
-            if metric and metric.id not in metrics:
-                metrics.append(metric.id)
-                matched_indices.update([i, i+1, i+2])
-                logger.debug(f"Resolved '{phrase}' -> '{metric.id}'")
-                continue
+            phrase_words = words[i:i+3]
+            if not all(w in _STOPWORDS for w in phrase_words):
+                phrase = " ".join(phrase_words)
+                metric = semantic_client.resolve_metric(phrase)
+                if metric and metric.id not in metrics:
+                    metrics.append(metric.id)
+                    matched_indices.update([i, i+1, i+2])
+                    logger.debug(f"Resolved '{phrase}' -> '{metric.id}'")
+                    continue
 
-        # Try 2-word phrases
+        # Try 2-word phrases — skip if ALL words are stopwords
         if i + 1 < len(words):
-            phrase = " ".join(words[i:i+2])
-            metric = semantic_client.resolve_metric(phrase)
-            if metric and metric.id not in metrics:
-                metrics.append(metric.id)
-                matched_indices.update([i, i+1])
-                logger.debug(f"Resolved '{phrase}' -> '{metric.id}'")
-                continue
+            phrase_words = words[i:i+2]
+            if not all(w in _STOPWORDS for w in phrase_words):
+                phrase = " ".join(phrase_words)
+                metric = semantic_client.resolve_metric(phrase)
+                if metric and metric.id not in metrics:
+                    metrics.append(metric.id)
+                    matched_indices.update([i, i+1])
+                    logger.debug(f"Resolved '{phrase}' -> '{metric.id}'")
+                    continue
 
         # Try single words
         word = words[i]
-        # Skip common stopwords
-        if word in {'the', 'a', 'an', 'and', 'or', 'by', 'for', 'to', 'in', 'on', 'at',
-                    'show', 'me', 'add', 'compare', 'vs', 'versus', 'with', 'trend',
-                    'chart', 'graph', 'display', 'what', 'is', 'our', 'how', 'much'}:
+        if word in _STOPWORDS:
             continue
         # Skip dimension words (words after "by")
         if word in dimension_words:
