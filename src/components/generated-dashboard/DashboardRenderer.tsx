@@ -116,7 +116,7 @@ export function DashboardRenderer({
   personaOptions = [],
   onPersonaChange,
   isGenerating = false,
-  dataMode = 'live',
+  dataMode = 'demo',
 }: DashboardRendererProps) {
   // Query router for detecting factual queries that should go to Galaxy
   const { routeQuery } = useQueryRouter();
