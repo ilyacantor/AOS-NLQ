@@ -1587,6 +1587,13 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
         _NON_ADDITIVE = {"pct", "ratio", "score", "days", "hours", "months", "index"}
         _bd_additive = _bd_unit not in _NON_ADDITIVE
 
+        # Remove aggregate/total rows that DCL may include as summary
+        _AGGREGATE_LABELS = {"total", "all", "grand total", "overall", "sum"}
+        formatted_data = [
+            item for item in formatted_data
+            if item["label"].lower() not in _AGGREGATE_LABELS
+        ]
+
         _agg = {}
         _counts = {}
         for item in formatted_data:
