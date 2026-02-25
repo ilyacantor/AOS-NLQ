@@ -12,7 +12,7 @@ CRITICAL: Confidence scores are bounded [0.0, 1.0] using Pydantic Field constrai
 from enum import Enum
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 if TYPE_CHECKING:
     from src.nlq.models.dashboard_schema import DashboardSchema
@@ -356,8 +356,26 @@ class NLQResponse(BaseModel):
 
     unit: Optional[str] = Field(
         default=None,
-        description="Unit of measurement (e.g., 'USD millions', 'percent')"
+        description="Unit of measurement in DCL canonical form (pct, usd_millions, count, ratio, etc.)"
     )
+
+    # Normalize display units → DCL canonical units at the model boundary
+    @field_validator("unit", mode="before")
+    @classmethod
+    def _normalize_unit(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        _CANONICAL = {
+            "%": "pct", "percent": "pct", "percentage": "pct",
+            "USD millions": "usd_millions", "$M": "usd_millions", "usd millions": "usd_millions",
+            "USD": "usd", "$": "usd",
+            "millions/month": "usd_millions",
+            "people": "count", "customers": "count", "tickets": "count",
+            "bugs": "count", "vulnerabilities": "count", "incidents": "count",
+            "deploys": "count", "features": "count", "points": "count",
+            "x": "ratio",
+        }
+        return _CANONICAL.get(v, v)
 
     confidence: float = Field(
         ...,

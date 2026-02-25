@@ -37,6 +37,8 @@ AMBIGUITY_PATTERNS = {
     ],
     AmbiguityType.VAGUE_METRIC: [
         r"how['\u2019]?d we do",        # "how'd we do" - wants key financials
+        r"how did we do",               # "how did we do?" - same intent
+        r"the margin\b",               # "show me the margin", "whats the margin"
         r"^whats? the margin",          # "whats the margin" - which margin?
         r"^quick ratio stuff",          # Vague ratio reference
         r"^the numbers$",               # Very vague
@@ -273,7 +275,7 @@ AMBIGUITY_CANDIDATES = {
 CLARIFICATION_PROMPTS = {
     AmbiguityType.INCOMPLETE: "Could you be more specific? Which metric are you interested in?",
     AmbiguityType.CASUAL_LANGUAGE: None,  # Usually can be inferred
-    AmbiguityType.VAGUE_METRIC: "Which margin - Gross, Operating, or Net?",
+    AmbiguityType.VAGUE_METRIC: "Which metric? For margins: Gross, Operating, or Net. For performance: Revenue, Bookings, ARR.",
     AmbiguityType.YES_NO: None,  # Can answer with context
     AmbiguityType.BROAD_REQUEST: None,  # Just provide the breakdown
     AmbiguityType.IMPLIED_CONTEXT: "What target are you referring to?",

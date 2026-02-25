@@ -806,6 +806,35 @@ def get_metric_unit(metric_name: str) -> str:
     return "unknown"
 
 
+# Display unit → DCL canonical unit mapping
+_UNIT_TO_CANONICAL = {
+    "%": "pct",
+    "USD millions": "usd_millions",
+    "USD": "usd",
+    "millions/month": "usd_millions",
+    "people": "count",
+    "customers": "count",
+    "tickets": "count",
+    "bugs": "count",
+    "vulnerabilities": "count",
+    "incidents": "count",
+    "deploys": "count",
+    "features": "count",
+    "points": "count",
+    "days": "days",
+    "hours": "hours",
+    "months": "months",
+    "score": "score",
+    "x": "ratio",
+}
+
+
+def get_canonical_unit(metric_name: str) -> str:
+    """Get the DCL canonical unit for a metric (pct, usd_millions, count, ratio, etc.)."""
+    display_unit = get_metric_unit(metric_name)
+    return _UNIT_TO_CANONICAL.get(display_unit, display_unit)
+
+
 def get_metric_type(metric_name: str) -> Optional[MetricType]:
     """Get the type for a metric."""
     if metric_name in FINANCIAL_SCHEMA:

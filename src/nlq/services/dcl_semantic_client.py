@@ -1322,12 +1322,21 @@ class DCLSemanticClient:
             source_systems = list(metadata["sources"])
 
         # Build structured run provenance for UI Trust Badge
+        # Include source_system (singular) for harness/API consumers
+        primary_source = source_systems[0] if source_systems else None
+        # Determine SOR status from provenance quality score (quality >= 0.9 = SOR)
+        is_sor = any(
+            (p.get("quality_score") or 0) >= 0.9
+            for p in provenance
+        ) if provenance else False
         normalized["run_provenance"] = {
             "run_id": metadata.get("run_id"),
             "tenant_id": metadata.get("tenant_id"),
             "snapshot_name": metadata.get("snapshot_name"),
             "run_timestamp": metadata.get("run_timestamp"),
             "source_systems": source_systems,
+            "source_system": primary_source,
+            "is_sor": is_sor,
             "freshness": metadata.get("freshness_display", ""),
             "quality_score": metadata.get("quality_score"),
             "mode": metadata.get("mode"),

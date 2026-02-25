@@ -95,6 +95,7 @@ def simple_metric_to_nlq_response(result: SimpleMetricResult) -> NLQResponse:
         resolved_period=result.period,
         response_type="text",
         data_source=result.data_source,
+        provenance=result.run_provenance,
     )
 
 

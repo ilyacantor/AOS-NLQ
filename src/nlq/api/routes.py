@@ -997,6 +997,36 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
     if for_match:
         metric_query = metric_query[:for_match.start()].strip()
 
+    # ── Extract period from query BEFORE stripping it ──────────────────
+    # Capture any explicit year or quarter so we can pass it downstream.
+    import re as _re_period
+    _extracted_period: Optional[str] = None
+
+    # Check for "Q3 2025" / "q3 2025" pattern first
+    _qtr_year = _re_period.search(r'\bq([1-4])\s*(20\d{2})\b', metric_query, _re_period.IGNORECASE)
+    if _qtr_year:
+        _extracted_period = f"{_qtr_year.group(2)}-Q{_qtr_year.group(1)}"
+    else:
+        # Check for standalone year: "2025", "2024"
+        _year_match = _re_period.search(r'\b(20\d{2})\b', metric_query)
+        if _year_match:
+            _extracted_period = _year_match.group(1)
+        else:
+            # Check for standalone quarter: "q3", "Q1"
+            _qtr_match = _re_period.search(r'\bq([1-4])\b', metric_query, _re_period.IGNORECASE)
+            if _qtr_match:
+                _extracted_period = f"{current_year()}-Q{_qtr_match.group(1)}"
+            elif "this year" in metric_query:
+                _extracted_period = current_year()
+            elif "last year" in metric_query:
+                _extracted_period = str(int(current_year()) - 1)
+            elif "this quarter" in metric_query or "this quater" in metric_query:
+                _extracted_period = current_quarter()
+            elif "last quarter" in metric_query or "last quater" in metric_query:
+                # Simple last quarter calc
+                from src.nlq.core.dates import prior_quarter
+                _extracted_period = prior_quarter()
+
     # Strip period suffixes (e.g., "revenue 2025", "margin this year", "arr q3")
     # Include common misspellings
     period_suffixes = [
@@ -1022,12 +1052,12 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
     # Try synonym lookup
     resolved_metric = normalize_metric(metric_query)
     if resolved_metric:
-        return _build_simple_metric_result(resolved_metric)
+        return _build_simple_metric_result(resolved_metric, period=_extracted_period)
 
     # Also try the original query in case it's already a metric name
     resolved_metric = normalize_metric(q.rstrip("?").strip())
     if resolved_metric:
-        return _build_simple_metric_result(resolved_metric)
+        return _build_simple_metric_result(resolved_metric, period=_extracted_period)
 
     # Step 3: Try embedding-based lookup (CHEAP - ~$0.0001)
     # Only do this if we have the embedding index available
@@ -1061,22 +1091,31 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
     return None  # No match, let normal flow handle it
 
 
-def _build_simple_metric_result(metric: str) -> Optional[SimpleMetricResult]:
+def _build_simple_metric_result(metric: str, period: Optional[str] = None) -> Optional[SimpleMetricResult]:
     """
     Build a SimpleMetricResult for a resolved metric.
 
     All data is fetched from DCL.
-    Returns current period (2026-Q4) data by default.
+    Uses the explicit period from the query when provided.
+    Falls back to latest available period only when no period was specified.
     """
     from src.nlq.services.dcl_semantic_client import get_semantic_client
 
     dcl_client = get_semantic_client()
 
-    # Default to latest available period for "what is X" queries
-    current_period = dcl_client.get_latest_period()
+    # Use explicit period from query, or fall back to latest
+    requested_period = period or dcl_client.get_latest_period()
+
+    # Determine granularity from period format
+    # "2025" = annual (get quarterly data for that year and sum)
+    # "2025-Q3" = quarterly (get that specific quarter)
+    import re as _re_bsmr
+    is_annual = bool(_re_bsmr.match(r'^20\d{2}$', str(requested_period)))
+    is_quarterly = bool(_re_bsmr.match(r'^20\d{2}-Q[1-4]$', str(requested_period)))
+
     result = dcl_client.query(
         metric=metric,
-        time_range={"period": current_period, "granularity": "quarterly"}
+        time_range={"period": requested_period, "granularity": "quarterly"}
     )
 
     # Extract value from DCL response
@@ -1093,12 +1132,49 @@ def _build_simple_metric_result(metric: str) -> Optional[SimpleMetricResult]:
     data_quality = metadata.get("quality_score", 1.0)
     freshness = metadata.get("freshness_display", "") or "0h"
 
+    # Determine aggregation method BEFORE summing:
+    # Additive metrics (revenue, costs, counts) → sum quarterly rows for annual
+    # Non-additive metrics (pct, ratio, score, days) → average quarterly rows
+    from src.nlq.knowledge.schema import get_canonical_unit
+    _metric_unit = get_canonical_unit(metric)
+    _NON_ADDITIVE_UNITS = {"pct", "ratio", "score", "days", "hours", "months", "index"}
+    _is_additive = _metric_unit not in _NON_ADDITIVE_UNITS
+
     # Handle different response formats
     if isinstance(data, list) and len(data) > 0:
-        # Time series - aggregate or take latest
         if isinstance(data[0], dict) and "value" in data[0]:
-            # Sum quarterly values for annual total
-            value = sum(d.get("value", 0) for d in data if d.get("value") is not None)
+            # Filter rows to only those matching the requested period
+            if is_annual:
+                # Annual: filter rows whose period falls in the requested year
+                filtered = [d for d in data
+                            if d.get("value") is not None
+                            and str(requested_period) in str(d.get("period", ""))]
+                if not filtered:
+                    # If period field doesn't exist on rows, use all (backward compat)
+                    filtered = [d for d in data if d.get("value") is not None]
+                if _is_additive:
+                    value = sum(d.get("value", 0) for d in filtered)
+                else:
+                    # Average for percentages, ratios, scores, durations
+                    vals = [d.get("value") for d in filtered if d.get("value") is not None]
+                    value = sum(vals) / len(vals) if vals else None
+            elif is_quarterly:
+                # Quarterly: take the single matching row
+                matching = [d for d in data
+                            if d.get("value") is not None
+                            and str(requested_period) in str(d.get("period", ""))]
+                if matching:
+                    value = matching[0].get("value")
+                else:
+                    # Fall back to last row if no period field on rows
+                    value = data[-1].get("value") if isinstance(data[-1], dict) else data[-1]
+            else:
+                # Unknown period format
+                if _is_additive:
+                    value = sum(d.get("value", 0) for d in data if d.get("value") is not None)
+                else:
+                    vals = [d.get("value") for d in data if d.get("value") is not None]
+                    value = sum(vals) / len(vals) if vals else None
         else:
             value = data[-1] if data else None
     elif isinstance(data, (int, float)):
@@ -1111,31 +1187,32 @@ def _build_simple_metric_result(metric: str) -> Optional[SimpleMetricResult]:
 
     # Get metric metadata
     display_name = get_display_name(metric)
-    unit = get_metric_unit(metric)
+    display_unit = get_metric_unit(metric)
+    canonical_unit = _metric_unit  # Already computed above for aggregation
 
-    # Format the value
-    if unit in ("USD millions", "USD", "$"):
+    # Format the value for human-readable answer
+    if display_unit in ("USD millions", "USD", "$"):
         formatted = f"${round(value, 1)}M"
-        answer = f"{display_name} for {current_period} is {formatted}"
-    elif unit == "%":
+        answer = f"{display_name} for {requested_period} is {formatted}"
+    elif display_unit == "%":
         formatted = f"{round(value, 1)}%"
-        answer = f"{display_name} for {current_period} is {formatted}"
-    elif unit in ("count", ""):
+        answer = f"{display_name} for {requested_period} is {formatted}"
+    elif display_unit in ("count", ""):
         formatted = f"{int(value):,}"
-        answer = f"{display_name} for {current_period} is {formatted}"
+        answer = f"{display_name} for {requested_period} is {formatted}"
     else:
         formatted = str(round(value, 1))
-        answer = f"{display_name} for {current_period} is {formatted}"
+        answer = f"{display_name} for {requested_period} is {formatted}"
 
     return SimpleMetricResult(
         metric=metric,
         value=value,
         formatted_value=formatted,
-        unit=unit or "USD millions",
+        unit=canonical_unit,
         display_name=display_name,
         domain=determine_domain(metric),
         answer=answer,
-        period=current_period,
+        period=requested_period,
         data_quality=data_quality,
         freshness=freshness,
         source=result.get("source", "local"),
@@ -1249,18 +1326,34 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
 
     # Match "X by Y" or "X across Y" pattern
     # Allow up to 4 words for metric (e.g., "time to fill days")
-    by_match = re.search(r"^(\w+(?:\s+\w+){0,3})\s+(?:by|across)\s+(\w+(?:\s+\w+)?)", q)
+    # Dimension must stop at "for", "in", "during", period words, or end of string
+    by_match = re.search(r"^(\w+(?:\s+\w+){0,3})\s+(?:by|across)\s+(\w+(?:\s+\w+)??)(?:\s+(?:for|in|during|q[1-4]|20\d{2})|$|\s*[?.!])", q)
     if not by_match:
-        return None
+        # Fallback: try simpler single-word dimension pattern
+        by_match = re.search(r"^(\w+(?:\s+\w+){0,3})\s+(?:by|across)\s+(\w+)", q)
+        if not by_match:
+            return None
 
     metric_term = by_match.group(1).strip()
     dim_term = by_match.group(2).strip()
 
-    # Extract "for [filter]" suffix after the dimension match
-    # e.g., "revenue by cost center for the Cloud division" → filter_dim="division", filter_val="Cloud"
+    # Extract "for [filter]" suffix and period text after the dimension match
     filter_dim = None
     filter_val = None
     remainder = q[by_match.end():].strip().rstrip("?.!,;")
+    # Also check the part of the string after the dimension for period text
+    post_dim = q[by_match.start(2) + len(dim_term):].strip()
+
+    # Extract period from the breakdown query (e.g. "for 2025", "Q2 2025")
+    _bd_period = None
+    _bd_period_match = re.search(r'(?:for\s+)?(?:the\s+)?q([1-4])\s+(20\d{2})', post_dim, re.IGNORECASE)
+    if _bd_period_match:
+        _bd_period = f"{_bd_period_match.group(2)}-Q{_bd_period_match.group(1)}"
+    else:
+        _bd_year_match = re.search(r'(?:for\s+)?(?:the\s+)?(20\d{2})', post_dim)
+        if _bd_year_match:
+            _bd_period = _bd_year_match.group(1)
+
     for_match = re.search(r"for\s+(?:the\s+)?(.+?)(?:\s+(?:division|department|region|segment|team))?$", remainder)
     if for_match:
         filter_text = for_match.group(0)
@@ -1308,7 +1401,7 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
 
     # Query DCL for breakdown data
     dcl_client = get_semantic_client()
-    current_period = dcl_client.get_latest_period()
+    current_period = _bd_period or dcl_client.get_latest_period()
 
     # Don't force granularity for breakdown queries — breakdowns are categorical
     # (e.g., revenue by region) not temporal. Forcing grain="quarter" causes DCL
@@ -1805,11 +1898,15 @@ def _handle_ambiguous_query_text(
     last_year = str(int(current_year) - 1)
     year_before = str(int(current_year) - 2)
 
+    # Extract explicit year from query if present
+    _q_year_match = re.search(r'\b(20\d{2})\b', q)
+    _resolved_period = _q_year_match.group(1) if _q_year_match else current_year
+
     # Generate nodes for related metrics (same as Galaxy View)
     nodes = generate_nodes_for_ambiguous_query(
         ambiguity_type,
         candidates,
-        current_year,
+        _resolved_period,
     )
     related_metrics = _nodes_to_related_metrics(nodes)
 
@@ -1823,14 +1920,44 @@ def _handle_ambiguous_query_text(
         return f"${round(val, 1)}M"
 
     def get_val(metric: str, period: str) -> Optional[float]:
-        """Get value from DCL."""
+        """Get value from DCL with period-aware filtering and correct aggregation."""
+        from src.nlq.knowledge.schema import get_canonical_unit
         result = dcl_client.query(metric=metric, time_range={"period": period})
         if result.get("error"):
             return None
         data = result.get("data", [])
         if isinstance(data, list) and len(data) > 0:
             if isinstance(data[0], dict) and "value" in data[0]:
-                return sum(d.get("value", 0) for d in data if d.get("value") is not None)
+                # Determine aggregation: sum for additive, average for rates/percentages
+                _u = get_canonical_unit(metric)
+                _non_add = {"pct", "ratio", "score", "days", "hours", "months", "index"}
+                _additive = _u not in _non_add
+
+                # Filter rows by period before aggregating
+                is_annual = bool(re.match(r'^20\d{2}$', str(period)))
+                is_quarterly = bool(re.match(r'^20\d{2}-Q[1-4]$', str(period)))
+                if is_annual:
+                    filtered = [d for d in data
+                                if d.get("value") is not None
+                                and str(period) in str(d.get("period", ""))]
+                    if not filtered:
+                        filtered = [d for d in data if d.get("value") is not None]
+                    if _additive:
+                        return sum(d.get("value", 0) for d in filtered)
+                    else:
+                        vals = [d.get("value") for d in filtered if d.get("value") is not None]
+                        return sum(vals) / len(vals) if vals else None
+                elif is_quarterly:
+                    matching = [d for d in data
+                                if d.get("value") is not None
+                                and str(period) in str(d.get("period", ""))]
+                    if matching:
+                        return matching[0].get("value")
+                if _additive:
+                    return sum(d.get("value", 0) for d in data if d.get("value") is not None)
+                else:
+                    vals = [d.get("value") for d in data if d.get("value") is not None]
+                    return sum(vals) / len(vals) if vals else None
             return data[-1] if data else None
         elif isinstance(data, (int, float)):
             return data
@@ -2405,19 +2532,31 @@ def _handle_ambiguous_query_text(
 
         # CFO "compare this year to last" -> comprehensive comparison (check first, default)
         if "compare" in q or "this year to last" in q:
-            rev_cy = get_val("revenue", current_year)
-            rev_ly = get_val("revenue", last_year)
-            ni_cy = get_val("net_income", current_year)
-            ni_ly = get_val("net_income", last_year)
-            om_cy = get_val("operating_margin_pct", current_year)
-            om_ly = get_val("operating_margin_pct", last_year)
+            # Extract explicit years from query (e.g. "compare 2024 vs 2025")
+            _cmp_years = re.findall(r'20\d{2}', q)
+            if len(_cmp_years) >= 2:
+                _cmp_y1 = min(_cmp_years)  # older year
+                _cmp_y2 = max(_cmp_years)  # newer year
+            else:
+                _cmp_y1 = last_year
+                _cmp_y2 = current_year
+            rev_cy = get_val("revenue", _cmp_y2)
+            rev_ly = get_val("revenue", _cmp_y1)
+            ni_cy = get_val("net_income", _cmp_y2)
+            ni_ly = get_val("net_income", _cmp_y1)
+            om_cy = get_val("operating_margin_pct", _cmp_y2)
+            om_ly = get_val("operating_margin_pct", _cmp_y1)
             rev_chg = round((rev_cy - rev_ly) / rev_ly * 100) if rev_cy and rev_ly else 0
             ni_chg = round((ni_cy - ni_ly) / ni_ly * 100) if ni_cy and ni_ly else 0
             om_chg = "flat" if om_cy == om_ly else f"+{round(om_cy - om_ly, 1)}%" if om_cy > om_ly else f"{round(om_cy - om_ly, 1)}%"
-            answer = f"{current_year} vs {last_year}: Revenue ${round(rev_cy, 0) if rev_cy else 0}M vs ${round(rev_ly, 0) if rev_ly else 0}M (+{rev_chg}%), Net Income ${round(ni_cy, 0) if ni_cy else 0}M vs ${round(ni_ly, 2) if ni_ly else 0}M (+{ni_chg}%), Operating Margin {fmt_val('operating_margin_pct', om_cy)} vs {fmt_val('operating_margin_pct', om_ly)} ({om_chg})"
+            answer = f"{_cmp_y2} vs {_cmp_y1}: Revenue ${round(rev_cy, 0) if rev_cy else 0}M vs ${round(rev_ly, 0) if rev_ly else 0}M (+{rev_chg}%), Net Income ${round(ni_cy, 0) if ni_cy else 0}M vs ${round(ni_ly, 2) if ni_ly else 0}M (+{ni_chg}%), Operating Margin {fmt_val('operating_margin_pct', om_cy)} vs {fmt_val('operating_margin_pct', om_ly)} ({om_chg})"
+            # Add period-labeled nodes for comparison value extraction
+            _cmp_related = list(related_metrics) if related_metrics else []
+            _cmp_related.insert(0, {"metric": "revenue", "value": rev_cy, "period": _cmp_y2, "display_name": f"Revenue ({_cmp_y2})"})
+            _cmp_related.insert(1, {"metric": "revenue", "value": rev_ly, "period": _cmp_y1, "display_name": f"Revenue ({_cmp_y1})"})
             return NLQResponse(success=True, answer=answer, value=rev_chg, unit="%",
-                confidence=0.9, parsed_intent="COMPARISON", resolved_metric="comparison", resolved_period=current_year,
-                related_metrics=related_metrics)
+                confidence=0.9, parsed_intent="COMPARISON", resolved_metric="comparison", resolved_period=_cmp_y2,
+                related_metrics=_cmp_related)
 
     # ===== SUMMARY =====
     if ambiguity_type == AmbiguityType.SUMMARY:
@@ -2743,6 +2882,19 @@ async def query(request: NLQRequest) -> NLQResponse:
         breakdown_result = _try_simple_breakdown_query(request.question)
         if breakdown_result:
             return breakdown_result
+
+        # =================================================================
+        # VAGUE METRIC PRE-CHECK - catch ambiguous queries before simple metric path
+        # e.g. "show me the margin" or "how did we do?" need clarification, not eager resolution
+        # =================================================================
+        _pre_amb_type, _pre_candidates, _pre_clarification = detect_ambiguity(request.question)
+        if _pre_amb_type == AmbiguityType.VAGUE_METRIC and _pre_clarification:
+            return _handle_ambiguous_query_text(
+                request.question,
+                _pre_amb_type,
+                _pre_candidates,
+                _pre_clarification,
+            )
 
         # =================================================================
         # SIMPLE METRIC QUERIES - Handle "what is X?" queries early (no Claude needed)
@@ -3955,8 +4107,9 @@ def _handle_ambiguous_query_galaxy(
             clarification_prompt=None,
         )
 
-    # Default ambiguous query handling
-    period = current_year
+    # Default ambiguous query handling — extract period from query text
+    _year_match = re.search(r'\b(20\d{2})\b', question)
+    period = _year_match.group(1) if _year_match else current_year
 
     # Generate nodes for ambiguous query
     nodes = generate_nodes_for_ambiguous_query(

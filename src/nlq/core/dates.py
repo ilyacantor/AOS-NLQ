@@ -26,6 +26,15 @@ def prior_year() -> str:
     return str(date.today().year - 1)
 
 
+def prior_quarter() -> str:
+    """Return the previous quarter label, e.g. '2025-Q4'."""
+    today = date.today()
+    q = math.ceil(today.month / 3)
+    if q == 1:
+        return f"{today.year - 1}-Q4"
+    return f"{today.year}-Q{q - 1}"
+
+
 def reference_date_iso() -> str:
     """Return today's date in ISO format, e.g. '2026-02-19'."""
     return date.today().isoformat()
