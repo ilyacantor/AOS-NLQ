@@ -1169,6 +1169,9 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None) -> Op
     # Non-additive metrics (pct, ratio, score, days) → average quarterly rows
     from src.nlq.knowledge.schema import get_canonical_unit
     _metric_unit = get_canonical_unit(metric)
+    # If schema doesn't know this metric, use the unit from DCL's response
+    if _metric_unit == "unknown" and result.get("unit"):
+        _metric_unit = result["unit"]
     _NON_ADDITIVE_UNITS = {"pct", "ratio", "score", "days", "hours", "months", "index"}
     _is_additive = _metric_unit not in _NON_ADDITIVE_UNITS
 
@@ -1220,6 +1223,8 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None) -> Op
     # Get metric metadata
     display_name = get_display_name(metric)
     display_unit = get_metric_unit(metric)
+    if display_unit == "unknown" and result.get("unit"):
+        display_unit = result["unit"]
     canonical_unit = _metric_unit  # Already computed above for aggregation
 
     # Format the value for human-readable answer
