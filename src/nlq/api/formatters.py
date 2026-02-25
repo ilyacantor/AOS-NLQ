@@ -338,8 +338,13 @@ def format_answer(parsed, result, unit: str) -> tuple:
     metric_display = parsed.metric.replace('_', ' ').title()
 
     if parsed.intent == QueryIntent.POINT_QUERY:
-        formatted_value = round(result.value, 1)
-        formatted_str = format_value_with_unit(result.value, unit)
+        # Guard against non-numeric values (e.g., dict from graph resolution)
+        if not isinstance(result.value, (int, float)):
+            formatted_value = result.value
+            formatted_str = str(result.value)
+        else:
+            formatted_value = round(result.value, 1)
+            formatted_str = format_value_with_unit(result.value, unit)
         answer = f"{metric_display} for {parsed.resolved_period} was {formatted_str}"
         return answer, formatted_value
 

@@ -992,10 +992,16 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
     # Strip entity/filter suffixes (e.g., "revenue for North America" → "revenue")
     # This ensures the metric is correctly identified even when a filter is present.
     # The filter itself isn't applied here — that requires graph resolution.
+    # IMPORTANT: Do NOT strip "for 2025", "for Q3 2025" etc. — those are periods, not entities.
     import re as _re
     for_match = _re.search(r"\s+for\s+(?:the\s+)?(.+)$", metric_query)
     if for_match:
-        metric_query = metric_query[:for_match.start()].strip()
+        captured = for_match.group(1).strip()
+        # Only strip if it's an entity filter, not a period reference
+        is_period_ref = bool(_re.match(r'^(?:q[1-4]\s+)?20\d{2}$', captured, _re.IGNORECASE))
+        is_period_phrase = captured in ("this year", "last year", "this quarter", "last quarter")
+        if not is_period_ref and not is_period_phrase:
+            metric_query = metric_query[:for_match.start()].strip()
 
     # ── Extract period from query BEFORE stripping it ──────────────────
     # Capture any explicit year or quarter so we can pass it downstream.
