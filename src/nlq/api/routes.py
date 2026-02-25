@@ -1568,6 +1568,26 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
             if dim_key and val is not None:
                 formatted_data.append({"label": str(dim_key), "value": val})
 
+    # Aggregate duplicate dimension labels (DCL may return per-quarter data
+    # when queried for a year period, producing N entries per dimension label).
+    if formatted_data:
+        from src.nlq.knowledge.schema import get_canonical_unit
+        _bd_unit = get_canonical_unit(metric)
+        _NON_ADDITIVE = {"pct", "ratio", "score", "days", "hours", "months", "index"}
+        _bd_additive = _bd_unit not in _NON_ADDITIVE
+
+        _agg = {}
+        _counts = {}
+        for item in formatted_data:
+            lbl = item["label"]
+            _agg[lbl] = _agg.get(lbl, 0) + item["value"]
+            _counts[lbl] = _counts.get(lbl, 0) + 1
+
+        if _bd_additive:
+            formatted_data = [{"label": k, "value": v} for k, v in _agg.items()]
+        else:
+            formatted_data = [{"label": k, "value": v / _counts[k]} for k, v in _agg.items()]
+
     if not formatted_data:
         # No breakdown data found - provide helpful message
         valid_dims = dcl_client.get_valid_dimensions(metric)
@@ -2016,6 +2036,39 @@ def _handle_ambiguous_query_text(
 
     # ===== VAGUE_METRIC =====
     if ambiguity_type == AmbiguityType.VAGUE_METRIC:
+        # Check if query is genuinely ambiguous and needs clarification
+        # before attempting resolution with default values
+        _needs_clarif = False
+        _clarif_prompt = None
+
+        # "show me the margin" without specifying which → ask
+        if "margin" in q and not any(x in q for x in ("gross", "operating", "net", "ebitda")):
+            _needs_clarif = True
+            _clarif_prompt = "Which margin did you mean? We track: Gross margin, Operating margin, and Net margin."
+
+        # "how did we do?" without specifying what → ask
+        elif re.search(r'\bhow\b.*\bdo\b|\bhow\b.*\bdid\b', q) and not any(
+            x in q for x in ("revenue", "profit", "margin", "arr", "bookings", "income")
+        ):
+            _needs_clarif = True
+            _clarif_prompt = "Which metric are you asking about? Revenue, EBITDA, Net Income, Margins, or ARR?"
+
+        if _needs_clarif:
+            return NLQResponse(
+                success=True,
+                answer=_clarif_prompt,
+                needs_clarification=True,
+                clarification_prompt=_clarif_prompt,
+                value=None,
+                unit=None,
+                confidence=0.6,
+                parsed_intent="VAGUE_METRIC",
+                resolved_metric=None,
+                resolved_period=current_year,
+                response_type="clarification",
+                related_metrics=related_metrics,
+            )
+
         # "whats the margin" -> "Gross: 65.0%, Operating: 35.0%, Net: 22.5%"
         if "margin" in q:
             gross = get_val("gross_margin_pct", current_year)
@@ -2921,6 +2974,19 @@ async def query(request: NLQRequest) -> NLQResponse:
         # =================================================================
         _pre_amb_type, _pre_candidates, _pre_clarification = detect_ambiguity(request.question)
         if _pre_amb_type == AmbiguityType.VAGUE_METRIC and _pre_clarification:
+            return _handle_ambiguous_query_text(
+                request.question,
+                _pre_amb_type,
+                _pre_candidates,
+                _pre_clarification,
+            )
+
+        # =================================================================
+        # COMPARISON PRE-CHECK - "compare X vs Y" must return structured data
+        # with period-labeled related_metrics, NOT a dashboard visualization.
+        # Route to ambiguity handler before visualization handler intercepts.
+        # =================================================================
+        if _pre_amb_type == AmbiguityType.COMPARISON:
             return _handle_ambiguous_query_text(
                 request.question,
                 _pre_amb_type,
