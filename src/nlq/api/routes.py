@@ -2637,9 +2637,19 @@ def _handle_ambiguous_query_text(
             answer = f"{_cmp_y2} vs {_cmp_y1}: Revenue ${round(rev_cy, 0) if rev_cy else 0}M vs ${round(rev_ly, 0) if rev_ly else 0}M (+{rev_chg}%), Net Income ${round(ni_cy, 0) if ni_cy else 0}M vs ${round(ni_ly, 2) if ni_ly else 0}M (+{ni_chg}%), Operating Margin {fmt_val('operating_margin_pct', om_cy)} vs {fmt_val('operating_margin_pct', om_ly)} ({om_chg})"
             # Add period-labeled nodes for comparison value extraction
             _cmp_related = list(related_metrics) if related_metrics else []
-            _cmp_related.insert(0, {"metric": "revenue", "value": rev_cy, "period": _cmp_y2, "display_name": f"Revenue ({_cmp_y2})"})
-            _cmp_related.insert(1, {"metric": "revenue", "value": rev_ly, "period": _cmp_y1, "display_name": f"Revenue ({_cmp_y1})"})
-            return NLQResponse(success=True, answer=answer, value=rev_chg, unit="%",
+            _cmp_related.insert(0, {
+                "metric": "revenue", "value": rev_cy, "period": _cmp_y2,
+                "display_name": f"Revenue ({_cmp_y2})",
+                "formatted_value": f"${round(rev_cy, 0) if rev_cy else 0}M",
+                "confidence": 0.9, "match_type": "exact",
+            })
+            _cmp_related.insert(1, {
+                "metric": "revenue", "value": rev_ly, "period": _cmp_y1,
+                "display_name": f"Revenue ({_cmp_y1})",
+                "formatted_value": f"${round(rev_ly, 0) if rev_ly else 0}M",
+                "confidence": 0.9, "match_type": "exact",
+            })
+            return NLQResponse(success=True, answer=answer, value=rev_chg, unit="pct",
                 confidence=0.9, parsed_intent="COMPARISON", resolved_metric="comparison", resolved_period=_cmp_y2,
                 related_metrics=_cmp_related)
 
