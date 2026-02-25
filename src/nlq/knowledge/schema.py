@@ -721,6 +721,29 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         unit="millions/month",
         description="Monthly API request volume"
     ),
+
+    # CHRO (People) metrics
+    "open_roles": MetricDefinition(
+        name="open_roles",
+        display_name="Open Roles",
+        metric_type=MetricType.COUNT,
+        unit="people",
+        description="Number of open job requisitions"
+    ),
+    "time_to_fill_days": MetricDefinition(
+        name="time_to_fill_days",
+        display_name="Time to Fill",
+        metric_type=MetricType.COUNT,
+        unit="days",
+        description="Average days to fill a position"
+    ),
+    "engagement_score": MetricDefinition(
+        name="engagement_score",
+        display_name="Engagement Score",
+        metric_type=MetricType.RATIO,
+        unit="score",
+        description="Employee engagement score"
+    ),
 }
 
 
@@ -789,7 +812,7 @@ METRIC_PERSONAS = {
     "employee_satisfaction": "CHRO", "engagement_score": "CHRO",
     "training_hours": "CHRO", "promotion_rate_pct": "CHRO",
     "diversity_pct": "CHRO", "gender_ratio": "CHRO",
-    "open_positions": "CHRO", "recruiting_pipeline": "CHRO",
+    "open_roles": "CHRO", "open_positions": "CHRO", "recruiting_pipeline": "CHRO",
     "compensation_ratio": "CHRO", "benefits_cost": "CHRO",
 }
 
