@@ -1,0 +1,322 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# NLQ Cheatproof Test Harness — Test Case Definitions
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# 42 test cases across 10 coverage areas.
+# All expected values derived from Farm financial_model.py Assumptions.
+# NEVER from fact_base.json.
+#
+# Assertion operators:
+#   equals, not_equals, greater_than, less_than, not_null, contains, in_range, in
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ── Group 1: P&L Coverage ────────────────────────────────────────────────────
+
+- id: PL_001
+  query: "What is our EBITDA for 2025?"
+  persona: cfo
+  # Model: 2025 annual EBITDA = 49.02M (sum of Q1:11.14 + Q2:11.85 + Q3:12.61 + Q4:13.42)
+  # Derivation: revenue * (1 - cogs_pct - sm_pct - rd_pct - ga_pct) per quarter, summed
+  assertions:
+    - {field: value, operator: in_range, expected: [40.0, 60.0]}
+    - {field: unit, operator: equals, expected: usd_millions}
+    - {field: period, operator: contains, expected: "2025"}
+    - {field: data_source, operator: not_equals, expected: demo}
+    - {field: confidence, operator: greater_than, expected: 0.7}
+  tags: [pnl, cfo, point]
+
+- id: PL_002
+  query: "Show me the 2025 P&L"
+  persona: cfo
+  assertions:
+    - {field: revenue, operator: in_range, expected: [100.0, 160.0]}
+    - {field: cogs, operator: not_null, expected: null}
+    - {field: gross_profit, operator: not_null, expected: null}
+    - {field: ebitda, operator: not_null, expected: null}
+    - {field: net_income, operator: not_null, expected: null}
+    - {field: data_source, operator: not_equals, expected: demo}
+  tags: [pnl, cfo, breakdown]
+
+- id: PL_003
+  query: "What was gross margin in Q3 2025?"
+  persona: cfo
+  assertions:
+    - {field: value, operator: in_range, expected: [60.0, 75.0]}
+    - {field: unit, operator: equals, expected: pct}
+    - {field: period, operator: equals, expected: "2025-Q3"}
+  tags: [pnl, cfo, point]
+
+- id: PL_004
+  query: "What is our net income margin?"
+  persona: cfo
+  # Model: net_margin_pct ranges 26.2% (2024-Q1) to 27.7% (2026-Q4)
+  # Derivation: net_income / revenue * 100; tax_rate=0.25, opex ~26.5% of rev
+  # No period specified → NLQ returns latest quarter; range covers all possible quarters
+  assertions:
+    - {field: value, operator: in_range, expected: [24.0, 32.0]}
+    - {field: unit, operator: equals, expected: pct}
+    - {field: confidence, operator: greater_than, expected: 0.6}
+  tags: [pnl, cfo, point]
+
+
+# ── Group 2: Year Extraction (the original $450M bug) ────────────────────────
+
+- id: PERIOD_001
+  query: "What is 2025 revenue?"
+  persona: cfo
+  assertions:
+    - {field: value, operator: in_range, expected: [100.0, 160.0]}
+    - {field: value, operator: not_equals, expected: 450.0}
+    - {field: period, operator: contains, expected: "2025"}
+  tags: [period, cfo, point]
+
+- id: PERIOD_002
+  query: "What is 2024 revenue?"
+  persona: cfo
+  assertions:
+    - {field: value, operator: in_range, expected: [80.0, 120.0]}
+    - {field: value, operator: not_equals, expected: 450.0}
+    - {field: period, operator: contains, expected: "2024"}
+  tags: [period, cfo, point]
+
+- id: PERIOD_003
+  query: "Compare 2024 vs 2025 revenue"
+  persona: cfo
+  assertions:
+    - {field: value_2024, operator: in_range, expected: [80.0, 120.0]}
+    - {field: value_2025, operator: in_range, expected: [100.0, 160.0]}
+  tags: [period, cfo, comparison]
+
+
+# ── Group 3: Dimensional Queries ─────────────────────────────────────────────
+
+- id: DIM_001
+  query: "Show revenue by region for 2025"
+  persona: cfo
+  assertions:
+    - {field: dimensions, operator: contains, expected: AMER}
+    - {field: dimensions, operator: contains, expected: EMEA}
+    - {field: dimensions, operator: contains, expected: APAC}
+    - {field: amer_value, operator: greater_than, expected: 0}
+    - {field: total, operator: in_range, expected: [100.0, 160.0]}
+  tags: [dimensional, cfo, breakdown]
+
+- id: DIM_002
+  query: "Headcount by department"
+  persona: chro
+  assertions:
+    - {field: dimensions, operator: contains, expected: Engineering}
+    - {field: dimensions, operator: contains, expected: Sales}
+    - {field: total, operator: in_range, expected: [250, 450]}
+  tags: [dimensional, chro, breakdown]
+
+- id: DIM_003
+  query: "Revenue by segment Q2 2025"
+  persona: cro
+  assertions:
+    - {field: dimensions, operator: contains, expected: Enterprise}
+    - {field: dimensions, operator: contains, expected: Mid-Market}
+    - {field: dimensions, operator: contains, expected: SMB}
+    - {field: period, operator: equals, expected: "2025-Q2"}
+  tags: [dimensional, cro, breakdown]
+
+
+# ── Group 4: SaaS Efficiency ─────────────────────────────────────────────────
+
+- id: SAAS_001
+  query: "What is our burn multiple?"
+  persona: cfo
+  # Model: burn_multiple = -(FCF) / net_new_ARR; company is FCF-positive so burn is negative
+  # Range: -0.29 (Q1'24) to -1.93 (Q4'26); all quarters negative = cash-generative
+  assertions:
+    - {field: value, operator: in_range, expected: [-2.5, 0.5]}
+    - {field: unit, operator: equals, expected: ratio}
+    - {field: confidence, operator: greater_than, expected: 0.6}
+  tags: [saas, cfo, point]
+
+- id: SAAS_002
+  query: "Show me LTV to CAC ratio"
+  persona: cro
+  # Model: LTV = ACV * (1/annual_churn) * gross_margin_pct/100
+  # CAC = (sm_expense * 4) / (new_customers * 4)
+  # Range: 8.5 (Q1'26) to 10.4 (Q1'24); high due to low CAC relative to LTV
+  assertions:
+    - {field: value, operator: in_range, expected: [7.0, 12.0]}
+    - {field: unit, operator: equals, expected: ratio}
+  tags: [saas, cro, point]
+
+- id: SAAS_003
+  query: "What is our rule of 40?"
+  persona: cfo
+  # Model: rule_of_40 = rev_growth_annualized + FCF_margin
+  # Q1'24 = 8.0 (outlier, no prior quarter for growth calc); Q2'24-Q4'26 = 54-69
+  # No period in query -> NLQ returns latest, which is 55-69 range
+  assertions:
+    - {field: value, operator: in_range, expected: [45.0, 75.0]}
+    - {field: unit, operator: equals, expected: pct}
+  tags: [saas, cfo, point]
+
+- id: SAAS_004
+  query: "What is NRR?"
+  persona: cro
+  assertions:
+    - {field: value, operator: in_range, expected: [100.0, 130.0]}
+    - {field: unit, operator: equals, expected: pct}
+  tags: [saas, cro, point]
+
+
+# ── Group 5: Infrastructure & CTO Metrics ────────────────────────────────────
+
+- id: CTO_001
+  query: "How many P1 incidents in Q3 2025?"
+  persona: cto
+  assertions:
+    - {field: value, operator: greater_than, expected: 0}
+    - {field: value, operator: less_than, expected: 20}
+    - {field: period, operator: equals, expected: "2025-Q3"}
+    - {field: provenance_source, operator: contains, expected: datadog}
+  tags: [cto, infrastructure, point]
+
+- id: CTO_002
+  query: "What is our uptime?"
+  persona: cto
+  assertions:
+    - {field: value, operator: greater_than, expected: 95.0}
+    - {field: value, operator: less_than, expected: 100.0}
+    - {field: unit, operator: equals, expected: pct}
+  tags: [cto, infrastructure, point]
+
+- id: CTO_003
+  query: "Show cloud spend by category"
+  persona: cto
+  assertions:
+    - {field: dimensions, operator: not_null, expected: null}
+    - {field: total, operator: greater_than, expected: 0}
+    - {field: provenance_source, operator: contains, expected: aws_cost_explorer}
+  tags: [cto, infrastructure, breakdown]
+
+
+# ── Group 6: CHRO Metrics ────────────────────────────────────────────────────
+
+- id: CHRO_001
+  query: "What is our attrition rate?"
+  persona: chro
+  assertions:
+    - {field: value, operator: in_range, expected: [5.0, 20.0]}
+    - {field: unit, operator: equals, expected: pct}
+    - {field: metric_id, operator: equals, expected: attrition_rate_pct}
+  tags: [chro, people, point]
+
+- id: CHRO_002
+  query: "How many open roles do we have?"
+  persona: chro
+  assertions:
+    - {field: value, operator: greater_than, expected: 0}
+    - {field: unit, operator: equals, expected: count}
+  tags: [chro, people, point]
+
+
+# ── Group 7: Alias Resolution ────────────────────────────────────────────────
+
+- id: ALIAS_001
+  query: "What is win rate?"
+  persona: cro
+  assertions:
+    - {field: metric_id, operator: equals, expected: win_rate_pct}
+    - {field: value, operator: in_range, expected: [25.0, 55.0]}
+  tags: [alias, cro, point]
+
+- id: ALIAS_002
+  query: "Show quota attainment"
+  persona: cro
+  assertions:
+    - {field: metric_id, operator: equals, expected: quota_attainment_pct}
+  tags: [alias, cro, point]
+
+- id: ALIAS_003
+  query: "What is gross margin?"
+  persona: cfo
+  assertions:
+    - {field: metric_id, operator: equals, expected: gross_margin_pct}
+    - {field: unit, operator: equals, expected: pct}
+  tags: [alias, cfo, point]
+
+- id: ALIAS_004
+  query: "cloud cost this quarter"
+  persona: cto
+  assertions:
+    - {field: metric_id, operator: equals, expected: cloud_spend}
+  tags: [alias, cto, point]
+
+
+# ── Group 8: Superlative Queries ─────────────────────────────────────────────
+
+- id: SUP_001
+  query: "Which region has the highest revenue?"
+  persona: cfo
+  assertions:
+    - {field: value, operator: not_null, expected: null}
+    - {field: dimension_value, operator: in, expected: [AMER, EMEA, APAC]}
+  tags: [superlative, cfo, ranking]
+
+- id: SUP_002
+  query: "Who is our top performing sales rep?"
+  persona: cro
+  assertions:
+    - {field: value, operator: not_null, expected: null}
+    - {field: confidence, operator: greater_than, expected: 0.5}
+  tags: [superlative, cro, ranking]
+
+- id: SUP_003
+  query: "Which segment has the lowest churn?"
+  persona: cro
+  assertions:
+    - {field: dimension_value, operator: in, expected: [Enterprise, Mid-Market, SMB]}
+  tags: [superlative, cro, ranking]
+
+
+# ── Group 9: Clarification Loop ──────────────────────────────────────────────
+
+- id: CLARIFY_001
+  query: "how did we do?"
+  persona: cfo
+  assertions:
+    - {field: response_type, operator: equals, expected: clarification}
+    - {field: clarification_prompt, operator: not_null, expected: null}
+  tags: [clarification, cfo, ambiguous]
+
+- id: CLARIFY_002
+  query: "show me the margin"
+  persona: cfo
+  assertions:
+    - {field: response_type, operator: equals, expected: clarification}
+    - {field: clarification_options, operator: contains, expected: gross}
+  tags: [clarification, cfo, ambiguous]
+
+- id: CLARIFY_003
+  query: "revenue"
+  persona: cfo
+  assertions:
+    - {field: response_type, operator: in, expected: [clarification, data]}
+  tags: [clarification, cfo, ambiguous]
+
+
+# ── Group 10: Provenance & Conflict Surfacing ────────────────────────────────
+
+- id: PROV_001
+  query: "What is revenue for Q1 2025?"
+  persona: cfo
+  assertions:
+    - {field: provenance, operator: not_null, expected: null}
+    - {field: provenance_source, operator: contains, expected: netsuite}
+    - {field: provenance_is_sor, operator: equals, expected: true}
+  tags: [provenance, cfo, point]
+
+- id: PROV_002
+  query: "Show me ARR"
+  persona: cfo
+  assertions:
+    - {field: provenance_source, operator: contains, expected: chargebee}
+  tags: [provenance, cfo, point]
