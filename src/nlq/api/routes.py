@@ -811,7 +811,15 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
     if intent.limit == 1:
         # Single result - "top rep", "largest deal", etc.
         top_item = data[0]
-        name = top_item.get(intent.dimension) or top_item.get("name") or top_item.get("company") or "Unknown"
+        # DCL returns nested: {"dimensions": {"region": "AMER"}} — check nested first, then flat
+        _dims = top_item.get("dimensions", {})
+        name = (
+            (_dims.get(intent.dimension) if isinstance(_dims, dict) else None)
+            or top_item.get(intent.dimension)
+            or top_item.get("name")
+            or top_item.get("company")
+            or "Unknown"
+        )
         value = top_item.get("value") or top_item.get("attainment_pct") or top_item.get("pipeline") or 0
 
         # Format value with appropriate unit
@@ -847,7 +855,15 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
         lines = [f"**{ranking_word} {intent.limit} {intent.dimension}s by {intent.metric.replace('_', ' ')}:**\n"]
 
         for i, item in enumerate(data, 1):
-            name = item.get(intent.dimension) or item.get("name") or item.get("company") or "Unknown"
+            # DCL returns nested: {"dimensions": {"region": "AMER"}} — check nested first
+            _dims_i = item.get("dimensions", {})
+            name = (
+                (_dims_i.get(intent.dimension) if isinstance(_dims_i, dict) else None)
+                or item.get(intent.dimension)
+                or item.get("name")
+                or item.get("company")
+                or "Unknown"
+            )
             value = item.get("value") or item.get("attainment_pct") or item.get("pipeline") or 0
 
             if intent.metric in ("quota_attainment_pct", "win_rate_pct", "slo_attainment_pct"):
