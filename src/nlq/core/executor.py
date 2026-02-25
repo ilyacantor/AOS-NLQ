@@ -74,10 +74,15 @@ class QueryExecutor:
         # Capture data_source for structural integrity (source attribution)
         self._last_data_source = result.get("data_source")
 
-        return self._extract_value_from_dcl(result, aggregate=self._is_year_period(period))
+        return self._extract_value_from_dcl(result, aggregate=self._is_year_period(period), metric=metric)
 
-    def _extract_value_from_dcl(self, result: Dict[str, Any], aggregate: bool = False) -> Optional[Any]:
-        """Extract a single value from DCL query result."""
+    def _extract_value_from_dcl(self, result: Dict[str, Any], aggregate: bool = False, metric: str = None) -> Optional[Any]:
+        """Extract a single value from DCL query result.
+
+        For annual aggregation, uses correct method based on metric unit:
+        - Additive metrics (usd_millions, usd, count): sum quarterly values
+        - Non-additive metrics (pct, ratio, score, days, hours): average quarterly values
+        """
         data = result.get("data", [])
         if not data:
             return None
@@ -86,8 +91,19 @@ class QueryExecutor:
         if isinstance(data, list) and len(data) > 0:
             if isinstance(data[0], dict) and "value" in data[0]:
                 if aggregate:
-                    # Sum quarterly values for annual total
-                    return sum(d.get("value", 0) for d in data if d.get("value") is not None)
+                    vals = [d.get("value", 0) for d in data if d.get("value") is not None]
+                    if not vals:
+                        return None
+                    # Determine aggregation method from metric unit
+                    _non_additive = {"pct", "ratio", "score", "days", "hours", "months", "index"}
+                    _is_additive = True
+                    if metric:
+                        from src.nlq.knowledge.schema import get_canonical_unit
+                        _is_additive = get_canonical_unit(metric) not in _non_additive
+                    if _is_additive:
+                        return sum(vals)
+                    else:
+                        return sum(vals) / len(vals)
                 else:
                     # Return the specific period's value (usually last in list)
                     return data[-1].get("value")

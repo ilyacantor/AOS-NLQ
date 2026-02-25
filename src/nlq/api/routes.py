@@ -1027,18 +1027,44 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
                 from src.nlq.core.dates import prior_quarter
                 _extracted_period = prior_quarter()
 
-    # Strip period suffixes (e.g., "revenue 2025", "margin this year", "arr q3")
-    # Include common misspellings
+    # Strip period suffixes (e.g., "revenue 2025", "margin for 2025", "arr in q3")
+    # Include prepositions and common misspellings
     period_suffixes = [
+        # With prepositions first (longer match wins)
+        " for 2024", " for 2025", " for 2026",
+        " in 2024", " in 2025", " in 2026",
+        " during 2024", " during 2025", " during 2026",
+        " for q1 2024", " for q1 2025", " for q1 2026",
+        " for q2 2024", " for q2 2025", " for q2 2026",
+        " for q3 2024", " for q3 2025", " for q3 2026",
+        " for q4 2024", " for q4 2025", " for q4 2026",
+        " in q1 2024", " in q1 2025", " in q1 2026",
+        " in q2 2024", " in q2 2025", " in q2 2026",
+        " in q3 2024", " in q3 2025", " in q3 2026",
+        " in q4 2024", " in q4 2025", " in q4 2026",
+        " for this year", " for last year", " for this quarter", " for last quarter",
+        " in this year", " in last year",
+        # Without prepositions (fallback)
         " 2024", " 2025", " 2026",
         " this year", " last year", " this quarter", " last quarter",
         " this quater", " last quater",  # misspellings
+        " q1 2024", " q1 2025", " q1 2026",
+        " q2 2024", " q2 2025", " q2 2026",
+        " q3 2024", " q3 2025", " q3 2026",
+        " q4 2024", " q4 2025", " q4 2026",
         " q1", " q2", " q3", " q4",
         " ytd", " mtd", " qtd",
     ]
     for suffix in period_suffixes:
         if metric_query.endswith(suffix):
             metric_query = metric_query[:-len(suffix)].strip()
+            break  # Only strip the first matching suffix
+
+    # Strip trailing prepositions left after period stripping
+    # e.g., "gross margin for" → "gross margin", "revenue in" → "revenue"
+    for prep in (" for", " in", " during"):
+        if metric_query.endswith(prep):
+            metric_query = metric_query[:-len(prep)].strip()
 
     # Strip period prefixes (e.g., "2025 revenue", "q3 margin")
     period_prefixes = [
