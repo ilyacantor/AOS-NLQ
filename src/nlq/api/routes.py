@@ -744,7 +744,7 @@ def get_claude_client() -> ClaudeClient:
 # - Only worked for specific phrasings ("what is X" but not just "X")
 # =============================================================================
 
-import re as _re_simple
+import re
 
 # Import tiered intent components
 from src.nlq.services.tiered_intent import detect_complexity, QueryComplexity
@@ -1742,7 +1742,7 @@ def _try_guided_discovery_core(question: str) -> Optional[GuidedDiscoveryResult]
     q = question.lower().strip()
 
     for domain_name, config in _GUIDED_DISCOVERY_DOMAINS.items():
-        if _re_simple.search(config["pattern"], q, _re_simple.IGNORECASE):
+        if re.search(config["pattern"], q, re.IGNORECASE):
             return GuidedDiscoveryResult(
                 domain_name=domain_name,
                 domain=determine_domain_from_name(domain_name),
@@ -1807,7 +1807,7 @@ def _is_ingest_question(question: str) -> bool:
 
     # Check regex patterns
     for pattern in _SOURCE_CONNECTIVITY_PATTERNS:
-        if _re_simple.search(pattern, q, _re_simple.IGNORECASE):
+        if re.search(pattern, q, re.IGNORECASE):
             return True
 
     return False
@@ -1934,7 +1934,7 @@ def _check_missing_data_core(question: str) -> Optional[MissingDataResult]:
     q = question.lower().strip()
 
     for pattern in _MISSING_DATA_PATTERNS:
-        if _re_simple.search(pattern, q, _re_simple.IGNORECASE):
+        if re.search(pattern, q, re.IGNORECASE):
             return MissingDataResult(response_text=_MISSING_DATA_RESPONSE)
 
     return None
