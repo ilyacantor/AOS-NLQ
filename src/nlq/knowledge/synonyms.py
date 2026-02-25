@@ -687,6 +687,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "hired",
     ],
     "open_roles": [
+        "open roles",
         "open positions",
         "open reqs",
         "requisitions",
