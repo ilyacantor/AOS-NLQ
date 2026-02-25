@@ -417,6 +417,16 @@ class NLQResponse(BaseModel):
         description="Human-readable error message"
     )
 
+    # Disambiguation
+    needs_clarification: bool = Field(
+        default=False,
+        description="Whether clarification is needed from the user"
+    )
+    clarification_prompt: Optional[str] = Field(
+        default=None,
+        description="Question to ask the user for clarification"
+    )
+
     # Dashboard response (for visualization queries)
     dashboard: Optional[Any] = Field(
         default=None,
@@ -430,7 +440,7 @@ class NLQResponse(BaseModel):
 
     response_type: Optional[str] = Field(
         default="text",
-        description="Response type: 'text' for simple answer, 'dashboard' for visualization"
+        description="Response type: 'text' for simple answer, 'dashboard' for visualization, 'clarification' for disambiguation"
     )
 
     active_filters: Optional[Dict[str, str]] = Field(
