@@ -1289,6 +1289,39 @@ def _try_simple_metric_query(question: str) -> Optional[NLQResponse]:
     if result:
         return simple_metric_to_nlq_response(result)
 
+    # ── Guard: if synonym lookup resolved the metric but DCL returned no data,
+    # return a "no data" response preserving the correct resolved_metric.
+    # Without this, the query falls through to Claude LLM parsing which may
+    # silently substitute a completely different metric (e.g. attrition_rate_pct
+    # gets replaced with logo_churn_pct).
+    from src.nlq.knowledge.synonyms import normalize_metric, _METRIC_REVERSE_LOOKUP
+    q = question.lower().strip().rstrip("?").strip()
+    # Re-do the prefix stripping to get the metric phrase
+    for pfx in ("what is our ", "what's our ", "what is the ", "what's the ",
+                 "how much is our ", "how many ", "how much ",
+                 "what is ", "what's ", "show me ", "tell me about ",
+                 "tell me ", "our ", "the ", "current "):
+        if q.startswith(pfx):
+            q = q[len(pfx):]
+            break
+    q = q.strip()
+    # Check static synonym lookup (Tier 1 only — no DCL fuzzy)
+    static_hit = _METRIC_REVERSE_LOOKUP.get(q)
+    if static_hit:
+        from src.nlq.knowledge.schema import get_display_name
+        display = get_display_name(static_hit)
+        stumped_msg = get_stumped_response(include_suggestions=True)
+        return NLQResponse(
+            success=True,
+            answer=f"{stumped_msg}\n\n⚠️ Possible insufficient data condition (50% confidence)",
+            value=None,
+            unit=None,
+            confidence=0.5,
+            parsed_intent="POINT_QUERY",
+            resolved_metric=static_hit,
+            resolved_period=current_year(),
+        )
+
     return None  # No match, let normal flow handle it
 
 

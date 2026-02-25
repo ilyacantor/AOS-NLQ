@@ -407,6 +407,8 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "ltv cac",
         "ltv/cac",
         "ltv to cac",
+        "ltv to cac ratio",
+        "ltv cac ratio",
         "lifetime value to cac",
     ],
     "cac_payback_months": [

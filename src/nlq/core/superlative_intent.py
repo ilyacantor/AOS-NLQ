@@ -179,10 +179,12 @@ METRIC_ALIASES = {
     "deal value": "deal_value",
     "value": "deal_value",
     "deal size": "deal_value",
-    # Churn
-    "churn": "gross_churn_pct",
-    "churn rate": "gross_churn_pct",
-    "customer churn": "gross_churn_pct",
+    # Churn — use DCL's canonical ID directly (avoids crossmap hop)
+    "churn": "churn_rate_pct",
+    "churn rate": "churn_rate_pct",
+    "customer churn": "churn_rate_pct",
+    "gross churn": "gross_churn_pct",
+    "logo churn": "logo_churn_pct",
     "churn risk": "churn_risk",
     # Gross margin
     "gross margin": "gross_margin_pct",

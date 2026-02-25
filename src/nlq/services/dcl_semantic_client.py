@@ -478,7 +478,8 @@ class DCLSemanticClient:
                                   "attriton", "attrtion", "attriton rate"],  # misspellings
             "engagement_score": ["engagement", "engagment", "engagmnet"],  # misspellings
             "cac": ["customer acquisition cost", "acquisition cost"],
-            "ltv_cac": ["ltv/cac", "lifetime value to cac"],
+            "ltv_cac": ["ltv/cac", "ltv to cac", "ltv to cac ratio", "ltv cac ratio",
+                       "ltv cac", "lifetime value to cac"],
             "magic_number": ["sales efficiency", "efficiency", "efficient"],  # yes/no query support
 
             # Tech
@@ -1069,6 +1070,8 @@ class DCLSemanticClient:
     # or vice versa — and both exist in DCL catalog but only one has data.
     _NLQ_TO_DCL_CROSSMAP: Dict[str, str] = {
         "gross_churn_pct": "churn_rate_pct",
+        "net_income_pct": "net_margin_pct",
+        "ltv_cac": "ltv_cac_ratio",
     }
 
     def _negotiate_metric_id(self, nlq_metric: str) -> str:
