@@ -1536,6 +1536,17 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
     if not breakdown_data:
         return None
 
+    # Filter breakdown data by requested period (DCL may return ALL quarters
+    # even when a year filter is requested). Match rows whose period contains
+    # the requested year/quarter string.
+    if _bd_period and breakdown_data:
+        _filtered = [
+            item for item in breakdown_data
+            if isinstance(item, dict) and _bd_period in str(item.get("period", ""))
+        ]
+        if _filtered:
+            breakdown_data = _filtered
+
     # Convert breakdown data to the expected format: list of {label, value}
     formatted_data = []
     for item in breakdown_data:
