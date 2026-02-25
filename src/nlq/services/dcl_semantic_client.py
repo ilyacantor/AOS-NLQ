@@ -1323,12 +1323,16 @@ class DCLSemanticClient:
 
         # Build structured run provenance for UI Trust Badge
         # Include source_system (singular) for harness/API consumers
-        primary_source = source_systems[0] if source_systems else None
-        # Determine SOR status from provenance quality score (quality >= 0.9 = SOR)
+        # Prioritize SOR source (highest quality_score) over array order
         is_sor = any(
             (p.get("quality_score") or 0) >= 0.9
             for p in provenance
         ) if provenance else False
+        if provenance:
+            _best = max(provenance, key=lambda p: p.get("quality_score") or 0)
+            primary_source = _best.get("source_system") or (source_systems[0] if source_systems else None)
+        else:
+            primary_source = source_systems[0] if source_systems else None
         normalized["run_provenance"] = {
             "run_id": metadata.get("run_id"),
             "tenant_id": metadata.get("tenant_id"),
