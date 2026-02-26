@@ -1329,7 +1329,7 @@ def _try_simple_metric_query(question: str) -> Optional[NLQResponse]:
     # Check static synonym lookup (Tier 1 only — no DCL fuzzy)
     static_hit = _METRIC_REVERSE_LOOKUP.get(q)
     if static_hit:
-        from src.nlq.knowledge.schema import get_display_name
+        from src.nlq.knowledge.display import get_display_name
         display = get_display_name(static_hit)
         stumped_msg = get_stumped_response(include_suggestions=True)
         return NLQResponse(

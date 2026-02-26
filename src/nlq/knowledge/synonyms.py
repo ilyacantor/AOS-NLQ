@@ -383,23 +383,21 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "headcunt",
     ],
     "attrition_rate_pct": [
+        "attrition",
+        "attrition rate",
         "turnover rate",
         "turnover",
         "employee turnover rate",
+        "employee attrition",
         "attrition pct",
         "attrition percent",
-        "attrition rate",
+        "people leaving",
+        "departures",
         # Common misspellings
         "attrtion",
         "attriton",
         "attrtion rate",
         "attriton rate",
-    ],
-    "attrition": [
-        "employee attrition",
-        "people leaving",
-        "departures",
-        "terminations",
     ],
 
     # LTV/CAC
