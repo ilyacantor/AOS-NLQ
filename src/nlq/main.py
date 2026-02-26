@@ -110,6 +110,15 @@ async def _deferred_init():
 
         await loop.run_in_executor(None, init_cache_service_from_env)
 
+        # Layer 4: Seed the query pattern cache from curated corpus
+        cache = get_cache_service()
+        if cache and cache.is_available:
+            from src.nlq.knowledge.pattern_seeder import QueryPatternSeeder
+            seed_path = Path(__file__).parent.parent.parent / "data" / "query_patterns_seed.yaml"
+            seeder = QueryPatternSeeder(cache, str(seed_path))
+            seeded = await loop.run_in_executor(None, seeder.seed_if_empty)
+            logger.info(f"Query pattern cache seeded: {seeded} patterns")
+
         get_learning_log()
 
         logger.info("All background services initialized")
