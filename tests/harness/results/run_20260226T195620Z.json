@@ -1,0 +1,89 @@
+{
+  "timestamp": "2026-02-26T19:56:20.228129+00:00",
+  "endpoint": "https://aos-nlq.onrender.com/api/v1/query",
+  "assumptions_source": "AOS-Farm (C:\\Users\\ilyac\\code\\AOS-Farm)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "pass_rate_pct": 100.0
+  },
+  "results": [
+    {
+      "test_id": "PL_002",
+      "query": "Show me the 2025 P&L",
+      "persona": "cfo",
+      "tags": [
+        "pnl",
+        "cfo",
+        "breakdown"
+      ],
+      "passed": true,
+      "response_time_s": 1.032,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "revenue",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            160.0
+          ],
+          "actual": 124.18,
+          "passed": true,
+          "message": "expected in [100.0, 160.0], actual=124.18"
+        },
+        {
+          "field": "cogs",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 42.25,
+          "passed": true,
+          "message": "expected not null, actual=42.25"
+        },
+        {
+          "field": "gross_profit",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 81.93,
+          "passed": true,
+          "message": "expected not null, actual=81.93"
+        },
+        {
+          "field": "ebitda",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 49.019999999999996,
+          "passed": true,
+          "message": "expected not null, actual=49.019999999999996"
+        },
+        {
+          "field": "net_income",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 33.51,
+          "passed": true,
+          "message": "expected not null, actual=33.51"
+        },
+        {
+          "field": "data_source",
+          "operator": "not_equals",
+          "expected": "demo",
+          "actual": "dcl",
+          "passed": true,
+          "message": "must not equal 'demo', actual='dcl'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": []
+}
