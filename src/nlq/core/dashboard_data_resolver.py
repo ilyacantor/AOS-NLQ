@@ -154,7 +154,16 @@ class DashboardDataResolver:
                 grain="quarterly",
             )
             if result.get("error"):
-                return {"loading": False, "error": result["error"]}
+                # Final fallback: try monthly grain (some balance sheet metrics only support monthly)
+                logger.info(f"KPI quarterly query also failed for '{metric}', retrying with monthly grain")
+                result = self._query_dcl(
+                    metric=metric,
+                    filters=filters,
+                    time_range={"period": "last 12 months", "granularity": "monthly"},
+                    grain="monthly",
+                )
+                if result.get("error"):
+                    return {"loading": False, "error": result["error"]}
 
         # Extract value from DCL response
         value = self._extract_value_from_result(result)
