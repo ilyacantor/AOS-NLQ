@@ -1094,7 +1094,7 @@ class DCLSemanticClient:
         #    when both exist in DCL but only one has breakdown data)
         mapped = self._NLQ_TO_DCL_CROSSMAP.get(nlq_metric)
         if mapped and mapped in available:
-            diag(f"[NLQ-DIAG] negotiate: {nlq_metric} → {mapped} (crossmap)")
+            diag(f"[NLQ-DIAG] negotiate: {nlq_metric} -> {mapped} (crossmap)")
             return mapped
 
         # 2. Exact match — no translation needed
@@ -1105,7 +1105,7 @@ class DCLSemanticClient:
         if nlq_metric.endswith("_pct"):
             base = nlq_metric[:-4]
             if base in available:
-                diag(f"[NLQ-DIAG] negotiate: {nlq_metric} → {base} (stripped _pct)")
+                diag(f"[NLQ-DIAG] negotiate: {nlq_metric} -> {base} (stripped _pct)")
                 return base
 
         # 4. No translation found

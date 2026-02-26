@@ -164,7 +164,7 @@ class QueryExecutor:
         if parsed_query.metric not in available_metrics:
             negotiated = self.dcl_client._negotiate_metric_id(parsed_query.metric)
             if negotiated != parsed_query.metric and negotiated in available_metrics:
-                logger.info(f"Negotiated metric: {parsed_query.metric} → {negotiated}")
+                logger.info(f"Negotiated metric: {parsed_query.metric} -> {negotiated}")
                 parsed_query.metric = negotiated
             else:
                 return QueryResult(

@@ -1550,7 +1550,7 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
                 if jp.get("type") == "cross_system_join":
                     path_desc_parts.append(
                         f"{jp['dimension']} via cross-system join "
-                        f"({jp.get('source_system', '?')} → {jp.get('join_system', '?')})"
+                        f"({jp.get('source_system', '?')} -> {jp.get('join_system', '?')})"
                     )
             path_desc = "; ".join(path_desc_parts) if path_desc_parts else "graph resolution"
             systems = [p.get("source_system", "") for p in provenance if p.get("source_system")]
@@ -3420,7 +3420,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                 success=True,
                 source="llm",
                 learned=stored_in_cache,
-                message=f'"{request.question}" → {parsed.metric}' + (" (learned)" if stored_in_cache else ""),
+                message=f'"{request.question}" -> {parsed.metric}' + (" (learned)" if stored_in_cache else ""),
                 persona=detect_persona_from_metric(parsed.metric) or "CFO",
                 similarity=0.0,
                 llm_confidence=0.95,
@@ -3997,7 +3997,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 success=True,
                 source="llm",
                 learned=stored_in_cache,
-                message=f'"{request.question}" → {parsed.metric}' + (" (learned)" if stored_in_cache else ""),
+                message=f'"{request.question}" -> {parsed.metric}' + (" (learned)" if stored_in_cache else ""),
                 persona=detect_persona_from_metric(parsed.metric) or "CFO",
                 similarity=0.0,
                 llm_confidence=0.95,
