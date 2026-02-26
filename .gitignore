@@ -51,3 +51,15 @@ npm-debug.log
 .env.local
 .env.*.local
 .vite/
+
+# Local agent state
+.claude/
+
+# Binary documents
+*.xlsx
+
+# Windows metadata
+*.Zone.Identifier
+
+# Screenshots
+*.png

@@ -134,7 +134,7 @@ async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResp
         )
 
     dcl_client = get_semantic_client()
-    dcl_connected = dcl_client.dcl_url is not None
+    dcl_connected = bool(dcl_client.dcl_url)
     raw_mode = None
     metric_count = 0
     last_run_id = None
@@ -147,6 +147,7 @@ async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResp
         probe = dcl_client.query(
             metric="revenue",
             time_range={"period": "2025-Q4", "granularity": "quarterly"},
+            data_mode=data_mode,
         )
         if probe.get("status") != "error":
             rp = probe.get("run_provenance", {})
@@ -183,7 +184,7 @@ async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResp
             logger.debug("Local catalog build failed; metric_count stays at 0: %s", e)
 
     return PipelineStatusResponse(
-        dcl_connected=dcl_connected and is_live,
+        dcl_connected=bool(dcl_connected and is_live),
         dcl_mode=raw_mode,
         metric_count=metric_count,
         last_run_id=last_run_id,
