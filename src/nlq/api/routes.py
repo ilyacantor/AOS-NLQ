@@ -1275,6 +1275,27 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None) -> Op
     )
 
 
+# =============================================================================
+# P&L / INCOME STATEMENT COMPOSITE HANDLER
+# =============================================================================
+
+def _try_pl_statement_query(question: str) -> Optional[NLQResponse]:
+    """
+    Detect P&L / income statement queries and fan out DCL queries for all line items.
+
+    Returns an NLQResponse with related_metrics containing each P&L line item,
+    or None if the question isn't a P&L query or not enough data resolves.
+    """
+    from src.nlq.core.composite_query import is_pl_statement_query, PLStatementHandler
+
+    if not is_pl_statement_query(question):
+        return None
+
+    period = _extract_period_from_dashboard_query(question)
+    handler = PLStatementHandler(period=period, query_fn=_build_simple_metric_result)
+    return handler.execute()
+
+
 def _try_simple_metric_query(question: str) -> Optional[NLQResponse]:
     """
     Try to answer a simple metric query directly from DCL.
@@ -3082,6 +3103,14 @@ async def query(request: NLQRequest) -> NLQResponse:
         simple_result = _try_simple_metric_query(request.question)
         if simple_result:
             return simple_result
+
+        # =================================================================
+        # P&L / INCOME STATEMENT COMPOSITE QUERIES
+        # Fan out multiple DCL queries for all line items in parallel.
+        # =================================================================
+        pl_result = _try_pl_statement_query(request.question)
+        if pl_result:
+            return pl_result
 
         # Check for dashboard/report queries (doesn't need Claude API)
         # NOTE: For visual dashboard requests, we let the visualization intent handler below
