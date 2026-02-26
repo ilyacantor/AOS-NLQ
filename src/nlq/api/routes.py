@@ -1188,7 +1188,7 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None) -> Op
     # If schema doesn't know this metric, use the unit from DCL's response
     if _metric_unit == "unknown" and result.get("unit"):
         _metric_unit = result["unit"]
-    _NON_ADDITIVE_UNITS = {"pct", "ratio", "score", "days", "hours", "months", "index"}
+    _NON_ADDITIVE_UNITS = {"pct", "percent", "%", "ratio", "score", "days", "hours", "months", "index"}
     _is_additive = _metric_unit not in _NON_ADDITIVE_UNITS
 
     # Handle different response formats
@@ -1659,7 +1659,7 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
     if formatted_data:
         from src.nlq.knowledge.schema import get_canonical_unit
         _bd_unit = get_canonical_unit(metric)
-        _NON_ADDITIVE = {"pct", "ratio", "score", "days", "hours", "months", "index"}
+        _NON_ADDITIVE = {"pct", "percent", "%", "ratio", "score", "days", "hours", "months", "index"}
         _bd_additive = _bd_unit not in _NON_ADDITIVE
 
         # Remove aggregate/total rows that DCL may include as summary

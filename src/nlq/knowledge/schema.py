@@ -133,6 +133,14 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         description="Net income as percentage of revenue",
         is_derived=True
     ),
+    "net_margin_pct": MetricDefinition(
+        name="net_margin_pct",
+        display_name="Net Margin %",
+        metric_type=MetricType.PERCENTAGE,
+        unit="%",
+        description="Net income as percentage of revenue (DCL canonical name)",
+        is_derived=True
+    ),
 
     # EBITDA
     "ebitda": MetricDefinition(
@@ -743,6 +751,41 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         metric_type=MetricType.RATIO,
         unit="score",
         description="Employee engagement score"
+    ),
+    "sla_compliance_pct": MetricDefinition(
+        name="sla_compliance_pct",
+        display_name="SLA Compliance",
+        metric_type=MetricType.PERCENTAGE,
+        unit="%",
+        description="Percentage of tickets meeting SLA"
+    ),
+    "slo_attainment_pct": MetricDefinition(
+        name="slo_attainment_pct",
+        display_name="SLO Attainment",
+        metric_type=MetricType.PERCENTAGE,
+        unit="%",
+        description="Service level objective attainment percentage"
+    ),
+    "offer_acceptance_rate_pct": MetricDefinition(
+        name="offer_acceptance_rate_pct",
+        display_name="Offer Acceptance Rate",
+        metric_type=MetricType.PERCENTAGE,
+        unit="%",
+        description="Percentage of job offers accepted"
+    ),
+    "internal_mobility_rate_pct": MetricDefinition(
+        name="internal_mobility_rate_pct",
+        display_name="Internal Mobility Rate",
+        metric_type=MetricType.PERCENTAGE,
+        unit="%",
+        description="Percentage of roles filled by internal transfers"
+    ),
+    "promotion_rate_pct": MetricDefinition(
+        name="promotion_rate_pct",
+        display_name="Promotion Rate",
+        metric_type=MetricType.PERCENTAGE,
+        unit="%",
+        description="Percentage of employees promoted per period"
     ),
 }
 
