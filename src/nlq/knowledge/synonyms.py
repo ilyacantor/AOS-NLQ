@@ -693,10 +693,11 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "requisitions",
         "job openings",
     ],
-    "time_to_fill_days": [
+    "time_to_fill": [
         "time to fill",
         "ttf",
         "hiring time",
+        "time to fill days",
     ],
     "offer_acceptance_rate_pct": [
         "offer acceptance",
@@ -713,6 +714,12 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "engagement",
         "employee engagement",
         "engagement rating",
+    ],
+    "enps": [
+        "employee nps",
+        "employee net promoter",
+        "employee net promoter score",
+        "e-nps",
     ],
     "training_hours_per_employee": [
         "training hours",

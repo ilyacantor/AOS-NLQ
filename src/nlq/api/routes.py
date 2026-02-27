@@ -784,16 +784,34 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
         time_range={"period": dcl_client.get_latest_period()}
     )
 
-    if "error" in result:
-        return None
+    if "error" in result or not result.get("data"):
+        # Superlative intent was detected but DCL has no data for this combination.
+        # Return an explicit no-data response instead of None to prevent fallthrough
+        # to the general handler which would silently substitute a different metric.
+        from src.nlq.api.query_helpers import determine_domain
+        dim_display = intent.dimension.replace("_", " ")
+        metric_display = intent.metric.replace("_pct", "").replace("_", " ")
+        return SimpleMetricResult(
+            metric=intent.metric,
+            value=None,
+            formatted_value="N/A",
+            unit="",
+            display_name="",
+            domain=determine_domain(intent.metric),
+            answer=(
+                f"{metric_display.title()} data ranked by {dim_display} is not available "
+                f"in the current data connection. This ranking requires dimensional data "
+                f"that has not been materialized in DCL."
+            ),
+            period=dcl_client.get_latest_period(),
+        )
 
     data = result.get("data", [])
-    if not data:
-        return None
 
     # Determine unit based on metric
     if intent.metric in ("quota_attainment_pct", "win_rate_pct", "slo_attainment_pct",
-                          "gross_margin_pct", "gross_churn_pct", "churn_pct", "nrr"):
+                          "gross_margin_pct", "gross_churn_pct", "churn_pct", "churn_rate_pct",
+                          "attrition_rate_pct", "nrr"):
         unit = "%"
     elif intent.metric in ("revenue", "pipeline", "deal_value", "cloud_spend"):
         unit = "USD millions"
@@ -807,44 +825,60 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
     # Determine domain
     domain = determine_domain(intent.metric)
 
+    # Helper to extract dimension name from a data item
+    def _extract_dim_name(item: dict, dim_key: str) -> str:
+        """Extract dimension value from DCL response item, checking nested then flat."""
+        _dims = item.get("dimensions", {})
+        return (
+            (_dims.get(dim_key) if isinstance(_dims, dict) else None)
+            or (next(iter(_dims.values()), None) if isinstance(_dims, dict) and _dims else None)
+            or item.get(dim_key)
+            or item.get("name")
+            or item.get("company")
+            or ""
+        )
+
+    # Helper to format value string
+    def _format_value(val, metric_id: str) -> str:
+        if metric_id in ("quota_attainment_pct", "win_rate_pct", "slo_attainment_pct",
+                          "gross_margin_pct", "gross_churn_pct", "churn_pct", "churn_rate_pct",
+                          "attrition_rate_pct", "nrr"):
+            return f"{val}%"
+        elif metric_id in ("revenue", "pipeline", "deal_value", "cloud_spend"):
+            return f"${val}M"
+        elif metric_id == "headcount":
+            return f"{int(val)} employees"
+        elif metric_id == "deploys_per_week":
+            return f"{val}/week"
+        return str(val)
+
     # Format response based on result
     if intent.limit == 1:
         # Single result - "top rep", "largest deal", etc.
         top_item = data[0]
-        # DCL returns nested: {"dimensions": {"region": "AMER"}} — check nested first, then flat
-        _dims = top_item.get("dimensions", {})
-        name = (
-            (_dims.get(intent.dimension) if isinstance(_dims, dict) else None)
-            or top_item.get(intent.dimension)
-            or top_item.get("name")
-            or top_item.get("company")
-            or "Unknown"
-        )
+        name = _extract_dim_name(top_item, intent.dimension)
         value = top_item.get("value") or top_item.get("attainment_pct") or top_item.get("pipeline") or 0
+        value_str = _format_value(value, intent.metric)
+        metric_display = intent.metric.replace("_pct", "").replace("_", " ")
 
-        # Format value with appropriate unit
-        if intent.metric in ("quota_attainment_pct", "win_rate_pct", "slo_attainment_pct",
-                              "gross_margin_pct", "gross_churn_pct", "churn_pct", "nrr"):
-            value_str = f"{value}%"
-        elif intent.metric in ("revenue", "pipeline", "deal_value", "cloud_spend"):
-            value_str = f"${value}M"
-        elif intent.metric == "headcount":
-            value_str = f"{int(value)} employees"
-        elif intent.metric == "deploys_per_week":
-            value_str = f"{value}/week"
+        if not name:
+            # DCL returned data but without dimension labels — aggregate value only.
+            # This happens when DCL has the metric but not the dimensional breakdown.
+            dim_display = intent.dimension.replace("_", " ")
+            response_text = (
+                f"{metric_display.title()} is {value_str} overall. "
+                f"{dim_display.title()}-level ranking is not available in the current data set."
+            )
         else:
-            value_str = str(value)
-
-        # Build descriptive response
-        ranking_word = "top" if order_by == "desc" else "bottom"
-        response_text = f"**{name}** is the {ranking_word} {intent.dimension} with {value_str} {intent.metric.replace('_', ' ')}."
+            ranking_word = "top" if order_by == "desc" else "bottom"
+            response_text = f"**{name}** is the {ranking_word} {intent.dimension} with {value_str} {metric_display}."
 
         return SimpleMetricResult(
             metric=intent.metric,
             value=value,
             formatted_value=value_str,
             unit=unit,
-            display_name=name,
+            display_name=name or "",
             domain=domain,
             answer=response_text,
             period=dcl_client.get_latest_period(),
@@ -852,30 +886,15 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
     else:
         # Multiple results - "top 5 reps", etc.
         ranking_word = "Top" if order_by == "desc" else "Bottom"
-        lines = [f"**{ranking_word} {intent.limit} {intent.dimension}s by {intent.metric.replace('_', ' ')}:**\n"]
+        metric_display = intent.metric.replace("_pct", "").replace("_", " ")
+        lines = [f"**{ranking_word} {intent.limit} {intent.dimension}s by {metric_display}:**\n"]
 
         for i, item in enumerate(data, 1):
-            # DCL returns nested: {"dimensions": {"region": "AMER"}} — check nested first
-            _dims_i = item.get("dimensions", {})
-            name = (
-                (_dims_i.get(intent.dimension) if isinstance(_dims_i, dict) else None)
-                or item.get(intent.dimension)
-                or item.get("name")
-                or item.get("company")
-                or "Unknown"
-            )
+            name = _extract_dim_name(item, intent.dimension)
             value = item.get("value") or item.get("attainment_pct") or item.get("pipeline") or 0
+            value_str = _format_value(value, intent.metric)
 
-            if intent.metric in ("quota_attainment_pct", "win_rate_pct", "slo_attainment_pct"):
-                value_str = f"{value}%"
-            elif intent.metric in ("revenue", "pipeline", "deal_value"):
-                value_str = f"${value}M"
-            elif intent.metric == "headcount":
-                value_str = f"{int(value)}"
-            else:
-                value_str = str(value)
-
-            lines.append(f"{i}. **{name}** - {value_str}")
+            lines.append(f"{i}. **{name or 'Unknown'}** - {value_str}")
 
         response_text = "\n".join(lines)
         first_value = data[0].get("value") or data[0].get("attainment_pct") or data[0].get("pipeline") or 0

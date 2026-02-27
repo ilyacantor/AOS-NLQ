@@ -179,6 +179,13 @@ METRIC_ALIASES = {
     "deal value": "deal_value",
     "value": "deal_value",
     "deal size": "deal_value",
+    # Attrition — must map before any partial-match could hit 'ar' (accounts receivable)
+    "attrition": "attrition_rate_pct",
+    "attrition rate": "attrition_rate_pct",
+    "turnover": "attrition_rate_pct",
+    "staff turnover": "attrition_rate_pct",
+    "employee attrition": "attrition_rate_pct",
+    "employee turnover": "attrition_rate_pct",
     # Churn — use DCL's canonical ID directly (avoids crossmap hop)
     "churn": "churn_rate_pct",
     "churn rate": "churn_rate_pct",
@@ -411,18 +418,24 @@ def _extract_dimension_and_metric(
     dimension = "rep"
     metric = "quota_attainment_pct"
 
-    # Check for explicit metric mentions FIRST (higher priority)
-    metric_found = False
-    for alias, canonical in METRIC_ALIASES.items():
-        if alias in remainder or alias in full_query:
-            metric = canonical
-            metric_found = True
-            break
-
-    # Check for explicit dimension mentions
-    for alias, canonical in DIMENSION_ALIASES.items():
+    # Check for explicit dimension mentions FIRST (longest alias wins)
+    dimension_alias = None
+    for alias, canonical in sorted(DIMENSION_ALIASES.items(), key=lambda x: len(x[0]), reverse=True):
         if alias in remainder or alias in full_query:
             dimension = canonical
+            dimension_alias = alias
+            break
+
+    # Check for explicit metric mentions (longest alias wins).
+    # Skip metric aliases that are substrings of the matched dimension phrase
+    # to prevent "sales" (→ revenue) from matching inside "sales reps" (→ rep dimension).
+    metric_found = False
+    for alias, canonical in sorted(METRIC_ALIASES.items(), key=lambda x: len(x[0]), reverse=True):
+        if alias in remainder or alias in full_query:
+            if dimension_alias and alias in dimension_alias:
+                continue  # "sales" is part of "sales reps" — skip
+            metric = canonical
+            metric_found = True
             break
 
     # Infer metric from dimension if not explicitly mentioned
@@ -433,8 +446,10 @@ def _extract_dimension_and_metric(
                 metric = "win_rate_pct"
             elif "pipeline" in full_query or "pipe" in full_query:
                 metric = "pipeline"
-            elif "revenue" in full_query or "sales" in full_query:
+            elif "revenue" in full_query:
                 metric = "revenue"
+            # Note: "sales" alone is NOT checked here because "sales reps"
+            # contains "sales" but refers to the dimension, not the metric.
         elif dimension == "service":
             metric = "slo_attainment_pct"
         elif dimension == "region":
@@ -445,6 +460,10 @@ def _extract_dimension_and_metric(
             metric = "revenue"
         elif dimension == "department":
             metric = "headcount"
+            if any(w in full_query for w in ("attrition", "turnover", "leaving")):
+                metric = "attrition_rate_pct"
+            elif "engagement" in full_query:
+                metric = "engagement_score"
         elif dimension == "team":
             metric = "sprint_velocity"
         elif dimension == "deal":
