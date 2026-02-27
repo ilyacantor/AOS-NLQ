@@ -7,9 +7,9 @@
       "status": "PASS"
     },
     "CRO": {
-      "total": 69,
+      "total": 68,
       "max": 72,
-      "pct": 95.8,
+      "pct": 94.4,
       "status": "PASS"
     },
     "COO": {
@@ -25,18 +25,18 @@
       "status": "PASS"
     },
     "CHRO": {
-      "total": 60,
+      "total": 65,
       "max": 72,
-      "pct": 83.3,
+      "pct": 90.3,
       "status": "PASS"
     }
   },
-  "grand_total": 325,
+  "grand_total": 329,
   "grand_max": 360,
-  "grand_pct": 90.3,
+  "grand_pct": 91.4,
   "demo_ready": true,
   "flags": [
-    "CHRO_Q6: SLOW (5382ms)"
+    "CHRO_Q3: IMPOSSIBLE (off by 1724%)"
   ],
   "details": [
     {
@@ -45,7 +45,7 @@
       "value": 124.18,
       "unit": "usd_millions",
       "answer": "Revenue for 2025 is $124.2M",
-      "elapsed_ms": 4123,
+      "elapsed_ms": 4135,
       "correct": 3,
       "correct_reason": "Value 124.18 within 10% of 124.18 (off by 0.0%)",
       "complete": 3,
@@ -81,7 +81,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "salesforce_crm",
             "netsuite_erp"
@@ -104,7 +104,7 @@
       "value": 29.0,
       "unit": "pct",
       "answer": "2025 vs 2024: Revenue $124.0M vs $96.0M (+29%), Net Income $34.0M vs $25.51M (+31%), Operating Margin 36.0% vs 35.3% (+0.7%)",
-      "elapsed_ms": 2085,
+      "elapsed_ms": 2095,
       "correct": 3,
       "correct_reason": "Comparison with values",
       "complete": 3,
@@ -230,7 +230,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "netsuite_erp"
           ],
@@ -252,7 +252,7 @@
       "value": null,
       "unit": "",
       "answer": "**P&L Statement \u2014 2026-Q1**\n\n  Revenue: $35.6M\n  COGS: $11.9M\n  Gross Profit: $23.6M\n  Gross Margin: 66.4%\n  Sm Expense: 4.1\n  Rd Expense: 3.0\n  Ga Expense: 2.3\n  Opex: 9.4\n  EBITDA: $14.2M\n  EBITDA Margin: 39.9%\n  Operating Profit: $13.0M\n  Net Income: $9.7M\n  Net Margin Pct: 27.3%",
-      "elapsed_ms": 2117,
+      "elapsed_ms": 2096,
       "correct": 3,
       "correct_reason": "Composite response with content",
       "complete": 2,
@@ -441,7 +441,7 @@
       "value": null,
       "unit": "",
       "answer": "Here's revenue by region",
-      "elapsed_ms": 2055,
+      "elapsed_ms": 2068,
       "correct": 1,
       "correct_reason": "No dimensions found",
       "complete": 2,
@@ -501,7 +501,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "salesforce_crm",
             "netsuite_erp"
@@ -524,7 +524,7 @@
       "value": -1.89,
       "unit": "ratio",
       "answer": "Burn Multiple for 2026-Q1 is -1.9",
-      "elapsed_ms": 2043,
+      "elapsed_ms": 2058,
       "correct": 2,
       "correct_reason": "Value -1.89 within 80% of -1.3 (off by 45.4%)",
       "complete": 3,
@@ -560,7 +560,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "netsuite_erp"
           ],
@@ -582,7 +582,7 @@
       "value": null,
       "unit": "",
       "answer": "Here's a dashboard showing Arr Over Time",
-      "elapsed_ms": 2073,
+      "elapsed_ms": 2051,
       "correct": 2,
       "correct_reason": "Some comparison content",
       "complete": 2,
@@ -606,7 +606,7 @@
         "needs_clarification": false,
         "clarification_prompt": null,
         "dashboard": {
-          "id": "dash_9bc033ed",
+          "id": "dash_714928dd",
           "title": "Arr Over Time",
           "description": "Generated from: How is ARR trending?",
           "source_query": "How is ARR trending?",
@@ -881,7 +881,7 @@
       "value": 57.4,
       "unit": "pct",
       "answer": "Rule Of 40 for 2026-Q1 is 57.4",
-      "elapsed_ms": 2057,
+      "elapsed_ms": 2068,
       "correct": 3,
       "correct_reason": "Got value 57.4",
       "complete": 3,
@@ -917,7 +917,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "netsuite_erp"
           ],
@@ -939,7 +939,7 @@
       "value": 128.05,
       "unit": "usd_millions",
       "answer": "Pipeline for 2026-Q1 is $128.1M",
-      "elapsed_ms": 2070,
+      "elapsed_ms": 2040,
       "correct": 3,
       "correct_reason": "Value 128.05 within 15% of 121.61 (off by 5.3%)",
       "complete": 3,
@@ -975,7 +975,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "salesforce_crm"
           ],
@@ -997,7 +997,7 @@
       "value": 40.0,
       "unit": "pct",
       "answer": "Win Rate Pct for 2026-Q1 is 40.0%",
-      "elapsed_ms": 2060,
+      "elapsed_ms": 2064,
       "correct": 3,
       "correct_reason": "Value 40.0 within 10% of 40.5 (off by 1.2%)",
       "complete": 3,
@@ -1033,7 +1033,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "salesforce_crm"
           ],
@@ -1055,7 +1055,7 @@
       "value": null,
       "unit": "",
       "answer": "Here's pipeline by region",
-      "elapsed_ms": 2031,
+      "elapsed_ms": 2059,
       "correct": 1,
       "correct_reason": "No dimensions found",
       "complete": 2,
@@ -1115,7 +1115,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "salesforce_crm"
           ],
@@ -1134,26 +1134,26 @@
     {
       "id": "CRO_Q4",
       "question": "Who are the top 3 sales reps?",
-      "value": 35.57,
-      "unit": "usd_millions",
-      "answer": "Revenue for 2026-Q1 is $35.6M",
-      "elapsed_ms": 2053,
+      "value": null,
+      "unit": "",
+      "answer": "Quota Attainment data ranked by rep is not available in the current data connection. This ranking requires dimensional data that has not been materialized in DCL.",
+      "elapsed_ms": 2047,
       "correct": 3,
       "correct_reason": "Named entity with value",
-      "complete": 3,
-      "complete_reason": "Complete (value, unit, answer, confidence)",
+      "complete": 2,
+      "complete_reason": "Partial (unit, answer, confidence)",
       "natural": 3,
-      "natural_reason": "len=29, natural=3, robotic=0",
-      "total": 9,
+      "natural_reason": "len=162, natural=3, robotic=0",
+      "total": 8,
       "flags": [],
       "raw_response": {
         "success": true,
-        "answer": "Revenue for 2026-Q1 is $35.6M",
-        "value": 35.57,
-        "unit": "usd_millions",
+        "answer": "Quota Attainment data ranked by rep is not available in the current data connection. This ranking requires dimensional data that has not been materialized in DCL.",
+        "value": null,
+        "unit": "",
         "confidence": 0.95,
         "parsed_intent": "POINT_QUERY",
-        "resolved_metric": "revenue",
+        "resolved_metric": "quota_attainment_pct",
         "resolved_period": "2026-Q1",
         "related_metrics": null,
         "error_code": null,
@@ -1169,24 +1169,10 @@
         "entity": null,
         "entity_id": null,
         "entity_resolution": null,
-        "provenance": {
-          "run_id": null,
-          "tenant_id": "default",
-          "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
-          "source_systems": [
-            "salesforce_crm",
-            "netsuite_erp"
-          ],
-          "source_system": "netsuite_erp",
-          "is_sor": true,
-          "freshness": "2026-02-07T00:00:00Z",
-          "quality_score": 1.0,
-          "mode": "Ingest"
-        },
+        "provenance": null,
         "conflicts": null,
         "temporal_warning": null,
-        "data_source": "dcl",
+        "data_source": null,
         "persona": null
       }
     },
@@ -1196,7 +1182,7 @@
       "value": 0.0702,
       "unit": "usd_millions",
       "answer": "Avg Deal Size for 2026-Q1 is $0.1M",
-      "elapsed_ms": 2074,
+      "elapsed_ms": 4084,
       "correct": 3,
       "correct_reason": "Got value 0.0702",
       "complete": 3,
@@ -1232,7 +1218,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "salesforce_crm"
           ],
@@ -1254,7 +1240,7 @@
       "value": 86.0,
       "unit": "days",
       "answer": "Sales Cycle Days for 2026-Q1 is 86.0",
-      "elapsed_ms": 2049,
+      "elapsed_ms": 2053,
       "correct": 3,
       "correct_reason": "Got value 86.0",
       "complete": 3,
@@ -1290,7 +1276,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "salesforce_crm"
           ],
@@ -1311,19 +1297,19 @@
       "question": "Which segment has the best win rate?",
       "value": 40.0,
       "unit": "pct",
-      "answer": "**Unknown** is the top segment with 40.0% win rate pct.",
-      "elapsed_ms": 2053,
+      "answer": "Win Rate is 40.0% overall. Segment-level ranking is not available in the current data set.",
+      "elapsed_ms": 2058,
       "correct": 3,
       "correct_reason": "Named entity with value",
       "complete": 3,
       "complete_reason": "Complete (value, unit, answer, confidence)",
       "natural": 3,
-      "natural_reason": "len=55, natural=4, robotic=0",
+      "natural_reason": "len=90, natural=4, robotic=0",
       "total": 9,
       "flags": [],
       "raw_response": {
         "success": true,
-        "answer": "**Unknown** is the top segment with 40.0% win rate pct.",
+        "answer": "Win Rate is 40.0% overall. Segment-level ranking is not available in the current data set.",
         "value": 40.0,
         "unit": "pct",
         "confidence": 0.95,
@@ -1357,7 +1343,7 @@
       "value": 150.0,
       "unit": "pct",
       "answer": "Quota Attainment Pct for 2026-Q1 is 150.0%",
-      "elapsed_ms": 2050,
+      "elapsed_ms": 2042,
       "correct": 3,
       "correct_reason": "Value 150.0 within 10% of 150 (off by 0.0%)",
       "complete": 3,
@@ -1393,7 +1379,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "salesforce_crm"
           ],
@@ -1415,7 +1401,7 @@
       "value": 4.23,
       "unit": "score",
       "answer": "Csat for 2026-Q1 is 4.2",
-      "elapsed_ms": 2061,
+      "elapsed_ms": 2071,
       "correct": 3,
       "correct_reason": "Value 4.23 within 10% of 4.22 (off by 0.2%)",
       "complete": 3,
@@ -1451,7 +1437,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "zendesk"
           ],
@@ -1473,7 +1459,7 @@
       "value": null,
       "unit": "",
       "answer": "Here's a dashboard showing Csat Over Time",
-      "elapsed_ms": 2083,
+      "elapsed_ms": 2116,
       "correct": 2,
       "correct_reason": "Some comparison content",
       "complete": 2,
@@ -1497,7 +1483,7 @@
         "needs_clarification": false,
         "clarification_prompt": null,
         "dashboard": {
-          "id": "dash_37654adb",
+          "id": "dash_536fde6d",
           "title": "Csat Over Time",
           "description": "Generated from: How is CSAT trending?",
           "source_query": "How is CSAT trending?",
@@ -1772,7 +1758,7 @@
       "value": 48.0,
       "unit": "score",
       "answer": "Nps for 2026-Q1 is 48.0",
-      "elapsed_ms": 2049,
+      "elapsed_ms": 2078,
       "correct": 3,
       "correct_reason": "Value 48.0 within 15% of 47 (off by 2.1%)",
       "complete": 3,
@@ -1808,7 +1794,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "zendesk"
           ],
@@ -1830,7 +1816,7 @@
       "value": 4121.0,
       "unit": "count",
       "answer": "Support Tickets for 2025-Q4 is 4121.0",
-      "elapsed_ms": 2072,
+      "elapsed_ms": 2086,
       "correct": 3,
       "correct_reason": "Value 4121.0 within 15% of 4121 (off by 0.0%)",
       "complete": 3,
@@ -1866,7 +1852,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "zendesk"
           ],
@@ -1888,7 +1874,7 @@
       "value": 2.1,
       "unit": "hours",
       "answer": "First Response Hours for 2026-Q1 is 2.1",
-      "elapsed_ms": 2017,
+      "elapsed_ms": 2041,
       "correct": 3,
       "correct_reason": "Got value 2.1",
       "complete": 3,
@@ -1924,7 +1910,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "zendesk"
           ],
@@ -1945,23 +1931,23 @@
       "question": "Show me CSAT by segment",
       "value": null,
       "unit": "",
-      "answer": "No data available for csat by segment. Try breaking down by: priority.",
-      "elapsed_ms": 2056,
+      "answer": "Here's csat by segment",
+      "elapsed_ms": 2034,
       "correct": 1,
       "correct_reason": "No dimensions found",
       "complete": 2,
       "complete_reason": "Partial (answer, confidence)",
       "natural": 3,
-      "natural_reason": "len=70, natural=3, robotic=0",
+      "natural_reason": "len=22, natural=1, robotic=0",
       "total": 6,
       "flags": [],
       "raw_response": {
         "success": true,
-        "answer": "No data available for csat by segment. Try breaking down by: priority.",
+        "answer": "Here's csat by segment",
         "value": null,
         "unit": null,
-        "confidence": 0.85,
-        "parsed_intent": "DATA_NOT_AVAILABLE",
+        "confidence": 0.9,
+        "parsed_intent": "BREAKDOWN",
         "resolved_metric": "csat",
         "resolved_period": "2026-Q1",
         "related_metrics": null,
@@ -1970,18 +1956,55 @@
         "needs_clarification": false,
         "clarification_prompt": null,
         "dashboard": null,
-        "dashboard_data": null,
-        "response_type": "text",
+        "dashboard_data": {
+          "breakdown_csat_by_segment": {
+            "title": "Csat by Segment",
+            "type": "bar_chart",
+            "series": [
+              {
+                "name": "csat",
+                "data": [
+                  {
+                    "label": "Enterprise",
+                    "value": 4.38
+                  },
+                  {
+                    "label": "Mid-Market",
+                    "value": 4.23
+                  },
+                  {
+                    "label": "SMB",
+                    "value": 4.03
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "response_type": "dashboard",
         "active_filters": null,
         "error_details": null,
         "debug_info": null,
         "entity": null,
         "entity_id": null,
         "entity_resolution": null,
-        "provenance": null,
+        "provenance": {
+          "run_id": null,
+          "tenant_id": "default",
+          "snapshot_name": "Ingest-v5.0",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
+          "source_systems": [
+            "zendesk"
+          ],
+          "source_system": "zendesk",
+          "is_sor": false,
+          "freshness": "2026-02-07T00:00:00Z",
+          "quality_score": 1.0,
+          "mode": "Ingest"
+        },
         "conflicts": null,
         "temporal_warning": null,
-        "data_source": null,
+        "data_source": "dcl",
         "persona": null
       }
     },
@@ -1991,7 +2014,7 @@
       "value": 333.0,
       "unit": "count",
       "answer": "Headcount for 2026-Q1 is 333.0",
-      "elapsed_ms": 2083,
+      "elapsed_ms": 2034,
       "correct": 3,
       "correct_reason": "Value 333.0 within 10% of 321 (off by 3.7%)",
       "complete": 3,
@@ -2027,7 +2050,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "workday_hcm"
           ],
@@ -2049,7 +2072,7 @@
       "value": 51.0,
       "unit": "count",
       "answer": "Open Roles for 2026-Q1 is 51.0",
-      "elapsed_ms": 2061,
+      "elapsed_ms": 2035,
       "correct": 3,
       "correct_reason": "Value 51.0 within 20% of 51 (off by 0.0%)",
       "complete": 3,
@@ -2085,7 +2108,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "salesforce_crm",
             "netsuite_erp"
@@ -2108,7 +2131,7 @@
       "value": 3.0,
       "unit": "count",
       "answer": "P1 Incidents for 2026-Q1 is 3.0",
-      "elapsed_ms": 2088,
+      "elapsed_ms": 2056,
       "correct": 3,
       "correct_reason": "Value 3.0 within 50% of 3 (off by 0.0%)",
       "complete": 3,
@@ -2144,7 +2167,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "datadog"
           ],
@@ -2166,7 +2189,7 @@
       "value": 2.5,
       "unit": "minutes",
       "answer": "Mttr for 2026-Q1 is 2.5",
-      "elapsed_ms": 2039,
+      "elapsed_ms": 2043,
       "correct": 3,
       "correct_reason": "Got value 2.5",
       "complete": 3,
@@ -2202,7 +2225,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "pagerduty"
           ],
@@ -2224,7 +2247,7 @@
       "value": 99.61,
       "unit": "pct",
       "answer": "Uptime Pct for 2026-Q1 is 99.6%",
-      "elapsed_ms": 2045,
+      "elapsed_ms": 2054,
       "correct": 3,
       "correct_reason": "Value 99.61 within 2% of 99.59 (off by 0.0%)",
       "complete": 3,
@@ -2260,7 +2283,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "pagerduty"
           ],
@@ -2282,7 +2305,7 @@
       "value": null,
       "unit": "",
       "answer": "No breakdown data available for uptime pct by service. Try breaking down by: service.",
-      "elapsed_ms": 2069,
+      "elapsed_ms": 2057,
       "correct": 2,
       "correct_reason": "Breakdown response but no dim check",
       "complete": 2,
@@ -2327,7 +2350,7 @@
       "value": 102.0,
       "unit": "count",
       "answer": "Sprint Velocity for 2026-Q1 is 102.0",
-      "elapsed_ms": 2052,
+      "elapsed_ms": 2063,
       "correct": 3,
       "correct_reason": "Value 102.0 within 15% of 101.2 (off by 0.8%)",
       "complete": 3,
@@ -2363,7 +2386,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "jira"
           ],
@@ -2385,7 +2408,7 @@
       "value": null,
       "unit": "",
       "answer": "Here's a dashboard showing Cloud Spend Over Time",
-      "elapsed_ms": 2072,
+      "elapsed_ms": 2082,
       "correct": 2,
       "correct_reason": "Some comparison content",
       "complete": 2,
@@ -2409,7 +2432,7 @@
         "needs_clarification": false,
         "clarification_prompt": null,
         "dashboard": {
-          "id": "dash_d4e10b66",
+          "id": "dash_8ad9f478",
           "title": "Cloud Spend Over Time",
           "description": "Generated from: How is cloud spend trending?",
           "source_query": "How is cloud spend trending?",
@@ -2684,7 +2707,7 @@
       "value": null,
       "unit": "",
       "answer": "Here's cloud spend by resource_type",
-      "elapsed_ms": 2037,
+      "elapsed_ms": 2048,
       "correct": 1,
       "correct_reason": "No breakdown",
       "complete": 2,
@@ -2756,7 +2779,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "aws_cost_explorer"
           ],
@@ -2778,7 +2801,7 @@
       "value": 0.13,
       "unit": "pct",
       "answer": "Tech Debt Pct for 2026-Q1 is 0.1%",
-      "elapsed_ms": 2073,
+      "elapsed_ms": 2028,
       "correct": 3,
       "correct_reason": "Value 0.13 within 25% of 0.133 (off by 2.3%)",
       "complete": 3,
@@ -2814,7 +2837,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "jira"
           ],
@@ -2836,7 +2859,7 @@
       "value": 11.0,
       "unit": "pct",
       "answer": "Attrition Rate Pct for 2026-Q1 is 11.0%",
-      "elapsed_ms": 2052,
+      "elapsed_ms": 2020,
       "correct": 3,
       "correct_reason": "Value 11.0 within 15% of 11.5 (off by 4.3%)",
       "complete": 3,
@@ -2872,7 +2895,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "workday"
           ],
@@ -2891,85 +2914,27 @@
     {
       "id": "CHRO_Q2",
       "question": "Which department has the highest attrition?",
-      "value": 16.99,
-      "unit": "usd_millions",
-      "answer": "Accounts Receivable for 2026-Q1 is $17.0M",
-      "elapsed_ms": 2078,
+      "value": 13.8,
+      "unit": "pct",
+      "answer": "**Sales** is the top department with 13.8% attrition rate.",
+      "elapsed_ms": 2031,
       "correct": 3,
       "correct_reason": "Named entity with value",
       "complete": 3,
       "complete_reason": "Complete (value, unit, answer, confidence)",
       "natural": 3,
-      "natural_reason": "len=41, natural=4, robotic=0",
+      "natural_reason": "len=58, natural=4, robotic=0",
       "total": 9,
       "flags": [],
       "raw_response": {
         "success": true,
-        "answer": "Accounts Receivable for 2026-Q1 is $17.0M",
-        "value": 16.99,
-        "unit": "usd_millions",
+        "answer": "**Sales** is the top department with 13.8% attrition rate.",
+        "value": 13.8,
+        "unit": "pct",
         "confidence": 0.95,
         "parsed_intent": "POINT_QUERY",
-        "resolved_metric": "ar",
+        "resolved_metric": "attrition_rate_pct",
         "resolved_period": "2026-Q1",
-        "related_metrics": null,
-        "error_code": null,
-        "error_message": null,
-        "needs_clarification": false,
-        "clarification_prompt": null,
-        "dashboard": null,
-        "dashboard_data": null,
-        "response_type": "text",
-        "active_filters": null,
-        "error_details": null,
-        "debug_info": null,
-        "entity": null,
-        "entity_id": null,
-        "entity_resolution": null,
-        "provenance": {
-          "run_id": null,
-          "tenant_id": "default",
-          "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
-          "source_systems": [
-            "netsuite_erp"
-          ],
-          "source_system": "netsuite_erp",
-          "is_sor": true,
-          "freshness": "2026-02-06T00:00:00Z",
-          "quality_score": 1.0,
-          "mode": "Ingest"
-        },
-        "conflicts": null,
-        "temporal_warning": null,
-        "data_source": "dcl",
-        "persona": null
-      }
-    },
-    {
-      "id": "CHRO_Q3",
-      "question": "What is employee engagement?",
-      "value": null,
-      "unit": "",
-      "answer": "I'm stumped! But I can definitely help with:\n\u2022 Financial metrics (revenue, margin, profit)\n\u2022 Sales metrics (pipeline, bookings, win rate)\n\u2022 Or try 'show me KPIs'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
-      "elapsed_ms": 2026,
-      "correct": 1,
-      "correct_reason": "No numeric value extracted. Answer: I'm stumped! But I can definitely help with:\n\u2022 Financial metrics (revenue, margi",
-      "complete": 2,
-      "complete_reason": "Partial (answer, confidence)",
-      "natural": 3,
-      "natural_reason": "len=219, natural=3, robotic=0",
-      "total": 6,
-      "flags": [],
-      "raw_response": {
-        "success": true,
-        "answer": "I'm stumped! But I can definitely help with:\n\u2022 Financial metrics (revenue, margin, profit)\n\u2022 Sales metrics (pipeline, bookings, win rate)\n\u2022 Or try 'show me KPIs'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
-        "value": null,
-        "unit": null,
-        "confidence": 0.5,
-        "parsed_intent": "POINT_QUERY",
-        "resolved_metric": "engagement_score",
-        "resolved_period": "2026",
         "related_metrics": null,
         "error_code": null,
         "error_message": null,
@@ -2992,12 +2957,72 @@
       }
     },
     {
+      "id": "CHRO_Q3",
+      "question": "What is employee engagement?",
+      "value": 77.5,
+      "unit": "score",
+      "answer": "Engagement Score for 2026-Q1 is 77.5",
+      "elapsed_ms": 2073,
+      "correct": 1,
+      "correct_reason": "Value 77.5 off by 1723.5% from 4.25",
+      "complete": 3,
+      "complete_reason": "Complete (value, unit, answer, confidence)",
+      "natural": 3,
+      "natural_reason": "len=36, natural=2, robotic=0",
+      "total": 7,
+      "flags": [
+        "IMPOSSIBLE (off by 1724%)"
+      ],
+      "raw_response": {
+        "success": true,
+        "answer": "Engagement Score for 2026-Q1 is 77.5",
+        "value": 77.5,
+        "unit": "score",
+        "confidence": 0.95,
+        "parsed_intent": "POINT_QUERY",
+        "resolved_metric": "engagement_score",
+        "resolved_period": "2026-Q1",
+        "related_metrics": null,
+        "error_code": null,
+        "error_message": null,
+        "needs_clarification": false,
+        "clarification_prompt": null,
+        "dashboard": null,
+        "dashboard_data": null,
+        "response_type": "text",
+        "active_filters": null,
+        "error_details": null,
+        "debug_info": null,
+        "entity": null,
+        "entity_id": null,
+        "entity_resolution": null,
+        "provenance": {
+          "run_id": null,
+          "tenant_id": "default",
+          "snapshot_name": "Ingest-v5.0",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
+          "source_systems": [
+            "culture_amp"
+          ],
+          "source_system": "culture_amp",
+          "is_sor": false,
+          "freshness": "2026-02-07T00:00:00Z",
+          "quality_score": 1.0,
+          "mode": "Ingest"
+        },
+        "conflicts": null,
+        "temporal_warning": null,
+        "data_source": "dcl",
+        "persona": null
+      }
+    },
+    {
       "id": "CHRO_Q4",
       "question": "How many open roles do we have?",
       "value": 51.0,
       "unit": "count",
       "answer": "Open Roles for 2026-Q1 is 51.0",
-      "elapsed_ms": 2071,
+      "elapsed_ms": 2031,
       "correct": 3,
       "correct_reason": "Value 51.0 within 20% of 51 (off by 0.0%)",
       "complete": 3,
@@ -3033,7 +3058,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "salesforce_crm",
             "netsuite_erp"
@@ -3053,27 +3078,27 @@
     {
       "id": "CHRO_Q5",
       "question": "What is time to fill?",
-      "value": null,
-      "unit": "",
-      "answer": "Hmm, that's a head-scratcher. Try asking me about:\n\u2022 Revenue, bookings, or ARR\n\u2022 Pipeline or churn\n\u2022 Any of the dashboards (CFO, CRO, COO, CTO)\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
-      "elapsed_ms": 2089,
-      "correct": 1,
-      "correct_reason": "No numeric value extracted. Answer: Hmm, that's a head-scratcher. Try asking me about:\n\u2022 Revenue, bookings, or ARR\n\u2022",
-      "complete": 2,
-      "complete_reason": "Partial (answer, confidence)",
+      "value": 30.2,
+      "unit": "days",
+      "answer": "Time To Fill for 2026-Q1 is 30.2",
+      "elapsed_ms": 2074,
+      "correct": 2,
+      "correct_reason": "Value 30.2 within 50% of 45 (off by 32.9%)",
+      "complete": 3,
+      "complete_reason": "Complete (value, unit, answer, confidence)",
       "natural": 3,
-      "natural_reason": "len=201, natural=4, robotic=0",
-      "total": 6,
+      "natural_reason": "len=32, natural=2, robotic=0",
+      "total": 8,
       "flags": [],
       "raw_response": {
         "success": true,
-        "answer": "Hmm, that's a head-scratcher. Try asking me about:\n\u2022 Revenue, bookings, or ARR\n\u2022 Pipeline or churn\n\u2022 Any of the dashboards (CFO, CRO, COO, CTO)\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
-        "value": null,
-        "unit": null,
-        "confidence": 0.5,
+        "answer": "Time To Fill for 2026-Q1 is 30.2",
+        "value": 30.2,
+        "unit": "days",
+        "confidence": 0.95,
         "parsed_intent": "POINT_QUERY",
-        "resolved_metric": "time_to_fill_days",
-        "resolved_period": "2026",
+        "resolved_metric": "time_to_fill",
+        "resolved_period": "2026-Q1",
         "related_metrics": null,
         "error_code": null,
         "error_message": null,
@@ -3088,36 +3113,47 @@
         "entity": null,
         "entity_id": null,
         "entity_resolution": null,
-        "provenance": null,
+        "provenance": {
+          "run_id": null,
+          "tenant_id": "default",
+          "snapshot_name": "Ingest-v5.0",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
+          "source_systems": [
+            "greenhouse"
+          ],
+          "source_system": "greenhouse",
+          "is_sor": false,
+          "freshness": "2026-02-07T00:00:00Z",
+          "quality_score": 1.0,
+          "mode": "Ingest"
+        },
         "conflicts": null,
         "temporal_warning": null,
-        "data_source": null,
+        "data_source": "dcl",
         "persona": null
       }
     },
     {
       "id": "CHRO_Q6",
       "question": "What is our eNPS?",
-      "value": null,
-      "unit": "",
-      "answer": "I'm not sure what you mean, but here are some things I'm great at:\n\u2022 'What's revenue?'\n\u2022 'How's pipeline looking?'\n\u2022 'Show me the CFO dashboard'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
-      "elapsed_ms": 5382,
-      "correct": 2,
-      "correct_reason": "Got answer text but no numeric value",
-      "complete": 2,
-      "complete_reason": "Partial (answer, confidence)",
+      "value": 27.0,
+      "unit": "score",
+      "answer": "Enps for 2026-Q1 is 27.0",
+      "elapsed_ms": 2061,
+      "correct": 3,
+      "correct_reason": "Got value 27.0",
+      "complete": 3,
+      "complete_reason": "Complete (value, unit, answer, confidence)",
       "natural": 3,
-      "natural_reason": "len=202, natural=3, robotic=0",
-      "total": 7,
-      "flags": [
-        "SLOW (5382ms)"
-      ],
+      "natural_reason": "len=24, natural=2, robotic=0",
+      "total": 9,
+      "flags": [],
       "raw_response": {
         "success": true,
-        "answer": "I'm not sure what you mean, but here are some things I'm great at:\n\u2022 'What's revenue?'\n\u2022 'How's pipeline looking?'\n\u2022 'Show me the CFO dashboard'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
-        "value": null,
-        "unit": null,
-        "confidence": 0.5,
+        "answer": "Enps for 2026-Q1 is 27.0",
+        "value": 27.0,
+        "unit": "score",
+        "confidence": 0.95,
         "parsed_intent": "POINT_QUERY",
         "resolved_metric": "enps",
         "resolved_period": "2026-Q1",
@@ -3135,10 +3171,23 @@
         "entity": null,
         "entity_id": null,
         "entity_resolution": null,
-        "provenance": null,
+        "provenance": {
+          "run_id": null,
+          "tenant_id": "default",
+          "snapshot_name": "Ingest-v5.0",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
+          "source_systems": [
+            "culture_amp"
+          ],
+          "source_system": "culture_amp",
+          "is_sor": false,
+          "freshness": "2026-02-07T00:00:00Z",
+          "quality_score": 1.0,
+          "mode": "Ingest"
+        },
         "conflicts": null,
         "temporal_warning": null,
-        "data_source": null,
+        "data_source": "dcl",
         "persona": null
       }
     },
@@ -3148,7 +3197,7 @@
       "value": null,
       "unit": "",
       "answer": "Here's headcount by department",
-      "elapsed_ms": 2030,
+      "elapsed_ms": 2069,
       "correct": 1,
       "correct_reason": "No dimensions found",
       "complete": 2,
@@ -3220,7 +3269,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "workday_hcm"
           ],
@@ -3242,7 +3291,7 @@
       "value": 83.1,
       "unit": "pct",
       "answer": "Offer Acceptance Rate Pct for 2026-Q1 is 83.1%",
-      "elapsed_ms": 2090,
+      "elapsed_ms": 2059,
       "correct": 3,
       "correct_reason": "Value 83.1 within 10% of 84.5 (off by 1.7%)",
       "complete": 3,
@@ -3278,7 +3327,7 @@
           "run_id": null,
           "tenant_id": "default",
           "snapshot_name": "Ingest-v5.0",
-          "run_timestamp": "2026-02-26T21:51:14.645072Z",
+          "run_timestamp": "2026-02-27T00:02:58.710025Z",
           "source_systems": [
             "greenhouse"
           ],
