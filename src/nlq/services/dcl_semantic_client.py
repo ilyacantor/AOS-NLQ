@@ -220,81 +220,93 @@ class DCLSemanticClient:
             diag(f"[NLQ-DIAG] Fetching catalog from DCL: {self.dcl_url}/api/dcl/semantic-export")
             try:
                 catalog = self._fetch_from_dcl()
-                if catalog:
-                    self._catalog = catalog
-                    self._cache_time = current_time
-                    self._catalog_source = "dcl"
-                    diag(f"[NLQ-DIAG] DCL catalog loaded OK: {len(catalog.metrics)} metrics")
-                    logger.info(f"Loaded semantic catalog from DCL ({len(catalog.metrics)} metrics)")
-                    return catalog
-                else:
-                    diag("[NLQ-DIAG] DCL catalog fetch returned None")
-                    if data_mode == "live":
-                        raise RuntimeError(
-                            "LIVE MODE FAILURE: DCL catalog fetch returned empty. "
-                            "Cannot serve live queries without DCL catalog. "
-                            "Check DCL service health."
-                        )
+                self._catalog = catalog
+                self._cache_time = current_time
+                self._catalog_source = "dcl"
+                diag(f"[NLQ-DIAG] DCL catalog loaded OK: {len(catalog.metrics)} metrics")
+                logger.info(f"Loaded semantic catalog from DCL ({len(catalog.metrics)} metrics)")
+                return catalog
             except RuntimeError:
-                raise  # Re-raise our own live mode errors
+                raise  # Re-raise our own mode errors
             except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
                 diag(f"[NLQ-DIAG] DCL catalog fetch FAILED: {type(e).__name__}: {e}")
+
+                # Live mode: always fail loud
                 if data_mode == "live":
                     raise RuntimeError(
                         f"LIVE MODE FAILURE: DCL catalog fetch failed: {e}. "
                         f"Cannot fall back to fact_base.json in live mode. "
                         f"Check DCL_API_URL or DCL service health."
                     )
+
+                # Ingest mode: fail loud — serving demo data when real data
+                # exists in DCL would show wrong numbers silently
+                if data_mode and data_mode.lower() == "ingest":
+                    raise RuntimeError(
+                        f"INGEST MODE FAILURE: DCL catalog fetch failed: {e}. "
+                        f"Cannot serve queries with stale demo data when real "
+                        f"ingested data exists in DCL. "
+                        f"Check DCL service health at {self.dcl_url}/api/health"
+                    )
+
+                # Demo mode: fallback acceptable (same demo data either way)
                 logger.warning(
                     f"DCL catalog fetch failed: {e} — falling back to local fact_base.json. "
                     f"Data may be stale. Check DCL_API_URL or DCL service health."
                 )
 
-        # LIVE MODE: No DCL URL configured — fail, don't silently serve fact_base
+        # Live/Ingest mode: No DCL URL configured — fail, don't silently serve fact_base
         if data_mode == "live":
             raise RuntimeError(
                 "LIVE MODE FAILURE: DCL_API_URL not configured. "
                 "Cannot serve live queries without DCL. "
                 "Set DCL_API_URL environment variable or switch to Demo mode."
             )
+        if data_mode and data_mode.lower() == "ingest":
+            raise RuntimeError(
+                "INGEST MODE FAILURE: DCL_API_URL not configured. "
+                "Cannot serve ingest queries without DCL. "
+                "Set DCL_API_URL environment variable."
+            )
 
         # Demo mode only: local dev mode or DCL fallback
         catalog = self._build_local_catalog()
         self._catalog = catalog
-        self._cache_time = current_time
 
         if self.dcl_url:
-            # DCL was configured but unavailable — this is a fallback
+            # DCL was configured but unavailable — short cache (30s, not 5min)
+            # so we retry quickly
+            self._cache_time = current_time - CACHE_TTL_SECONDS + 30
             self._catalog_source = "local_fallback"
             logger.warning(
                 f"Using local_fallback catalog ({len(catalog.metrics)} metrics). "
-                f"DCL was configured but unavailable."
+                f"DCL was configured but unavailable. Retrying in 30s."
             )
         else:
+            self._cache_time = current_time
             self._catalog_source = "local"
             logger.debug(f"Using local catalog ({len(catalog.metrics)} metrics)")
 
         return catalog
 
-    def _fetch_from_dcl(self) -> Optional[SemanticCatalog]:
-        """Fetch semantic catalog from DCL's semantic-export endpoint."""
-        if not self._http_client:
-            self._http_client = httpx.Client(timeout=10.0, follow_redirects=True)
+    def _fetch_from_dcl(self) -> SemanticCatalog:
+        """Fetch semantic catalog from DCL's semantic-export endpoint.
 
-        try:
-            url = f"{self.dcl_url}/api/dcl/semantic-export"
-            diag(f"[NLQ-DIAG] _fetch_from_dcl GET {url}")
-            response = self._http_client.get(url)
-            diag(f"[NLQ-DIAG] _fetch_from_dcl status={response.status_code}, size={len(response.text)} bytes")
-            response.raise_for_status()
-            data = response.json()
-            metric_ids = list(data.get("metrics", [{}]))[:5]
-            diag(f"[NLQ-DIAG] _fetch_from_dcl parsed: {len(data.get('metrics', []))} metrics, mode={data.get('mode', {})}, first_5={[m.get('id','?') if isinstance(m,dict) else '?' for m in metric_ids]}")
-            return self._parse_dcl_response(data)
-        except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
-            diag(f"[NLQ-DIAG] _fetch_from_dcl FAILED: {type(e).__name__}: {e}")
-            logger.warning(f"DCL fetch failed: {e}")
-            return None
+        Raises on failure instead of returning None — the caller (get_catalog)
+        decides what to do based on data_mode.
+        """
+        if not self._http_client:
+            self._http_client = httpx.Client(timeout=15.0, follow_redirects=True)
+
+        url = f"{self.dcl_url}/api/dcl/semantic-export"
+        diag(f"[NLQ-DIAG] _fetch_from_dcl GET {url}")
+        response = self._http_client.get(url)
+        diag(f"[NLQ-DIAG] _fetch_from_dcl status={response.status_code}, size={len(response.text)} bytes")
+        response.raise_for_status()
+        data = response.json()
+        metric_ids = list(data.get("metrics", [{}]))[:5]
+        diag(f"[NLQ-DIAG] _fetch_from_dcl parsed: {len(data.get('metrics', []))} metrics, mode={data.get('mode', {})}, first_5={[m.get('id','?') if isinstance(m,dict) else '?' for m in metric_ids]}")
+        return self._parse_dcl_response(data)
 
     def _parse_dcl_response(self, data: Dict[str, Any]) -> SemanticCatalog:
         """Parse DCL's semantic-export response into our catalog format.

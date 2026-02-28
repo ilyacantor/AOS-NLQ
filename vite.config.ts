@@ -10,7 +10,7 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8005',
         changeOrigin: true,
         // H7: Forward /api/v1/* as-is (no rewrite). Backend registers only /api/v1.
       }
