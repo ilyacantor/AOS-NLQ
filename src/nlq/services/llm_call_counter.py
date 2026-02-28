@@ -15,6 +15,11 @@ import threading
 
 from src.nlq.config import DEFAULT_TENANT_ID
 
+try:
+    from postgrest.exceptions import APIError
+except ImportError:
+    APIError = type(None)  # Never matches if postgrest not installed
+
 logger = logging.getLogger(__name__)
 
 
@@ -94,8 +99,8 @@ class LLMCallCounter:
                     queries_cached=record.queries_cached,
                     queries_learned=record.queries_learned,
                 )
-        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
-            logger.error(f"Failed to load session from DB: {e}")
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError, APIError) as e:
+            logger.warning("Supabase RLS error on session load — persistence skipped. Check SUPABASE_SERVICE_ROLE_KEY: %s", e)
         return None
 
     def _save_session_to_db(self, stats: SessionStats):
@@ -115,8 +120,8 @@ class LLMCallCounter:
                 last_call_at=stats.last_call_at,
             )
             self._persistence.upsert_session(record)
-        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
-            logger.error(f"Failed to save session to DB: {e}")
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError, APIError) as e:
+            logger.warning("Supabase RLS error on session save — persistence skipped. Check SUPABASE_SERVICE_ROLE_KEY: %s", e)
 
     def _get_or_create_session(self, session_id: str) -> SessionStats:
         """Get existing session or create new one, checking DB first."""
@@ -299,8 +304,8 @@ class LLMCallCounter:
                 )
                 if deleted > 0:
                     logger.info(f"Cleaned up {deleted} stale sessions from database")
-            except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
-                logger.error(f"Failed to cleanup stale sessions from DB: {e}")
+            except (OSError, ValueError, KeyError, TypeError, RuntimeError, APIError) as e:
+                logger.warning("Supabase RLS error on stale session cleanup — skipped. Check SUPABASE_SERVICE_ROLE_KEY: %s", e)
 
     def load_active_sessions(self, since_hours: int = 24) -> int:
         """
@@ -339,8 +344,8 @@ class LLMCallCounter:
             logger.info(f"Loaded {len(records)} active sessions from database")
             return len(records)
             
-        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
-            logger.error(f"Failed to load active sessions: {e}")
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError, APIError) as e:
+            logger.warning("Supabase RLS error on active session load — skipped. Check SUPABASE_SERVICE_ROLE_KEY: %s", e)
             return 0
 
 

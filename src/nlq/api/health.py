@@ -133,58 +133,33 @@ async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResp
             metric_count=metric_count,
         )
 
+    # Live/ingest mode: check DCL connectivity via health endpoint
     dcl_client = get_semantic_client()
-    dcl_connected = bool(dcl_client.dcl_url)
-    raw_mode = None
+    health = dcl_client.check_dcl_health()
+    dcl_connected = health.get("connected", False)
+    raw_mode = health.get("data_mode")  # Real-time from DCL, not cached
+
+    # Get metric count from catalog (may be cached up to 5 min)
     metric_count = 0
-    last_run_id = None
-    last_run_timestamp = None
-    last_source_systems = None
-    freshness_display = None
-
-    # Probe DCL with a lightweight query to get current mode and provenance
-    try:
-        probe = dcl_client.query(
-            metric="revenue",
-            time_range={"period": "2025-Q4", "granularity": "quarterly"},
-            data_mode=data_mode,
-        )
-        if probe.get("status") != "error":
-            rp = probe.get("run_provenance", {})
-            if rp:
-                raw_mode = rp.get("mode")
-                last_run_id = rp.get("run_id")
-                last_run_timestamp = rp.get("run_timestamp")
-                last_source_systems = rp.get("source_systems") or None
-                freshness_display = rp.get("freshness") or None
-            elif probe.get("metadata", {}).get("mode"):
-                raw_mode = probe["metadata"]["mode"]
-    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as e:
-        logger.warning("DCL probe query failed in pipeline_status: %s", e)
-
-    LIVE_MODES = {"farm", "ingest", "live"}
-    is_live = raw_mode and raw_mode.lower() in LIVE_MODES
-
     try:
         catalog = dcl_client.get_catalog()
         metric_count = len(catalog.metrics)
     except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as e:
         logger.warning("DCL catalog check failed in pipeline_status: %s", e)
 
-    if not is_live:
-        raw_mode = None
-        last_run_id = None
-        last_run_timestamp = None
-        last_source_systems = None
-        freshness_display = None
-        try:
-            local_catalog = dcl_client._build_local_catalog()
-            metric_count = len(local_catalog.metrics)
-        except (FileNotFoundError, IOError, KeyError, ValueError) as e:
-            logger.debug("Local catalog build failed; metric_count stays at 0: %s", e)
+    # Provenance: from health response (real-time) + catalog ingest summary
+    last_run_id = health.get("last_run_id")
+    last_run_timestamp = health.get("last_updated")
+    last_source_systems = None
+    freshness_display = None
+
+    if dcl_connected:
+        summary = dcl_client.get_ingest_summary()
+        if summary and summary.available:
+            last_source_systems = summary.source_systems or None
 
     return PipelineStatusResponse(
-        dcl_connected=bool(dcl_connected and is_live),
+        dcl_connected=dcl_connected,
         dcl_mode=raw_mode,
         metric_count=metric_count,
         last_run_id=last_run_id,

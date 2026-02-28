@@ -99,13 +99,21 @@ class TestNormalizeMetric:
         "s g & a",
         "sg and a",
         "selling general and administrative",
-        "operating expenses",
-        "opex",
-        "OPEX",
         "operating costs",
     ])
     def test_sga_synonyms(self, synonym: str):
         assert normalize_metric(synonym) == "sga"
+
+    # OpEx synonyms (distinct from SG&A — total_opex in fact_base)
+    @pytest.mark.parametrize("synonym", [
+        "opex",
+        "OPEX",
+        "operating expenses",
+        "total opex",
+        "total operating expenses",
+    ])
+    def test_opex_synonyms(self, synonym: str):
+        assert normalize_metric(synonym) == "opex"
 
     # Gross margin percentage synonyms
     @pytest.mark.parametrize("synonym", [

@@ -801,6 +801,152 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         unit="%",
         description="Percentage of employees promoted per period"
     ),
+
+    # ===== BALANCE SHEET — previously orphaned in display/relations =====
+
+    "total_assets": MetricDefinition(
+        name="total_assets",
+        display_name="Total Assets",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Total assets on the balance sheet"
+    ),
+    "total_liabilities": MetricDefinition(
+        name="total_liabilities",
+        display_name="Total Liabilities",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Total liabilities on the balance sheet"
+    ),
+    "intangibles": MetricDefinition(
+        name="intangibles",
+        display_name="Intangible Assets",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Intangible assets (patents, trademarks, etc.)"
+    ),
+    "goodwill": MetricDefinition(
+        name="goodwill",
+        display_name="Goodwill",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Goodwill from acquisitions"
+    ),
+    "capex": MetricDefinition(
+        name="capex",
+        display_name="Capital Expenditures",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Capital expenditures"
+    ),
+    "tax_expense": MetricDefinition(
+        name="tax_expense",
+        display_name="Tax Expense",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Income tax expense"
+    ),
+
+    # ===== DERIVED METRICS — computed from other fields =====
+
+    "dso": MetricDefinition(
+        name="dso",
+        display_name="Days Sales Outstanding",
+        metric_type=MetricType.COUNT,
+        unit="days",
+        description="Average days to collect receivables (AR / annualised revenue × 365)",
+        is_derived=True
+    ),
+    "dpo": MetricDefinition(
+        name="dpo",
+        display_name="Days Payables Outstanding",
+        metric_type=MetricType.COUNT,
+        unit="days",
+        description="Average days to pay suppliers (AP / annualised COGS × 365)",
+        is_derived=True
+    ),
+    "working_capital": MetricDefinition(
+        name="working_capital",
+        display_name="Working Capital",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Current assets minus current liabilities",
+        is_derived=True
+    ),
+
+    # ===== FACT_BASE METRICS — had data but no schema entry =====
+
+    "mrr": MetricDefinition(
+        name="mrr",
+        display_name="Monthly Recurring Revenue",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Monthly recurring revenue"
+    ),
+    "cac": MetricDefinition(
+        name="cac",
+        display_name="Customer Acquisition Cost",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Cost to acquire a new customer"
+    ),
+    "ltv": MetricDefinition(
+        name="ltv",
+        display_name="Customer Lifetime Value",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Expected total revenue from a customer"
+    ),
+    "acv": MetricDefinition(
+        name="acv",
+        display_name="Annual Contract Value",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Average annual contract value"
+    ),
+    "fcf": MetricDefinition(
+        name="fcf",
+        display_name="Free Cash Flow",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Cash from operations minus capital expenditures"
+    ),
+    "cash_from_operations": MetricDefinition(
+        name="cash_from_operations",
+        display_name="Cash from Operations",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Operating cash flow"
+    ),
+    "opex": MetricDefinition(
+        name="opex",
+        display_name="Operating Expenses",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Total operating expenses",
+        is_derived=True
+    ),
+    "da_expense": MetricDefinition(
+        name="da_expense",
+        display_name="Depreciation & Amortization",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Combined depreciation and amortization expense"
+    ),
+    "finance_headcount": MetricDefinition(
+        name="finance_headcount",
+        display_name="Finance Headcount",
+        metric_type=MetricType.COUNT,
+        unit="people",
+        description="Number of finance team members"
+    ),
+    "training_hours_per_employee": MetricDefinition(
+        name="training_hours_per_employee",
+        display_name="Training Hours per Employee",
+        metric_type=MetricType.COUNT,
+        unit="hours",
+        description="Average training hours per employee"
+    ),
 }
 
 
@@ -826,6 +972,11 @@ METRIC_PERSONAS = {
     "retained_earnings": "CFO", "stockholders_equity": "CFO",
     "total_current_assets": "CFO", "current_liabilities": "CFO", "ppe": "CFO",
     "ebitda": "CFO", "ebitda_margin_pct": "CFO", "rule_of_40": "CFO",
+    "total_assets": "CFO", "total_liabilities": "CFO", "intangibles": "CFO",
+    "goodwill": "CFO", "capex": "CFO", "tax_expense": "CFO",
+    "dso": "CFO", "dpo": "CFO", "working_capital": "CFO",
+    "mrr": "CFO", "acv": "CFO", "fcf": "CFO", "cash_from_operations": "CFO",
+    "opex": "CFO", "da_expense": "CFO",
 
     # CRO metrics
     "bookings": "CRO", "arr": "CRO", "pipeline": "CRO",
@@ -836,6 +987,7 @@ METRIC_PERSONAS = {
     "reps_at_quota_pct": "CRO", "sales_headcount": "CRO",
     "qualified_pipeline": "CRO", "sales_cycle_days": "CRO",
     "avg_deal_size": "CRO", "logo_churn_pct": "CRO", "new_logos": "CRO",
+    "cac": "CRO", "ltv": "CRO",
 
     # COO metrics
     "headcount": "COO", "revenue_per_employee": "COO",
@@ -849,6 +1001,7 @@ METRIC_PERSONAS = {
     "support_tickets": "COO", "first_response_hours": "COO",
     "resolution_hours": "COO", "engineering_utilization": "COO",
     "support_utilization": "COO",
+    "finance_headcount": "COO", "training_hours_per_employee": "COO",
 
     # CTO metrics
     "uptime_pct": "CTO", "p1_incidents": "CTO", "mttr_p1_hours": "CTO",

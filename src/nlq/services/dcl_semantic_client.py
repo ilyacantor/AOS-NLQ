@@ -118,6 +118,8 @@ class SemanticCatalog:
     dimensions: Dict[str, List[str]] = field(default_factory=dict)  # dimension -> valid values
     alias_to_metric: Dict[str, str] = field(default_factory=dict)  # alias -> metric_id
     ingest_summary: Optional[IngestSummary] = None  # Live ingest buffer info from DCL
+    dcl_mode: Optional[str] = None       # DCL's data_mode: "Demo", "Ingest", "Farm", "AAM"
+    dcl_last_updated: Optional[str] = None  # ISO timestamp of last mode change
 
     def build_alias_index(self):
         """Build reverse lookup from aliases to metric IDs.
@@ -324,13 +326,12 @@ class DCLSemanticClient:
         """
         catalog = SemanticCatalog()
 
-        # Log mode information from DCL
+        # Store mode information from DCL
         mode_info = data.get("mode", {})
         if mode_info:
-            data_mode = mode_info.get("data_mode", "unknown")
-            run_mode = mode_info.get("run_mode", "unknown")
-            last_updated = mode_info.get("last_updated", "")
-            logger.info(f"DCL mode: {data_mode}/{run_mode} (updated: {last_updated})")
+            catalog.dcl_mode = mode_info.get("data_mode")
+            catalog.dcl_last_updated = mode_info.get("last_updated")
+            logger.info(f"DCL mode: {catalog.dcl_mode}/{mode_info.get('run_mode', 'unknown')} (updated: {catalog.dcl_last_updated})")
 
         # Parse ingest_summary — tells NLQ what live data is buffered in DCL
         ingest_raw = data.get("ingest_summary", {})
@@ -766,6 +767,47 @@ class DCLSemanticClient:
         """Return the ingest summary from the cached catalog, or None."""
         catalog = self.get_catalog()
         return catalog.ingest_summary
+
+    def check_dcl_health(self) -> Dict[str, Any]:
+        """Check DCL reachability and mode via its health endpoint.
+
+        Returns dict with:
+          connected: bool — DCL responded to health check
+          phase: str|None — DCL startup phase (ready, warming, degraded)
+          data_mode: str|None — DCL data mode (Demo, Ingest, Farm, AAM)
+          last_run_id: str|None — last DCL run ID
+          last_updated: str|None — last mode change timestamp
+          error: str|None — error message if not connected
+        """
+        if not self.dcl_url:
+            return {"connected": False, "error": "DCL_API_URL not configured"}
+
+        if not self._http_client:
+            self._http_client = httpx.Client(timeout=30.0)
+
+        try:
+            resp = self._http_client.get(
+                f"{self.dcl_url}/api/health",
+                timeout=5.0,
+            )
+            if resp.status_code != 200:
+                return {
+                    "connected": False,
+                    "error": f"DCL health returned HTTP {resp.status_code}",
+                }
+            body = resp.json()
+            return {
+                "connected": True,
+                "phase": body.get("phase"),
+                "data_mode": body.get("data_mode"),
+                "last_run_id": body.get("last_run_id"),
+                "last_updated": body.get("last_updated"),
+                "error": body.get("error"),
+            }
+        except httpx.TimeoutException:
+            return {"connected": False, "error": f"DCL health check timed out ({self.dcl_url})"}
+        except httpx.RequestError as e:
+            return {"connected": False, "error": f"DCL unreachable at {self.dcl_url}: {e}"}
 
     def get_ingest_runs(self) -> Dict[str, Any]:
         """Fetch detailed ingest run data from DCL.

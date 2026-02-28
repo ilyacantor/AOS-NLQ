@@ -163,7 +163,10 @@
       "product_headcount": 18,
       "finance_headcount": 20,
       "ga_headcount": 25,
-      "is_forecast": false
+      "is_forecast": false,
+      "dso": 45.6,
+      "dpo": 19.3,
+      "working_capital": 47.25
     },
     {
       "period": "2024-Q2",
@@ -282,7 +285,10 @@
       "product_headcount": 19,
       "finance_headcount": 21,
       "ga_headcount": 26,
-      "is_forecast": false
+      "is_forecast": false,
+      "dso": 45.4,
+      "dpo": 19.2,
+      "working_capital": 54.22
     },
     {
       "period": "2024-Q3",
@@ -401,7 +407,10 @@
       "product_headcount": 20,
       "finance_headcount": 22,
       "ga_headcount": 28,
-      "is_forecast": false
+      "is_forecast": false,
+      "dso": 45.1,
+      "dpo": 19.3,
+      "working_capital": 61.74
     },
     {
       "period": "2024-Q4",
@@ -520,7 +529,10 @@
       "product_headcount": 21,
       "finance_headcount": 22,
       "ga_headcount": 29,
-      "is_forecast": false
+      "is_forecast": false,
+      "dso": 44.9,
+      "dpo": 19.3,
+      "working_capital": 69.81
     },
     {
       "period": "2025-Q1",
@@ -639,7 +651,10 @@
       "product_headcount": 22,
       "finance_headcount": 23,
       "ga_headcount": 30,
-      "is_forecast": false
+      "is_forecast": false,
+      "dso": 44.6,
+      "dpo": 19.3,
+      "working_capital": 78.31
     },
     {
       "period": "2025-Q2",
@@ -758,7 +773,10 @@
       "product_headcount": 23,
       "finance_headcount": 25,
       "ga_headcount": 32,
-      "is_forecast": false
+      "is_forecast": false,
+      "dso": 44.4,
+      "dpo": 19.4,
+      "working_capital": 87.36
     },
     {
       "period": "2025-Q3",
@@ -877,7 +895,10 @@
       "product_headcount": 24,
       "finance_headcount": 26,
       "ga_headcount": 33,
-      "is_forecast": false
+      "is_forecast": false,
+      "dso": 44.1,
+      "dpo": 19.4,
+      "working_capital": 96.99
     },
     {
       "period": "2025-Q4",
@@ -996,7 +1017,10 @@
       "product_headcount": 25,
       "finance_headcount": 27,
       "ga_headcount": 35,
-      "is_forecast": false
+      "is_forecast": false,
+      "dso": 43.8,
+      "dpo": 19.4,
+      "working_capital": 107.23
     },
     {
       "period": "2026-Q1",
@@ -1115,7 +1139,10 @@
       "product_headcount": 26,
       "finance_headcount": 28,
       "ga_headcount": 35,
-      "is_forecast": false
+      "is_forecast": false,
+      "dso": 43.6,
+      "dpo": 19.5,
+      "working_capital": 117.86
     },
     {
       "period": "2026-Q2",
@@ -1234,7 +1261,10 @@
       "product_headcount": 26,
       "finance_headcount": 29,
       "ga_headcount": 36,
-      "is_forecast": false
+      "is_forecast": false,
+      "dso": 43.3,
+      "dpo": 19.4,
+      "working_capital": 129.04
     },
     {
       "period": "2026-Q3",
@@ -1353,7 +1383,10 @@
       "product_headcount": 27,
       "finance_headcount": 30,
       "ga_headcount": 38,
-      "is_forecast": true
+      "is_forecast": true,
+      "dso": 43.1,
+      "dpo": 19.5,
+      "working_capital": 140.79
     },
     {
       "period": "2026-Q4",
@@ -1472,7 +1505,10 @@
       "product_headcount": 28,
       "finance_headcount": 31,
       "ga_headcount": 39,
-      "is_forecast": true
+      "is_forecast": true,
+      "dso": 42.8,
+      "dpo": 19.5,
+      "working_capital": 153.15
     }
   ],
   "annual": [

@@ -47,6 +47,7 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
 
   const mode = status?.dcl_mode?.toLowerCase() ?? null;
   const isLive = !isDemo && (mode === 'farm' || mode === 'ingest' || mode === 'live');
+  const isConnectedDemo = !isDemo && status?.dcl_connected && !isLive;
 
   const formatRelative = (iso: string | null): string => {
     if (!iso) return '';
@@ -68,7 +69,9 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
     ? { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Demo', pulse: false }
     : isLive
       ? { color: 'bg-emerald-400', ring: 'ring-emerald-400/30', label: 'Live', pulse: true }
-      : { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Local', pulse: false };
+      : isConnectedDemo
+        ? { color: 'bg-amber-400', ring: 'ring-amber-400/30', label: 'Connected', pulse: false }
+        : { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Offline', pulse: false };
 
   return (
     <div className="relative">
@@ -95,7 +98,7 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
               <div className="flex items-center gap-2">
                 <span className={`inline-flex rounded-full h-2.5 w-2.5 ${light.color}`} />
                 <span className="text-sm font-medium text-white">
-                  {isDemo ? 'Demo Mode' : isLive ? 'Pipeline Active' : 'Local Mode'}
+                  {isDemo ? 'Demo Mode' : isLive ? 'Pipeline Active' : isConnectedDemo ? 'DCL Connected' : 'DCL Offline'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
@@ -103,7 +106,9 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
                   ? `Using fact_base.json (${status?.metric_count ?? 96} metrics)`
                   : isLive
                     ? 'Live data flowing through DCL'
-                    : 'No DCL connection — using fact_base.json'}
+                    : isConnectedDemo
+                      ? `DCL reachable — serving ${status?.metric_count ?? 0} metrics (no ingested data yet)`
+                      : 'Cannot reach DCL — check that DCL backend is running on port 8004'}
               </p>
             </div>
 

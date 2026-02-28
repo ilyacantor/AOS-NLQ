@@ -73,8 +73,6 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "s g & a",
         "sg and a",
         "selling general and administrative",
-        "operating expenses",
-        "opex",
         "operating costs",
     ],
 
@@ -194,6 +192,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "property plant and equipment",
         "fixed assets",
         "pp&e",
+        "pp_e",
         "capital assets",
     ],
 
@@ -216,6 +215,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
     # Current Assets
     "total_current_assets": [
         "current assets",
+        "current_assets",
         "total current assets",
         "working capital assets",
     ],
@@ -281,6 +281,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
     # Pipeline
     "pipeline": [
         "sales pipeline",
+        "sales_pipeline",
         "pipe",
         "opportunities",
         "deals",
@@ -320,6 +321,10 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "customer churn",
         "revenue churn",
         "gross churn",
+        "churn pct",
+        "churn_pct",
+        "churn percent",
+        "churn percentage",
         # Common misspellings
         "chrn",
         "churnn",
@@ -386,7 +391,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "attrition",
         "attrition rate",
         "turnover rate",
-        "turnover",
+        "employee turnover",
         "employee turnover rate",
         "employee attrition",
         "attrition pct",
@@ -407,6 +412,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "ltv to cac",
         "ltv to cac ratio",
         "ltv cac ratio",
+        "ltv_cac_ratio",
         "lifetime value to cac",
     ],
     "cac_payback_months": [
@@ -454,6 +460,74 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
     ],
 
     # =========================================================================
+    # Balance sheet, derived, and operational metrics (previously orphaned)
+    # =========================================================================
+
+    "dso": [
+        "days sales outstanding",
+        "days receivable",
+        "collection days",
+        "receivable days",
+        "average collection period",
+    ],
+    "dpo": [
+        "days payables outstanding",
+        "days payable",
+        "payment days",
+        "payable days",
+    ],
+    "working_capital": [
+        "working cap",
+        "net working capital",
+        "nwc",
+    ],
+    "total_assets": [
+        "total assets",
+        "assets",
+    ],
+    "total_liabilities": [
+        "total liabilities",
+        "liabilities",
+        "total debt",
+    ],
+    "intangibles": [
+        "intangible assets",
+    ],
+    "goodwill": [
+        "goodwill",
+        "acquisition goodwill",
+    ],
+    "capex": [
+        "capital expenditures",
+        "capital spending",
+        "cap ex",
+    ],
+    "tax_expense": [
+        "income tax",
+        "taxes",
+        "tax",
+        "tax expense",
+    ],
+    "fcf": [
+        "free cash flow",
+        "free cash",
+    ],
+    "cash_from_operations": [
+        "operating cash flow",
+        "cash from ops",
+        "cfo",
+    ],
+    "opex": [
+        "operating expenses",
+        "total opex",
+        "total operating expenses",
+    ],
+    "acv": [
+        "annual contract value",
+        "average contract value",
+    ],
+
+    # =========================================================================
     # Additional metrics from fact_base.json (comprehensive coverage)
     # =========================================================================
 
@@ -466,10 +540,14 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "deprec",
         "depreciation expense",
     ],
-    "d_and_a": [
+    "da_expense": [
         "d&a",
+        "d_and_a",
+        "d and a",
         "depreciation and amortization",
         "depreciation & amortization",
+        "da",
+        "d&a expense",
     ],
     "cac": [
         "customer acquisition cost",
@@ -496,10 +574,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "renewals",
         "renewal",
     ],
-    "churn_pct": [
-        "churn percent",
-        "churn percentage",
-    ],
+    # churn_pct redirected → gross_churn_pct (aliases added there)
 
     # Headcount by department
     "engineering_headcount": [
@@ -601,7 +676,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
     "features_shipped": [
         "features",
         "shipped features",
-        "releases",
+        "features released",
     ],
     "story_points": [
         "story points completed",
@@ -628,14 +703,13 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "priority 2 incidents",
         "high priority incidents",
     ],
-    "mttr": [
-        "mean time to repair",
-        "mean time to resolve",
-        "system incidents",
-    ],
+    # mttr redirected → mttr_p1_hours (aliases added below)
     "mttr_p1_hours": [
+        "mttr",
         "mttr p1",
         "p1 mttr",
+        "mean time to repair",
+        "mean time to resolve",
         "mean time to repair p1",
     ],
     "mttr_p2_hours": [
@@ -683,6 +757,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
     # People/HR metrics
     "hires": [
         "new hires",
+        "new_hires",
         "hiring",
         "hired",
     ],
@@ -693,8 +768,10 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "requisitions",
         "job openings",
     ],
-    "time_to_fill": [
+    # time_to_fill redirected → time_to_fill_days (in FINANCIAL_SCHEMA)
+    "time_to_fill_days": [
         "time to fill",
+        "time_to_fill",
         "ttf",
         "hiring time",
         "time to fill days",
