@@ -311,6 +311,13 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         unit="%",
         description="Revenue lost from churned customers"
     ),
+    "churn_rate_pct": MetricDefinition(
+        name="churn_rate_pct",
+        display_name="Churn Rate",
+        metric_type=MetricType.PERCENTAGE,
+        unit="%",
+        description="Customer or revenue churn rate"
+    ),
     "nrr": MetricDefinition(
         name="nrr",
         display_name="Net Revenue Retention",
@@ -488,6 +495,13 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         metric_type=MetricType.RATIO,
         unit="x",
         description="Cash burned per dollar of ARR added"
+    ),
+    "rule_of_40": MetricDefinition(
+        name="rule_of_40",
+        display_name="Rule of 40",
+        metric_type=MetricType.RATIO,
+        unit="score",
+        description="Revenue growth rate + profit margin (SaaS efficiency benchmark)"
     ),
 
     # Service Delivery
@@ -811,11 +825,11 @@ METRIC_PERSONAS = {
     "deferred_revenue": "CFO", "unbilled_revenue": "CFO",
     "retained_earnings": "CFO", "stockholders_equity": "CFO",
     "total_current_assets": "CFO", "current_liabilities": "CFO", "ppe": "CFO",
-    "ebitda": "CFO", "ebitda_margin_pct": "CFO",
+    "ebitda": "CFO", "ebitda_margin_pct": "CFO", "rule_of_40": "CFO",
 
     # CRO metrics
     "bookings": "CRO", "arr": "CRO", "pipeline": "CRO",
-    "win_rate_pct": "CRO", "nrr": "CRO", "gross_churn_pct": "CRO",
+    "win_rate_pct": "CRO", "nrr": "CRO", "gross_churn_pct": "CRO", "churn_rate_pct": "CRO",
     "new_logo_revenue": "CRO", "expansion_revenue": "CRO",
     "renewal_revenue": "CRO", "customer_count": "CRO",
     "quota_attainment_pct": "CRO", "sales_quota": "CRO",

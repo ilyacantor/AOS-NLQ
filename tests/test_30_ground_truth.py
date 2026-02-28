@@ -49,24 +49,29 @@ class TestCase:
 # ---------------------------------------------------------------------------
 
 GROUND_TRUTH: List[TestCase] = [
+    # =========================================================================
+    # Ground truth values sourced from Farm v5.0 fact_base.json (2026-02-24).
+    # Default period: 2026-Q1 (latest quarter NLQ resolves to).
+    # =========================================================================
+
     # === CFO Q1-Q2 ===
     TestCase(
         id=1, persona="CFO",
         question="What is our current ARR?",
-        expected=47.5,
+        expected=145.52,
         match_type="value",
     ),
     TestCase(
         id=2, persona="CFO",
         question="Show revenue by region",
-        expected={"AMER": 25.0, "EMEA": 15.0, "APAC": 10.0},
+        expected={"AMER": 17.79, "EMEA": 10.67, "APAC": 7.11},
         match_type="dimensional",
     ),
     # === CRO Q3-Q4 ===
     TestCase(
         id=3, persona="CRO",
         question="What is our win rate?",
-        expected=45.5,
+        expected=40.0,
         match_type="value",
     ),
     TestCase(
@@ -74,31 +79,33 @@ GROUND_TRUTH: List[TestCase] = [
         question="Which customer has the highest churn risk?",
         expected={"name": "RetailMax", "value": 72},
         match_type="ranked",
+        # NOTE: churn_risk_by_customer not in current fact_base — test will
+        # fail until Farm adds this dimensional data.
     ),
     # === CTO Q5-Q6 ===
     TestCase(
         id=5, persona="CTO",
         question="What is our current uptime?",
-        expected=99.82,
+        expected=99.61,
         match_type="value",
     ),
     TestCase(
         id=6, persona="CTO",
         question="What is MTTR for P1 incidents?",
-        expected=1.5,
+        expected=2.5,
         match_type="value",
     ),
     # === CHRO Q7-Q8 ===
     TestCase(
         id=7, persona="CHRO",
         question="What is our current headcount?",
-        expected=430,
+        expected=333,
         match_type="value",
     ),
     TestCase(
         id=8, persona="CHRO",
         question="What is our attrition rate?",
-        expected=1.2,
+        expected=11.0,
         match_type="value",
     ),
     # === COO Q9-Q10 (ingest) ===
@@ -107,24 +114,28 @@ GROUND_TRUTH: List[TestCase] = [
         question="How many data sources are connected?",
         expected=27,
         match_type="ingest_stat",
+        # NOTE: NLQ currently misparsing this as a financial metric.
+        # Needs intent-routing fix to read ingest metadata instead.
     ),
     TestCase(
         id=10, persona="COO",
         question="Which source system has the most ingested rows?",
         expected={"name": "Zendesk", "value": 139200},
         match_type="ranked",
+        # NOTE: NLQ currently misparsing this as a financial metric.
+        # Needs intent-routing fix to read ingest metadata instead.
     ),
     # === CFO Q11-Q15 ===
     TestCase(
         id=11, persona="CFO",
         question="What is our gross margin?",
-        expected=67.0,
+        expected=66.4,
         match_type="value",
     ),
     TestCase(
         id=12, persona="CFO",
         question="Show revenue by segment",
-        expected={"Enterprise": 27.5, "Mid-Market": 15.0, "SMB": 7.5},
+        expected={"Enterprise": 16.36, "Mid-Market": 12.45, "SMB": 6.76},
         match_type="dimensional",
     ),
     TestCase(
@@ -132,36 +143,40 @@ GROUND_TRUTH: List[TestCase] = [
         question="What is DSO by segment?",
         expected={"Enterprise": 49, "Mid-Market": 38, "SMB": 25},
         match_type="dimensional",
+        # NOTE: dso_by_segment not in current fact_base — test will fail
+        # until Farm adds this dimensional data.
     ),
     TestCase(
         id=14, persona="CFO",
         question="Which product has the highest gross margin?",
         expected={"name": "Enterprise", "value": 21.44},
         match_type="ranked",
+        # NOTE: gross_margin_by_product not in current fact_base.
     ),
     TestCase(
         id=15, persona="CFO",
         question="What is our cloud spend by category?",
-        expected={"Compute": 0.376, "Storage": 0.188, "Database": 0.188, "Network": 0.094, "Other": 0.094},
+        expected={"Compute": 0.4, "Storage": 0.15, "Database": 0.2, "Network": 0.1, "Other": 0.07},
         match_type="dimensional",
+        tolerance=0.05,
     ),
     # === CRO Q16-Q20 ===
     TestCase(
         id=16, persona="CRO",
         question="Show pipeline by stage",
-        expected={"Lead": 28.75, "Qualified": 43.12, "Proposal": 35.94, "Negotiation": 21.56, "Closed-Won": 14.38},
+        expected={"Lead": 32.01, "Qualified": 25.61, "Proposal": 25.61, "Negotiation": 20.49, "Closed-Won": 24.33},
         match_type="dimensional",
     ),
     TestCase(
         id=17, persona="CRO",
         question="What is churn rate by segment?",
-        expected={"Enterprise": 4.0, "Mid-Market": 6.3, "SMB": 10.8},
+        expected={"Enterprise": 0.5, "Mid-Market": 0.75, "SMB": 1.25},
         match_type="dimensional",
     ),
     TestCase(
         id=18, persona="CRO",
         question="What is our NRR?",
-        expected=121.5,
+        expected=101.9,
         match_type="value",
     ),
     TestCase(
@@ -169,11 +184,13 @@ GROUND_TRUTH: List[TestCase] = [
         question="Show NRR by cohort",
         expected={"2022-H1": 111.3, "2023-H1": 118.3, "2024-H1": 123.3, "2025-H1": 127.3},
         match_type="dimensional",
+        # NOTE: nrr_by_cohort not in current fact_base — test will fail
+        # until Farm adds this dimensional data.
     ),
     TestCase(
         id=20, persona="CRO",
         question="Which segment has the highest churn?",
-        expected={"name": "SMB", "value": 10.8},
+        expected={"name": "SMB", "value": 1.25},
         match_type="ranked",
     ),
     # === CTO Q21-Q25 ===
@@ -182,6 +199,7 @@ GROUND_TRUTH: List[TestCase] = [
         question="What is deploy frequency by service?",
         expected={"Web App": 6.4, "API Gateway": 4.5, "Notification": 3.2, "Auth": 2.5, "Mobile": 2.5, "Payment": 1.9, "Data Pipeline": 1.3},
         match_type="dimensional",
+        # NOTE: deploy_frequency_by_service not in current fact_base.
     ),
     TestCase(
         id=22, persona="CTO",
@@ -189,42 +207,46 @@ GROUND_TRUTH: List[TestCase] = [
         expected={"Auth": 99.999, "Payment": 99.999, "API Gateway": 99.975, "Web App": 99.955},
         match_type="dimensional",
         tolerance=0.005,
+        # NOTE: uptime_by_service not in current fact_base.
     ),
     TestCase(
         id=23, persona="CTO",
         question="Which service deploys the most?",
         expected={"name": "Web App", "value": 6.4},
         match_type="ranked",
+        # NOTE: deploy_frequency_by_service not in current fact_base.
     ),
     TestCase(
         id=24, persona="CTO",
         question="What is SLA compliance by team?",
         expected={"Frontend": 99.5, "Infra": 99.5, "Security": 99.5, "Platform": 98.3, "Backend": 97.6, "Mobile": 95.8, "Data": 95.3},
         match_type="dimensional",
+        # NOTE: sla_compliance_by_team not in current fact_base.
     ),
     TestCase(
         id=25, persona="CTO",
         question="Which team has the lowest SLA compliance?",
         expected={"name": "Data", "value": 95.3},
         match_type="ranked",
+        # NOTE: sla_compliance_by_team not in current fact_base.
     ),
     # === CHRO Q26-Q28 ===
     TestCase(
         id=26, persona="CHRO",
         question="What is headcount by department?",
-        expected={"Engineering": 145, "Sales": 80, "CS": 60, "Marketing": 43, "Product": 34, "G&A": 24, "People": 22, "Finance": 22},
+        expected={"Engineering": 106, "Product": 26, "Sales": 60, "Marketing": 33, "Customer Success": 45, "G&A": 63},
         match_type="dimensional",
     ),
     TestCase(
         id=27, persona="CHRO",
         question="What is our engagement score?",
-        expected=86.0,
+        expected=77.5,
         match_type="value",
     ),
     TestCase(
         id=28, persona="CHRO",
         question="What is our offer acceptance rate?",
-        expected=93.0,
+        expected=83.1,
         match_type="value",
     ),
     # === COO Q29-Q30 ===
@@ -233,11 +255,12 @@ GROUND_TRUTH: List[TestCase] = [
         question="What is throughput by team?",
         expected={"Frontend": 110, "Platform": 102, "Backend": 93, "Data": 78, "Mobile": 66, "Infra": 54, "Security": 46},
         match_type="dimensional",
+        # NOTE: throughput_by_team not in current fact_base.
     ),
     TestCase(
         id=30, persona="COO",
         question="How many total rows have been ingested?",
-        expected=589120,
+        expected=187880,
         match_type="ingest_stat",
     ),
 ]

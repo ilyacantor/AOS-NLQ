@@ -389,7 +389,17 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
             # Handle different response formats
             if isinstance(data, list) and len(data) > 0:
                 if isinstance(data[0], dict) and "value" in data[0]:
-                    return sum(d.get("value", 0) for d in data if d.get("value") is not None)
+                    values = [d.get("value") for d in data if d.get("value") is not None]
+                    if not values:
+                        return None
+                    # Non-additive metrics (percentages, ratios, scores) must be
+                    # averaged across quarters, not summed.
+                    from src.nlq.knowledge.schema import get_canonical_unit
+                    _NON_ADDITIVE = {"pct", "percent", "%", "ratio", "score", "days", "hours", "months", "index", "x"}
+                    unit = get_canonical_unit(metric)
+                    if unit in _NON_ADDITIVE:
+                        return sum(values) / len(values)
+                    return sum(values)
                 else:
                     return data[-1] if data else None
             elif isinstance(data, (int, float)):
