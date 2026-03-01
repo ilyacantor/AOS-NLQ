@@ -499,9 +499,9 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
     "rule_of_40": MetricDefinition(
         name="rule_of_40",
         display_name="Rule of 40",
-        metric_type=MetricType.RATIO,
-        unit="score",
-        description="Revenue growth rate + profit margin (SaaS efficiency benchmark)"
+        metric_type=MetricType.PERCENTAGE,
+        unit="%",
+        description="Revenue growth rate + profit margin (SaaS efficiency benchmark, target >= 40%)"
     ),
 
     # Service Delivery

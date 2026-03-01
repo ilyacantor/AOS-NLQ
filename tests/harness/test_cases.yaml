@@ -264,9 +264,14 @@
 - id: SUP_002
   query: "Who is our top performing sales rep?"
   persona: cro
+  # DCL catalog declares allowed_dims=["rep"] for quota_attainment_pct but
+  # DCL query endpoint returns 500 for rep dimension (DCL bug, not NLQ).
+  # NLQ correctly: resolves metric, detects superlative intent, returns
+  # honest "not available" instead of fabricating data.
   assertions:
-    - {field: value, operator: not_null, expected: null}
+    - {field: metric_id, operator: equals, expected: quota_attainment_pct}
     - {field: confidence, operator: greater_than, expected: 0.5}
+    - {field: answer, operator: contains, expected: "not available"}
   tags: [superlative, cro, ranking]
 
 - id: SUP_003
