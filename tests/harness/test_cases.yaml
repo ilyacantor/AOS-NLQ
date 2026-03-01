@@ -264,15 +264,18 @@
 - id: SUP_002
   query: "Who is our top performing sales rep?"
   persona: cro
+  # GRACEFUL DEGRADATION TEST — not a data test.
   # DCL catalog declares allowed_dims=["rep"] for quota_attainment_pct but
-  # DCL query endpoint returns 500 for rep dimension (DCL bug, not NLQ).
-  # NLQ correctly: resolves metric, detects superlative intent, returns
-  # honest "not available" instead of fabricating data.
+  # DCL query endpoint returns 500 for rep dimension (DCL bug, tracked in
+  # GROUND_TRUTH.md "Data Gaps" section). NLQ must: (1) resolve the correct
+  # metric, (2) detect superlative intent, (3) return honest "not available"
+  # instead of fabricating data or crashing.
+  # When DCL fixes the rep dimension, update this test to assert value!=null.
   assertions:
     - {field: metric_id, operator: equals, expected: quota_attainment_pct}
     - {field: confidence, operator: greater_than, expected: 0.5}
     - {field: answer, operator: contains, expected: "not available"}
-  tags: [superlative, cro, ranking]
+  tags: [superlative, cro, graceful_degradation]
 
 - id: SUP_003
   query: "Which segment has the lowest churn?"

@@ -568,7 +568,8 @@ P&L Statement — 2026-Q1
 
 These queries return honest "not available" messages because the dimensional data has not been materialized in DCL:
 
-1. **CRO_Q4** — Rep-level quota attainment (no rep dimension in DCL)
+1. **CRO_Q4** — Rep-level quota attainment (no rep dimension in DCL).
+   **DCL catalog inconsistency:** `quota_attainment_pct` declares `allowed_dims: ["rep"]` and `rankable_dimensions: ["rep"]` in the semantic-export, but DCL's `/api/dcl/query` endpoint returns HTTP 500 when `dimensions: ["rep"]` is requested. The catalog metadata should either be corrected to remove `rep`, or the query handler should be fixed to serve it. Filed as a known DCL-side bug — NLQ harness SUP_002 tests graceful degradation until this is resolved.
 2. **CRO_Q7** — Win rate by segment (aggregate only, no segment breakdown)
 3. **CTO_Q4** — Uptime by service (no service-level dimensional data)
 
