@@ -394,12 +394,10 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
                         return None
                     # Non-additive metrics (percentages, ratios, scores) must be
                     # averaged across quarters, not summed.
-                    from src.nlq.knowledge.schema import get_canonical_unit
-                    _NON_ADDITIVE = {"pct", "percent", "%", "ratio", "score", "days", "hours", "months", "index", "x"}
-                    unit = get_canonical_unit(metric)
-                    if unit in _NON_ADDITIVE:
-                        return sum(values) / len(values)
-                    return sum(values)
+                    from src.nlq.knowledge.schema import is_additive_metric
+                    if is_additive_metric(metric):
+                        return sum(values)
+                    return sum(values) / len(values)
                 else:
                     return data[-1] if data else None
             elif isinstance(data, (int, float)):
@@ -1210,15 +1208,10 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None) -> Op
     freshness = metadata.get("freshness_display", "") or "0h"
 
     # Determine aggregation method BEFORE summing:
-    # Additive metrics (revenue, costs, counts) → sum quarterly rows for annual
-    # Non-additive metrics (pct, ratio, score, days) → average quarterly rows
-    from src.nlq.knowledge.schema import get_canonical_unit
-    _metric_unit = get_canonical_unit(metric)
-    # If schema doesn't know this metric, use the unit from DCL's response
-    if _metric_unit == "unknown" and result.get("unit"):
-        _metric_unit = result["unit"]
-    _NON_ADDITIVE_UNITS = {"pct", "percent", "%", "ratio", "score", "days", "hours", "months", "index"}
-    _is_additive = _metric_unit not in _NON_ADDITIVE_UNITS
+    # Additive metrics (revenue, costs, counts) -> sum quarterly rows for annual
+    # Non-additive metrics (pct, ratio, score, days) -> average quarterly rows
+    from src.nlq.knowledge.schema import is_additive_metric
+    _is_additive = is_additive_metric(metric)
 
     # Handle different response formats
     if isinstance(data, list) and len(data) > 0:
@@ -1686,10 +1679,8 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
     # Aggregate duplicate dimension labels (DCL may return per-quarter data
     # when queried for a year period, producing N entries per dimension label).
     if formatted_data:
-        from src.nlq.knowledge.schema import get_canonical_unit
-        _bd_unit = get_canonical_unit(metric)
-        _NON_ADDITIVE = {"pct", "percent", "%", "ratio", "score", "days", "hours", "months", "index"}
-        _bd_additive = _bd_unit not in _NON_ADDITIVE
+        from src.nlq.knowledge.schema import is_additive_metric
+        _bd_additive = is_additive_metric(metric)
 
         # Remove aggregate/total rows that DCL may include as summary
         _AGGREGATE_LABELS = {"total", "all", "grand total", "overall", "sum"}
@@ -2095,7 +2086,7 @@ def _handle_ambiguous_query_text(
 
     def get_val(metric: str, period: str) -> Optional[float]:
         """Get value from DCL with period-aware filtering and correct aggregation."""
-        from src.nlq.knowledge.schema import get_canonical_unit
+        from src.nlq.knowledge.schema import is_additive_metric
         result = dcl_client.query(metric=metric, time_range={"period": period})
         if result.get("error"):
             return None
@@ -2103,9 +2094,7 @@ def _handle_ambiguous_query_text(
         if isinstance(data, list) and len(data) > 0:
             if isinstance(data[0], dict) and "value" in data[0]:
                 # Determine aggregation: sum for additive, average for rates/percentages
-                _u = get_canonical_unit(metric)
-                _non_add = {"pct", "ratio", "score", "days", "hours", "months", "index"}
-                _additive = _u not in _non_add
+                _additive = is_additive_metric(metric)
 
                 # Filter rows by period before aggregating
                 is_annual = bool(re.match(r'^20\d{2}$', str(period)))

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 interface PipelineStatus {
   dcl_connected: boolean;
@@ -14,33 +14,86 @@ interface Props {
   dataMode?: 'live' | 'demo';
 }
 
-const POLL_INTERVAL = 120000;
+// Polling intervals
+const FAST_POLL_INTERVAL = 30_000;   // 30s during first 2 minutes (cold-start recovery)
+const NORMAL_POLL_INTERVAL = 60_000; // 60s after initial warm-up period
+const FAST_POLL_WINDOW = 120_000;    // 2 minutes of fast polling after mount
+
+// Retry backoffs for initial fetch (ms)
+const MOUNT_RETRY_BACKOFFS = [2_000, 4_000, 8_000];
 
 export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
   const [status, setStatus] = useState<PipelineStatus | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const mountTimeRef = useRef(Date.now());
 
-  const fetchStatus = useCallback(async () => {
+  const fetchStatus = useCallback(async (): Promise<boolean> => {
     try {
       const res = await fetch(`/api/v1/pipeline/status?data_mode=${dataMode}`);
       if (res.ok) {
         const data = await res.json();
+        // Detect offline -> connected transition
+        if (!status?.dcl_connected && data.dcl_connected) {
+          setConnecting(true);
+          setTimeout(() => setConnecting(false), 2_000);
+        }
         setStatus(data);
         setError(false);
+        return true;
       } else {
         setError(true);
+        return false;
       }
     } catch {
       setError(true);
+      return false;
     }
+  }, [dataMode, status?.dcl_connected]);
+
+  // Initial mount: retry with backoff to survive cold starts
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchWithRetry = async () => {
+      const success = await fetchStatus();
+      if (success || cancelled) return;
+
+      // Retry with exponential backoff
+      for (const delay of MOUNT_RETRY_BACKOFFS) {
+        if (cancelled) return;
+        await new Promise(r => setTimeout(r, delay));
+        if (cancelled) return;
+        const ok = await fetchStatus();
+        if (ok || cancelled) return;
+      }
+    };
+
+    fetchWithRetry();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataMode]);
 
+  // Polling: fast for first 2 min (cold-start recovery), then normal
   useEffect(() => {
-    fetchStatus();
     if (dataMode === 'demo') return;
-    const interval = setInterval(fetchStatus, POLL_INTERVAL);
-    return () => clearInterval(interval);
+
+    const getPollInterval = () => {
+      const elapsed = Date.now() - mountTimeRef.current;
+      return elapsed < FAST_POLL_WINDOW ? FAST_POLL_INTERVAL : NORMAL_POLL_INTERVAL;
+    };
+
+    let timer: ReturnType<typeof setTimeout>;
+    const schedulePoll = () => {
+      timer = setTimeout(async () => {
+        await fetchStatus();
+        schedulePoll();
+      }, getPollInterval());
+    };
+
+    schedulePoll();
+    return () => clearTimeout(timer);
   }, [fetchStatus, dataMode]);
 
   const isDemo = dataMode === 'demo';
@@ -67,11 +120,13 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
 
   const light = isDemo
     ? { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Demo', pulse: false }
-    : isLive
-      ? { color: 'bg-emerald-400', ring: 'ring-emerald-400/30', label: 'Live', pulse: true }
-      : isConnectedDemo
-        ? { color: 'bg-amber-400', ring: 'ring-amber-400/30', label: 'Connected', pulse: false }
-        : { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Offline', pulse: false };
+    : connecting
+      ? { color: 'bg-amber-400', ring: 'ring-amber-400/30', label: 'Connecting...', pulse: true }
+      : isLive
+        ? { color: 'bg-emerald-400', ring: 'ring-emerald-400/30', label: 'Live', pulse: true }
+        : isConnectedDemo
+          ? { color: 'bg-amber-400', ring: 'ring-amber-400/30', label: 'Connected', pulse: false }
+          : { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Offline', pulse: false };
 
   return (
     <div className="relative">
@@ -98,12 +153,18 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
               <div className="flex items-center gap-2">
                 <span className={`inline-flex rounded-full h-2.5 w-2.5 ${light.color}`} />
                 <span className="text-sm font-medium text-white">
-                  {isDemo ? 'Demo Mode' : isLive ? 'Pipeline Active' : isConnectedDemo ? 'DCL Connected' : 'DCL Offline'}
+                  {isDemo ? 'Demo Mode'
+                    : connecting ? 'Connecting to DCL...'
+                    : isLive ? 'Pipeline Active'
+                    : isConnectedDemo ? 'DCL Connected'
+                    : 'DCL Offline'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
                 {isDemo
                   ? `Using fact_base.json (${status?.metric_count ?? 96} metrics)`
+                  : connecting
+                    ? 'Establishing connection to DCL...'
                   : isLive
                     ? 'Live data flowing through DCL'
                     : isConnectedDemo

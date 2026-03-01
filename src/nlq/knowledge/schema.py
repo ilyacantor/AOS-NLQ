@@ -1068,6 +1068,33 @@ def get_canonical_unit(metric_name: str) -> str:
     return _UNIT_TO_CANONICAL.get(display_unit, display_unit)
 
 
+# ── Aggregation awareness ────────────────────────────────────────────
+# Single source of truth for which units CANNOT be summed across periods.
+# Percentages, ratios, scores, and time-based averages must be averaged,
+# not summed.  Every aggregation site in the codebase must call
+# is_additive_metric() instead of maintaining its own inline set.
+NON_ADDITIVE_UNITS = frozenset({
+    "pct", "percent", "%",       # all representations of percentage
+    "ratio", "x",                # multipliers / ratios
+    "score", "index",            # dimensionless scores
+    "days", "hours", "months",   # time-based averages
+})
+
+
+def is_additive_metric(metric_name: str) -> bool:
+    """Return True if a metric's values can be summed across periods.
+
+    Non-additive metrics (percentages, ratios, scores, durations) must be
+    averaged when rolling up quarterly data into annual figures.  Additive
+    metrics (revenue, counts, headcount deltas) are summed.
+
+    This is the ONLY place this decision should be made.  All call sites
+    must use this function instead of inline sets.
+    """
+    canonical = get_canonical_unit(metric_name)
+    return canonical not in NON_ADDITIVE_UNITS
+
+
 def get_metric_type(metric_name: str) -> Optional[MetricType]:
     """Get the type for a metric."""
     if metric_name in FINANCIAL_SCHEMA:

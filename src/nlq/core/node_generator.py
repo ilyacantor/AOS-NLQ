@@ -18,7 +18,7 @@ from src.nlq.core.semantic_labels import get_semantic_label
 from src.nlq.knowledge.display import get_display_name, get_domain
 from src.nlq.knowledge.quality import get_data_quality, get_freshness
 from src.nlq.knowledge.relations import get_context_metrics, get_related_metrics
-from src.nlq.knowledge.schema import get_metric_unit
+from src.nlq.knowledge.schema import get_metric_unit, is_additive_metric
 from src.nlq.models.response import (
     AmbiguityType,
     Domain,
@@ -28,7 +28,13 @@ from src.nlq.models.response import (
 
 
 def _query_dcl_value(metric: str, period: str) -> Optional[Any]:
-    """Query a metric value from DCL."""
+    """Query a metric value from DCL.
+
+    When DCL returns multiple data points (e.g. 4 quarters for an annual
+    query), this function aggregates correctly:
+    - Additive metrics (revenue, counts): summed
+    - Non-additive metrics (pct, ratio, score, days): averaged
+    """
     from src.nlq.services.dcl_semantic_client import get_semantic_client
     dcl_client = get_semantic_client()
 
@@ -38,7 +44,13 @@ def _query_dcl_value(metric: str, period: str) -> Optional[Any]:
     data = result.get("data", [])
     if isinstance(data, list) and len(data) > 0:
         if isinstance(data[0], dict) and "value" in data[0]:
-            return sum(d.get("value", 0) for d in data if d.get("value") is not None)
+            vals = [d.get("value", 0) for d in data if d.get("value") is not None]
+            if not vals:
+                return None
+            if is_additive_metric(metric):
+                return sum(vals)
+            else:
+                return sum(vals) / len(vals)
         return data[-1] if data else None
     elif isinstance(data, (int, float)):
         return data

@@ -149,24 +149,78 @@ class DCLSemanticClient:
     - If DCL_API_URL is not set: Uses local fact_base.json (local dev mode)
     """
 
+    # Circuit breaker tuning — soft enough for Render cold starts
+    _CB_FAILURE_THRESHOLD = 5    # failures before opening (was 3)
+    _CB_OPEN_DURATION = 30.0     # seconds circuit stays open (was 60)
+    _CB_HALF_OPEN_INTERVAL = 15.0  # seconds between probe requests when open
+
     def __init__(self, dcl_base_url: Optional[str] = None):
         raw_url = dcl_base_url or os.environ.get("DCL_API_URL")
         self.dcl_url = raw_url.rstrip("/") if raw_url else None
         self._catalog: Optional[SemanticCatalog] = None
         self._cache_time: float = 0
-        self._http_client: Optional[httpx.Client] = None
         self._mode: str = "dcl" if self.dcl_url else "local"
+
+        # Shared HTTP client — connection pool reused across all DCL calls.
+        # Base timeout is 30s; individual methods override per-request where needed.
+        self._http_client: httpx.Client = httpx.Client(
+            timeout=30.0,
+            follow_redirects=True,
+        )
 
         # H4: Explicit data source tracking — callers can inspect this
         self._catalog_source: str = "none"  # "dcl", "local", "local_fallback"
 
+        # Circuit breaker state
         self._dcl_consecutive_failures = 0
         self._dcl_circuit_open_until: float = 0
+        self._dcl_last_half_open_probe: float = 0
 
         if self.dcl_url:
             logger.info(f"DCL semantic client initialized - DCL mode (endpoint: {self.dcl_url})")
         else:
             logger.info("DCL semantic client initialized - LOCAL DEV mode (using fact_base.json)")
+
+    # =========================================================================
+    # CIRCUIT BREAKER — protects against repeated DCL failures
+    # =========================================================================
+
+    def _record_dcl_failure(self) -> None:
+        """Record a DCL call failure and open circuit breaker if threshold met."""
+        self._dcl_consecutive_failures += 1
+        if self._dcl_consecutive_failures >= self._CB_FAILURE_THRESHOLD:
+            self._dcl_circuit_open_until = time.time() + self._CB_OPEN_DURATION
+            logger.warning(
+                f"DCL circuit breaker OPEN for {self._CB_OPEN_DURATION}s "
+                f"after {self._dcl_consecutive_failures} consecutive failures"
+            )
+
+    def _record_dcl_success(self) -> None:
+        """Record a successful DCL call — resets circuit breaker."""
+        self._dcl_consecutive_failures = 0
+        self._dcl_circuit_open_until = 0
+        self._dcl_last_half_open_probe = 0
+
+    def _is_dcl_call_allowed(self) -> bool:
+        """Check if a DCL call is allowed under the circuit breaker.
+
+        When the circuit is fully open, allows a single "half-open" probe
+        every _CB_HALF_OPEN_INTERVAL seconds so we can detect recovery
+        quickly instead of waiting the full open duration.
+        """
+        now = time.time()
+
+        # Circuit closed — all calls allowed
+        if now >= self._dcl_circuit_open_until:
+            return True
+
+        # Circuit open — allow a half-open probe every 15s
+        if now - self._dcl_last_half_open_probe >= self._CB_HALF_OPEN_INTERVAL:
+            self._dcl_last_half_open_probe = now
+            logger.debug("DCL circuit breaker half-open probe allowed")
+            return True
+
+        return False
 
     @property
     def catalog_source(self) -> str:
@@ -294,21 +348,35 @@ class DCLSemanticClient:
     def _fetch_from_dcl(self) -> SemanticCatalog:
         """Fetch semantic catalog from DCL's semantic-export endpoint.
 
+        Retries up to 3 times with backoff (0s, 3s, 6s) to survive Render
+        cold starts where DCL may take 15-30s to become ready.
+
         Raises on failure instead of returning None — the caller (get_catalog)
         decides what to do based on data_mode.
         """
-        if not self._http_client:
-            self._http_client = httpx.Client(timeout=15.0, follow_redirects=True)
-
         url = f"{self.dcl_url}/api/dcl/semantic-export"
-        diag(f"[NLQ-DIAG] _fetch_from_dcl GET {url}")
-        response = self._http_client.get(url)
-        diag(f"[NLQ-DIAG] _fetch_from_dcl status={response.status_code}, size={len(response.text)} bytes")
-        response.raise_for_status()
-        data = response.json()
-        metric_ids = list(data.get("metrics", [{}]))[:5]
-        diag(f"[NLQ-DIAG] _fetch_from_dcl parsed: {len(data.get('metrics', []))} metrics, mode={data.get('mode', {})}, first_5={[m.get('id','?') if isinstance(m,dict) else '?' for m in metric_ids]}")
-        return self._parse_dcl_response(data)
+        backoff_schedule = [0, 3, 6]  # seconds between attempts
+
+        for attempt, wait in enumerate(backoff_schedule, 1):
+            if wait > 0:
+                diag(f"[NLQ-DIAG] _fetch_from_dcl retry {attempt}/{len(backoff_schedule)} after {wait}s backoff")
+                time.sleep(wait)
+
+            try:
+                diag(f"[NLQ-DIAG] _fetch_from_dcl GET {url} (attempt {attempt}/{len(backoff_schedule)})")
+                response = self._http_client.get(url, timeout=20.0)
+                diag(f"[NLQ-DIAG] _fetch_from_dcl status={response.status_code}, size={len(response.text)} bytes")
+                response.raise_for_status()
+                data = response.json()
+                metric_ids = list(data.get("metrics", [{}]))[:5]
+                diag(f"[NLQ-DIAG] _fetch_from_dcl parsed: {len(data.get('metrics', []))} metrics, mode={data.get('mode', {})}, first_5={[m.get('id','?') if isinstance(m,dict) else '?' for m in metric_ids]}")
+                return self._parse_dcl_response(data)
+            except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError) as e:
+                diag(f"[NLQ-DIAG] _fetch_from_dcl attempt {attempt}/{len(backoff_schedule)} failed: {type(e).__name__}: {e}")
+                if attempt < len(backoff_schedule):
+                    continue
+                # Final attempt failed — raise so caller handles it
+                raise
 
     def _parse_dcl_response(self, data: Dict[str, Any]) -> SemanticCatalog:
         """Parse DCL's semantic-export response into our catalog format.
@@ -618,7 +686,7 @@ class DCLSemanticClient:
             return self._resolve_metric_locally(user_term)
 
         # Try DCL resolution endpoint for fuzzy/semantic matching
-        if self.dcl_url and time.time() >= self._dcl_circuit_open_until:
+        if self.dcl_url and self._is_dcl_call_allowed():
             try:
                 result = self._resolve_metric_via_dcl(user_term)
                 if result:
@@ -636,13 +704,11 @@ class DCLSemanticClient:
         and aliases.  On 404, the response may include a ``suggestions`` array
         with the closest candidates — we try the top suggestion as a fallback.
         """
-        if not self._http_client:
-            self._http_client = httpx.Client(timeout=2.0, follow_redirects=True)
-
         try:
             response = self._http_client.get(
                 f"{self.dcl_url}/api/dcl/semantic-export/resolve/metric",
-                params={"q": user_term}
+                params={"q": user_term},
+                timeout=5.0,
             )
             if response.status_code == 404:
                 # DCL may return suggestions for close matches
@@ -664,7 +730,7 @@ class DCLSemanticClient:
             data = response.json()
             metric_id = data["id"]
             local_units = self._get_metric_units()
-            self._dcl_consecutive_failures = 0
+            self._record_dcl_success()
             return MetricDefinition(
                 id=metric_id,
                 display_name=data.get("name", metric_id),
@@ -680,17 +746,11 @@ class DCLSemanticClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code != 404:
                 logger.warning(f"DCL metric resolution error: {e}")
-                self._dcl_consecutive_failures += 1
-                if self._dcl_consecutive_failures >= 3:
-                    self._dcl_circuit_open_until = time.time() + 60
-                    logger.warning("DCL circuit breaker opened for 60s after 3 consecutive failures")
+                self._record_dcl_failure()
             return None
         except (httpx.RequestError, json.JSONDecodeError, KeyError) as e:
             logger.warning(f"DCL metric resolution failed: {e}")
-            self._dcl_consecutive_failures += 1
-            if self._dcl_consecutive_failures >= 3:
-                self._dcl_circuit_open_until = time.time() + 60
-                logger.warning("DCL circuit breaker opened for 60s after 3 consecutive failures")
+            self._record_dcl_failure()
             return None
 
     def search(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
@@ -712,13 +772,11 @@ class DCLSemanticClient:
         if not self.dcl_url or _force_local_ctx.get():
             return []
 
-        if not self._http_client:
-            self._http_client = httpx.Client(timeout=5.0, follow_redirects=True)
-
         try:
             response = self._http_client.get(
                 f"{self.dcl_url}/api/dcl/semantic-export/search",
                 params={"q": query, "limit": limit},
+                timeout=5.0,
             )
             if response.status_code == 404:
                 return []
@@ -782,9 +840,6 @@ class DCLSemanticClient:
         if not self.dcl_url:
             return {"connected": False, "error": "DCL_API_URL not configured"}
 
-        if not self._http_client:
-            self._http_client = httpx.Client(timeout=30.0)
-
         try:
             resp = self._http_client.get(
                 f"{self.dcl_url}/api/health",
@@ -822,11 +877,10 @@ class DCLSemanticClient:
         """
         # Try the live endpoint first
         if self.dcl_url and not _force_local_ctx.get():
-            if not self._http_client:
-                self._http_client = httpx.Client(timeout=5.0, follow_redirects=True)
             try:
                 response = self._http_client.get(
                     f"{self.dcl_url}/api/dcl/ingest/runs",
+                    timeout=5.0,
                 )
                 if response.status_code == 200:
                     data = response.json()
@@ -881,13 +935,11 @@ class DCLSemanticClient:
         if not user_term or not self.dcl_url:
             return None
 
-        if not self._http_client:
-            self._http_client = httpx.Client(timeout=5.0, follow_redirects=True)
-
         try:
             response = self._http_client.get(
                 f"{self.dcl_url}/api/dcl/semantic-export/resolve/entity",
-                params={"q": user_term}
+                params={"q": user_term},
+                timeout=5.0,
             )
             if response.status_code == 404:
                 return None
@@ -1232,9 +1284,6 @@ class DCLSemanticClient:
             result["data_source"] = "demo"
             result["data_source_reason"] = reason
             return result
-
-        if not self._http_client:
-            self._http_client = httpx.Client(timeout=30.0)
 
         try:
             # Transform time_range from NLQ format to DCL format
@@ -1869,9 +1918,6 @@ class DCLSemanticClient:
 
         # Try DCL's graph resolution endpoint first
         if self.dcl_url:
-            if not self._http_client:
-                self._http_client = httpx.Client(timeout=30.0, follow_redirects=True)
-
             payload = {
                 "concepts": concepts,
                 "dimensions": dimensions or [],

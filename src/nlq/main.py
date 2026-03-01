@@ -27,6 +27,7 @@ from src.nlq.dcl.routes import router as dcl_router
 from src.nlq.services.query_cache_service import init_cache_service_from_env, get_cache_service
 from src.nlq.services.llm_call_counter import init_call_counter, get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log
+from src.nlq.services.dcl_semantic_client import get_semantic_client
 from src.nlq.db.supabase_persistence import init_persistence_service, get_persistence_service
 
 logger = logging.getLogger(__name__)
@@ -120,6 +121,40 @@ async def _deferred_init():
             logger.info(f"Query pattern cache seeded: {seeded} patterns")
 
         get_learning_log()
+
+        # Layer 5: Pre-warm DCL catalog in background so first user request
+        # doesn't block on a cold-starting DCL (Render free tier cold starts
+        # take 15-30s).  Retries with backoff — logs each attempt for
+        # visibility in Render logs.  Does NOT block startup.
+        client = get_semantic_client()
+        if client.dcl_url:
+            warmup_backoffs = [2, 5, 10, 15, 20]  # seconds between attempts
+            for attempt, wait in enumerate(warmup_backoffs, 1):
+                try:
+                    logger.info(f"DCL pre-warm attempt {attempt}/{len(warmup_backoffs)}...")
+                    catalog = await loop.run_in_executor(
+                        None, lambda: client.get_catalog(force_refresh=True)
+                    )
+                    logger.info(
+                        f"DCL pre-warm SUCCESS on attempt {attempt}: "
+                        f"{len(catalog.metrics)} metrics cached "
+                        f"(mode={catalog.dcl_mode})"
+                    )
+                    break  # Catalog is now cached — first user request will be instant
+                except Exception as e:
+                    logger.warning(
+                        f"DCL pre-warm attempt {attempt}/{len(warmup_backoffs)} failed: "
+                        f"{type(e).__name__}: {e}"
+                    )
+                    if attempt < len(warmup_backoffs):
+                        await asyncio.sleep(wait)
+                    else:
+                        logger.warning(
+                            "DCL pre-warm exhausted all attempts. "
+                            "First user request will trigger catalog fetch."
+                        )
+        else:
+            logger.info("DCL pre-warm skipped (DCL_API_URL not configured)")
 
         logger.info("All background services initialized")
     except Exception as e:

@@ -95,14 +95,12 @@ class QueryExecutor:
                     if not vals:
                         return None
                     # Determine aggregation method from metric unit
-                    _non_additive = {"pct", "ratio", "score", "days", "hours", "months", "index"}
-                    _is_additive = True
-                    if metric:
-                        from src.nlq.knowledge.schema import get_canonical_unit
-                        _is_additive = get_canonical_unit(metric) not in _non_additive
-                    if _is_additive:
+                    from src.nlq.knowledge.schema import is_additive_metric
+                    if metric and is_additive_metric(metric):
                         return sum(vals)
                     else:
+                        # Default to average when metric is unknown (safe: avoids
+                        # impossible sums like 398% uptime)
                         return sum(vals) / len(vals)
                 else:
                     # Return the specific period's value (usually last in list)
