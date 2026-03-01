@@ -4,6 +4,7 @@ interface PipelineStatus {
   dcl_connected: boolean;
   dcl_mode: string | null;
   metric_count: number;
+  catalog_source: string | null;
   last_run_id: string | null;
   last_run_timestamp: string | null;
   last_source_systems: string[] | null;
@@ -176,9 +177,23 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
             <div className="px-4 py-3 space-y-2.5 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">DCL</span>
-                <span className={`flex items-center gap-1.5 ${isDemo ? 'text-slate-500' : status?.dcl_connected ? 'text-emerald-400' : 'text-slate-500'}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${isDemo ? 'bg-slate-500' : status?.dcl_connected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
-                  {isDemo ? 'Bypassed' : status?.dcl_connected ? 'Connected' : 'Local Fallback'}
+                <span className={`flex items-center gap-1.5 ${
+                  isDemo ? 'text-slate-500'
+                    : status?.catalog_source === 'dcl' ? 'text-emerald-400'
+                    : status?.catalog_source === 'local_fallback' ? 'text-amber-400'
+                    : 'text-slate-500'
+                }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${
+                    isDemo ? 'bg-slate-500'
+                      : status?.catalog_source === 'dcl' ? 'bg-emerald-400'
+                      : status?.catalog_source === 'local_fallback' ? 'bg-amber-400'
+                      : 'bg-slate-500'
+                  }`} />
+                  {isDemo ? 'Bypassed'
+                    : status?.catalog_source === 'dcl' ? 'Connected'
+                    : status?.catalog_source === 'local_fallback' ? 'Stale Fallback'
+                    : status?.catalog_source === 'local' ? 'Local Dev'
+                    : 'Offline'}
                 </span>
               </div>
 
@@ -189,7 +204,12 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
 
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Metrics</span>
-                <span className="text-slate-300">{status?.metric_count ?? 0} loaded</span>
+                <span className="text-slate-300">
+                  {status?.metric_count ?? 0} loaded
+                  {status?.catalog_source === 'local_fallback' && (
+                    <span className="text-amber-400 ml-1">(fallback)</span>
+                  )}
+                </span>
               </div>
 
               {!isDemo && status?.last_run_id && (

@@ -39,6 +39,7 @@ class PipelineStatusResponse(BaseModel):
     dcl_connected: bool
     dcl_mode: Optional[str] = None  # "Ingest", "Demo", "Live", "Farm", or None
     metric_count: int = 0
+    catalog_source: Optional[str] = None  # "dcl", "local", "local_fallback", or None
     last_run_id: Optional[str] = None
     last_run_timestamp: Optional[str] = None
     last_source_systems: Optional[List[str]] = None
@@ -131,6 +132,7 @@ async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResp
             dcl_connected=False,
             dcl_mode=None,
             metric_count=metric_count,
+            catalog_source="local",
         )
 
     # Live/ingest mode: check DCL connectivity via health endpoint
@@ -139,11 +141,13 @@ async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResp
     dcl_connected = health.get("connected", False)
     raw_mode = health.get("data_mode")  # Real-time from DCL, not cached
 
-    # Get metric count from catalog (may be cached up to 5 min)
+    # Get metric count and source from catalog (may be cached up to 5 min)
     metric_count = 0
+    catalog_source = dcl_client.catalog_source  # may be "none" before first load
     try:
         catalog = dcl_client.get_catalog()
         metric_count = len(catalog.metrics)
+        catalog_source = dcl_client.catalog_source  # re-read after load
     except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as e:
         logger.warning("DCL catalog check failed in pipeline_status: %s", e)
 
@@ -162,6 +166,7 @@ async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResp
         dcl_connected=dcl_connected,
         dcl_mode=raw_mode,
         metric_count=metric_count,
+        catalog_source=catalog_source if catalog_source != "none" else None,
         last_run_id=last_run_id,
         last_run_timestamp=last_run_timestamp,
         last_source_systems=last_source_systems,

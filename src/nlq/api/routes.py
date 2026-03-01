@@ -32,7 +32,7 @@ from src.nlq.core.node_generator import (
 )
 from src.nlq.core.parser import QueryParser
 from src.nlq.core.resolver import PeriodResolver
-from src.nlq.knowledge.schema import FINANCIAL_SCHEMA, get_metric_unit
+from src.nlq.knowledge.schema import FINANCIAL_SCHEMA, get_canonical_unit, get_metric_unit
 from src.nlq.knowledge.synonyms import normalize_metric
 from src.nlq.knowledge.display import get_display_name
 from src.nlq.llm.client import ClaudeClient
@@ -1263,7 +1263,7 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None) -> Op
     display_unit = get_metric_unit(metric)
     if display_unit == "unknown" and result.get("unit"):
         display_unit = result["unit"]
-    canonical_unit = _metric_unit  # Already computed above for aggregation
+    canonical_unit = get_canonical_unit(metric)
 
     # Format the value for human-readable answer
     if display_unit in ("USD millions", "USD", "$"):
