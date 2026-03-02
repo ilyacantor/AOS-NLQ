@@ -6,10 +6,10 @@ Quality and freshness vary by metric type:
 - Medium quality: Operational systems
 - Lower quality: Forecasts/estimates
 
-Freshness indicates how often metrics update:
-- Real-time: Cash, bookings
-- Weekly: AR, AP
-- Monthly: Revenue, expenses
+Freshness is cadence-relative — staleness depends on how often the metric updates:
+- Real-time: Cash, bookings — stale after 24h
+- Weekly: AR, AP — stale after 7 days
+- Periodic: Revenue, expenses — always fresh (monthly/quarterly cadence)
 """
 
 # Data quality varies by metric source (0.0 to 1.0)
@@ -51,7 +51,59 @@ METRIC_DATA_QUALITY = {
     "revenue_churn": 0.80,
 }
 
-# How often each metric type updates
+# --- Cadence categories ---
+# Staleness is relative to how often a metric naturally updates.
+CADENCE_REALTIME = "realtime"   # Daily or more frequent — stale after 24h
+CADENCE_WEEKLY = "weekly"       # Weekly refresh — stale after 7 days
+CADENCE_PERIODIC = "periodic"   # Monthly/quarterly — always fresh
+
+# Stale/old thresholds (hours) per cadence
+CADENCE_THRESHOLDS = {
+    CADENCE_REALTIME: {"stale": 24, "old": 72},      # >24h stale, >3d old
+    CADENCE_WEEKLY: {"stale": 168, "old": 336},       # >7d stale, >14d old
+    CADENCE_PERIODIC: {"stale": None, "old": None},   # never stale
+}
+
+# Map each metric to its update cadence
+METRIC_CADENCE = {
+    # Real-time / daily
+    "cash": CADENCE_REALTIME,
+    "bookings": CADENCE_REALTIME,
+    "sales_pipeline": CADENCE_REALTIME,
+
+    # Weekly
+    "ar": CADENCE_WEEKLY,
+    "ap": CADENCE_WEEKLY,
+    "deferred_revenue": CADENCE_WEEKLY,
+
+    # Monthly / quarterly — always fresh
+    "revenue": CADENCE_PERIODIC,
+    "net_income": CADENCE_PERIODIC,
+    "cogs": CADENCE_PERIODIC,
+    "gross_profit": CADENCE_PERIODIC,
+    "operating_profit": CADENCE_PERIODIC,
+    "sga": CADENCE_PERIODIC,
+    "selling_expenses": CADENCE_PERIODIC,
+    "g_and_a_expenses": CADENCE_PERIODIC,
+    "gross_margin_pct": CADENCE_PERIODIC,
+    "operating_margin_pct": CADENCE_PERIODIC,
+    "net_income_pct": CADENCE_PERIODIC,
+    "yoy_growth": CADENCE_PERIODIC,
+    "current_assets": CADENCE_PERIODIC,
+    "current_liabilities": CADENCE_PERIODIC,
+    "total_assets": CADENCE_PERIODIC,
+    "total_liabilities": CADENCE_PERIODIC,
+    "retained_earnings": CADENCE_PERIODIC,
+
+    # Slow-moving — always fresh
+    "ppe": CADENCE_PERIODIC,
+    "intangibles": CADENCE_PERIODIC,
+    "stockholders_equity": CADENCE_PERIODIC,
+    "expansion_revenue": CADENCE_PERIODIC,
+    "revenue_churn": CADENCE_PERIODIC,
+}
+
+# How old the data typically is (display value for Galaxy nodes)
 METRIC_FRESHNESS = {
     # Real-time / daily
     "cash": "2h",
@@ -93,6 +145,7 @@ METRIC_FRESHNESS = {
 # Default values
 DEFAULT_DATA_QUALITY = 0.80
 DEFAULT_FRESHNESS = "24h"
+DEFAULT_CADENCE = CADENCE_PERIODIC
 
 
 def get_data_quality(metric: str) -> float:
@@ -121,27 +174,55 @@ def get_freshness(metric: str) -> str:
     return METRIC_FRESHNESS.get(metric, DEFAULT_FRESHNESS)
 
 
-def get_freshness_level(freshness: str) -> str:
+def get_cadence(metric: str) -> str:
     """
-    Convert freshness string to level for dot color.
+    Get the update cadence for a metric.
+
+    Args:
+        metric: The metric name
+
+    Returns:
+        Cadence string: "realtime", "weekly", or "periodic"
+    """
+    return METRIC_CADENCE.get(metric, DEFAULT_CADENCE)
+
+
+def get_freshness_level(freshness: str, metric: str = "") -> str:
+    """
+    Convert freshness string to level for dot color, relative to the
+    metric's update cadence.
+
+    Cadence rules:
+    - Periodic (monthly/quarterly): always fresh
+    - Weekly: fresh ≤7d, stale 7-14d, old >14d
+    - Real-time: fresh ≤24h, stale 24-72h, old >72h
 
     Args:
         freshness: Freshness string (e.g., "2h", "24h")
+        metric: Metric name (used to look up cadence). If empty,
+                falls back to realtime thresholds.
 
     Returns:
         "fresh" (green), "stale" (yellow), or "old" (red)
     """
-    # Parse hours from string
     import re
+
+    cadence = get_cadence(metric) if metric else CADENCE_REALTIME
+    thresholds = CADENCE_THRESHOLDS[cadence]
+
+    # Periodic metrics are always fresh
+    if thresholds["stale"] is None:
+        return "fresh"
+
     match = re.match(r"(\d+)h", freshness)
     if not match:
         return "old"
 
     hours = int(match.group(1))
 
-    if hours <= 6:
+    if hours <= thresholds["stale"]:
         return "fresh"
-    elif hours <= 24:
+    elif hours <= thresholds["old"]:
         return "stale"
     else:
         return "old"

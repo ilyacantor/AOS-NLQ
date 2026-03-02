@@ -565,7 +565,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                     cx={radius * 0.7}
                     cy={-radius * 0.7}
                     r={Math.max(3, 5 * scale)}
-                    fill={getFreshnessColor(node.freshness)}
+                    fill={getFreshnessColor(node.freshness, node.metric)}
                     stroke="#0f172a"
                     strokeWidth="1"
                   />

@@ -169,29 +169,49 @@ class TestFreshness:
             assert node.freshness is not None
             assert node.freshness != ""
 
-    def test_freshness_level_fresh(self):
-        """Freshness <= 6h should be 'fresh'."""
-        assert get_freshness_level("2h") == "fresh"
-        assert get_freshness_level("4h") == "fresh"
-        assert get_freshness_level("6h") == "fresh"
+    def test_realtime_fresh_within_24h(self):
+        """Real-time metrics are fresh when ≤24h old."""
+        assert get_freshness_level("2h", "cash") == "fresh"
+        assert get_freshness_level("12h", "bookings") == "fresh"
+        assert get_freshness_level("24h", "sales_pipeline") == "fresh"
 
-    def test_freshness_level_stale(self):
-        """Freshness 6-24h should be 'stale'."""
-        assert get_freshness_level("12h") == "stale"
-        assert get_freshness_level("24h") == "stale"
+    def test_realtime_stale_after_24h(self):
+        """Real-time metrics are stale after 24h."""
+        assert get_freshness_level("48h", "cash") == "stale"
+        assert get_freshness_level("72h", "bookings") == "stale"
 
-    def test_freshness_level_old(self):
-        """Freshness > 24h should be 'old'."""
-        assert get_freshness_level("48h") == "old"
-        assert get_freshness_level("72h") == "old"
+    def test_realtime_old_after_72h(self):
+        """Real-time metrics are old after 72h."""
+        assert get_freshness_level("96h", "cash") == "old"
 
-    def test_realtime_metrics_are_fresh(self):
-        """Real-time metrics should have fresh indicators."""
+    def test_weekly_fresh_within_7d(self):
+        """Weekly metrics are fresh when ≤7 days old."""
+        assert get_freshness_level("12h", "ar") == "fresh"
+        assert get_freshness_level("168h", "ap") == "fresh"
+
+    def test_weekly_stale_after_7d(self):
+        """Weekly metrics are stale after 7 days."""
+        assert get_freshness_level("200h", "ar") == "stale"
+        assert get_freshness_level("336h", "deferred_revenue") == "stale"
+
+    def test_weekly_old_after_14d(self):
+        """Weekly metrics are old after 14 days."""
+        assert get_freshness_level("400h", "ar") == "old"
+
+    def test_periodic_always_fresh(self):
+        """Monthly/quarterly metrics are always fresh regardless of age."""
+        assert get_freshness_level("24h", "revenue") == "fresh"
+        assert get_freshness_level("48h", "net_income") == "fresh"
+        assert get_freshness_level("720h", "gross_profit") == "fresh"
+        assert get_freshness_level("2000h", "ppe") == "fresh"
+
+    def test_realtime_metrics_have_fresh_defaults(self):
+        """Real-time metrics' default freshness values are within cadence."""
         freshness = get_freshness("cash")
-        assert get_freshness_level(freshness) == "fresh"
+        assert get_freshness_level(freshness, "cash") == "fresh"
 
         freshness = get_freshness("bookings")
-        assert get_freshness_level(freshness) == "fresh"
+        assert get_freshness_level(freshness, "bookings") == "fresh"
 
 
 class TestSemanticLabels:

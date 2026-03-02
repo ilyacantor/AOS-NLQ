@@ -16,15 +16,16 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
   provenance,
 }) => {
   const domainColor = DOMAIN_COLORS[node.domain] || DOMAIN_COLORS.finance;
-  const freshnessColor = getFreshnessColor(node.freshness);
+  const freshnessColor = getFreshnessColor(node.freshness, node.metric);
 
-  // Determine freshness label
+  // Determine freshness label (cadence-relative)
   const getFreshnessLabel = (freshness: string): string => {
     if (freshness === 'N/A') return 'N/A';
-    const hours = parseInt(freshness.replace('h', '')) || 999;
-    if (hours <= 6) return 'Fresh';
-    if (hours <= 24) return 'Stale';
-    return 'Old';
+    // Color already encodes the cadence-relative level
+    if (freshnessColor === '#22C55E') return 'Fresh';
+    if (freshnessColor === '#EAB308') return 'Stale';
+    if (freshnessColor === '#EF4444') return 'Old';
+    return freshness;
   };
 
   // Match type to ring name

@@ -41,7 +41,7 @@ export const NodeTooltip: React.FC<NodeTooltipProps> = ({
   }
 
   const domainColor = DOMAIN_COLORS[node.domain] || DOMAIN_COLORS.finance;
-  const freshnessColor = getFreshnessColor(node.freshness);
+  const freshnessColor = getFreshnessColor(node.freshness, node.metric);
 
   // Get freshness label
   const getFreshnessLabel = (freshness: string): string => {

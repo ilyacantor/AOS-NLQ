@@ -118,21 +118,21 @@ export const GalaxyLegend: React.FC<GalaxyLegendProps> = ({ compact = false }) =
             className="w-2 h-2 rounded-full"
             style={{ backgroundColor: FRESHNESS_COLORS.fresh }}
           />
-          <span className="text-slate-400">&le;6h</span>
+          <span className="text-slate-400">Within cadence</span>
         </span>
         <span className="flex items-center gap-1">
           <span
             className="w-2 h-2 rounded-full"
             style={{ backgroundColor: FRESHNESS_COLORS.stale }}
           />
-          <span className="text-slate-400">6-24h</span>
+          <span className="text-slate-400">Overdue</span>
         </span>
         <span className="flex items-center gap-1">
           <span
             className="w-2 h-2 rounded-full"
             style={{ backgroundColor: FRESHNESS_COLORS.old }}
           />
-          <span className="text-slate-400">&gt;24h</span>
+          <span className="text-slate-400">Significantly overdue</span>
         </span>
       </div>
     </div>

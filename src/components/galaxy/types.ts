@@ -112,19 +112,53 @@ export const DOMAIN_COLORS: Record<Domain, string> = {
 
 // Freshness colors for indicator dot
 export const FRESHNESS_COLORS = {
-  fresh: '#22C55E',   // Green  (<=6h)
-  stale: '#EAB308',   // Yellow (6-24h)
-  old: '#EF4444'      // Red    (>24h)
+  fresh: '#22C55E',   // Green — within expected cadence
+  stale: '#EAB308',   // Yellow — exceeds cadence threshold
+  old: '#EF4444'      // Red — significantly overdue
+};
+
+// Cadence categories — staleness is relative to update frequency
+type Cadence = 'realtime' | 'weekly' | 'periodic';
+
+const CADENCE_THRESHOLDS: Record<Cadence, { stale: number | null; old: number | null }> = {
+  realtime: { stale: 24, old: 72 },       // >24h stale, >3d old
+  weekly:   { stale: 168, old: 336 },      // >7d stale, >14d old
+  periodic: { stale: null, old: null },    // never stale
+};
+
+const METRIC_CADENCE: Record<string, Cadence> = {
+  cash: 'realtime', bookings: 'realtime', sales_pipeline: 'realtime',
+  ar: 'weekly', ap: 'weekly', deferred_revenue: 'weekly',
+  revenue: 'periodic', net_income: 'periodic', cogs: 'periodic',
+  gross_profit: 'periodic', operating_profit: 'periodic', sga: 'periodic',
+  selling_expenses: 'periodic', g_and_a_expenses: 'periodic',
+  gross_margin_pct: 'periodic', operating_margin_pct: 'periodic',
+  net_income_pct: 'periodic', yoy_growth: 'periodic',
+  current_assets: 'periodic', current_liabilities: 'periodic',
+  total_assets: 'periodic', total_liabilities: 'periodic',
+  retained_earnings: 'periodic', ppe: 'periodic', intangibles: 'periodic',
+  stockholders_equity: 'periodic', expansion_revenue: 'periodic',
+  revenue_churn: 'periodic',
 };
 
 /**
- * Get freshness color based on hours string.
+ * Get freshness color relative to the metric's update cadence.
+ * Periodic metrics (monthly/quarterly) are always fresh.
+ * Weekly metrics are stale after 7 days.
+ * Real-time metrics are stale after 24 hours.
  */
-export function getFreshnessColor(freshness: string): string {
+export function getFreshnessColor(freshness: string, metric?: string): string {
   if (freshness === 'N/A') return '#6B7280';  // Gray
+
+  const cadence: Cadence = (metric && METRIC_CADENCE[metric]) || 'realtime';
+  const thresholds = CADENCE_THRESHOLDS[cadence];
+
+  // Periodic metrics are always fresh
+  if (thresholds.stale === null) return FRESHNESS_COLORS.fresh;
+
   const hours = parseInt(freshness.replace('h', '')) || 999;
-  if (hours <= 6) return FRESHNESS_COLORS.fresh;
-  if (hours <= 24) return FRESHNESS_COLORS.stale;
+  if (hours <= thresholds.stale) return FRESHNESS_COLORS.fresh;
+  if (hours <= thresholds.old!) return FRESHNESS_COLORS.stale;
   return FRESHNESS_COLORS.old;
 }
 
