@@ -1178,6 +1178,7 @@ class DCLSemanticClient:
         "gross_churn_pct": "churn_rate_pct",
         "net_income_pct": "net_margin_pct",
         "ltv_cac": "ltv_cac_ratio",
+        "time_to_fill_days": "time_to_fill",
     }
 
     def _negotiate_metric_id(self, nlq_metric: str) -> str:
@@ -1214,7 +1215,12 @@ class DCLSemanticClient:
                 diag(f"[NLQ-DIAG] negotiate: {nlq_metric} -> {base} (stripped _pct)")
                 return base
 
-        # 4. No translation found
+        # 4. No translation found — log loudly so mismatches don't hide
+        logger.warning(
+            f"METRIC NEGOTIATION MISS: NLQ metric '{nlq_metric}' has no match in DCL catalog "
+            f"({len(available)} metrics available). If this is a naming mismatch, "
+            f"add an entry to _NLQ_TO_DCL_CROSSMAP."
+        )
         return nlq_metric
 
     # =========================================================================
@@ -1335,7 +1341,14 @@ class DCLSemanticClient:
             diag(f"[NLQ-DIAG] query() <- DCL status={response.status_code}, body={response.text[:500]}")
 
             if response.status_code == 404:
-                error_msg = f"Unknown metric: {metric}"
+                negotiation_note = (
+                    f" (negotiated from NLQ '{metric}')" if dcl_metric != metric else ""
+                )
+                error_msg = (
+                    f"DCL returned 404 for metric '{dcl_metric}'{negotiation_note} "
+                    f"at {self.dcl_url}/api/dcl/query"
+                )
+                logger.warning(f"DCL METRIC NOT FOUND: {error_msg}")
                 return {"error": error_msg, "status": "not_found"}
             elif response.status_code == 400:
                 err_body = response.json()

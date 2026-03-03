@@ -502,14 +502,12 @@ P&L Statement — 2026-Q1
 
 | Field | Value |
 |-------|-------|
-| **Metric** | `time_to_fill` |
+| **Metric** | `time_to_fill_days` |
 | **Period** | 2026-Q1 |
 | **Value** | 30.2 |
 | **Unit** | days |
-| **Answer** | Time To Fill for 2026-Q1 is 30.2 |
+| **Answer** | Time to Fill for 2026-Q1 is 30.2 |
 | **Intent** | POINT_QUERY |
-
-> **Note:** The eval runner's gt=45 is outdated. Correct ground truth from DCL is 30.2 (averaged from department-level time_to_fill data).
 
 ### CHRO_Q6: What is our eNPS?
 

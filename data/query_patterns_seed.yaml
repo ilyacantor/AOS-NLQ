@@ -69,7 +69,7 @@ patterns:
     - {nl: "Show me support tickets by tier", canonical_metric: support_tickets, period_type: current, dimension: sla_type, tags: [support, dimensional]}
     - {nl: "What is our headcount?", canonical_metric: headcount, period_type: current, tags: [people]}
     - {nl: "Show me headcount by department", canonical_metric: headcount, period_type: current, dimension: department, tags: [people, dimensional]}
-    - {nl: "What is time to fill?", canonical_metric: time_to_fill, period_type: current, tags: [recruiting]}
+    - {nl: "What is time to fill?", canonical_metric: time_to_fill_days, period_type: current, tags: [recruiting]}
     - {nl: "What is SLA compliance?", canonical_metric: sla_compliance_pct, period_type: current, tags: [support, sla]}
     - {nl: "Show me implementation days by segment", canonical_metric: csat, period_type: current, dimension: segment, tags: [support, dimensional]}
     - {nl: "What is our revenue per employee?", canonical_metric: revenue_per_employee, period_type: current, tags: [efficiency]}
@@ -120,8 +120,8 @@ patterns:
     - {nl: "Show me engagement by department", canonical_metric: engagement_score, period_type: current, dimension: department, tags: [people, dimensional]}
     - {nl: "What is our eNPS?", canonical_metric: enps, period_type: current, tags: [people, satisfaction]}
     - {nl: "How many open roles?", canonical_metric: open_roles, period_type: current, tags: [recruiting]}
-    - {nl: "What is time to fill?", canonical_metric: time_to_fill, period_type: current, tags: [recruiting, velocity]}
-    - {nl: "Show me time to fill by department", canonical_metric: time_to_fill, period_type: current, dimension: department, tags: [recruiting, dimensional]}
+    - {nl: "What is time to fill?", canonical_metric: time_to_fill_days, period_type: current, tags: [recruiting, velocity]}
+    - {nl: "Show me time to fill by department", canonical_metric: time_to_fill_days, period_type: current, dimension: department, tags: [recruiting, dimensional]}
     - {nl: "What is our offer acceptance rate?", canonical_metric: offer_acceptance_rate_pct, period_type: current, tags: [recruiting, quality]}
     - {nl: "What is total headcount?", canonical_metric: headcount, period_type: current, tags: [people]}
     - {nl: "Show me headcount by department", canonical_metric: headcount, period_type: current, dimension: department, tags: [people, dimensional]}
@@ -138,4 +138,4 @@ patterns:
     - {nl: "What is span of control?", canonical_metric: span_of_control, period_type: current, tags: [people, org]}
     - {nl: "Show me headcount growth 2024 vs 2025", canonical_metric: headcount, period_type: comparison, tags: [people, comparison]}
     - {nl: "What is our sales headcount?", canonical_metric: sales_headcount, period_type: current, tags: [people, sales]}
-    - {nl: "Which department has the highest time to fill?", canonical_metric: time_to_fill, period_type: current, dimension: department, tags: [recruiting, superlative]}
+    - {nl: "Which department has the highest time to fill?", canonical_metric: time_to_fill_days, period_type: current, dimension: department, tags: [recruiting, superlative]}

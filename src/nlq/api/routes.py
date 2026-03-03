@@ -1395,11 +1395,21 @@ def _try_simple_metric_query(question: str) -> Optional[NLQResponse]:
     static_hit = _METRIC_REVERSE_LOOKUP.get(q)
     if static_hit:
         from src.nlq.knowledge.display import get_display_name
+        from src.nlq.knowledge.schema import FINANCIAL_SCHEMA
         display = get_display_name(static_hit)
-        stumped_msg = get_stumped_response(include_suggestions=True)
+        defn = FINANCIAL_SCHEMA.get(static_hit)
+        desc_part = f" ({defn.description})" if defn and defn.description else ""
+        logger.warning(
+            f"KNOWN METRIC NO DATA: resolved '{q}' to metric '{static_hit}' "
+            f"but DCL returned no data. Check DCL ingest status for this metric."
+        )
         return NLQResponse(
             success=True,
-            answer=f"{stumped_msg}\n\n⚠️ Possible insufficient data condition (50% confidence)",
+            answer=(
+                f"I recognize **{display}**{desc_part}, "
+                f"but I don't have data for it right now. "
+                f"This may indicate missing data in the current dataset for metric `{static_hit}`."
+            ),
             value=None,
             unit=None,
             confidence=0.5,

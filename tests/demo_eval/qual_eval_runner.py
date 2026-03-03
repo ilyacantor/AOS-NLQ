@@ -50,7 +50,7 @@ QUERIES = {
         {"id": "CHRO_Q2", "q": "Which department has the highest attrition?", "expect": "superlative", "gt": None, "unit": None, "tol": 0},
         {"id": "CHRO_Q3", "q": "What is employee engagement?", "expect": "point", "gt": 4.25, "unit": "score", "tol": 10},
         {"id": "CHRO_Q4", "q": "How many open roles do we have?", "expect": "point", "gt": 51, "unit": "count", "tol": 20},
-        {"id": "CHRO_Q5", "q": "What is time to fill?", "expect": "point", "gt": 45, "unit": "days", "tol": 25},
+        {"id": "CHRO_Q5", "q": "What is time to fill?", "expect": "point", "gt": 30.2, "unit": "days", "tol": 15},
         {"id": "CHRO_Q6", "q": "What is our eNPS?", "expect": "point", "gt": None, "unit": "score", "tol": 15},
         {"id": "CHRO_Q7", "q": "Show me headcount by department", "expect": "breakdown", "gt": None, "unit": "count", "tol": 15, "dims": ["Engineering", "Sales", "G&A"]},
         {"id": "CHRO_Q8", "q": "What is our offer acceptance rate?", "expect": "point", "gt": 84.5, "unit": "pct", "tol": 10},

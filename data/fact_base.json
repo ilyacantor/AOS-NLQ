@@ -166,7 +166,9 @@
       "is_forecast": false,
       "dso": 45.6,
       "dpo": 19.3,
-      "working_capital": 47.25
+      "working_capital": 47.25,
+      "time_to_fill_days": 34.3,
+      "engagement_score": 72.1
     },
     {
       "period": "2024-Q2",
@@ -288,7 +290,9 @@
       "is_forecast": false,
       "dso": 45.4,
       "dpo": 19.2,
-      "working_capital": 54.22
+      "working_capital": 54.22,
+      "time_to_fill_days": 36.7,
+      "engagement_score": 73.5
     },
     {
       "period": "2024-Q3",
@@ -410,7 +414,9 @@
       "is_forecast": false,
       "dso": 45.1,
       "dpo": 19.3,
-      "working_capital": 61.74
+      "working_capital": 61.74,
+      "time_to_fill_days": 33.3,
+      "engagement_score": 74.1
     },
     {
       "period": "2024-Q4",
@@ -532,7 +538,9 @@
       "is_forecast": false,
       "dso": 44.9,
       "dpo": 19.3,
-      "working_capital": 69.81
+      "working_capital": 69.81,
+      "time_to_fill_days": 32.8,
+      "engagement_score": 73.9
     },
     {
       "period": "2025-Q1",
@@ -654,7 +662,9 @@
       "is_forecast": false,
       "dso": 44.6,
       "dpo": 19.3,
-      "working_capital": 78.31
+      "working_capital": 78.31,
+      "time_to_fill_days": 30.7,
+      "engagement_score": 75.5
     },
     {
       "period": "2025-Q2",
@@ -776,7 +786,9 @@
       "is_forecast": false,
       "dso": 44.4,
       "dpo": 19.4,
-      "working_capital": 87.36
+      "working_capital": 87.36,
+      "time_to_fill_days": 33.2,
+      "engagement_score": 75.8
     },
     {
       "period": "2025-Q3",
@@ -898,7 +910,9 @@
       "is_forecast": false,
       "dso": 44.1,
       "dpo": 19.4,
-      "working_capital": 96.99
+      "working_capital": 96.99,
+      "time_to_fill_days": 32.7,
+      "engagement_score": 75.4
     },
     {
       "period": "2025-Q4",
@@ -1020,7 +1034,9 @@
       "is_forecast": false,
       "dso": 43.8,
       "dpo": 19.4,
-      "working_capital": 107.23
+      "working_capital": 107.23,
+      "time_to_fill_days": 28.7,
+      "engagement_score": 75.3
     },
     {
       "period": "2026-Q1",
@@ -1142,7 +1158,9 @@
       "is_forecast": false,
       "dso": 43.6,
       "dpo": 19.5,
-      "working_capital": 117.86
+      "working_capital": 117.86,
+      "time_to_fill_days": 30.2,
+      "engagement_score": 77.5
     },
     {
       "period": "2026-Q2",
@@ -1264,7 +1282,9 @@
       "is_forecast": false,
       "dso": 43.3,
       "dpo": 19.4,
-      "working_capital": 129.04
+      "working_capital": 129.04,
+      "time_to_fill_days": 28.0,
+      "engagement_score": 76.9
     },
     {
       "period": "2026-Q3",
@@ -1386,7 +1406,9 @@
       "is_forecast": true,
       "dso": 43.1,
       "dpo": 19.5,
-      "working_capital": 140.79
+      "working_capital": 140.79,
+      "time_to_fill_days": 26.7,
+      "engagement_score": 77.2
     },
     {
       "period": "2026-Q4",
@@ -1508,7 +1530,9 @@
       "is_forecast": true,
       "dso": 42.8,
       "dpo": 19.5,
-      "working_capital": 153.15
+      "working_capital": 153.15,
+      "time_to_fill_days": 25.3,
+      "engagement_score": 78.6
     }
   ],
   "annual": [

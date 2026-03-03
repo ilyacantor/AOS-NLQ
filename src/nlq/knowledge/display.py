@@ -65,6 +65,10 @@ DISPLAY_NAMES = {
     "capex": "CapEx",
     "tax_expense": "Tax Expense",
 
+    # People / HR
+    "time_to_fill_days": "Time to Fill",
+    "engagement_score": "Employee Engagement",
+
     # Special
     "not_applicable": "N/A",
 }
