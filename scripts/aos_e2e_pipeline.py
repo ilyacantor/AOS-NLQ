@@ -21,7 +21,7 @@ Sequence:
 
 Usage:
   python scripts/aos_e2e_pipeline.py
-  python scripts/aos_e2e_pipeline.py --tenant-id <uuid>
+  python scripts/aos_e2e_pipeline.py --tenant AeroCorp-TEST
   python scripts/aos_e2e_pipeline.py --nlq-url http://my-nlq:8005
 
 Environment variables (override defaults):
@@ -320,7 +320,7 @@ def step_00_reset(client: httpx.Client, urls: dict[str, str]) -> None:
     try:
         r = _delete(
             client, f"{urls['farm']}/api/snapshots/cleanup",
-            params={"keep": 1}, timeout=30, urls=urls,
+            params={"keep": 0}, timeout=30, urls=urls,
         )
         if r.status_code < 400:
             data = r.json()
@@ -391,28 +391,27 @@ def step_01_health(client: httpx.Client, urls: dict[str, str]) -> None:
 
 def step_02_farm_snapshot(
     client: httpx.Client, urls: dict[str, str], tenant_id: str,
-) -> str:
-    """Generate a Farm snapshot with medium scale. Returns snapshot_id."""
+) -> tuple[str, str]:
+    """Generate a Farm snapshot with medium scale.
+    Returns (snapshot_id, tenant_id) -- tenant_id is read from the Farm
+    response so downstream steps use the authoritative value, not the
+    hardcoded default.
+    """
     label = "2. Farm -- Generate Snapshot"
     t0 = _step_start(label)
 
-    if not tenant_id:
-        _step_fail(
-            label, t0,
-            "tenant_id is required by Farm but was empty. "
-            "Set NLQ_DEFAULT_TENANT_ID in your .env or pass --tenant-id.",
-        )
-
-    payload: dict = {"scale": "medium", "tenant_id": tenant_id}
+    payload: dict = {"scale": "medium"}
+    if tenant_id:
+        payload["tenant_id"] = tenant_id
 
     try:
         r = _post(client, f"{urls['farm']}/api/snapshots", json_body=payload, timeout=180, urls=urls)
     except httpx.TimeoutException:
         _step_fail(label, t0, f"POST {urls['farm']}/api/snapshots timed out after 180s")
-        return ""  # unreachable -- _step_fail exits
+        return "", ""  # unreachable -- _step_fail exits
     except Exception as exc:
         _step_fail(label, t0, f"POST {urls['farm']}/api/snapshots failed: {exc}")
-        return ""
+        return "", ""
 
     if r.status_code >= 400:
         _step_fail(label, t0, f"HTTP {r.status_code} from Farm: {_body_preview(r)}")
@@ -422,10 +421,15 @@ def step_02_farm_snapshot(
     if not snapshot_id:
         _step_fail(label, t0, f"No snapshot_id in response: {json.dumps(data)[:500]}")
 
+    # Always read tenant_id from Farm's response -- Farm is the authority.
+    farm_tenant = data.get("tenant_id", "")
+    if not farm_tenant:
+        _step_fail(label, t0, "Farm response missing tenant_id -- Farm must always return one.")
+
     dup = data.get("duplicate_of_snapshot_id")
     extra = f" (reused existing {dup})" if dup else ""
-    _step_pass(label, t0, f"snapshot_id={snapshot_id}{extra}")
-    return snapshot_id
+    _step_pass(label, t0, f"snapshot_id={snapshot_id}  tenant={farm_tenant}{extra}")
+    return snapshot_id, farm_tenant
 
 
 def step_03_aod_discovery(
@@ -752,8 +756,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--deployed", action="store_true",
                     help="Use Render (production) URLs instead of localhost")
-    p.add_argument("--tenant-id", default=os.environ.get("NLQ_DEFAULT_TENANT_ID", ""),
-                    help="Tenant UUID (default: from NLQ_DEFAULT_TENANT_ID env var)")
+    p.add_argument("--tenant", default=None,
+                    help="Pin a specific tenant name (e.g. for replaying a scenario). "
+                         "Default: Farm auto-generates a company name.")
     p.add_argument("--farm-url", default=None, help="Override Farm base URL")
     p.add_argument("--aod-url", default=None, help="Override AOD base URL")
     p.add_argument("--aam-url", default=None, help="Override AAM base URL")
@@ -770,7 +775,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = _build_parser().parse_args()
     urls = _resolve_urls(args)
-    tenant_id: str = args.tenant_id
+    tenant_id: str = args.tenant or ""   # empty = let Farm generate
 
     mode_label = "DEPLOYED (Render)" if args.deployed else "LOCAL"
     _log(f"\n{'=' * 64}", _C.BOLD)
@@ -782,7 +787,9 @@ def main() -> None:
     _log(f"  DCL  : {urls['dcl']}", _C.DIM)
     _log(f"  NLQ  : {urls['nlq']}", _C.DIM)
     if tenant_id:
-        _log(f"  Tenant: {tenant_id}", _C.DIM)
+        _log(f"  Tenant: {tenant_id}  (override)", _C.DIM)
+    else:
+        _log(f"  Tenant: (Farm will generate)", _C.DIM)
     if _aod_key:
         _log(f"  AOD API Key: configured", _C.DIM)
     _log(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", _C.DIM)
@@ -796,7 +803,7 @@ def main() -> None:
             _steps.append({"name": "0. Pipeline Reset", "status": "PASS", "elapsed": 0.0})
         else:
             step_00_reset(client, urls)
-        snapshot_id = step_02_farm_snapshot(client, urls, tenant_id)
+        snapshot_id, tenant_id = step_02_farm_snapshot(client, urls, tenant_id)
         run_id = step_03_aod_discovery(client, urls, snapshot_id, tenant_id)
         step_04_aod_aam_bridge(client, urls, run_id)
         step_05_aam_infer(client, urls)
