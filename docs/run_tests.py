@@ -146,7 +146,10 @@ def run_tests(base_url: str, tests: list, verbose: bool = False) -> tuple:
     passed = 0
     failed = 0
     errors = 0
+    skipped = 0
     results = []
+    # Store responses by test ID for dependency chaining (e.g., DR tests need dashboard_id from DB tests)
+    responses_by_id = {}
 
     print(f"\n{BOLD}NLQ Regression Tests{RESET}")
     print(f"Target: {base_url}")
@@ -156,13 +159,48 @@ def run_tests(base_url: str, tests: list, verbose: bool = False) -> tuple:
     for tc in tests:
         test_id = tc["id"]
         desc = tc["description"]
+
+        # Skip tests marked as skip
+        if tc.get("skip"):
+            reason = tc.get("skip_reason", "")
+            print(f"  {YELLOW}SKIP{RESET} {test_id}: {desc} {DIM}({reason}){RESET}")
+            skipped += 1
+            results.append({"id": test_id, "result": "SKIP", "reason": reason})
+            continue
+
         url = base_url.rstrip("/") + tc["endpoint"]
-        payload = tc["payload"]
+        payload = dict(tc["payload"])  # copy so we can mutate
         expect = tc["expect"]
+
+        # Dependency chaining: inject dashboard_id from a prior test's response
+        dep_id = tc.get("depends_on")
+        if dep_id:
+            dep_resp = responses_by_id.get(dep_id)
+            if not dep_resp:
+                print(f"  {YELLOW}SKIP{RESET} {test_id}: {desc} {DIM}(dependency {dep_id} not available){RESET}")
+                skipped += 1
+                results.append({"id": test_id, "result": "SKIP", "reason": f"dependency {dep_id} not available"})
+                continue
+            # Extract dashboard_id from dependency response
+            dash = dep_resp.get("dashboard") or {}
+            dash_id = dash.get("id") if isinstance(dash, dict) else None
+            if not dash_id:
+                print(f"  {YELLOW}SKIP{RESET} {test_id}: {desc} {DIM}(no dashboard_id in {dep_id} response){RESET}")
+                skipped += 1
+                results.append({"id": test_id, "result": "SKIP", "reason": f"no dashboard_id from {dep_id}"})
+                continue
+            # Replace placeholder or set dashboard_id
+            if payload.get("dashboard_id") == "__FROM_DEPENDENCY__":
+                payload["dashboard_id"] = dash_id
+            elif "dashboard_id" not in payload:
+                payload["dashboard_id"] = dash_id
 
         t0 = time.time()
         status, body, err = post_json(url, payload)
         elapsed = time.time() - t0
+
+        # Store response for potential dependents
+        responses_by_id[test_id] = body
 
         if err and status == 0:
             # Connection error
@@ -201,9 +239,11 @@ def run_tests(base_url: str, tests: list, verbose: bool = False) -> tuple:
         parts.append(f"{GREEN}{passed} passed{RESET}")
     if failed:
         parts.append(f"{RED}{failed} failed{RESET}")
+    if skipped:
+        parts.append(f"{YELLOW}{skipped} skipped{RESET}")
     if errors:
         parts.append(f"{YELLOW}{errors} errors{RESET}")
-    print(f"  {', '.join(parts)}  |  {passed + failed + errors} total")
+    print(f"  {', '.join(parts)}  |  {passed + failed + skipped + errors} total")
     print()
 
     return passed, failed, errors, results
