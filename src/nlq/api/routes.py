@@ -95,6 +95,7 @@ from src.nlq.api.query_helpers import (
     people_response_to_galaxy,
     off_topic_to_nlq_response,
     off_topic_to_galaxy_response,
+    breakdown_to_galaxy_response,
 )
 
 # C1: Extracted modules — formatters, health, eval
@@ -1053,7 +1054,9 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
     conversational_suffixes = [
         # Longer patterns first (must be before shorter ones like " kpi")
         " across departments", " across regions", " across stages",
+        " across department", " across region", " across stage",
         " by departments", " by regions",
+        " by department", " by region", " by stage",
         " as a widget", " as a tile", " as a card", " as a kpi",
         " visualization", " dashboard", " report",
         " that we have", " do we have", " we have", " work here",
@@ -2059,6 +2062,20 @@ def _try_simple_metric_query_galaxy(question: str) -> Optional[IntentMapResponse
     result = _try_tiered_metric_query_core(question)
     if result:
         return simple_metric_to_galaxy_response(result, question)
+    return None
+
+
+def _try_simple_breakdown_query_galaxy(question: str) -> Optional[IntentMapResponse]:
+    """
+    Try to answer a simple breakdown query ("X by Y") for Galaxy mode.
+
+    Wraps _try_simple_breakdown_query() and converts NLQResponse to IntentMapResponse.
+    Must run BEFORE _try_simple_metric_query_galaxy to prevent "revenue by region"
+    from being resolved as a single metric.
+    """
+    result = _try_simple_breakdown_query(question)
+    if result:
+        return breakdown_to_galaxy_response(result, question)
     return None
 
 
@@ -3757,6 +3774,22 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 needs_clarification=False,
                 clarification_prompt=None,
             )
+
+        # =================================================================
+        # SIMPLE BREAKDOWN QUERIES - Handle "X by Y" queries early (no Claude needed)
+        # Must come before simple metric queries to avoid "revenue by region" -> "revenue"
+        # =================================================================
+        breakdown_response = _try_simple_breakdown_query_galaxy(request.question)
+        if breakdown_response:
+            _bd_metric = breakdown_response.nodes[0].metric if breakdown_response.nodes else None
+            await _log_query_event(
+                request.question, "bypass",
+                message=f"Simple breakdown (galaxy) -> {_bd_metric}",
+                persona=breakdown_response.persona or "CFO",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
+            return breakdown_response
 
         # =================================================================
         # SIMPLE METRIC QUERIES - Handle direct questions like "what's revenue?"

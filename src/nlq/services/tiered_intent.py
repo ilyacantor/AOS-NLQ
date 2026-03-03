@@ -93,6 +93,8 @@ COMPLEXITY_INDICATORS = {
     ],
     QueryComplexity.BREAKDOWN: [
         "breakdown", "by region", "by segment", "by product", "by team",
+        "by department", "by service", "by rep", "by stage", "by tier",
+        "by cost center", "by category", "by role", "by location",
         "split", "composition", "drivers", "what's driving", "components",
     ],
     QueryComplexity.SUPERLATIVE: [
@@ -131,6 +133,13 @@ def detect_complexity(query: str) -> QueryComplexity:
         for indicator in indicators:
             if indicator in query_lower:
                 return complexity_type
+
+    # Regex fallback: catch any "by <noun>" pattern the static list missed.
+    # This prevents the entire class of bugs where a new dimension noun
+    # (e.g., "by department") slips through as SIMPLE_METRIC.
+    import re
+    if re.search(r'\bby\s+\w+', query_lower):
+        return QueryComplexity.BREAKDOWN
 
     # Check for period references (still simple if just current period)
     period_words = ["q1", "q2", "q3", "q4", "2024", "2025", "last quarter",

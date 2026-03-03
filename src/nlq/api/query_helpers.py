@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 from src.nlq.models.response import Domain, MatchType, IntentMapResponse, IntentNode, NLQResponse
 from src.nlq.knowledge.display import get_display_name
+from src.nlq.knowledge.schema import get_metric_unit
 from src.nlq.core.personality import detect_persona_from_metric, detect_persona_from_question
 from src.nlq.core.dates import current_year, current_quarter
 
@@ -330,6 +331,82 @@ def ingest_status_to_galaxy_response(result: IngestStatusResult, question: str) 
         text_response=result.response_text,
         needs_clarification=False,
         clarification_prompt=None,
+    )
+
+
+def breakdown_to_galaxy_response(result: NLQResponse, question: str) -> IntentMapResponse:
+    """Convert NLQResponse breakdown result to IntentMapResponse for /query/galaxy endpoint."""
+    persona = (
+        detect_persona_from_metric(result.resolved_metric)
+        or detect_persona_from_question(question)
+        or "CFO"
+    )
+
+    nodes = []
+    # If dashboard_data exists, create a node per breakdown item
+    if result.dashboard_data:
+        for widget_data in result.dashboard_data.values():
+            series_list = widget_data.get("series", [])
+            for series in series_list:
+                for item in series.get("data", []):
+                    label = item.get("label", "")
+                    value = item.get("value")
+                    node_id = f"bd_{label.lower().replace(' ', '_')}"
+                    metric = result.resolved_metric or "unknown"
+                    unit = get_metric_unit(metric) if result.resolved_metric else "$"
+                    if unit == "%":
+                        fmt = f"{round(value, 1)}%" if value is not None else "N/A"
+                    else:
+                        fmt = f"${round(value, 1)}M" if value is not None else "N/A"
+                    nodes.append(IntentNode(
+                        id=node_id,
+                        metric=metric,
+                        display_name=f"{label}",
+                        match_type=MatchType.EXACT,
+                        domain=determine_domain(metric),
+                        confidence=0.9,
+                        data_quality=1.0,
+                        freshness="0h",
+                        value=value,
+                        formatted_value=fmt,
+                        period=result.resolved_period or current_quarter(),
+                        semantic_label=label,
+                    ))
+
+    # Fallback: no dashboard_data (graph resolution or error paths) → single text node
+    if not nodes:
+        node_id = f"bd_{result.resolved_metric or 'text'}_1"
+        nodes.append(IntentNode(
+            id=node_id,
+            metric=result.resolved_metric or "unknown",
+            display_name=get_display_name(result.resolved_metric) if result.resolved_metric else "Breakdown",
+            match_type=MatchType.EXACT,
+            domain=determine_domain(result.resolved_metric or "unknown"),
+            confidence=result.confidence or 0.8,
+            data_quality=1.0,
+            freshness="0h",
+            value=None,
+            formatted_value=None,
+            period=result.resolved_period or current_quarter(),
+            semantic_label="Breakdown",
+        ))
+
+    return IntentMapResponse(
+        query=question,
+        query_type="BREAKDOWN",
+        ambiguity_type=None,
+        persona=persona,
+        overall_confidence=result.confidence or 0.9,
+        overall_data_quality=1.0,
+        node_count=len(nodes),
+        nodes=nodes,
+        primary_node_id=nodes[0].id if nodes else None,
+        primary_answer=result.answer,
+        text_response=result.answer or "",
+        needs_clarification=False,
+        clarification_prompt=None,
+        provenance=result.provenance if isinstance(result.provenance, dict) else None,
+        data_source=result.data_source,
     )
 
 
