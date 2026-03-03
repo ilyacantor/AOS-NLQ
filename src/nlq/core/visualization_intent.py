@@ -389,6 +389,7 @@ def _extract_metrics_from_query(query: str) -> List[str]:
     dimension_words = set()
     by_match = re.search(r'\bby\s+(\w+)', q)
     if by_match:
+        dimension_words.add("by")              # "by" is a boundary, not a metric term
         dimension_words.add(by_match.group(1))
 
     # Extract potential metric terms from query using word boundaries
