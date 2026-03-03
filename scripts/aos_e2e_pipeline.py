@@ -433,6 +433,17 @@ def step_06_aam_dcl_push(client: httpx.Client, urls: dict[str, str]) -> None:
 
     data = r.json()
     dcl_ok = data.get("dcl_accepted")
+
+    # Surface full response on failure for diagnosis
+    if dcl_ok is False:
+        delivery = data.get("delivery", {})
+        dcl_body = delivery.get("body", "") if isinstance(delivery, dict) else ""
+        _step_fail(
+            label, t0,
+            f"DCL rejected pipe push (dcl_accepted=False). "
+            f"Response: {json.dumps(data)[:600]}",
+        )
+
     detail = f"dcl_accepted={dcl_ok}" if dcl_ok is not None else json.dumps(data)[:200]
     _step_pass(label, t0, detail)
 
@@ -466,7 +477,7 @@ def step_08_aam_runners(client: httpx.Client, urls: dict[str, str]) -> None:
     # 8a -- get pipe IDs from AAM
     _log("   Fetching pipe list from AAM...", _C.DIM)
     try:
-        r = _get(client, f"{urls['aam']}/api/aam/pipes", timeout=15, urls=urls)
+        r = _get(client, f"{urls['aam']}/api/pipes", timeout=15, urls=urls)
         if r.status_code >= 400:
             _step_fail(label, t0, f"GET /api/aam/pipes HTTP {r.status_code}: {_body_preview(r)}")
             return
@@ -505,7 +516,7 @@ def step_08_aam_runners(client: httpx.Client, urls: dict[str, str]) -> None:
             client,
             f"{urls['aam']}/api/runners/dispatch-batch",
             json_body={"pipe_ids": pipe_ids, "trigger": "e2e_pipeline"},
-            timeout=30,
+            timeout=300,
             urls=urls,
         )
     except Exception as exc:

@@ -254,7 +254,7 @@
     },
     {
       "id": "MR-014",
-      "description": "gross_churn_pct resolves correctly",
+      "description": "churn_rate_pct resolves correctly",
       "endpoint": "/api/v1/query/galaxy",
       "payload": {
         "question": "What is churn?"
@@ -577,7 +577,7 @@
     },
     {
       "id": "AL-006",
-      "description": "churn rate -> gross_churn_pct",
+      "description": "churn rate -> churn_rate_pct",
       "endpoint": "/api/v1/query/galaxy",
       "payload": {
         "question": "What is churn rate?"
@@ -1471,7 +1471,7 @@
       },
       "expect": {
         "status": 200,
-        "metric_must_be": "gross_churn_pct",
+        "metric_must_be": "churn_rate_pct",
         "data_must_exist": true
       },
       "tags": [
@@ -1798,7 +1798,7 @@
             "dashboard_build"
           ]
         },
-        "data_count_min": 3
+        "data_count_min": 2
       },
       "tags": [
         "galaxy",

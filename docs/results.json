@@ -1,172 +1,126 @@
 {
-  "timestamp": "2026-03-03T16:07:29Z",
+  "timestamp": "2026-03-03T16:41:09Z",
   "base_url": "https://aos-nlq.onrender.com",
   "summary": {
-    "passed": 23,
-    "failed": 79,
+    "passed": 92,
+    "failed": 10,
     "errors": 0
   },
   "results": [
     {
       "id": "MR-001",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 1.14
     },
     {
       "id": "MR-002",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.49
     },
     {
       "id": "MR-003",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.69
     },
     {
       "id": "MR-004",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.44
     },
     {
       "id": "MR-005",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.69
     },
     {
       "id": "MR-006",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.57
     },
     {
       "id": "MR-007",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.73
     },
     {
       "id": "MR-008",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.48
     },
     {
       "id": "MR-009",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.73
     },
     {
       "id": "MR-010",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.43
     },
     {
       "id": "MR-011",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.62
     },
     {
       "id": "MR-012",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.46
     },
     {
       "id": "MR-013",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.69
     },
     {
       "id": "MR-014",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.43
     },
     {
       "id": "MR-015",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.67
     },
     {
       "id": "MR-016",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.38
     },
     {
       "id": "MR-017",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.57
     },
     {
       "id": "MR-018",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.43
     },
     {
       "id": "MR-019",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.38
     },
     {
       "id": "MR-020",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.62
     },
     {
       "id": "MR-021",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.38
     },
     {
       "id": "MR-022",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.75
     },
     {
       "id": "MR-023",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.42
     },
     {
       "id": "MR-024",
@@ -179,238 +133,178 @@
     },
     {
       "id": "MR-025",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.84
     },
     {
       "id": "AL-001",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.41
     },
     {
       "id": "AL-002",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.7
     },
     {
       "id": "AL-003",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.45
     },
     {
       "id": "AL-004",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.71
     },
     {
       "id": "AL-005",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.43
     },
     {
       "id": "AL-006",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.63
     },
     {
       "id": "AL-007",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.44
     },
     {
       "id": "AL-008",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.6
     },
     {
       "id": "AL-009",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.4
     },
     {
       "id": "AL-010",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.43
     },
     {
       "id": "AL-011",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.63
     },
     {
       "id": "AL-012",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.37
     },
     {
       "id": "AL-013",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.39
     },
     {
       "id": "AL-014",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.62
     },
     {
       "id": "BD-001",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.55
     },
     {
       "id": "BD-002",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.62
     },
     {
       "id": "BD-003",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.37
     },
     {
       "id": "BD-004",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.43
     },
     {
       "id": "BD-005",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.84
     },
     {
       "id": "BD-006",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.43
     },
     {
       "id": "BD-007",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.67
     },
     {
       "id": "BD-008",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.27
     },
     {
       "id": "BD-009",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.29
     },
     {
       "id": "BD-010",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.71
     },
     {
       "id": "BD-011",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.83
     },
     {
       "id": "BD-012",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.42
     },
     {
       "id": "BD-013",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.7
     },
     {
       "id": "BD-014",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.3
     },
     {
       "id": "BD-015",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.81
     },
     {
       "id": "TM-001",
       "result": "PASS",
-      "elapsed": 0.58
+      "elapsed": 0.57
     },
     {
       "id": "TM-002",
       "result": "PASS",
-      "elapsed": 0.96
+      "elapsed": 0.81
     },
     {
       "id": "TM-003",
       "result": "PASS",
-      "elapsed": 1.5
+      "elapsed": 1.19
     },
     {
       "id": "TM-004",
       "result": "PASS",
-      "elapsed": 1.04
+      "elapsed": 0.72
     },
     {
       "id": "TM-005",
       "result": "PASS",
-      "elapsed": 1.07
+      "elapsed": 0.67
     },
     {
       "id": "TM-006",
@@ -421,45 +315,43 @@
     },
     {
       "id": "TM-007",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 3.6
     },
     {
       "id": "TM-008",
       "result": "PASS",
-      "elapsed": 1.7
+      "elapsed": 1.35
     },
     {
       "id": "STD-001",
       "result": "PASS",
-      "elapsed": 0.45
+      "elapsed": 0.64
     },
     {
       "id": "STD-002",
       "result": "PASS",
-      "elapsed": 0.78
+      "elapsed": 0.56
     },
     {
       "id": "STD-003",
       "result": "PASS",
-      "elapsed": 0.46
+      "elapsed": 0.74
     },
     {
       "id": "STD-004",
       "result": "PASS",
-      "elapsed": 0.63
+      "elapsed": 0.51
     },
     {
       "id": "STD-005",
       "result": "PASS",
-      "elapsed": 0.49
+      "elapsed": 0.72
     },
     {
       "id": "DB-001",
       "result": "PASS",
-      "elapsed": 0.65
+      "elapsed": 0.59
     },
     {
       "id": "DB-002",
@@ -471,24 +363,22 @@
     {
       "id": "DB-003",
       "result": "PASS",
-      "elapsed": 0.33
+      "elapsed": 0.31
     },
     {
       "id": "DB-004",
       "result": "PASS",
-      "elapsed": 0.44
+      "elapsed": 0.38
     },
     {
       "id": "DB-005",
       "result": "PASS",
-      "elapsed": 0.23
+      "elapsed": 0.26
     },
     {
       "id": "DB-006",
-      "result": "FAIL",
-      "failures": [
-        "Expected metric 'gross_churn_pct', found: ['churn_rate_pct', 'churn_rate_pct', 'churn_rate_pct']"
-      ]
+      "result": "PASS",
+      "elapsed": 0.43
     },
     {
       "id": "DB-007",
@@ -505,7 +395,7 @@
     {
       "id": "DB-009",
       "result": "PASS",
-      "elapsed": 0.28
+      "elapsed": 0.33
     },
     {
       "id": "DB-010",
@@ -531,12 +421,12 @@
     {
       "id": "UI-001",
       "result": "PASS",
-      "elapsed": 0.85
+      "elapsed": 0.87
     },
     {
       "id": "UI-002",
       "result": "PASS",
-      "elapsed": 0.5
+      "elapsed": 0.48
     },
     {
       "id": "UI-003",
@@ -548,17 +438,17 @@
     {
       "id": "UI-004",
       "result": "PASS",
-      "elapsed": 0.44
+      "elapsed": 0.45
     },
     {
       "id": "UI-005",
       "result": "PASS",
-      "elapsed": 0.71
+      "elapsed": 0.69
     },
     {
       "id": "UI-006",
       "result": "PASS",
-      "elapsed": 0.45
+      "elapsed": 0.48
     },
     {
       "id": "UI-007",
@@ -570,31 +460,22 @@
     {
       "id": "UI-008",
       "result": "PASS",
-      "elapsed": 0.45
+      "elapsed": 0.46
     },
     {
       "id": "PD-001",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found",
-        "data_count_min: need >= 3, got 0"
-      ]
+      "result": "PASS",
+      "elapsed": 2.81
     },
     {
       "id": "PD-002",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found",
-        "data_count_min: need >= 3, got 0"
-      ]
+      "result": "PASS",
+      "elapsed": 2.85
     },
     {
       "id": "PD-003",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found",
-        "data_count_min: need >= 2, got 0"
-      ]
+      "result": "PASS",
+      "elapsed": 3.1
     },
     {
       "id": "PD-004",
@@ -607,10 +488,8 @@
     },
     {
       "id": "PD-005",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 3.01
     },
     {
       "id": "DR-001",
@@ -634,73 +513,53 @@
     },
     {
       "id": "GD-001",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 2.75
     },
     {
       "id": "GD-002",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 3.14
     },
     {
       "id": "GD-003",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 3.06
     },
     {
       "id": "GD-004",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 2.51
     },
     {
       "id": "NG-001",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.61
     },
     {
       "id": "NG-002",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.42
     },
     {
       "id": "NG-003",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.38
     },
     {
       "id": "NG-004",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.57
     },
     {
       "id": "NG-005",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.42
     },
     {
       "id": "NG-006",
-      "result": "FAIL",
-      "failures": [
-        "data_must_exist: no data payload found"
-      ]
+      "result": "PASS",
+      "elapsed": 0.39
     }
   ]
 }

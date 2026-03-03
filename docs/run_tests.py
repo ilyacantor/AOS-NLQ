@@ -51,7 +51,7 @@ def flatten_text(obj):
 def collect_data_values(obj):
     vals = []
     dk = {"data","values","rows","results","series","items","breakdown_data",
-          "chart_data","metrics_data","widget_data","widgets","elements","components"}
+          "chart_data","metrics_data","widget_data","widgets","elements","components","nodes"}
     if isinstance(obj, dict):
         for k,v in obj.items():
             if k in dk:
