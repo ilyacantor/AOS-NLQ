@@ -429,25 +429,29 @@ def _extract_metrics_from_query(query: str) -> List[str]:
         if i + 2 < len(words):
             phrase_words = words[i:i+3]
             if not all(w in _STOPWORDS for w in phrase_words):
-                phrase = " ".join(phrase_words)
-                metric = semantic_client.resolve_metric(phrase)
-                if metric and metric.id not in metrics:
-                    metrics.append(metric.id)
-                    matched_indices.update([i, i+1, i+2])
-                    logger.debug(f"Resolved '{phrase}' -> '{metric.id}'")
-                    continue
+                # Skip phrases containing dimension words (e.g., "revenue by quarter")
+                if not any(w in dimension_words for w in phrase_words):
+                    phrase = " ".join(phrase_words)
+                    metric = semantic_client.resolve_metric(phrase)
+                    if metric and metric.id not in metrics:
+                        metrics.append(metric.id)
+                        matched_indices.update([i, i+1, i+2])
+                        logger.debug(f"Resolved '{phrase}' -> '{metric.id}'")
+                        continue
 
         # Try 2-word phrases — skip if ALL words are stopwords
         if i + 1 < len(words):
             phrase_words = words[i:i+2]
             if not all(w in _STOPWORDS for w in phrase_words):
-                phrase = " ".join(phrase_words)
-                metric = semantic_client.resolve_metric(phrase)
-                if metric and metric.id not in metrics:
-                    metrics.append(metric.id)
-                    matched_indices.update([i, i+1])
-                    logger.debug(f"Resolved '{phrase}' -> '{metric.id}'")
-                    continue
+                # Skip phrases containing dimension words
+                if not any(w in dimension_words for w in phrase_words):
+                    phrase = " ".join(phrase_words)
+                    metric = semantic_client.resolve_metric(phrase)
+                    if metric and metric.id not in metrics:
+                        metrics.append(metric.id)
+                        matched_indices.update([i, i+1])
+                        logger.debug(f"Resolved '{phrase}' -> '{metric.id}'")
+                        continue
 
         # Try single words
         word = words[i]
