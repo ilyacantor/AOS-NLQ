@@ -128,6 +128,49 @@ from src.nlq.api.session import (
 
 
 # =============================================================================
+# QUERY LOGGING HELPER — consolidates learning log calls for ALL query paths
+# =============================================================================
+
+async def _log_query_event(
+    query: str,
+    source: str,
+    *,
+    success: bool = True,
+    learned: bool = False,
+    message: str = "",
+    persona: str = "CFO",
+    similarity: float = 0.0,
+    llm_confidence: float = 0.0,
+    execution_time_ms: int | None = None,
+    session_id: str | None = None,
+) -> None:
+    """
+    Log a query event to the RAG learning log.
+
+    This is the single funnel for ALL query paths — cache hits, LLM calls,
+    and early-exit bypass paths (off-topic, simple metric, dashboard, etc.).
+    """
+    learning_log = get_learning_log()
+    await learning_log.log_entry(LearningLogEntry(
+        query=query,
+        success=success,
+        source=source,
+        learned=learned,
+        message=message,
+        persona=persona,
+        similarity=similarity,
+        llm_confidence=llm_confidence,
+        execution_time_ms=execution_time_ms,
+        session_id=session_id,
+    ))
+
+
+def _elapsed_ms(start: float) -> int:
+    """Compute elapsed milliseconds from a time.perf_counter() start."""
+    return int((time.perf_counter() - start) * 1000)
+
+
+# =============================================================================
 # INSUFFICIENT DATA TRACKING HELPERS
 # =============================================================================
 
@@ -3061,6 +3104,7 @@ async def query(request: NLQRequest) -> NLQResponse:
 
     Returns the answer with confidence score bounded [0.0, 1.0].
     """
+    _start_time = time.perf_counter()
     _trace = diag_init()
     diag(f"[NLQ-DIAG] /query endpoint: question='{request.question[:60]}', data_mode={request.data_mode}")
     set_data_mode(request.data_mode)
@@ -3070,6 +3114,12 @@ async def query(request: NLQRequest) -> NLQResponse:
         off_topic_response = handle_off_topic_or_easter_egg(request.question)
         if off_topic_response:
             persona = detect_persona_from_question(request.question)
+            await _log_query_event(
+                request.question, "bypass", persona=persona or "CFO",
+                message="Off-topic or easter egg",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
             return NLQResponse(
                 success=True,
                 answer=off_topic_response,
@@ -3087,6 +3137,13 @@ async def query(request: NLQRequest) -> NLQResponse:
         # =================================================================
         breakdown_result = _try_simple_breakdown_query(request.question)
         if breakdown_result:
+            await _log_query_event(
+                request.question, "bypass",
+                message=f"Simple breakdown -> {breakdown_result.resolved_metric}",
+                persona=detect_persona_from_metric(breakdown_result.resolved_metric) or "CFO",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
             return breakdown_result
 
         # =================================================================
@@ -3095,12 +3152,16 @@ async def query(request: NLQRequest) -> NLQResponse:
         # =================================================================
         _pre_amb_type, _pre_candidates, _pre_clarification = detect_ambiguity(request.question)
         if _pre_amb_type == AmbiguityType.VAGUE_METRIC and _pre_clarification:
-            return _handle_ambiguous_query_text(
-                request.question,
-                _pre_amb_type,
-                _pre_candidates,
-                _pre_clarification,
+            _result = _handle_ambiguous_query_text(
+                request.question, _pre_amb_type, _pre_candidates, _pre_clarification,
             )
+            await _log_query_event(
+                request.question, "bypass",
+                message=f"Vague metric -> {_pre_amb_type.value}",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
+            return _result
 
         # =================================================================
         # COMPARISON PRE-CHECK - "compare X vs Y" must return structured data
@@ -3108,18 +3169,29 @@ async def query(request: NLQRequest) -> NLQResponse:
         # Route to ambiguity handler before visualization handler intercepts.
         # =================================================================
         if _pre_amb_type == AmbiguityType.COMPARISON:
-            return _handle_ambiguous_query_text(
-                request.question,
-                _pre_amb_type,
-                _pre_candidates,
-                _pre_clarification,
+            _result = _handle_ambiguous_query_text(
+                request.question, _pre_amb_type, _pre_candidates, _pre_clarification,
             )
+            await _log_query_event(
+                request.question, "bypass",
+                message=f"Comparison -> {_pre_amb_type.value}",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
+            return _result
 
         # =================================================================
         # SIMPLE METRIC QUERIES - Handle "what is X?" queries early (no Claude needed)
         # =================================================================
         simple_result = _try_simple_metric_query(request.question)
         if simple_result:
+            await _log_query_event(
+                request.question, "bypass",
+                message=f"Simple metric -> {simple_result.resolved_metric}",
+                persona=detect_persona_from_metric(simple_result.resolved_metric) or "CFO",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
             return simple_result
 
         # =================================================================
@@ -3128,6 +3200,13 @@ async def query(request: NLQRequest) -> NLQResponse:
         # =================================================================
         pl_result = _try_pl_statement_query(request.question)
         if pl_result:
+            await _log_query_event(
+                request.question, "bypass",
+                message="P&L composite query",
+                persona="CFO",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
             return pl_result
 
         # Check for dashboard/report queries (doesn't need Claude API)
@@ -3143,6 +3222,13 @@ async def query(request: NLQRequest) -> NLQResponse:
                 # Fallback to text summary for non-visual dashboard requests
                 dashboard_response = _handle_dashboard_query(request.question)
                 if dashboard_response:
+                    await _log_query_event(
+                        request.question, "bypass",
+                        message="Dashboard text summary",
+                        persona=dashboard_response.persona or "CFO",
+                        execution_time_ms=_elapsed_ms(_start_time),
+                        session_id=request.session_id,
+                    )
                     # Convert IntentMapResponse to NLQResponse for text endpoint
                     return NLQResponse(
                         success=True,
@@ -3162,6 +3248,12 @@ async def query(request: NLQRequest) -> NLQResponse:
         # =================================================================
         guided_result = _try_guided_discovery(request.question)
         if guided_result:
+            await _log_query_event(
+                request.question, "bypass",
+                message="Guided discovery",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
             return guided_result
 
         # =================================================================
@@ -3170,6 +3262,12 @@ async def query(request: NLQRequest) -> NLQResponse:
         # =================================================================
         ingest_result = _try_ingest_status_query(request.question)
         if ingest_result:
+            await _log_query_event(
+                request.question, "bypass",
+                message="Ingest status query",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
             return ingest_result
 
         # =================================================================
@@ -3177,6 +3275,12 @@ async def query(request: NLQRequest) -> NLQResponse:
         # =================================================================
         missing_result = _check_missing_data(request.question)
         if missing_result:
+            await _log_query_event(
+                request.question, "bypass", success=False,
+                message="Missing data / non-existent metric",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
             return missing_result
 
         # =================================================================
@@ -3377,16 +3481,14 @@ async def query(request: NLQRequest) -> NLQResponse:
                 call_counter.increment_cached(session_id)
 
                 # Log to learning log
-                learning_log = get_learning_log()
-                await learning_log.log_entry(LearningLogEntry(
-                    query=request.question,
-                    success=True,
-                    source="cache",
-                    learned=False,
+                await _log_query_event(
+                    request.question, "cache",
                     message=f"Cache hit ({cache_result.hit_type.value}, {cache_result.similarity:.0%} match)",
                     persona=detect_persona_from_metric(cache_result.parsed.get("metric")) or "CFO",
                     similarity=cache_result.similarity,
-                ))
+                    execution_time_ms=_elapsed_ms(_start_time),
+                    session_id=session_id,
+                )
 
         # =================================================================
         # CLAUDE PARSING - Fall back to LLM if no cache hit
@@ -3431,18 +3533,16 @@ async def query(request: NLQRequest) -> NLQResponse:
                 )
 
             # Log to learning log
-            learning_log = get_learning_log()
             stored_in_cache = cache_service and cache_service.is_available
-            await learning_log.log_entry(LearningLogEntry(
-                query=request.question,
-                success=True,
-                source="llm",
+            await _log_query_event(
+                request.question, "llm",
                 learned=stored_in_cache,
                 message=f'"{request.question}" -> {parsed.metric}' + (" (learned)" if stored_in_cache else ""),
                 persona=detect_persona_from_metric(parsed.metric) or "CFO",
-                similarity=0.0,
                 llm_confidence=0.95,
-            ))
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=session_id,
+            )
 
         logger.info(f"Parsed query (cache_hit={cache_hit}): {parsed}")
 
@@ -3616,6 +3716,7 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
     - Confidence and data quality metrics
     - Persona and disambiguation info
     """
+    _start_time = time.perf_counter()
     _trace = diag_init()
     diag(f"[NLQ-DIAG] /query/galaxy endpoint: question='{request.question[:60]}', data_mode={request.data_mode}")
     set_data_mode(request.data_mode)
@@ -3625,6 +3726,12 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         off_topic_response = handle_off_topic_or_easter_egg(request.question)
         if off_topic_response:
             persona = detect_persona_from_question(request.question)
+            await _log_query_event(
+                request.question, "bypass", persona=persona or "CFO",
+                message="Off-topic or easter egg (galaxy)",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
             return IntentMapResponse(
                 query=request.question,
                 query_type="OFF_TOPIC",
@@ -3647,6 +3754,14 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         # =================================================================
         simple_response = _try_simple_metric_query_galaxy(request.question)
         if simple_response:
+            _metric = simple_response.nodes[0].metric if simple_response.nodes else None
+            await _log_query_event(
+                request.question, "bypass",
+                message=f"Simple metric (galaxy) -> {_metric}",
+                persona=simple_response.persona or "CFO",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
             return simple_response
 
         # =================================================================
@@ -3654,6 +3769,12 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         # =================================================================
         ingest_response = _try_ingest_status_query_galaxy(request.question)
         if ingest_response:
+            await _log_query_event(
+                request.question, "bypass",
+                message="Ingest status (galaxy)",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
             return ingest_response
 
         # =================================================================
@@ -3661,6 +3782,12 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         # =================================================================
         missing_data_response = _check_missing_data_galaxy(request.question)
         if missing_data_response:
+            await _log_query_event(
+                request.question, "bypass", success=False,
+                message="Missing data (galaxy)",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
             return missing_data_response
 
         # =================================================================
@@ -3668,12 +3795,25 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         # =================================================================
         guided_response = _try_guided_discovery_galaxy(request.question)
         if guided_response:
+            await _log_query_event(
+                request.question, "bypass",
+                message="Guided discovery (galaxy)",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
             return guided_response
 
         # Check for dashboard/report queries (doesn't need Claude API)
         if _is_dashboard_query(request.question):
             dashboard_response = _handle_dashboard_query(request.question)
             if dashboard_response:
+                await _log_query_event(
+                    request.question, "bypass",
+                    message=f"Dashboard (galaxy) -> {dashboard_response.persona}",
+                    persona=dashboard_response.persona or "CFO",
+                    execution_time_ms=_elapsed_ms(_start_time),
+                    session_id=request.session_id,
+                )
                 return dashboard_response
 
         # =================================================================
@@ -3691,6 +3831,12 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
         if is_context_dependent_query(request.question) and not has_current_dashboard:
             clarification_msg = needs_clarification_without_context(request.question)
             if clarification_msg:
+                await _log_query_event(
+                    request.question, "bypass",
+                    message="Context clarification needed (galaxy)",
+                    execution_time_ms=_elapsed_ms(_start_time),
+                    session_id=request.session_id,
+                )
                 return IntentMapResponse(
                     query=request.question,
                     query_type="CLARIFICATION_NEEDED",
@@ -3950,16 +4096,14 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 call_counter.increment_cached(session_id)
 
                 # Log to learning log
-                learning_log = get_learning_log()
-                await learning_log.log_entry(LearningLogEntry(
-                    query=request.question,
-                    success=True,
-                    source="cache",
-                    learned=False,
-                    message=f'Retrieved "{request.question}" ({cache_result.similarity:.0%} match)',
+                await _log_query_event(
+                    request.question, "cache",
+                    message=f'Retrieved "{request.question}" ({cache_result.similarity:.0%} match) (galaxy)',
                     persona=detect_persona_from_metric(cache_result.parsed.get("metric")) or "CFO",
                     similarity=cache_result.similarity,
-                ))
+                    execution_time_ms=_elapsed_ms(_start_time),
+                    session_id=session_id,
+                )
 
         # =================================================================
         # CLAUDE PARSING - Fall back to LLM if no cache hit
@@ -4008,18 +4152,16 @@ async def query_galaxy(request: NLQRequest) -> IntentMapResponse:
                 )
 
             # Log to learning log
-            learning_log = get_learning_log()
             stored_in_cache = cache_service and cache_service.is_available
-            await learning_log.log_entry(LearningLogEntry(
-                query=request.question,
-                success=True,
-                source="llm",
+            await _log_query_event(
+                request.question, "llm",
                 learned=stored_in_cache,
-                message=f'"{request.question}" -> {parsed.metric}' + (" (learned)" if stored_in_cache else ""),
+                message=f'"{request.question}" -> {parsed.metric} (galaxy)' + (" (learned)" if stored_in_cache else ""),
                 persona=detect_persona_from_metric(parsed.metric) or "CFO",
-                similarity=0.0,
                 llm_confidence=0.95,
-            ))
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=session_id,
+            )
 
         logger.info(f"Parsed query for galaxy (cache_hit={cache_hit}): {parsed}")
 

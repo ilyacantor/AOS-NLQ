@@ -103,32 +103,16 @@ const quickActions = [
   'arr',
 ]
 
-function aggregateHistory(items: QueryHistoryItem[]): QueryHistoryItem[] {
-  const queryMap = new Map<string, QueryHistoryItem>()
-  for (const item of items) {
-    const normalizedQuery = item.query.toLowerCase().trim()
-    const existing = queryMap.get(normalizedQuery)
-    if (existing) {
-      existing.count += 1
-    } else {
-      queryMap.set(normalizedQuery, { ...item, count: 1 })
-    }
-  }
-  return Array.from(queryMap.values())
-}
-
 function App() {
   // Core state
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('galaxy')
   const [selectedPersona, setSelectedPersona] = useState<Persona>('CFO')
   const [panelTab, setPanelTab] = useState<PanelTab>('History')
-  const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('nlq_query_history')
-      return saved ? JSON.parse(saved) : []
-    } catch { return [] }
-  })
+  const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([])
+  // Bumped after every query completes — triggers a re-fetch from the server
+  // so that deduplicated counts are always accurate.
+  const [historyVersion, setHistoryVersion] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [galaxyResponse, setGalaxyResponse] = useState<IntentMapResponse | null>(null)
   const [lastDuration, setLastDuration] = useState('')
@@ -156,13 +140,6 @@ function App() {
   const [hasLoadedDefaultDashboard, setHasLoadedDefaultDashboard] = useState(false)
   const sessionId = useSessionId()
 
-  // Persist query history to localStorage
-  useEffect(() => {
-    if (queryHistory.length > 0) {
-      localStorage.setItem('nlq_query_history', JSON.stringify(queryHistory.slice(0, 100)))
-    }
-  }, [queryHistory])
-
   const queryRef = useRef(query)
   queryRef.current = query
 
@@ -172,29 +149,35 @@ function App() {
   // Query router for unified routing between Galaxy and Dashboard spaces
   const { routeQuery } = useQueryRouter()
 
-  // Load query history from database on mount
+  // Load deduplicated query history from the server.
+  // Re-fetches whenever historyVersion is bumped (after each query completes).
   useEffect(() => {
     const loadHistory = async () => {
       try {
-        const response = await fetch('/api/v1/rag/learning/log/db?limit=50')
+        const response = await fetch('/api/v1/rag/history?limit=50')
         if (response.ok) {
           const data = await response.json()
           const historyItems: QueryHistoryItem[] = (data.entries || []).map((entry: any) => ({
-            id: entry.id,
+            id: entry.normalized_query || entry.query,
             query: entry.query,
-            timestamp: new Date(entry.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+            timestamp: entry.last_used
+              ? new Date(entry.last_used).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+              : '',
             duration: entry.execution_time_ms ? `${entry.execution_time_ms}ms` : '',
-            tag: entry.learned ? 'LEARNED' : (entry.source === 'cache' ? 'CACHED' : 'AI'),
-            count: 1,
+            tag: entry.tag || 'UNKNOWN',
+            count: entry.count || 1,
           }))
-          setQueryHistory(aggregateHistory(historyItems))
+          setQueryHistory(historyItems)
+        } else if (response.status === 503) {
+          // Supabase unavailable — show error in History tab
+          console.error('History endpoint returned 503 — Supabase unavailable')
         }
       } catch (error) {
         console.error('Failed to load history:', error)
       }
     }
     loadHistory()
-  }, [])
+  }, [historyVersion])
 
   // Health check on mount — verify backend is reachable and show diagnostic banner
   useEffect(() => {
@@ -299,6 +282,7 @@ function App() {
 
     setIsGeneratingDashboard(false)
     refreshLLMStats()
+    setHistoryVersion(v => v + 1)
   }, [dashboardSchema, sessionId])
 
   // Handle persona selection - generate that persona's dashboard
@@ -344,7 +328,7 @@ function App() {
         tag: 'DASHBOARD',
         count: 1,
       }
-      setQueryHistory(prev => aggregateHistory([newItem, ...prev]))
+      setQueryHistory(prev => [newItem, ...prev.filter(h => h.query.toLowerCase().trim() !== newItem.query.toLowerCase().trim())].slice(0, 100))
       setQuery('')
 
       // Switch to dashboard and trigger refinement or generation
@@ -441,9 +425,10 @@ function App() {
           tag: 'ERROR',
           count: 1,
         }
-        setQueryHistory(prev => aggregateHistory([newItem, ...prev]))
+        setQueryHistory(prev => [newItem, ...prev.filter(h => h.query.toLowerCase().trim() !== newItem.query.toLowerCase().trim())].slice(0, 100))
         setIsLoading(false)
         refreshLLMStats()
+        setHistoryVersion(v => v + 1)
         return
       }
 
@@ -459,7 +444,7 @@ function App() {
         tag: (data as IntentMapResponse).query_type || 'intent-map',
         count: 1,
       }
-      setQueryHistory(prev => aggregateHistory([newItem, ...prev]))
+      setQueryHistory(prev => [newItem, ...prev.filter(h => h.query.toLowerCase().trim() !== newItem.query.toLowerCase().trim())].slice(0, 100))
     } catch (error) {
       console.error('Network error — backend unreachable:', error)
       const duration = Math.round(performance.now() - startTime)
@@ -484,6 +469,7 @@ function App() {
 
     setIsLoading(false)
     refreshLLMStats()
+    setHistoryVersion(v => v + 1)
   }, [sessionId, shouldRouteToDashboard, dashboardSchema, generateDashboard])
 
   // Default search on load suppressed — Galaxy starts empty with centered chatbox

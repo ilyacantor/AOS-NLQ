@@ -483,3 +483,114 @@ async def clear_insufficient_data_log(
     tracker = get_insufficient_data_tracker()
     tracker.clear_memory()
     return {"status": "cleared", "message": "Insufficient data log memory cleared"}
+
+
+# =============================================================================
+# HISTORY ENDPOINT — server-side dedup replaces fragile localStorage
+# =============================================================================
+
+class HistoryItem(BaseModel):
+    """A single deduplicated history entry."""
+    query: str
+    normalized_query: str
+    count: int
+    last_used: str
+    tag: str
+    execution_time_ms: Optional[int] = None
+    persona: str = "CFO"
+
+
+class HistoryResponse(BaseModel):
+    """Response model for /rag/history."""
+    entries: List[HistoryItem]
+    total: int
+
+
+@router.get("/history", response_model=HistoryResponse)
+async def get_query_history(
+    limit: int = Query(default=50, ge=1, le=200, description="Max unique queries to return"),
+):
+    """
+    Get deduplicated query history from Supabase.
+
+    Groups by normalized_query, returns unique queries with count and
+    last_used timestamp, sorted most-recent first. The frontend History
+    tab should use this instead of localStorage.
+
+    Returns HTTP 503 if Supabase is unavailable (no silent fallback).
+    """
+    log = get_learning_log()
+    try:
+        entries = await log.get_aggregated_history(limit=limit)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    return HistoryResponse(
+        entries=[HistoryItem(**e) for e in entries],
+        total=len(entries),
+    )
+
+
+# =============================================================================
+# CUMULATIVE STATS FROM DB — replaces localStorage stat accumulation
+# =============================================================================
+
+class CumulativeDbStatsResponse(BaseModel):
+    """Response model for /rag/learning/stats/db."""
+    total_queries: int
+    from_cache: int
+    from_llm: int
+    from_bypass: int
+    queries_learned: int
+    cache_hit_rate: float
+    learning_rate: float
+    supabase_connected: bool
+
+
+@router.get("/learning/stats/db", response_model=CumulativeDbStatsResponse)
+async def get_cumulative_stats_from_db():
+    """
+    Get cumulative learning stats computed directly from Supabase.
+
+    This replaces the fragile localStorage-based cumulative stat tracking
+    on the frontend. Stats survive browser clears because they're computed
+    from the DB on every request.
+
+    Returns HTTP 503 if Supabase is unavailable (no silent fallback).
+    """
+    log = get_learning_log()
+    try:
+        stats = await log.get_cumulative_stats_from_db()
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    return CumulativeDbStatsResponse(**stats)
+
+
+# =============================================================================
+# RETENTION CLEANUP — admin endpoint + startup hook
+# =============================================================================
+
+@router.delete("/learning/cleanup")
+async def cleanup_old_learning_entries(
+    retention_days: int = Query(default=90, ge=1, le=365, description="Days to retain"),
+    confirm: bool = Query(default=False, description="Must be true to proceed"),
+):
+    """
+    Delete learning log entries older than retention_days.
+
+    Requires confirm=true query parameter. Admin-only.
+    """
+    if not confirm:
+        raise HTTPException(
+            status_code=400,
+            detail="Must pass confirm=true to run cleanup"
+        )
+
+    log = get_learning_log()
+    deleted = await log.cleanup_old_entries(retention_days=retention_days)
+    return {
+        "status": "completed",
+        "retention_days": retention_days,
+        "deleted_approximately": deleted,
+    }

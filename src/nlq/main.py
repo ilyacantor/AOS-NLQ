@@ -120,7 +120,16 @@ async def _deferred_init():
             seeded = await loop.run_in_executor(None, seeder.seed_if_empty)
             logger.info(f"Query pattern cache seeded: {seeded} patterns")
 
-        get_learning_log()
+        learning_log = get_learning_log()
+
+        # Layer 4b: 90-day retention cleanup — best-effort, non-blocking
+        if learning_log.is_available:
+            try:
+                deleted = await learning_log.cleanup_old_entries(retention_days=90)
+                if deleted:
+                    logger.info(f"Learning log cleanup: ~{deleted} old entries removed")
+            except Exception as e:
+                logger.warning(f"Learning log cleanup failed (non-fatal): {e}")
 
         # Layer 5: Pre-warm DCL catalog in background so first user request
         # doesn't block on a cold-starting DCL (Render free tier cold starts
