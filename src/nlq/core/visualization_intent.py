@@ -63,6 +63,7 @@ class VisualizationRequirements:
     drill_down_requested: bool
     filter_dimensions: List[str]
     confidence: float
+    persona: Optional[str] = None  # Detected persona (CRO, CFO, COO, CTO, CS)
 
 
 # Visualization trigger patterns

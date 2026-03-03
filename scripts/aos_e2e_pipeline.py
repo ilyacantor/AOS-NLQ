@@ -11,11 +11,13 @@ Sequence:
   0. Pipeline Reset -- flush stale state from AAM, DCL, Farm
   2. Farm    -- POST /api/snapshots  (generate snapshot)
   3. AOD     -- POST /api/runs/from-farm  (discovery)
+ 3b. Open AOD Console in browser
   4. AOD->AAM bridge  (fetch manifest, send to AAM)
   5. AAM     -- POST /api/aam/infer  (create pipes)
   6. AAM     -- POST /api/export/dcl/push  (push schemas to DCL)
   7. AAM     -- POST /api/export/dcl/dispatch  (dispatch ingest)
   8. AAM     -- POST /api/runners/dispatch-batch (sync) + verify
+ 8b. Open AAM Topology in browser
   9. NLQ     -- POST /api/v1/query  ("What is ARR?")
  10. Open DCL frontend in browser
 
@@ -468,6 +470,22 @@ def step_03_aod_discovery(
     return run_id
 
 
+def step_03b_open_aod(urls: dict[str, str]) -> None:
+    """Open AOD Console in browser after discovery completes."""
+    label = "3b. Open AOD Console"
+    t0 = _step_start(label)
+    aod_backend = urls["aod"]
+    if "localhost:8001" in aod_backend or "127.0.0.1:8001" in aod_backend:
+        aod_frontend = aod_backend.replace(":8001", ":3001")
+    else:
+        aod_frontend = aod_backend  # Render serves frontend from same URL
+    try:
+        webbrowser.open(aod_frontend)
+        _step_pass(label, t0, f"opened {aod_frontend}")
+    except Exception as exc:
+        _step_fail(label, t0, f"Could not open browser: {exc}")
+
+
 def step_04_aod_aam_bridge(
     client: httpx.Client, urls: dict[str, str], run_id: str,
 ) -> None:
@@ -678,6 +696,18 @@ def step_08_aam_runners(client: httpx.Client, urls: dict[str, str]) -> None:
     _step_pass(label, t0, f"dispatched={dispatched}, skipped={skipped}")
 
 
+def step_08b_open_aam(urls: dict[str, str]) -> None:
+    """Open AAM Topology in browser after runners complete."""
+    label = "8b. Open AAM Topology"
+    t0 = _step_start(label)
+    aam_url = f"{urls['aam']}/ui/topology"
+    try:
+        webbrowser.open(aam_url)
+        _step_pass(label, t0, f"opened {aam_url}")
+    except Exception as exc:
+        _step_fail(label, t0, f"Could not open browser: {exc}")
+
+
 def step_09_nlq_test(client: httpx.Client, urls: dict[str, str]) -> None:
     """Fire a test NLQ query to verify the full chain end-to-end."""
     label = "9. NLQ -- Test Query"
@@ -805,11 +835,15 @@ def main() -> None:
             step_00_reset(client, urls)
         snapshot_id, tenant_id = step_02_farm_snapshot(client, urls, tenant_id)
         run_id = step_03_aod_discovery(client, urls, snapshot_id, tenant_id)
+        if not args.no_browser:
+            step_03b_open_aod(urls)
         step_04_aod_aam_bridge(client, urls, run_id)
         step_05_aam_infer(client, urls)
         step_06_aam_dcl_push(client, urls)
         step_07_aam_dcl_dispatch(client, urls)
         step_08_aam_runners(client, urls)
+        if not args.no_browser:
+            step_08b_open_aam(urls)
         step_09_nlq_test(client, urls)
 
         if not args.no_browser:
