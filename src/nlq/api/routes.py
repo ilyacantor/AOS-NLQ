@@ -1034,6 +1034,7 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
         "yo whats ", "yo what's ", "quick question ", "need ",
         "how we doing on ", "how are we doing on ",
         # Simple prefixes (check last)
+        "show ", "see ", "view ",
         "our ", "the ", "current ", "total ", "latest ", "a ",
     ]
     metric_query = q

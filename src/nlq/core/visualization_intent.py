@@ -433,7 +433,7 @@ def _extract_metrics_from_query(query: str) -> List[str]:
                 # Skip phrases containing dimension words (e.g., "revenue by quarter")
                 if not any(w in dimension_words for w in phrase_words):
                     phrase = " ".join(phrase_words)
-                    metric = semantic_client.resolve_metric(phrase)
+                    metric = semantic_client.resolve_metric(phrase, local_only=True)
                     if metric and metric.id not in metrics:
                         metrics.append(metric.id)
                         matched_indices.update([i, i+1, i+2])
@@ -447,7 +447,7 @@ def _extract_metrics_from_query(query: str) -> List[str]:
                 # Skip phrases containing dimension words
                 if not any(w in dimension_words for w in phrase_words):
                     phrase = " ".join(phrase_words)
-                    metric = semantic_client.resolve_metric(phrase)
+                    metric = semantic_client.resolve_metric(phrase, local_only=True)
                     if metric and metric.id not in metrics:
                         metrics.append(metric.id)
                         matched_indices.update([i, i+1])

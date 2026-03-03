@@ -658,14 +658,20 @@ class DCLSemanticClient:
     # PUBLIC API
     # =========================================================================
 
-    def resolve_metric(self, user_term: str) -> Optional[MetricDefinition]:
+    def resolve_metric(self, user_term: str, local_only: bool = False) -> Optional[MetricDefinition]:
         """
         Find metric by name or alias.
 
-        Uses DCL's resolution endpoint when available, falls back to local matching.
+        Resolution order:
+        1. Local exact match (canonical IDs, registered aliases, underscore normalization)
+        2. DCL fuzzy endpoint (skipped when local_only=True)
+        3. Local fuzzy fallback (substring matching)
 
         Args:
             user_term: What the user said (e.g., "AR", "accounts receivable", "revenue")
+            local_only: If True, skip DCL fuzzy resolution. Used for multi-word
+                phrases in _extract_metrics_from_query to prevent DCL from
+                mis-mapping noise phrases like "revenue over time" → "arr".
 
         Returns:
             MetricDefinition if found, None otherwise
@@ -685,11 +691,8 @@ class DCLSemanticClient:
         if _force_local_ctx.get():
             return self._resolve_metric_locally(user_term)
 
-        # Try local exact match first — if the user's term is a known canonical
-        # metric ID or a registered alias, use it directly.  This prevents DCL's
-        # fuzzy resolver from mis-mapping e.g. "revenue" → "arr" (because
-        # "recurring revenue" is an ARR alias and DCL's word-overlap scorer
-        # ranks it above the exact canonical ID).
+        # Try local exact match first — canonical IDs and registered aliases.
+        # This prevents DCL's fuzzy resolver from mis-mapping e.g. "revenue" → "arr".
         catalog = self.get_catalog()
         normalized = user_term.lower().strip()
         if normalized in catalog.alias_to_metric:
@@ -698,6 +701,20 @@ class DCLSemanticClient:
             if exact:
                 logger.debug(f"Exact local match for '{user_term}' -> '{metric_id}', skipping DCL fuzzy")
                 return exact
+
+        # Space → underscore normalization (e.g., "net income" → "net_income")
+        underscore_form = normalized.replace(" ", "_")
+        if underscore_form != normalized and underscore_form in catalog.alias_to_metric:
+            metric_id = catalog.alias_to_metric[underscore_form]
+            exact = catalog.metrics.get(metric_id)
+            if exact:
+                logger.debug(f"Underscore match for '{user_term}' -> '{metric_id}', skipping DCL fuzzy")
+                return exact
+
+        # For multi-word phrases: only local resolution (exact + fuzzy substring).
+        # DCL's word-overlap scorer mis-maps noise phrases like "show revenue" → "arr".
+        if local_only:
+            return self._resolve_metric_locally(user_term)
 
         # Try DCL resolution endpoint for fuzzy/semantic matching
         if self.dcl_url and self._is_dcl_call_allowed():

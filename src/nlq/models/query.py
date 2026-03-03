@@ -127,6 +127,12 @@ class ParsedQuery(BaseModel):
         description="List of periods to aggregate over"
     )
 
+    # Trend query fields
+    trend_periods: Optional[List[str]] = Field(
+        default=None,
+        description="List of periods to show in trend (e.g., yearly periods for 'by year' queries)"
+    )
+
     # Breakdown query fields
     breakdown_metrics: Optional[List[str]] = Field(
         default=None,
