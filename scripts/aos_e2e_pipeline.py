@@ -8,6 +8,7 @@ with the exact step name and error if anything breaks.
 
 Sequence:
   1. Health-check all modules (Farm, AOD, AAM, DCL, NLQ)
+  0. Pipeline Reset -- flush stale state from AAM, DCL, Farm
   2. Farm    -- POST /api/snapshots  (generate snapshot)
   3. AOD     -- POST /api/runs/from-farm  (discovery)
   4. AOD->AAM bridge  (fetch manifest, send to AAM)
@@ -235,6 +236,18 @@ def _get(
     return client.get(url, params=params, headers=hdrs, timeout=timeout)
 
 
+def _delete(
+    client: httpx.Client,
+    url: str,
+    *,
+    params: dict | None = None,
+    timeout: float = 30,
+    urls: dict[str, str] | None = None,
+) -> httpx.Response:
+    hdrs = _headers_for(url, urls or {})
+    return client.delete(url, params=params, headers=hdrs, timeout=timeout)
+
+
 def _body_preview(r: httpx.Response, limit: int = 600) -> str:
     """Truncated response text for error messages."""
     txt = r.text[:limit]
@@ -246,6 +259,101 @@ def _body_preview(r: httpx.Response, limit: int = 600) -> str:
 # =========================================================================
 # PIPELINE STEPS
 # =========================================================================
+
+def step_00_reset(client: httpx.Client, urls: dict[str, str]) -> None:
+    """Flush stale pipeline state from AAM, DCL, and Farm so the new run
+    starts clean.  Order matters: AAM jobs first (they reference pipes),
+    then AAM data (candidates/pipes/handoff), then DCL (pipe definitions
+    + ingest buffers), then Farm old snapshots.
+    """
+    label = "0. Pipeline Reset (flush stale state)"
+    t0 = _step_start(label)
+
+    errors: list[str] = []
+
+    # 0a -- AAM runner jobs  (clears old completed/failed/stuck jobs)
+    _log("   AAM: clearing runner jobs...", _C.DIM)
+    try:
+        r = _delete(client, f"{urls['aam']}/api/runner-jobs", timeout=15, urls=urls)
+        if r.status_code < 400:
+            data = r.json()
+            cleared = data.get("jobs_deleted", "?")
+            _log(f"   AAM: {cleared} runner jobs cleared", _C.CYAN)
+        else:
+            errors.append(f"AAM DELETE /api/runner-jobs HTTP {r.status_code}: {_body_preview(r)}")
+    except Exception as exc:
+        errors.append(f"AAM DELETE /api/runner-jobs failed: {exc}")
+
+    # 0b -- AAM data  (candidates, pipes, handoff logs, SOR, policies, etc.)
+    _log("   AAM: clearing pipeline data...", _C.DIM)
+    try:
+        r = _delete(client, f"{urls['aam']}/api/data", timeout=15, urls=urls)
+        if r.status_code < 400:
+            data = r.json()
+            tables = data.get("tables_cleared", "?")
+            _log(f"   AAM: {tables} tables cleared", _C.CYAN)
+        else:
+            errors.append(f"AAM DELETE /api/data HTTP {r.status_code}: {_body_preview(r)}")
+    except Exception as exc:
+        errors.append(f"AAM DELETE /api/data failed: {exc}")
+
+    # 0c -- DCL flush  (pipe definitions + ingest: memory, disk, Redis, Postgres)
+    _log("   DCL: flushing ingest + pipe store...", _C.DIM)
+    try:
+        r = _post(client, f"{urls['dcl']}/api/dcl/ingest/flush", timeout=30, urls=urls)
+        if r.status_code < 400:
+            data = r.json()
+            before = data.get("before", {})
+            pipes_before = before.get("pipe_definitions", 0)
+            rows_before = before.get("total_rows", 0)
+            _log(
+                f"   DCL: flushed {pipes_before} pipe defs, {rows_before} rows",
+                _C.CYAN,
+            )
+        else:
+            errors.append(f"DCL POST /api/dcl/ingest/flush HTTP {r.status_code}: {_body_preview(r)}")
+    except Exception as exc:
+        errors.append(f"DCL POST /api/dcl/ingest/flush failed: {exc}")
+
+    # 0d -- Farm snapshot cleanup  (keep only the latest for dedup efficiency)
+    _log("   Farm: cleaning old snapshots...", _C.DIM)
+    try:
+        r = _delete(
+            client, f"{urls['farm']}/api/snapshots/cleanup",
+            params={"keep": 1}, timeout=30, urls=urls,
+        )
+        if r.status_code < 400:
+            data = r.json()
+            deleted = data.get("deleted_count", 0)
+            remaining = data.get("remaining_count", "?")
+            _log(f"   Farm: deleted {deleted} old snapshots, {remaining} remaining", _C.CYAN)
+        else:
+            errors.append(f"Farm DELETE /api/snapshots/cleanup HTTP {r.status_code}: {_body_preview(r)}")
+    except Exception as exc:
+        errors.append(f"Farm DELETE /api/snapshots/cleanup failed: {exc}")
+
+    # 0e -- Farm reconciliation cleanup
+    try:
+        r = _delete(
+            client, f"{urls['farm']}/api/reconcile/cleanup",
+            params={"keep": 0}, timeout=15, urls=urls,
+        )
+        if r.status_code < 400:
+            data = r.json()
+            deleted = data.get("deleted_count", 0)
+            if deleted:
+                _log(f"   Farm: deleted {deleted} old reconciliations", _C.CYAN)
+    except Exception:
+        pass  # reconciliation cleanup is nice-to-have, not critical
+
+    if errors:
+        _step_fail(
+            label, t0,
+            "Pipeline reset had failures:\n      " + "\n      ".join(errors),
+        )
+
+    _step_pass(label, t0, "stale state flushed from AAM, DCL, Farm")
+
 
 def step_01_health(client: httpx.Client, urls: dict[str, str]) -> None:
     """Health-check every module. Stop immediately if any are down."""
@@ -653,6 +761,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--nlq-url", default=None, help="Override NLQ base URL")
     p.add_argument("--no-browser", action="store_true",
                     help="Skip opening browser at the end")
+    p.add_argument("--skip-reset", action="store_true",
+                    help="Skip Step 0 (pipeline reset). Use when you want to "
+                         "preserve state from a previous run.")
     return p
 
 
@@ -680,6 +791,11 @@ def main() -> None:
 
     try:
         step_01_health(client, urls)
+        if args.skip_reset:
+            _log("   Step 0 skipped (--skip-reset)", _C.DIM)
+            _steps.append({"name": "0. Pipeline Reset", "status": "PASS", "elapsed": 0.0})
+        else:
+            step_00_reset(client, urls)
         snapshot_id = step_02_farm_snapshot(client, urls, tenant_id)
         run_id = step_03_aod_discovery(client, urls, snapshot_id, tenant_id)
         step_04_aod_aam_bridge(client, urls, run_id)

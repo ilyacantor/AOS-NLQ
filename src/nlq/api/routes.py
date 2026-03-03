@@ -457,7 +457,7 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
         metrics_to_query = [
             "revenue", "gross_margin_pct", "operating_margin_pct", "net_income",
             "cash", "arr", "burn_multiple", "pipeline", "win_rate_pct",
-            "gross_churn_pct", "nrr", "sales_cycle_days", "quota_attainment_pct",
+            "churn_rate_pct", "nrr", "sales_cycle_days", "quota_attainment_pct",
             "new_logo_revenue", "headcount", "revenue_per_employee",
             "magic_number", "cac_payback_months", "ltv_cac", "attrition_rate_pct",
             "implementation_days", "uptime_pct", "deploys_per_week",
@@ -512,7 +512,7 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
         if "win" in q and "rate" in q:
             requested_metrics.append(("win_rate_pct", "Win Rate", period_data.get('win_rate_pct'), "%", Domain.GROWTH))
         if "churn" in q:
-            requested_metrics.append(("gross_churn_pct", "Churn", period_data.get('gross_churn_pct'), "%", Domain.GROWTH))
+            requested_metrics.append(("churn_rate_pct", "Churn", period_data.get('churn_rate_pct'), "%", Domain.GROWTH))
         if "nrr" in q or "retention" in q:
             requested_metrics.append(("nrr", "NRR", period_data.get('nrr'), "%", Domain.GROWTH))
         if "headcount" in q:
@@ -552,7 +552,7 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
         metrics = [
             ("pipeline", "Pipeline", period_data.get('pipeline'), "M", Domain.GROWTH),
             ("win_rate_pct", "Win Rate", period_data.get('win_rate_pct'), "%", Domain.GROWTH),
-            ("gross_churn_pct", "Churn", period_data.get('gross_churn_pct'), "%", Domain.GROWTH),
+            ("churn_rate_pct", "Churn", period_data.get('churn_rate_pct'), "%", Domain.GROWTH),
             ("nrr", "NRR", period_data.get('nrr'), "%", Domain.GROWTH),
             ("sales_cycle_days", "Sales Cycle", period_data.get('sales_cycle_days'), "days", Domain.GROWTH),
             ("quota_attainment_pct", "Quota Attainment", period_data.get('quota_attainment_pct'), "%", Domain.GROWTH),
@@ -560,7 +560,7 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
         ]
         text_lines.append(f"**CRO Dashboard ({period})**")
         text_lines.append(f"Pipeline: ${period_data.get('pipeline')}M | Win Rate: {period_data.get('win_rate_pct')}%")
-        text_lines.append(f"Churn: {period_data.get('gross_churn_pct')}% | NRR: {period_data.get('nrr')}%")
+        text_lines.append(f"Churn: {period_data.get('churn_rate_pct')}% | NRR: {period_data.get('nrr')}%")
         text_lines.append(f"Sales Cycle: {period_data.get('sales_cycle_days')} days | Quota: {period_data.get('quota_attainment_pct')}%")
 
     elif persona == "COO":
@@ -862,7 +862,7 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
 
     # Determine unit based on metric
     if intent.metric in ("quota_attainment_pct", "win_rate_pct", "slo_attainment_pct",
-                          "gross_margin_pct", "gross_churn_pct", "churn_pct", "churn_rate_pct",
+                          "gross_margin_pct", "churn_rate_pct", "churn_pct",
                           "attrition_rate_pct", "nrr"):
         unit = "%"
     elif intent.metric in ("revenue", "pipeline", "deal_value", "cloud_spend"):
@@ -893,7 +893,7 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
     # Helper to format value string
     def _format_value(val, metric_id: str) -> str:
         if metric_id in ("quota_attainment_pct", "win_rate_pct", "slo_attainment_pct",
-                          "gross_margin_pct", "gross_churn_pct", "churn_pct", "churn_rate_pct",
+                          "gross_margin_pct", "churn_rate_pct", "churn_pct",
                           "attrition_rate_pct", "nrr"):
             return f"{val}%"
         elif metric_id in ("revenue", "pipeline", "deal_value", "cloud_spend"):
@@ -1815,7 +1815,7 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
 _GUIDED_DISCOVERY_DOMAINS = {
     "customer": {
         "pattern": r"\b(?:what can you show me|what do you have|tell me about|show me available)\b.*\bcustomer",
-        "metrics": ["customer_count", "nrr", "gross_churn_pct", "logo_churn_pct"],
+        "metrics": ["customer_count", "nrr", "churn_rate_pct", "logo_churn_pct"],
         "response": "For customers, I can show you:\n- Customer Count (currently 950)\n- Net Revenue Retention / NRR (118%)\n- Gross Churn Rate (7%)\n- Logo Churn Rate\n\nWould you like to see a dashboard with customer metrics, or ask about a specific metric?"
     },
     "sales": {
@@ -2518,7 +2518,7 @@ def _handle_ambiguous_query_text(
         # "retention ok?" -> "Yes, NRR 120%, churn down to 6%"
         if "retention" in q:
             nrr = get_val("nrr", current_year)
-            churn = get_val("gross_churn_pct", current_year)
+            churn = get_val("churn_rate_pct", current_year)
             answer = f"Yes, NRR {round(nrr, 0) if nrr else 0}%, churn down to {round(churn, 0) if churn else 0}%"
             return NLQResponse(success=True, answer=answer, value=nrr, unit="%",
                 confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="nrr", resolved_period=current_year,
@@ -2596,12 +2596,12 @@ def _handle_ambiguous_query_text(
 
         # "churn?" -> "Gross: 6%, Logo: 8%, NRR: 120%"
         if "churn" in q:
-            gross_churn = get_val("gross_churn_pct", current_year)
+            gross_churn = get_val("churn_rate_pct", current_year)
             logo_churn = get_val("logo_churn_pct", current_year)
             nrr = get_val("nrr", current_year)
             answer = f"Gross: {round(gross_churn, 0) if gross_churn else 0}%, Logo: {round(logo_churn, 0) if logo_churn else 0}%, NRR: {round(nrr, 0) if nrr else 0}%"
             return NLQResponse(success=True, answer=answer, value=gross_churn, unit="%",
-                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="gross_churn_pct", resolved_period=current_year,
+                confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="churn_rate_pct", resolved_period=current_year,
                 related_metrics=related_metrics)
 
         # "NRR" -> "120% (2026F)"

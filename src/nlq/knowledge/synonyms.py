@@ -314,8 +314,8 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "time to close",
     ],
 
-    # Churn
-    "gross_churn_pct": [
+    # Churn — canonical ID is DCL's churn_rate_pct
+    "churn_rate_pct": [
         "churn",
         "churn rate",
         "customer churn",
@@ -325,6 +325,9 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "churn_pct",
         "churn percent",
         "churn percentage",
+        # Backward-compat alias for old NLQ canonical name
+        "gross_churn_pct",
+        "gross churn pct",
         # Common misspellings
         "chrn",
         "churnn",
@@ -574,7 +577,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "renewals",
         "renewal",
     ],
-    # churn_pct redirected → gross_churn_pct (aliases added there)
+    # churn_pct redirected -> churn_rate_pct (aliases added there)
 
     # Headcount by department
     "engineering_headcount": [
@@ -695,6 +698,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
     ],
     "p1_incidents": [
         "p1s",
+        "p1 incidents",
         "priority 1 incidents",
         "critical incidents",
     ],

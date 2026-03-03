@@ -10,7 +10,7 @@
     "uptime": "uptime_pct",
     "mttr": "mttr_p1_hours",
     "gross_margin": "gross_margin_pct",
-    "churn_rate": "gross_churn_pct",
+    "churn_rate": "churn_rate_pct",
     "deploy_frequency": "deploys_per_week",
     "throughput": "story_points"
   },
@@ -30,7 +30,7 @@
       "bookings": 55.0,
       "win_rate": 45.5,
       "nrr": 121.5,
-      "gross_churn_pct": 5.8,
+      "churn_rate_pct": 5.8,
       "arr_growth_pct": 35.0,
       "avg_deal_size": 0.125,
       "sales_cycle_days": 68,

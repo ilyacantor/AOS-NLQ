@@ -65,7 +65,7 @@ def determine_domain(metric: str) -> Domain:
         return Domain.GROWTH
     elif metric in ["headcount"]:
         return Domain.PEOPLE
-    elif metric in ["customer_count", "nrr", "gross_churn_pct"]:
+    elif metric in ["customer_count", "nrr", "churn_rate_pct"]:
         return Domain.OPS
     return Domain.FINANCE
 

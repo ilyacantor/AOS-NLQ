@@ -122,7 +122,7 @@ METRIC_PATTERNS = {
     r"\bmargin\b": "gross_margin_pct",
     r"\bgross\s*margin\b": "gross_margin_pct",
     r"\bnet\s*income\b": "net_income",
-    r"\bchurn\b": "gross_churn_pct",
+    r"\bchurn\b": "churn_rate_pct",
     r"\bnrr\b": "nrr",
     r"\bnet\s*retention\b": "nrr",
     r"\bretention\b": "nrr",

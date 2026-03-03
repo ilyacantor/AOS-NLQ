@@ -44,7 +44,7 @@ class RankingIntent:
 
 # Metrics where lower is better (for "best"/"worst" interpretation)
 LOWER_IS_BETTER_METRICS = {
-    "churn", "churn_pct", "gross_churn_pct", "logo_churn_pct",
+    "churn", "churn_pct", "churn_rate_pct", "logo_churn_pct",
     "attrition", "attrition_rate_pct",
     "cycle_time", "sales_cycle_days",
     "mttr", "mttr_p1_hours", "mttr_p2_hours",
@@ -190,7 +190,7 @@ METRIC_ALIASES = {
     "churn": "churn_rate_pct",
     "churn rate": "churn_rate_pct",
     "customer churn": "churn_rate_pct",
-    "gross churn": "gross_churn_pct",
+    "gross churn": "churn_rate_pct",
     "logo churn": "logo_churn_pct",
     "churn risk": "churn_risk",
     # Gross margin

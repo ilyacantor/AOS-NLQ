@@ -586,12 +586,12 @@ class QueryExecutor:
             "win_rate_pct": ["pipeline", "qualified_pipeline", "avg_deal_size", "sales_cycle_days"],
             "quota_attainment_pct": ["reps_at_quota_pct", "sales_headcount", "pipeline", "win_rate_pct"],
             # Retention & Churn
-            "gross_churn_pct": ["logo_churn_pct", "nrr", "customer_count"],
-            "nrr": ["gross_churn_pct", "expansion_revenue", "renewal_revenue"],
+            "churn_rate_pct": ["logo_churn_pct", "nrr", "customer_count"],
+            "nrr": ["churn_rate_pct", "expansion_revenue", "renewal_revenue"],
             "customer_count": ["new_logos", "logo_churn_pct", "nrr"],
             # Efficiency Metrics
             "magic_number": ["arr", "sga", "sales_headcount"],
-            "ltv_cac": ["cac_payback_months", "gross_churn_pct", "nrr"],
+            "ltv_cac": ["cac_payback_months", "churn_rate_pct", "nrr"],
             "burn_multiple": ["revenue", "operating_profit", "net_income"],
             # People
             "headcount": ["engineering_headcount", "product_headcount", "sales_headcount", "marketing_headcount", "cs_headcount", "ga_headcount"],

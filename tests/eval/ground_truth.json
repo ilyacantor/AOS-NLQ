@@ -18,7 +18,7 @@
     "cloud_spend": 0.94,
     "nps": 56,
     "churn_pct": 5.9,
-    "gross_churn_pct": 5.9,
+    "churn_rate_pct": 5.9,
     "nrr": 121.5,
     "ar": 24.5,
     "ap": 5.75,

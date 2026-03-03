@@ -30,7 +30,7 @@ patterns:
     - {nl: "What is CAC payback period?", canonical_metric: cac_payback, period_type: current, tags: [saas, efficiency]}
     - {nl: "Show me operating expenses", canonical_metric: opex, period_type: current, tags: [pl, opex]}
     - {nl: "What is revenue per employee?", canonical_metric: revenue_per_employee, period_type: current, tags: [efficiency]}
-    - {nl: "What is our gross churn?", canonical_metric: gross_churn_pct, period_type: current, tags: [saas, churn]}
+    - {nl: "What is our gross churn?", canonical_metric: churn_rate_pct, period_type: current, tags: [saas, churn]}
 
   cro:
     - {nl: "What is our pipeline?", canonical_metric: pipeline, period_type: current, tags: [pipeline]}

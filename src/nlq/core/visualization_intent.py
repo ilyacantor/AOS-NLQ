@@ -365,6 +365,25 @@ def detect_visualization_intent(query: str) -> VisualizationRequirements:
     )
 
 
+def _resolve_for_viz(phrase: str, semantic_client, local_only: bool = True) -> Optional[str]:
+    """Resolve a phrase through the unified path: static synonyms first, then DCL.
+
+    This ensures dashboard metric extraction uses the same resolution order
+    as the /query endpoint (via normalize_metric), preventing the galaxy-vs-
+    dashboard divergence where the two paths returned different metric IDs
+    for the same user term (e.g., "churn" -> churn_rate_pct everywhere).
+    """
+    from src.nlq.knowledge.synonyms import _METRIC_REVERSE_LOOKUP
+
+    key = phrase.lower().strip()
+    static_hit = _METRIC_REVERSE_LOOKUP.get(key)
+    if static_hit:
+        return static_hit
+    # Fall through to DCL resolution (preserving local_only for multi-word safety)
+    metric = semantic_client.resolve_metric(phrase, local_only=local_only)
+    return metric.id if metric else None
+
+
 def _extract_metrics_from_query(query: str) -> List[str]:
     """
     Extract metric names from a query using DCL semantic catalog.
@@ -433,11 +452,11 @@ def _extract_metrics_from_query(query: str) -> List[str]:
                 # Skip phrases containing dimension words (e.g., "revenue by quarter")
                 if not any(w in dimension_words for w in phrase_words):
                     phrase = " ".join(phrase_words)
-                    metric = semantic_client.resolve_metric(phrase, local_only=True)
-                    if metric and metric.id not in metrics:
-                        metrics.append(metric.id)
+                    metric_id = _resolve_for_viz(phrase, semantic_client, local_only=True)
+                    if metric_id and metric_id not in metrics:
+                        metrics.append(metric_id)
                         matched_indices.update([i, i+1, i+2])
-                        logger.debug(f"Resolved '{phrase}' -> '{metric.id}'")
+                        logger.debug(f"Resolved '{phrase}' -> '{metric_id}'")
                         continue
 
         # Try 2-word phrases — skip if ALL words are stopwords
@@ -447,11 +466,11 @@ def _extract_metrics_from_query(query: str) -> List[str]:
                 # Skip phrases containing dimension words
                 if not any(w in dimension_words for w in phrase_words):
                     phrase = " ".join(phrase_words)
-                    metric = semantic_client.resolve_metric(phrase, local_only=True)
-                    if metric and metric.id not in metrics:
-                        metrics.append(metric.id)
+                    metric_id = _resolve_for_viz(phrase, semantic_client, local_only=True)
+                    if metric_id and metric_id not in metrics:
+                        metrics.append(metric_id)
                         matched_indices.update([i, i+1])
-                        logger.debug(f"Resolved '{phrase}' -> '{metric.id}'")
+                        logger.debug(f"Resolved '{phrase}' -> '{metric_id}'")
                         continue
 
         # Try single words
@@ -461,11 +480,11 @@ def _extract_metrics_from_query(query: str) -> List[str]:
         # Skip dimension words (words after "by")
         if word in dimension_words:
             continue
-        metric = semantic_client.resolve_metric(word)
-        if metric and metric.id not in metrics:
-            metrics.append(metric.id)
+        metric_id = _resolve_for_viz(word, semantic_client, local_only=False)
+        if metric_id and metric_id not in metrics:
+            metrics.append(metric_id)
             matched_indices.add(i)
-            logger.debug(f"Resolved '{word}' -> '{metric.id}'")
+            logger.debug(f"Resolved '{word}' -> '{metric_id}'")
 
     # Check for persona-specific dashboard requests FIRST so we can merge
     # resolved metrics with persona defaults for consistent layout
@@ -490,7 +509,7 @@ def _extract_metrics_from_query(query: str) -> List[str]:
         persona_metrics = ["uptime_pct", "p1_incidents", "deployment_frequency", "mttr", "open_bugs"]
         persona_detected = "CTO"
     elif any(term in q for term in ["customer dashboard", "cs dashboard", "success dashboard"]):
-        persona_metrics = ["nrr", "gross_churn_pct", "customer_count", "nps", "csat"]
+        persona_metrics = ["nrr", "churn_rate_pct", "customer_count", "nps", "csat"]
         persona_detected = "CS"
 
     if persona_metrics:

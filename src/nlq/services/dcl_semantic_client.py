@@ -548,7 +548,7 @@ class DCLSemanticClient:
             "nrr": ["net revenue retention", "net retention", "retention rate", "retention"],
             "win_rate_pct": ["close rate", "conversion rate", "win rate"],
             "quota_attainment_pct": ["quota", "attainment", "quota attainment"],
-            "gross_churn_pct": ["churn", "churn rate", "customer churn"],
+            "churn_rate_pct": ["churn", "churn rate", "customer churn", "gross churn"],
 
             # Operations/HR (with common misspellings)
             "headcount": ["employees", "staff", "team size", "hc", "people", "fte",
@@ -581,7 +581,7 @@ class DCLSemanticClient:
 
             # CRO
             "pipeline": "CRO", "arr": "CRO", "nrr": "CRO", "win_rate_pct": "CRO",
-            "quota_attainment_pct": "CRO", "gross_churn_pct": "CRO", "bookings": "CRO",
+            "quota_attainment_pct": "CRO", "churn_rate_pct": "CRO", "bookings": "CRO",
             "sales_cycle_days": "CRO", "avg_deal_size": "CRO",
 
             # COO
@@ -607,7 +607,7 @@ class DCLSemanticClient:
             "cac": "USD", "ltv": "USD", "avg_deal_size": "USD",
 
             # Percentages
-            "gross_margin_pct": "%", "net_income_pct": "%", "gross_churn_pct": "%",
+            "gross_margin_pct": "%", "net_income_pct": "%", "churn_rate_pct": "%",
             "nrr": "%", "win_rate_pct": "%", "quota_attainment_pct": "%", "uptime_pct": "%",
             "code_coverage_pct": "%", "attrition_rate_pct": "%",
 
@@ -1206,7 +1206,7 @@ class DCLSemanticClient:
     # DCL sometimes uses base names where NLQ uses _pct suffixed names,
     # or vice versa — and both exist in DCL catalog but only one has data.
     _NLQ_TO_DCL_CROSSMAP: Dict[str, str] = {
-        "gross_churn_pct": "churn_rate_pct",
+        # gross_churn_pct removed — NLQ now uses churn_rate_pct directly
         "net_income_pct": "net_margin_pct",
         "ltv_cac": "ltv_cac_ratio",
         "time_to_fill_days": "time_to_fill",

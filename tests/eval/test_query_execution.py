@@ -36,7 +36,7 @@ QUERY_EXECUTION_CASES = [
     ("pipeline", ["stage"], 1, "CRO"),
     ("win_rate_pct", [], 1, "CRO"),
     ("win_rate_pct", ["rep"], 1, "CRO"),
-    ("gross_churn_pct", [], 1, "CRO"),
+    ("churn_rate_pct", [], 1, "CRO"),
     ("nrr", [], 1, "CRO"),
     ("sales_cycle_days", [], 1, "CRO"),
     ("quota_attainment_pct", [], 1, "CRO"),

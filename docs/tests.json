@@ -261,7 +261,7 @@
       },
       "expect": {
         "status": 200,
-        "metric_must_be": "gross_churn_pct",
+        "metric_must_be": "churn_rate_pct",
         "data_must_exist": true,
         "value_must_be_numeric": true
       },
@@ -584,7 +584,7 @@
       },
       "expect": {
         "status": 200,
-        "metric_must_be": "gross_churn_pct",
+        "metric_must_be": "churn_rate_pct",
         "data_must_exist": true
       },
       "tags": [
@@ -604,7 +604,7 @@
         "status": 200,
         "metric_must_be": "attrition_rate_pct",
         "data_must_exist": true,
-        "metric_must_not_be": "gross_churn_pct"
+        "metric_must_not_be": "churn_rate_pct"
       },
       "tags": [
         "galaxy",
@@ -1015,7 +1015,7 @@
       },
       "expect": {
         "status": 200,
-        "metric_must_be": "gross_churn_pct",
+        "metric_must_be": "churn_rate_pct",
         "data_must_exist": true,
         "field_checks": {
           "query_type_in": [
@@ -1234,7 +1234,7 @@
       },
       "expect": {
         "status": 200,
-        "metric_must_be": "gross_churn_pct",
+        "metric_must_be": "churn_rate_pct",
         "data_must_exist": true
       },
       "tags": [
@@ -1787,7 +1787,7 @@
           "pipeline",
           "win_rate_pct",
           "nrr",
-          "gross_churn_pct",
+          "churn_rate_pct",
           "quota_attainment_pct"
         ],
         "field_checks": {

@@ -303,20 +303,13 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         description="Average contract value"
     ),
 
-    # Churn & Retention
-    "gross_churn_pct": MetricDefinition(
-        name="gross_churn_pct",
-        display_name="Gross Revenue Churn",
-        metric_type=MetricType.PERCENTAGE,
-        unit="%",
-        description="Revenue lost from churned customers"
-    ),
+    # Churn & Retention — canonical ID is churn_rate_pct (DCL owns naming)
     "churn_rate_pct": MetricDefinition(
         name="churn_rate_pct",
         display_name="Churn Rate",
         metric_type=MetricType.PERCENTAGE,
         unit="%",
-        description="Customer or revenue churn rate"
+        description="Gross revenue churn rate"
     ),
     "nrr": MetricDefinition(
         name="nrr",
@@ -980,7 +973,7 @@ METRIC_PERSONAS = {
 
     # CRO metrics
     "bookings": "CRO", "arr": "CRO", "pipeline": "CRO",
-    "win_rate_pct": "CRO", "nrr": "CRO", "gross_churn_pct": "CRO", "churn_rate_pct": "CRO",
+    "win_rate_pct": "CRO", "nrr": "CRO", "churn_rate_pct": "CRO",
     "new_logo_revenue": "CRO", "expansion_revenue": "CRO",
     "renewal_revenue": "CRO", "customer_count": "CRO",
     "quota_attainment_pct": "CRO", "sales_quota": "CRO",

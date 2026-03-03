@@ -35,7 +35,7 @@ E2E_QUERY_CASES = [
     ("Show me pipeline by rep", "pipeline", True, "CRO"),
     ("What's our win rate?", "win_rate_pct", True, "CRO"),
     ("Pipeline by stage", "pipeline", True, "CRO"),
-    ("What's our churn rate?", "gross_churn_pct", True, "CRO"),
+    ("What's our churn rate?", "churn_rate_pct", True, "CRO"),
     ("Show NRR", "nrr", True, "CRO"),
     ("What's our quota attainment?", "quota_attainment_pct", True, "CRO"),
 

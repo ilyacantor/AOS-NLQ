@@ -71,7 +71,7 @@ CRO/Sales (use these for sales-related queries):
 - sales_cycle_days, avg_deal_size
 - new_logos, customer_count
 - quota_attainment, reps_at_quota_pct
-- nrr, gross_churn_pct, logo_churn_pct
+- nrr, churn_rate_pct, logo_churn_pct
 - expansion_revenue, new_logo_revenue, renewal_revenue
 
 IMPORTANT: For "sales pipeline" or "pipeline", always return metric="pipeline", NOT "sales" or "revenue".
