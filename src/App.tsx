@@ -5,7 +5,6 @@ import { RAGLearningPanel, LLMCallCounter, useSessionId, refreshLLMStats } from 
 import { InsufficientDataPanel } from './components/rag/InsufficientDataPanel'
 import { DebugTracePanel } from './components/DebugTracePanel'
 import { DataPipelineStatus } from './components/DataPipelineStatus'
-import { useQueryRouter } from './hooks/useQueryRouter'
 import { ProductTour } from './components/ProductTour'
 import { LandingPage } from './components/LandingPage'
 
@@ -146,9 +145,6 @@ function App() {
   const dataModeRef = useRef(dataMode)
   dataModeRef.current = dataMode
 
-  // Query router for unified routing between Galaxy and Dashboard spaces
-  const { routeQuery } = useQueryRouter()
-
   // Load deduplicated query history from the server.
   // Re-fetches whenever historyVersion is bumped (after each query completes).
   useEffect(() => {
@@ -208,91 +204,15 @@ function App() {
     return () => clearInterval(interval)
   }, [])
 
-  // Generate dashboard via API
-  const generateDashboard = useCallback(async (queryText: string, forceNew: boolean = false, titleOverride?: string) => {
-    if (!queryText.trim()) return
-
-    setIsGeneratingDashboard(true)
-    setDashboardError(null)
-
-    try {
-      // Check if this is a "build me X dashboard" request or we're forcing new
-      const isBuildRequest = forceNew || /build\s+(me\s+)?a?\s*\w+\s+dashboard/i.test(queryText)
-
-      if (isBuildRequest || !dashboardSchema) {
-        // Generate new dashboard - correct endpoint is /query/dashboard
-        const res = await fetchWithRetry('/api/v1/query/dashboard', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            question: queryText,
-            reference_date: new Date().toISOString().split('T')[0],
-            conversation_id: sessionId,
-            data_mode: dataModeRef.current
-          })
-        })
-
-        if (res.ok) {
-          const data = await res.json()
-          if (data.success && data.dashboard) {
-            const schema = data.dashboard
-            if (titleOverride) {
-              schema.title = titleOverride
-            }
-            setDashboardSchema(schema)
-            setDashboardWidgetData(data.widget_data || {})
-          } else if (data.error) {
-            setDashboardError(data.error)
-          } else {
-            setDashboardError('Failed to generate dashboard - no schema returned')
-          }
-        } else {
-          const errorData = await res.json().catch(() => ({}))
-          setDashboardError(errorData.detail || 'Failed to generate dashboard')
-        }
-      } else {
-        const res = await fetchWithRetry('/api/v1/dashboard/refine', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            dashboard_id: dashboardSchema.id,
-            refinement_query: queryText,
-            conversation_id: sessionId,
-            data_mode: dataModeRef.current
-          })
-        })
-
-        if (res.ok) {
-          const data = await res.json()
-          if (data.success && data.dashboard) {
-            setDashboardSchema(data.dashboard)
-            setDashboardWidgetData(data.widget_data || {})
-          } else if (data.error) {
-            setDashboardError(data.error)
-          }
-        } else {
-          const errorData = await res.json().catch(() => ({}))
-          setDashboardError(errorData.detail || 'Failed to refine dashboard')
-        }
-      }
-    } catch (error) {
-      console.error('Dashboard generation failed:', error)
-      setDashboardError(`Cannot reach backend server: ${error}. Check that both backend (port 8000) and frontend (port 5000) are running.`)
-    }
-
-    setIsGeneratingDashboard(false)
-    refreshLLMStats()
-    setHistoryVersion(v => v + 1)
-  }, [dashboardSchema, sessionId])
-
-  // Handle persona selection - generate that persona's dashboard
+  // Handle persona selection - submit persona dashboard query through unified endpoint
   const handlePersonaSelect = useCallback((persona: Persona) => {
     setSelectedPersona(persona)
     const personaConfig = personaOptions.find(p => p.value === persona)
     if (personaConfig) {
-      generateDashboard(personaConfig.query, true, `${persona} Dashboard`)
+      // Will be submitted through submitQuery below
+      setQuery(personaConfig.query)
     }
-  }, [generateDashboard])
+  }, [])
 
   // Load default dashboard on first view
   useEffect(() => {
@@ -300,74 +220,14 @@ function App() {
       setHasLoadedDefaultDashboard(true)
       const personaConfig = personaOptions.find(p => p.value === selectedPersona)
       if (personaConfig) {
-        generateDashboard(personaConfig.query, true, `${selectedPersona} Dashboard`)
+        setQuery(personaConfig.query)
       }
     }
-  }, [hasLoadedDefaultDashboard, viewMode, selectedPersona, generateDashboard])
+  }, [hasLoadedDefaultDashboard, viewMode, selectedPersona])
 
-  // Check if query should route to dashboard (using unified query router)
-  const shouldRouteToDashboard = useCallback((queryText: string): boolean => {
-    const result = routeQuery(queryText, viewMode as 'galaxy' | 'dashboard', !!dashboardSchema)
-    return result.destination === 'dashboard' && result.confidence > 0.7
-  }, [routeQuery, viewMode, dashboardSchema])
-
-  // Submit a Galaxy query
-  const submitGalaxyQuery = useCallback(async (queryText: string) => {
+  // Submit query — ONE endpoint, ONE path: /api/v1/query
+  const submitQuery = useCallback(async (queryText: string) => {
     if (!queryText.trim()) return
-
-    // Check if this should route to dashboard space (using unified router)
-    if (shouldRouteToDashboard(queryText)) {
-      const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-
-      // Add to history first
-      const newItem: QueryHistoryItem = {
-        id: Date.now().toString(),
-        query: queryText,
-        timestamp,
-        duration: '',
-        tag: 'DASHBOARD',
-        count: 1,
-      }
-      setQueryHistory(prev => [newItem, ...prev.filter(h => h.query.toLowerCase().trim() !== newItem.query.toLowerCase().trim())].slice(0, 100))
-      setQuery('')
-
-      // Switch to dashboard and trigger refinement or generation
-      setViewMode('dashboard')
-
-      // If we have an existing dashboard, refine it; otherwise generate new
-      if (dashboardSchema) {
-        // Trigger refinement via the dashboard API
-        try {
-          const startTime = performance.now()
-          const res = await fetchWithRetry('/api/v1/dashboard/refine', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              dashboard_id: dashboardSchema.id,
-              refinement_query: queryText,
-              conversation_id: sessionId,
-              data_mode: dataModeRef.current
-            })
-          })
-          const data = await res.json()
-          const duration = Math.round(performance.now() - startTime)
-          setLastDuration(`${duration}ms`)
-
-          if (data.success && data.dashboard) {
-            setDashboardSchema(data.dashboard)
-            if (data.widget_data) {
-              setDashboardWidgetData(data.widget_data)
-            }
-          }
-        } catch (error) {
-          console.error('Dashboard refinement failed:', error)
-        }
-      } else {
-        // Generate new dashboard
-        generateDashboard(queryText, true)
-      }
-      return
-    }
 
     setIsLoading(true)
     setQuery('')
@@ -376,7 +236,7 @@ function App() {
     const startTime = performance.now()
 
     try {
-      const res = await fetchWithRetry('/api/v1/intent-map', {
+      const res = await fetchWithRetry('/api/v1/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -395,7 +255,7 @@ function App() {
         let errorDetail = `Server error (${res.status})`
         try {
           const errBody = await res.json()
-          errorDetail = errBody.detail || errBody.error || errBody.text_response || errorDetail
+          errorDetail = errBody.detail || errBody.error || errBody.answer || errorDetail
         } catch {
           errorDetail = `${res.status} ${res.statusText}`
         }
@@ -434,14 +294,43 @@ function App() {
 
       const data = await res.json()
 
-      setGalaxyResponse(data as IntentMapResponse)
+      // NLQResponse from /api/v1/query — adapt to IntentMapResponse shape for GalaxyView
+      // (GalaxyView will break rendering-wise, but this keeps the state plumbing working)
+      const adapted: IntentMapResponse = {
+        query: queryText,
+        query_type: data.parsed_intent || data.response_type || 'QUERY',
+        ambiguity_type: null,
+        persona: data.persona || 'CFO',
+        overall_confidence: data.confidence ?? 0,
+        overall_data_quality: data.confidence ?? 0,
+        node_count: 0,
+        nodes: [],
+        primary_node_id: null,
+        primary_answer: data.answer || data.error_message || null,
+        text_response: data.answer || data.error_message || null,
+        needs_clarification: data.needs_clarification || false,
+        clarification_prompt: data.clarification_prompt || null,
+        dashboard: data.dashboard || null,
+        dashboard_data: data.dashboard_data || null,
+        response_type: data.response_type || 'text',
+        debug_info: data.debug_info || null,
+      } as IntentMapResponse
+
+      // If the response includes a dashboard, update dashboard state and switch to dashboard view
+      if (data.response_type === 'dashboard' && data.dashboard) {
+        setDashboardSchema(data.dashboard)
+        setDashboardWidgetData(data.dashboard_data || {})
+        setViewMode('dashboard')
+      }
+
+      setGalaxyResponse(adapted)
 
       const newItem: QueryHistoryItem = {
         id: Date.now().toString(),
         query: queryText,
         timestamp,
         duration: `${duration}ms`,
-        tag: (data as IntentMapResponse).query_type || 'intent-map',
+        tag: data.parsed_intent || data.response_type || 'query',
         count: 1,
       }
       setQueryHistory(prev => [newItem, ...prev.filter(h => h.query.toLowerCase().trim() !== newItem.query.toLowerCase().trim())].slice(0, 100))
@@ -470,7 +359,7 @@ function App() {
     setIsLoading(false)
     refreshLLMStats()
     setHistoryVersion(v => v + 1)
-  }, [sessionId, shouldRouteToDashboard, dashboardSchema, generateDashboard])
+  }, [sessionId])
 
   // Default search on load suppressed — Galaxy starts empty with centered chatbox
 
@@ -478,10 +367,10 @@ function App() {
   const handleSubmit = useCallback(() => {
     const currentQuery = queryRef.current
     if (currentQuery.trim()) {
-      submitGalaxyQuery(currentQuery)
+      submitQuery(currentQuery)
       setTourQuerySubmitted(true)
     }
-  }, [submitGalaxyQuery])
+  }, [submitQuery])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -490,11 +379,11 @@ function App() {
     }
   }
 
-  // Handle drill-down from dashboard tiles - open in Galaxy view
+  // Handle drill-down from dashboard tiles - submit through unified query endpoint
   const handleDashboardDrillDown = useCallback((drillQuery: string) => {
     setViewMode('galaxy')
-    submitGalaxyQuery(drillQuery)
-  }, [submitGalaxyQuery])
+    submitQuery(drillQuery)
+  }, [submitQuery])
 
   // Handle dashboard refinement from DashboardRenderer
   // Keeps App.tsx state in sync with DashboardRenderer's internal state
@@ -510,18 +399,18 @@ function App() {
   const handleNavigateToDashboard = useCallback((queryText: string, _data: IntentMapResponse) => {
     // Clear galaxy response so returning to Ask tab doesn't re-trigger navigation
     setGalaxyResponse(null)
-    // Switch to dashboard view and generate the dashboard
+    // Switch to dashboard view and submit through unified endpoint
     setViewMode('dashboard')
-    generateDashboard(queryText, true)
-  }, [generateDashboard])
+    submitQuery(queryText)
+  }, [submitQuery])
 
   // Handle navigation from DashboardRenderer when it detects a factual query
   // (should go to Galaxy space instead of refining the dashboard)
   const handleNavigateToGalaxy = useCallback((queryText: string) => {
     // Switch to galaxy view and submit the query
     setViewMode('galaxy')
-    submitGalaxyQuery(queryText)
-  }, [submitGalaxyQuery])
+    submitQuery(queryText)
+  }, [submitQuery])
 
   // ── Landing page handler ──
   const handleLandingStart = useCallback((_persona: 'business' | 'technology') => {
@@ -781,7 +670,7 @@ function App() {
                     onDrillDown={handleDashboardDrillDown}
                     onRefinement={handleDashboardRefinement}
                     onNavigateToGalaxy={handleNavigateToGalaxy}
-                    showRefinementInput={true}
+                    showRefinementInput={false}
                     refinePresets={personaOptions.find(p => p.value === selectedPersona)?.refinePresets || []}
                     persona={selectedPersona}
                     personaOptions={personaOptions.map(p => ({ label: p.label, value: p.value }))}
@@ -867,7 +756,7 @@ function App() {
                       {quickActions.map((action) => (
                         <button
                           key={action}
-                          onClick={() => { submitGalaxyQuery(action); setTourQuerySubmitted(true) }}
+                          onClick={() => { submitQuery(action); setTourQuerySubmitted(true) }}
                           className="flex-shrink-0 px-3 py-1 bg-cyan-900/30 border border-cyan-700/50 rounded-full text-cyan-300 text-xs hover:bg-cyan-800/40 hover:text-cyan-200 transition-colors whitespace-nowrap"
                         >
                           {action}
@@ -971,7 +860,7 @@ function App() {
                     {queryHistory.map((item) => (
                       <div
                         key={item.id}
-                        onClick={() => submitGalaxyQuery(item.query)}
+                        onClick={() => submitQuery(item.query)}
                         className="p-3 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-colors"
                       >
                         <div className="flex items-start justify-between gap-2">

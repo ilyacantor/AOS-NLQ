@@ -10,7 +10,6 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import GridLayout from 'react-grid-layout/legacy';
-import { useQueryRouter } from '../../hooks/useQueryRouter';
 import { useDashboardRefinement } from '../../hooks/useDashboardRefinement';
 import { DashboardErrorBoundary } from './DashboardErrorBoundary';
 import { useDashboardLayout } from '../../hooks/useDashboardLayout';
@@ -28,7 +27,6 @@ import {
   DashboardSchema,
   Widget,
   WidgetData,
-  DashboardGenerationResponse,
 } from '../../types/generated-dashboard';
 import { WidgetRenderer } from './WidgetRenderer';
 import { ScenarioModelingPanel } from './ScenarioModelingPanel';
@@ -118,8 +116,6 @@ export function DashboardRenderer({
   isGenerating = false,
   dataMode = 'live',
 }: DashboardRendererProps) {
-  // Query router for detecting factual queries that should go to Galaxy
-  const { routeQuery } = useQueryRouter();
   const [schema, setSchemaRaw] = useState<DashboardSchema | null>(initialSchema ? normalizeSchema(initialSchema) : null);
   // Wrapper that always normalizes before setting
   const setSchema = useCallback((v: React.SetStateAction<DashboardSchema | null>) => {
@@ -135,7 +131,6 @@ export function DashboardRenderer({
   const defaultWidgetDataRef = useRef<Record<string, WidgetData>>(initialWidgetData || {});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [initialQuery, setInitialQuery] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
   // Drag-to-scroll for presets container on desktop
@@ -285,62 +280,6 @@ export function DashboardRenderer({
     }
   }, [initialSchema, initialWidgetData]);
 
-  // Generate dashboard from query
-  const generateDashboard = useCallback(async (query: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch('/api/v1/query/dashboard', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: query, data_mode: dataMode }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        setError(`API error (${response.status}): ${errorText.slice(0, 200)}`);
-        return;
-      }
-
-      const data: DashboardGenerationResponse = await response.json();
-
-      if (data.success && data.dashboard) {
-        setSchema(data.dashboard);
-        setSuggestions(data.suggestions || []);
-        setLayoutMap({});
-        // Use pre-resolved widget data from backend if available
-        if (data.widget_data && Object.keys(data.widget_data).length > 0) {
-          setWidgetData(data.widget_data);
-        } else {
-          // Fallback to loading + mock data if backend didn't provide data
-          const initialData: Record<string, WidgetData> = {};
-          data.dashboard.widgets.forEach(widget => {
-            initialData[widget.id] = { loading: true };
-          });
-          setWidgetData(initialData);
-          fetchWidgetData(data.dashboard);
-        }
-
-        // Auto-arrange on initial generation if not in edit mode
-        if (!editMode) {
-          setTimeout(() => {
-            handleAutoArrange();
-          }, 50);
-        }
-      } else {
-        setError(data.error || 'Dashboard generation returned no data');
-        setSuggestions(data.suggestions || []);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(`Request failed: ${message}`);
-      console.error('Dashboard generation error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [editMode, handleAutoArrange]);
-
   const {
     refinementQuery,
     setRefinementQuery,
@@ -374,7 +313,6 @@ export function DashboardRenderer({
       setWidgetData({});
       setError(null);
       setSuggestions([]);
-      setInitialQuery('');
       setRefinementQuery('');
       setLayoutMap({});
       setForecastData(null);
@@ -441,38 +379,12 @@ export function DashboardRenderer({
     }
   }, [refineDashboard]);
 
-  // Handle refinement submit - route to Galaxy if factual, otherwise refine dashboard
-  const handleRefinementSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = refinementQuery.trim();
-    if (!query) return;
-
-    // Check if this query should go to Galaxy (factual query)
-    const routeResult = routeQuery(query, 'dashboard', !!schema);
-    if (routeResult.destination === 'galaxy' && routeResult.confidence > 0.7 && onNavigateToGalaxy) {
-      // This is a factual query - route to Galaxy space
-      setRefinementQuery('');
-      onNavigateToGalaxy(query);
-      return;
-    }
-
-    // Dashboard query - refine the current dashboard
-    refineDashboard(query);
-  };
-
   // Handle suggestion click
   const handleSuggestionClick = (suggestion: string) => {
     const parts = suggestion.split(':');
     const query = parts.length > 1 ? parts[1].trim().replace(/^'|'$/g, '') : suggestion;
     setRefinementQuery(query);
   };
-
-  // Generate dashboard on mount if sourceQuery provided
-  useEffect(() => {
-    if (sourceQuery && !schema) {
-      generateDashboard(sourceQuery);
-    }
-  }, [sourceQuery, schema, generateDashboard]);
 
   const rowHeight = schema?.layout.row_height || 55;
 
@@ -619,30 +531,7 @@ export function DashboardRenderer({
                 )}
               </div>
 
-              {/* Refinement input inline on desktop */}
-              {showRefinementInput && (
-                <>
-                  <div className="w-px h-6 bg-slate-700 mx-1" />
-                  <form onSubmit={handleRefinementSubmit} className="flex gap-2 flex-1 min-w-0">
-                    <input
-                      id="dashboard-refine-input"
-                      type="text"
-                      value={refinementQuery}
-                      onChange={(e) => setRefinementQuery(e.target.value)}
-                      placeholder="Refine dashboard..."
-                      className="flex-1 min-w-0 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-                      disabled={isRefining}
-                    />
-                    <button
-                      type="submit"
-                      disabled={isRefining || !refinementQuery.trim()}
-                      className="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-                    >
-                      {isRefining ? '...' : 'Go'}
-                    </button>
-                  </form>
-                </>
-              )}
+              {/* Refinement input removed — all queries go through the main chat box */}
             </div>
           </div>
 
@@ -655,28 +544,7 @@ export function DashboardRenderer({
         </div>
       )}
 
-      {/* Refinement Input - Mobile only (below header) */}
-      {schema && showRefinementInput && (
-        <div className="md:hidden px-4 py-2 border-b border-slate-800 bg-slate-900/50">
-          <form onSubmit={handleRefinementSubmit} className="flex gap-2">
-            <input
-              type="text"
-              value={refinementQuery}
-              onChange={(e) => setRefinementQuery(e.target.value)}
-              placeholder="Refine dashboard..."
-              className="flex-1 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-              disabled={isRefining}
-            />
-            <button
-              type="submit"
-              disabled={isRefining || !refinementQuery.trim()}
-              className="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-            >
-              {isRefining ? '...' : 'Go'}
-            </button>
-          </form>
-        </div>
-      )}
+      {/* Mobile refinement input removed — all queries go through the main chat box */}
 
       {/* Presets, Suggestions, Refinement Message & History — shared row below header */}
       {schema && showRefinementInput && (
@@ -833,46 +701,18 @@ export function DashboardRenderer({
         </DashboardErrorBoundary>
       )}
 
-      {/* Empty State - Initial Query Input (blank slate builder) */}
+      {/* Empty State - No dashboard yet, direct user to main chat box */}
       {!schema && !loading && !isGenerating && !error && (
         <div className="flex-1 flex items-center justify-center">
           <div className="w-full max-w-2xl px-8">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-semibold text-white mb-2">
-                Create a Dashboard with Natural Language
+                No Dashboard Loaded
               </h2>
               <p className="text-slate-400">
-                Describe what you want to see, and I'll build it for you.
+                Use the main chat box to ask for a dashboard, e.g. "Build me a CFO dashboard"
               </p>
             </div>
-
-            {/* Query Input */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (initialQuery.trim()) {
-                  generateDashboard(initialQuery.trim());
-                }
-              }}
-              className="mb-6"
-            >
-              <div className="relative">
-                <input
-                  type="text"
-                  value={initialQuery}
-                  onChange={(e) => setInitialQuery(e.target.value)}
-                  placeholder="e.g., Show me revenue by region over time"
-                  className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-lg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
-                />
-                <button
-                  type="submit"
-                  disabled={!initialQuery.trim()}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Create
-                </button>
-              </div>
-            </form>
 
             {/* Load saved dashboards/templates */}
             <div className="text-center mb-6">
@@ -880,32 +720,8 @@ export function DashboardRenderer({
                 onClick={() => setShowLoadModal(true)}
                 className="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
               >
-                📂 Load Saved Dashboard or Template
+                Load Saved Dashboard or Template
               </button>
-            </div>
-
-            {/* Example Queries */}
-            <div className="text-center">
-              <p className="text-slate-500 text-sm mb-3">Or try one of these:</p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {[
-                  'Show me revenue by region over time',
-                  'Create a dashboard with revenue, margin, and pipeline KPIs',
-                  'Visualize quarterly revenue trend',
-                  'Revenue breakdown by product',
-                ].map((example) => (
-                  <button
-                    key={example}
-                    onClick={() => {
-                      setInitialQuery(example);
-                      generateDashboard(example);
-                    }}
-                    className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 text-xs hover:bg-slate-700 hover:border-slate-600 transition-colors"
-                  >
-                    {example}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         </div>
