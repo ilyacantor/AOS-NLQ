@@ -187,6 +187,10 @@ export function DashboardRenderer({
   // Forecast comparison data — populated when user clicks "Apply to Forecast"
   const [forecastData, setForecastData] = useState<ForecastRow[] | null>(null);
 
+  // State for mobile menu and desktop actions dropdown (declared early for Escape handler)
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+
   // Listen for tour event to open the What-If panel
   useEffect(() => {
     const handler = () => setScenarioOpen(true);
@@ -277,11 +281,13 @@ export function DashboardRenderer({
       if (showSaveModal) { setShowSaveModal(false); return; }
       if (showTemplateModal) { setShowTemplateModal(false); return; }
       if (showLoadModal) { setShowLoadModal(false); return; }
+      if (showActionsMenu) { setShowActionsMenu(false); return; }
+      if (showMobileMenu) { setShowMobileMenu(false); return; }
       if (scenarioOpen) { setScenarioOpen(false); return; }
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [showTestModal, showSaveModal, showTemplateModal, showLoadModal, scenarioOpen,
+  }, [showTestModal, showSaveModal, showTemplateModal, showLoadModal, showActionsMenu, showMobileMenu, scenarioOpen,
       setShowTestModal, setShowSaveModal, setShowTemplateModal, setShowLoadModal]);
 
   // Sync with initialSchema/initialWidgetData prop changes (for persona switching)
@@ -300,15 +306,6 @@ export function DashboardRenderer({
       defaultWidgetDataRef.current = initialWidgetData;
     }
   }, [initialWidgetData]);
-
-  // Initialize with pre-resolved data if provided (from /v1/query endpoint)
-  useEffect(() => {
-    if (initialSchema && initialWidgetData && Object.keys(initialWidgetData).length > 0) {
-      // We have pre-resolved data from the backend - use it directly
-      setSchema(initialSchema);
-      setWidgetData(initialWidgetData);
-    }
-  }, [initialSchema, initialWidgetData]);
 
   const {
     refinementQuery,
@@ -417,10 +414,6 @@ export function DashboardRenderer({
   };
 
   const rowHeight = schema?.layout.row_height || 55;
-
-  // State for mobile menu and desktop actions dropdown
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [showActionsMenu, setShowActionsMenu] = useState(false);
 
   return (
     <div className="h-full flex flex-col bg-slate-950">

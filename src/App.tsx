@@ -323,11 +323,13 @@ function App() {
         setDashboardSchema(data.dashboard)
         setDashboardWidgetData(data.dashboard_data || {})
         setViewMode('dashboard')
+        // Clear galaxy response so switching back to Ask tab doesn't
+        // trigger GalaxyView's onNavigateToDashboard redirect loop
+        setGalaxyResponse(null)
       } else {
         setViewMode('galaxy')
+        setGalaxyResponse(adapted)
       }
-
-      setGalaxyResponse(adapted)
 
       const newItem: QueryHistoryItem = {
         id: Date.now().toString(),
@@ -493,7 +495,7 @@ function App() {
   return (
     <div className="h-screen bg-slate-950 flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="border-b border-slate-800 relative z-50">
+      <header className="border-b border-slate-800 relative z-[60]">
         {/* Mobile Header Row */}
         <div className="flex items-center justify-between px-4 py-3 md:hidden">
           <div className="flex items-center gap-2">
