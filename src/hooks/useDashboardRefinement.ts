@@ -48,9 +48,12 @@ export function useDashboardRefinement({
   const isRefiningRef = useRef(false);
   const schemaRef = useRef(schema);
   schemaRef.current = schema;
+  const unmountedRef = useRef(false);
 
   useEffect(() => {
+    unmountedRef.current = false;
     return () => {
+      unmountedRef.current = true;
       if (refinementTimeoutRef.current) {
         clearTimeout(refinementTimeoutRef.current);
       }
@@ -58,6 +61,7 @@ export function useDashboardRefinement({
   }, []);
 
   const processRefinement = useCallback(async (query: string) => {
+    if (unmountedRef.current) return;
     setIsRefining(true);
     isRefiningRef.current = true;
     setRefinementMessage(null);
@@ -82,6 +86,8 @@ export function useDashboardRefinement({
         clearTimeout(refinementTimeoutRef.current);
         refinementTimeoutRef.current = null;
       }
+
+      if (unmountedRef.current) return;
 
       if (data.refinement_status === 'noop') {
         setRefinementMessage(null);

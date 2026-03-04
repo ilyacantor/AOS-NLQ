@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 
 export interface ScenarioAdjustments {
   headcountChange: number;
@@ -79,6 +79,16 @@ export const ScenarioModelingPanel: React.FC<ScenarioModelingPanelProps> = ({
   onApply,
 }) => {
   const [adjustments, setAdjustments] = useState<ScenarioAdjustments>(DEFAULT_ADJUSTMENTS);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onToggle();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onToggle]);
 
   const handleSliderChange = useCallback((id: keyof ScenarioAdjustments, value: number) => {
     setAdjustments(prev => ({ ...prev, [id]: value }));

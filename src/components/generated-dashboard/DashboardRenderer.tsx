@@ -168,6 +168,20 @@ export function DashboardRenderer({
     }
   }, [isDraggingPresets, handlePresetsMouseUp]);
 
+  // Global mouseup to clear drag state if mouse leaves the browser window
+  useEffect(() => {
+    if (!isDraggingPresets) return;
+    const handleGlobalMouseUp = () => {
+      setIsDraggingPresets(false);
+      if (presetsRef.current) {
+        presetsRef.current.style.cursor = 'grab';
+        presetsRef.current.style.userSelect = '';
+      }
+    };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [isDraggingPresets]);
+
   // Scenario modeling panel state (CFO only)
   const [scenarioOpen, setScenarioOpen] = useState(false);
   // Forecast comparison data — populated when user clicks "Apply to Forecast"
@@ -253,6 +267,22 @@ export function DashboardRenderer({
     setWidgetData,
     fetchWidgetData,
   });
+
+  // Escape key closes the topmost modal/overlay (prevents stuck states)
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      // Close in priority order: modals first, then scenario panel
+      if (showTestModal) { setShowTestModal(false); return; }
+      if (showSaveModal) { setShowSaveModal(false); return; }
+      if (showTemplateModal) { setShowTemplateModal(false); return; }
+      if (showLoadModal) { setShowLoadModal(false); return; }
+      if (scenarioOpen) { setScenarioOpen(false); return; }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showTestModal, showSaveModal, showTemplateModal, showLoadModal, scenarioOpen,
+      setShowTestModal, setShowSaveModal, setShowTemplateModal, setShowLoadModal]);
 
   // Sync with initialSchema/initialWidgetData prop changes (for persona switching)
   useEffect(() => {
@@ -729,8 +759,8 @@ export function DashboardRenderer({
 
       {/* Save Dashboard Modal */}
       {showSaveModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowSaveModal(false)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-white mb-4">Save Dashboard</h3>
             <input
               type="text"
@@ -761,8 +791,8 @@ export function DashboardRenderer({
 
       {/* Save as Template Modal */}
       {showTemplateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowTemplateModal(false)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-white mb-4">Save as Template</h3>
             <input
               type="text"
@@ -812,8 +842,8 @@ export function DashboardRenderer({
 
       {/* Test Results Modal */}
       {showTestModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-lg max-h-[80vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowTestModal(false)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-lg max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-white mb-4">🧪 NLQ-DCL Evaluation</h3>
 
             {testRunning ? (

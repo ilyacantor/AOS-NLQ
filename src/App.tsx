@@ -476,12 +476,24 @@ function App() {
     setTourVisible(true)
   }, [])
 
+  // Global Escape key — close overlays in App scope (sidebar, mobile menu, landing)
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (showLanding) { setShowLanding(false); return }
+      if (mobileMenuOpen) { setMobileMenuOpen(false); return }
+      if (sidebarOpen) { setSidebarOpen(false); return }
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [showLanding, mobileMenuOpen, sidebarOpen])
+
   const hasGalaxyResponse = galaxyResponse !== null
 
   return (
     <div className="h-screen bg-slate-950 flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="border-b border-slate-800">
+      <header className="border-b border-slate-800 relative z-50">
         {/* Mobile Header Row */}
         <div className="flex items-center justify-between px-4 py-3 md:hidden">
           <div className="flex items-center gap-2">
