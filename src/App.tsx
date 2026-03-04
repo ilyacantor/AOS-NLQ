@@ -316,11 +316,15 @@ function App() {
         debug_info: data.debug_info || null,
       } as IntentMapResponse
 
-      // If the response includes a dashboard, update dashboard state and switch to dashboard view
+      // Auto-navigate based on response type:
+      // - Dashboard response → switch to dashboard view
+      // - Non-dashboard response → switch to galaxy view (so result is visible)
       if (data.response_type === 'dashboard' && data.dashboard) {
         setDashboardSchema(data.dashboard)
         setDashboardWidgetData(data.dashboard_data || {})
         setViewMode('dashboard')
+      } else {
+        setViewMode('galaxy')
       }
 
       setGalaxyResponse(adapted)

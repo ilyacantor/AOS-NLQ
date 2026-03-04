@@ -53,10 +53,27 @@ AMBIGUITY_PATTERNS = {
         r"^security posture",           # CTO - security metrics
         r"^eng productivity",           # CTO - engineering metrics
     ],
+    AmbiguityType.JUDGMENT_CALL: [
+        r"improving\??$",              # "is retention improving?" / "retention improving?"
+        r"getting (better|worse)",      # "is margin getting better?"
+        r"trending (up|down)",          # "is revenue trending up?"
+        r"(declining|deteriorating)",   # "is retention declining?"
+        r"on track",                    # "are we on track?"
+        r"too (high|low)\??$",          # "costs too high?"
+        r"good (enough|result)",        # Subjective judgment
+        r"^retention ok",               # CRO - retention assessment
+        r"^forecast.* good",            # CRO - forecast assessment
+        r"^attrition bad",              # COO - attrition assessment
+        r"^are we overstaffed",         # COO - headcount assessment
+        r"^burn rate ok",              # COO - burn assessment
+        r"^support overwhelmed",        # COO - support capacity assessment
+        r"^shipping enough",            # CTO - features assessment
+        r"^infra efficient",            # CTO - infrastructure efficiency
+    ],
     AmbiguityType.YES_NO: [
         r"^are we profitable",          # CFO - profitability
         r"^we growing\??$",             # CFO - growth
-        r"^is .*\?$",                   # Generic yes/no
+        r"^is .*\?$",                   # Generic yes/no (AFTER judgment patterns)
         r"^are we (hitting|at) quota",  # CRO - quota
         r"^are we growing",             # CRO - growth
         r"^are we efficient",           # COO - efficiency
@@ -75,18 +92,6 @@ AMBIGUITY_PATTERNS = {
         r"^support metrics",            # COO - support metrics
         r"^ops summary",                # COO - operations summary
         r"^platform overview",          # CTO - platform summary
-    ],
-    AmbiguityType.JUDGMENT_CALL: [
-        r"too (high|low)\??$",          # "costs too high?"
-        r"good (enough|result)",        # Subjective judgment
-        r"^retention ok",               # CRO - retention assessment
-        r"^forecast.* good",            # CRO - forecast assessment
-        r"^attrition bad",              # COO - attrition assessment
-        r"^are we overstaffed",         # COO - headcount assessment
-        r"^burn rate ok",               # COO - burn assessment
-        r"^support overwhelmed",        # COO - support capacity assessment
-        r"^shipping enough",            # CTO - features assessment
-        r"^infra efficient",            # CTO - infrastructure efficiency
     ],
     AmbiguityType.SHORTHAND: [
         r"^cash position",              # CFO shorthand
@@ -219,11 +224,15 @@ AMBIGUITY_CANDIDATES = {
         "default": ["revenue"],
     },
     AmbiguityType.JUDGMENT_CALL: {
+        "retention": ["nrr", "churn_rate_pct", "logo_churn_pct"],
         "costs": ["cogs", "sga"],
+        "margin": ["gross_margin_pct", "operating_margin_pct", "net_income_pct"],
+        "revenue": ["revenue", "arr", "bookings"],
         "attrition": ["attrition_rate_pct", "attrition"],
         "burn rate ok": ["burn_multiple"],
         "infra": ["cost_per_transaction", "cloud_spend_pct_revenue"],
-        "default": ["cogs", "sga"],
+        "churn": ["churn_rate_pct", "nrr"],
+        "default": ["nrr", "revenue"],
     },
     AmbiguityType.SHORTHAND: {
         "cash position": ["cash"],

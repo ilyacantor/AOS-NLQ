@@ -303,7 +303,7 @@ def detect_visualization_intent(query: str) -> VisualizationRequirements:
                 filter_dimensions.append(match.group(1))
 
     # Extract metrics (simplified - in production would use Claude)
-    metrics = _extract_metrics_from_query(q)
+    metrics, detected_persona = _extract_metrics_from_query(q)
 
     # --- Single-metric override ---
     # "show me EBITDA" should be a point query, not a dashboard.
@@ -363,6 +363,7 @@ def detect_visualization_intent(query: str) -> VisualizationRequirements:
         drill_down_requested=drill_down_requested,
         filter_dimensions=filter_dimensions,
         confidence=confidence,
+        persona=detected_persona,
     )
 
 
@@ -385,12 +386,15 @@ def _resolve_for_viz(phrase: str, semantic_client, local_only: bool = True) -> O
     return metric.id if metric else None
 
 
-def _extract_metrics_from_query(query: str) -> List[str]:
+def _extract_metrics_from_query(query: str) -> Tuple[List[str], Optional[str]]:
     """
     Extract metric names from a query using DCL semantic catalog.
 
     Uses DCL's semantic layer to resolve user terms to canonical metric IDs.
     Falls back to pattern matching if DCL is unavailable.
+
+    Returns:
+        Tuple of (metrics list, detected persona or None)
     """
     import logging
     import re
@@ -542,7 +546,7 @@ def _extract_metrics_from_query(query: str) -> List[str]:
             )
             extraction_method = "none_found"
             # Return empty - let the caller decide what to do
-            return []
+            return [], None
 
     # Final validation: ensure all returned metrics exist in catalog
     valid_metrics, errors = semantic_client.validate_metrics(metrics)
@@ -554,11 +558,11 @@ def _extract_metrics_from_query(query: str) -> List[str]:
                 f"[METRIC_EXTRACTION] All metrics failed validation for query: '{query}'. "
                 f"Original metrics: {metrics}, Errors: {errors}"
             )
-            return []
+            return [], persona_detected
         metrics = valid_metrics
 
     logger.info(f"[METRIC_EXTRACTION] Extracted metrics: {metrics} (method: {extraction_method})")
-    return metrics
+    return metrics, persona_detected
 
 
 def is_ambiguous_visualization_query(query: str) -> Tuple[bool, Optional[str], List[str]]:

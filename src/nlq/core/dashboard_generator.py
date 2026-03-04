@@ -197,10 +197,22 @@ def _generate_title(query: str, requirements: VisualizationRequirements) -> str:
 
     # Handle full dashboard with year-based overview queries
     if requirements.intent == VisualizationIntent.FULL_DASHBOARD:
+        # Use detected persona for title (e.g., "CRO Dashboard", "CTO Dashboard")
+        persona_label = {
+            "CRO": "CRO Dashboard",
+            "CFO": "CFO Dashboard",
+            "COO": "Operations Dashboard",
+            "CTO": "CTO Dashboard",
+            "CS": "Customer Success Dashboard",
+        }
         if year and any(term in q for term in ["results", "summary", "overview", "performance"]):
             return f"{year} Business Summary"
+        elif year and requirements.persona:
+            return f"{year} {persona_label.get(requirements.persona, 'Executive Dashboard')}"
         elif year:
             return f"{year} Dashboard"
+        elif requirements.persona:
+            return persona_label.get(requirements.persona, "Executive Dashboard")
         return "Executive Dashboard"
 
     if requirements.metrics:
