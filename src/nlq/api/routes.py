@@ -3478,6 +3478,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         parsed = None
         cache_hit = False
         cache_result = None
+        _pending_cache_write = False  # Deferred: write to cache only after execution succeeds
 
         if cache_service and cache_service.is_available:
             cache_result = cache_service.lookup(request.question)
@@ -3532,17 +3533,10 @@ async def query(request: NLQRequest) -> NLQResponse:
 
             logger.info(f"Claude parsed query: {parsed}")
 
-            # Store new parse in cache for future use
-            if cache_service and cache_service.is_available:
-                persona = detect_persona_from_metric(parsed.metric) or "CFO"
-                cache_dict = _parsed_query_to_cache_dict(parsed)
-                cache_service.store(
-                    query=request.question,
-                    parsed=cache_dict,
-                    persona=persona,
-                    confidence=0.95,  # Claude parses are high confidence
-                    source="llm",
-                )
+            # NOTE: Cache write deferred until AFTER execution succeeds.
+            # Storing parses before execution risks caching bad LLM parses
+            # that always fail — every future cache hit re-triggers the failure.
+            _pending_cache_write = True
 
             # Log to learning log
             stored_in_cache = cache_service and cache_service.is_available
@@ -3582,6 +3576,8 @@ async def query(request: NLQRequest) -> NLQResponse:
         result = executor.execute(parsed)
 
         if not result.success:
+            # Execution failed — do NOT cache the LLM parse (it leads to failure)
+            logger.info(f"Skipping cache write — execution failed: {request.question[:80]}")
             stumped_msg = get_stumped_response(include_suggestions=True)
             response = NLQResponse(
                 success=True,
@@ -3595,6 +3591,18 @@ async def query(request: NLQRequest) -> NLQResponse:
             return _track_insufficient_data_if_needed(
                 response, request.question, session_id,
                 metric_found=True, period_found=True, data_exists=False
+            )
+
+        # Execution succeeded — now safe to cache the LLM parse for future queries
+        if _pending_cache_write and cache_service and cache_service.is_available:
+            persona = detect_persona_from_metric(parsed.metric) or "CFO"
+            cache_dict = _parsed_query_to_cache_dict(parsed)
+            cache_service.store(
+                query=request.question,
+                parsed=cache_dict,
+                persona=persona,
+                confidence=0.95,  # Claude parses are high confidence
+                source="llm",
             )
 
         # Format the answer based on intent type

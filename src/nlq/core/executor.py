@@ -244,9 +244,28 @@ class QueryExecutor:
 
         Extracts value, confidence, provenance, and warnings from the
         graph response and packages them into the standard QueryResult format.
+
+        DCL's /api/dcl/resolve returns confidence as a nested dict
+        ({"overall": 0.95, "per_hop": {...}, ...}), not a flat float.
+        We extract the numeric 'overall' value. DCL also returns
+        'concept_sources' (not 'resolved_concepts') — we check both keys.
         """
-        confidence = graph_response.get("confidence", 0.0)
+        raw_confidence = graph_response.get("confidence", 0.0)
+        # DCL returns confidence as dict {"overall": float, ...} — extract numeric value
+        if isinstance(raw_confidence, dict):
+            confidence = raw_confidence.get("overall", 0.0)
+        elif isinstance(raw_confidence, (int, float)):
+            confidence = raw_confidence
+        else:
+            confidence = 0.0
         warnings = graph_response.get("warnings", [])
+
+        # DCL returns 'concept_sources', executor historically expected 'resolved_concepts'
+        concept_sources = (
+            graph_response.get("resolved_concepts")
+            or graph_response.get("concept_sources")
+            or []
+        )
 
         # Build metadata from graph provenance
         metadata = {
@@ -255,24 +274,21 @@ class QueryExecutor:
             "join_paths": graph_response.get("join_paths"),
             "filters_resolved": graph_response.get("filters_resolved"),
             "warnings": warnings,
-            "resolved_concepts": graph_response.get("resolved_concepts"),
+            "concept_sources": concept_sources,
         }
 
-        # Extract primary value from resolved concepts
-        resolved_concepts = graph_response.get("resolved_concepts", [])
+        # Extract primary value from resolved concepts / concept_sources
         value = None
-        if resolved_concepts:
-            primary = resolved_concepts[0]
-            value = primary.get("value")
-            # If no direct value, package the full resolution as the value
-            if value is None:
-                value = {
-                    "concept": primary.get("concept", parsed_query.metric),
-                    "system": primary.get("system"),
-                    "field": primary.get("field"),
-                    "confidence": primary.get("confidence", confidence),
-                    "provenance": graph_response.get("provenance"),
-                }
+        if concept_sources:
+            primary = concept_sources[0]
+            raw_val = primary.get("value")
+            # Only accept scalar values — dict/list metadata must NOT flow as the query value
+            if isinstance(raw_val, (int, float)):
+                value = raw_val
+            elif isinstance(raw_val, str):
+                value = raw_val
+            # If no usable value, value stays None — graph provided provenance but no data.
+            # The metadata dict is stored in QueryResult.metadata, NOT in value.
 
         # If graph returned data directly, use it
         if graph_response.get("data"):

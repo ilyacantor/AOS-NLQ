@@ -16,14 +16,15 @@ import math
 from typing import Optional
 
 
-def bounded_confidence(score: float) -> float:
+def bounded_confidence(score) -> float:
     """
     Ensure confidence is always in [0, 1] range.
 
     CRITICAL: Use this function EVERYWHERE confidence is calculated or returned.
 
     Args:
-        score: Raw confidence score (may be outside [0, 1])
+        score: Raw confidence score (may be outside [0, 1]).
+               Accepts float, int, or dict with 'overall' key (DCL format).
 
     Returns:
         Confidence clamped to [0.0, 1.0]
@@ -33,7 +34,16 @@ def bounded_confidence(score: float) -> float:
         bounded_confidence(1.5) -> 1.0
         bounded_confidence(-0.2) -> 0.0
         bounded_confidence(float('nan')) -> 0.0
+        bounded_confidence({"overall": 0.95}) -> 0.95
     """
+    # Defense in depth: DCL returns confidence as dict {"overall": float, ...}
+    if isinstance(score, dict):
+        score = score.get("overall", 0.0)
+
+    # Reject non-numeric types
+    if not isinstance(score, (int, float)):
+        return 0.0
+
     # Handle NaN and infinity
     if math.isnan(score) or math.isinf(score):
         return 0.0
