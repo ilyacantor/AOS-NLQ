@@ -269,7 +269,7 @@ def step_00_reset(client: httpx.Client, urls: dict[str, str]) -> None:
     """Flush stale pipeline state from AAM, DCL, and Farm so the new run
     starts clean.  Order matters: AAM jobs first (they reference pipes),
     then AAM data (candidates/pipes/handoff), then DCL (pipe definitions
-    + ingest buffers), then Farm old snapshots.
+    + ingest buffers), then Farm reconciliations.  Snapshots are NOT deleted.
     """
     label = "0. Pipeline Reset (flush stale state)"
     t0 = _step_start(label)
@@ -320,24 +320,7 @@ def step_00_reset(client: httpx.Client, urls: dict[str, str]) -> None:
     except Exception as exc:
         errors.append(f"DCL POST /api/dcl/ingest/flush failed: {exc}")
 
-    # 0d -- Farm snapshot cleanup  (keep only the latest for dedup efficiency)
-    _log("   Farm: cleaning old snapshots...", _C.DIM)
-    try:
-        r = _delete(
-            client, f"{urls['farm']}/api/snapshots/cleanup",
-            params={"keep": 0}, timeout=30, urls=urls,
-        )
-        if r.status_code < 400:
-            data = r.json()
-            deleted = data.get("deleted_count", 0)
-            remaining = data.get("remaining_count", "?")
-            _log(f"   Farm: deleted {deleted} old snapshots, {remaining} remaining", _C.CYAN)
-        else:
-            errors.append(f"Farm DELETE /api/snapshots/cleanup HTTP {r.status_code}: {_body_preview(r)}")
-    except Exception as exc:
-        errors.append(f"Farm DELETE /api/snapshots/cleanup failed: {exc}")
-
-    # 0e -- Farm reconciliation cleanup
+    # 0d -- Farm reconciliation cleanup (snapshots are NOT deleted — they persist)
     try:
         r = _delete(
             client, f"{urls['farm']}/api/reconcile/cleanup",
@@ -357,7 +340,7 @@ def step_00_reset(client: httpx.Client, urls: dict[str, str]) -> None:
             "Pipeline reset had failures:\n      " + "\n      ".join(errors),
         )
 
-    _step_pass(label, t0, "stale state flushed from AAM, DCL, Farm")
+    _step_pass(label, t0, "stale state flushed from AAM, DCL, Farm (snapshots preserved)")
 
 
 def step_01_health(client: httpx.Client, urls: dict[str, str]) -> None:
