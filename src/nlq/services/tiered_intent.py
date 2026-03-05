@@ -90,6 +90,10 @@ COMPLEXITY_INDICATORS = {
     QueryComplexity.TREND: [
         "trend", "over time", "historical", "trajectory", "growth rate",
         "quarter over quarter", "qoq", "yoy", "year over year", "monthly",
+        "last 2 quarters", "last 3 quarters", "last 4 quarters",
+        "last 5 quarters", "last 6 quarters", "last 8 quarters",
+        "last 2 months", "last 3 months", "last 6 months", "last 12 months",
+        "last 2 years", "last 3 years", "last 5 years",
     ],
     QueryComplexity.BREAKDOWN: [
         "breakdown", "by region", "by segment", "by product", "by team",
@@ -113,9 +117,14 @@ COMPLEXITY_INDICATORS = {
         # Bridge/analysis queries - explain why metrics changed
         "why did", "why has", "why is", "explain why", "explain how",
         "what caused", "what drove", "what factors",
+        "what did we",
         "increase", "decrease", "drop", "rise", "fell", "grew",
         "declined", "improved", "worsened", "changed",
         "bridge", "waterfall",
+        # Composite / multi-metric queries
+        "financial health", "financial overview", "financial position",
+        "all the margins", "all margins", "all the metrics",
+        "show me all",
     ],
 }
 

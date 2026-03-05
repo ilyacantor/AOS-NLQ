@@ -935,7 +935,16 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
                 f"{dim_display.title()}-level ranking is not available in the current data set."
             )
         else:
-            ranking_word = "top" if order_by == "desc" else "bottom"
+            # Use direction-aware label: if user asked "worst" for a
+            # LOWER_IS_BETTER metric, the sort is desc but the label
+            # should reflect the user's language, not the sort direction.
+            query_lower = question.lower()
+            if any(w in query_lower for w in ("worst", "weakest", "lagging", "poorest")):
+                ranking_word = "worst-performing"
+            elif any(w in query_lower for w in ("best", "leading", "strongest")):
+                ranking_word = "best-performing"
+            else:
+                ranking_word = "top" if order_by == "desc" else "bottom"
             response_text = f"**{name}** is the {ranking_word} {intent.dimension} with {value_str} {metric_display}."
 
         return SimpleMetricResult(
@@ -950,7 +959,13 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
         )
     else:
         # Multiple results - "top 5 reps", etc.
-        ranking_word = "Top" if order_by == "desc" else "Bottom"
+        query_lower = question.lower()
+        if any(w in query_lower for w in ("worst", "weakest", "lagging", "poorest")):
+            ranking_word = "Worst"
+        elif any(w in query_lower for w in ("best", "leading", "strongest")):
+            ranking_word = "Best"
+        else:
+            ranking_word = "Top" if order_by == "desc" else "Bottom"
         metric_display = intent.metric.replace("_pct", "").replace("_", " ")
         lines = [f"**{ranking_word} {intent.limit} {intent.dimension}s by {metric_display}:**\n"]
 
@@ -1015,6 +1030,7 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
     prefixes_to_strip = [
         # Multi-word question patterns (check these first)
         "can you show me ", "can you tell me ", "can you get me ",
+        "what did we ", "what have we ", "how much did we ",
         "what are our ", "what is our ", "what's our ", "whats our ",
         "what are the ", "what is the ", "what's the ", "whats the ",
         "how much is our ", "how much is the ", "how much do we have in ",
@@ -1135,6 +1151,11 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
                 # Simple last quarter calc
                 from src.nlq.core.dates import prior_quarter
                 _extracted_period = prior_quarter()
+            elif "last month" in metric_query:
+                # Last month: use current quarter as approximation
+                # (monthly grain not available, quarterly is closest)
+                from src.nlq.core.dates import prior_quarter
+                _extracted_period = prior_quarter()
 
     # Strip period suffixes (e.g., "revenue 2025", "margin for 2025", "arr in q3")
     # Include prepositions and common misspellings
@@ -1157,6 +1178,7 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
         " 2024", " 2025", " 2026",
         " this year", " last year", " this quarter", " last quarter",
         " this quater", " last quater",  # misspellings
+        " last month", " this month",
         " q1 2024", " q1 2025", " q1 2026",
         " q2 2024", " q2 2025", " q2 2026",
         " q3 2024", " q3 2025", " q3 2026",
@@ -2842,6 +2864,49 @@ def _handle_ambiguous_query_text(
             answer = f"{int(hc) if hc else 0} HC, ${round(rev_emp/1000, 0) if rev_emp else 0}K rev/emp, {round(magic, 1) if magic else 0} magic, {int(payback) if payback else 0}mo payback"
             return NLQResponse(success=True, answer=answer, value=hc, unit="count",
                 confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="ops_summary", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "financial health" -> "Revenue $200M, Gross Margin 65%, Operating Profit $70M, Net Income $45M, Cash $115M, ARR $145M"
+        if "financial health" in q:
+            rev = get_val("revenue", current_year)
+            gm = get_val("gross_margin_pct", current_year)
+            op = get_val("operating_profit", current_year)
+            ni = get_val("net_income", current_year)
+            cash_val = get_val("cash", current_year)
+            arr_val = get_val("arr", current_year)
+            parts = []
+            if rev is not None:
+                parts.append(f"Revenue ${round(rev, 1)}M")
+            if gm is not None:
+                parts.append(f"Gross Margin {round(gm, 1)}%")
+            if op is not None:
+                parts.append(f"Operating Profit ${round(op, 1)}M")
+            if ni is not None:
+                parts.append(f"Net Income ${round(ni, 1)}M")
+            if cash_val is not None:
+                parts.append(f"Cash ${round(cash_val, 1)}M")
+            if arr_val is not None:
+                parts.append(f"ARR ${round(arr_val, 1)}M")
+            answer = f"{current_year} Financial Health: {', '.join(parts)}" if parts else "Financial health data not available"
+            return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
+                confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="financial_health", resolved_period=current_year,
+                related_metrics=related_metrics)
+
+        # "all margins" -> "Gross 65%, Operating 35%, Net 22.5%"
+        if "margin" in q and ("all" in q or "margins" in q):
+            gm = get_val("gross_margin_pct", current_year)
+            om = get_val("operating_margin_pct", current_year)
+            nm = get_val("net_income_pct", current_year)
+            parts = []
+            if gm is not None:
+                parts.append(f"Gross Margin: {round(gm, 1)}%")
+            if om is not None:
+                parts.append(f"Operating Margin: {round(om, 1)}%")
+            if nm is not None:
+                parts.append(f"Net Margin: {round(nm, 1)}%")
+            answer = f"{current_year}: {', '.join(parts)}" if parts else "Margin data not available"
+            return NLQResponse(success=True, answer=answer, value=gm, unit="%",
+                confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="margins", resolved_period=current_year,
                 related_metrics=related_metrics)
 
         # "platform overview" -> "99.95% uptime, 96 features, $4M cloud, 150 eng"

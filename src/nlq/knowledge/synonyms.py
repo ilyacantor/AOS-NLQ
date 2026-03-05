@@ -26,6 +26,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "total revenue",
         "net revenue",
         "gross revenue",
+        "rev",
         # Common misspellings
         "revnue",
         "reveune",
@@ -160,6 +161,12 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "contract value",
         "tcv",
         "total contract value",
+        "closed",
+        "closed deals",
+        "closed won",
+        "deals closed",
+        "deals won",
+        "what we closed",
     ],
 
     # Cash

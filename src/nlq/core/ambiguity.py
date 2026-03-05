@@ -91,6 +91,8 @@ AMBIGUITY_PATTERNS = {
         # (e.g. revenue → new_logo, expansion, renewal). Intercepting here
         # short-circuited the bridge and returned a single number.
         r"full report",                  # Comprehensive request ("breakdown" is analytical — let LLM handle)
+        r"financial health",            # CFO - composite financial overview
+        r"all.*margins",                # CFO - all margins request
         r"^support metrics",            # COO - support metrics
         r"^ops summary",                # COO - operations summary
         r"^platform overview",          # CTO - platform summary
@@ -214,6 +216,7 @@ AMBIGUITY_CANDIDATES = {
         "expense": ["sga", "selling_expense", "ga_expense", "cloud_spend"],
         "profit": ["net_income", "operating_profit", "gross_profit", "revenue", "cogs", "sga"],
         "growth": ["revenue", "arr", "bookings", "customer_count"],
+        "financial health": ["revenue", "gross_margin_pct", "operating_profit", "net_income", "cash", "arr"],
         "support metrics": ["first_response_hours", "resolution_hours", "csat"],
         "ops summary": ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months"],
         "platform overview": ["uptime_pct", "features_shipped", "cloud_spend", "engineering_headcount"],
