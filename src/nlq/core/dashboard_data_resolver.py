@@ -98,7 +98,7 @@ class DashboardDataResolver:
         elif widget_type_str == "map":
             return self._resolve_map_data(widget, reference_year, filters)
         else:
-            return {"loading": False}
+            return {"loading": False, "error": f"Unsupported widget type: {widget_type_str}"}
 
     def _query_dcl(
         self,
@@ -603,8 +603,8 @@ class DashboardDataResolver:
         if data_points:
             return data_points[-4:] if len(data_points) > 4 else data_points
 
-        # Fallback: generate empty quarters
-        return [{"label": f"Q{q}", "value": 0} for q in range(1, 5)]
+        # No data available — return empty list (callers handle empty gracefully)
+        return []
 
     def _extract_dimensional_data(
         self, result: Dict[str, Any], dimension: str, metric: str = None

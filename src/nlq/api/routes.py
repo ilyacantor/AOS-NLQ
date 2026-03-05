@@ -805,6 +805,22 @@ from src.nlq.core.superlative_intent import (
 )
 
 
+# ---------------------------------------------------------------------------
+# Complexity signal detector — queries with analytical language must bypass
+# the ambiguity handler and reach the LLM / cache path instead.
+# ---------------------------------------------------------------------------
+_COMPLEXITY_SIGNALS = re.compile(
+    r"\b(why|how come|what caused|what drove|compare|versus|difference between"
+    r"|trend|over time|changed|increased|decreased|explain|analyze|deep dive)\b",
+    re.IGNORECASE,
+)
+
+
+def _has_complexity_signal(query: str) -> bool:
+    """Return True if the query contains analytical/causal language that the LLM should handle."""
+    return bool(_COMPLEXITY_SIGNALS.search(query))
+
+
 def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
     """
     Handle superlative/ranking queries like 'who is our top rep?'
@@ -3120,8 +3136,11 @@ async def query(request: NLQRequest) -> NLQResponse:
         # =================================================================
         # VAGUE METRIC PRE-CHECK - catch ambiguous queries before simple metric path
         # e.g. "show me the margin" or "how did we do?" need clarification, not eager resolution
+        # Skipped when query contains analytical/causal language (those need the LLM).
         # =================================================================
-        _pre_amb_type, _pre_candidates, _pre_clarification = detect_ambiguity(request.question)
+        _pre_amb_type, _pre_candidates, _pre_clarification = (None, [], None)
+        if not _has_complexity_signal(request.question):
+            _pre_amb_type, _pre_candidates, _pre_clarification = detect_ambiguity(request.question)
         if _pre_amb_type == AmbiguityType.VAGUE_METRIC and _pre_clarification:
             _result = _handle_ambiguous_query_text(
                 request.question, _pre_amb_type, _pre_candidates, _pre_clarification,
@@ -3409,8 +3428,11 @@ async def query(request: NLQRequest) -> NLQResponse:
                     )
                 # In production, fall through to normal query processing if dashboard fails
 
-        # Check for ambiguity first (same as Galaxy endpoint)
-        ambiguity_type, candidates, clarification = detect_ambiguity(request.question)
+        # Check for ambiguity (same as Galaxy endpoint).
+        # Skip when query contains analytical/causal language — those need the LLM.
+        ambiguity_type, candidates, clarification = (None, [], None)
+        if not _has_complexity_signal(request.question):
+            ambiguity_type, candidates, clarification = detect_ambiguity(request.question)
 
         if ambiguity_type and ambiguity_type != AmbiguityType.NONE:
             # Handle ambiguous query with text response

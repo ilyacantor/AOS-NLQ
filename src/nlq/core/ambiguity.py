@@ -90,7 +90,7 @@ AMBIGUITY_PATTERNS = {
         # which parses them as BREAKDOWN_QUERY with proper breakdown_metrics
         # (e.g. revenue → new_logo, expansion, renewal). Intercepting here
         # short-circuited the bridge and returned a single number.
-        r"full (report|breakdown)",     # Comprehensive request
+        r"full report",                  # Comprehensive request ("breakdown" is analytical — let LLM handle)
         r"^support metrics",            # COO - support metrics
         r"^ops summary",                # COO - operations summary
         r"^platform overview",          # CTO - platform summary

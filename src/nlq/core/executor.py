@@ -530,21 +530,21 @@ class QueryExecutor:
             if value is not None:
                 breakdown[metric] = value
 
-        # Graceful fallback: if none of the suggested metrics have data,
-        # fall back to core metrics that always exist (revenue, margin, etc.)
-        if not breakdown:
-            fallback_metrics = ["revenue", "gross_margin_pct", "operating_profit", "arr"]
-            for metric in fallback_metrics:
-                value = self._smart_query(metric, period)
-                if value is not None:
-                    breakdown[metric] = value
-                    break  # Just need one to show something useful
-
-        # Still nothing? Try the primary metric itself
+        # If no breakdown metrics had data, try the primary metric itself
+        # (the metric the user actually asked about — NOT a substitution)
         if not breakdown and parsed_query.metric:
             value = self._smart_query(parsed_query.metric, period)
             if value is not None:
                 breakdown[parsed_query.metric] = value
+
+        if not breakdown:
+            attempted = ", ".join(breakdown_metrics[:5]) if breakdown_metrics else "(none)"
+            return QueryResult(
+                success=False,
+                error="NO_BREAKDOWN_DATA",
+                message=f"No data found for breakdown metrics [{attempted}] in {period}",
+                confidence=0.0,
+            )
 
         return QueryResult(
             success=True,

@@ -703,7 +703,7 @@ export function DashboardRenderer({
                 >
                   <WidgetRenderer
                     widget={widget}
-                    data={widgetData[widget.id] || { loading: true }}
+                    data={widgetData[widget.id] || { loading: false, error: "Widget data not available" }}
                     onClick={editMode ? undefined : (value) => handleWidgetClick(widget, value)}
                     onDoubleClick={editMode ? undefined : handleKPIDoubleClick}
                   />

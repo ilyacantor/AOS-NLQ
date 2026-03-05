@@ -643,7 +643,10 @@ def _generate_full_dashboard(
     dimension = _get_fallback_dimension(primary_metric, requested_dimension)
 
     # Determine if map will be shown (affects layout row offsets)
-    has_map = dimension == "region" and primary_metric in ["revenue", "bookings", "pipeline", "arr"]
+    # Check DCL catalog — if the metric supports "region" dimension, show the map
+    semantic_client = get_semantic_client()
+    valid_dims = semantic_client.get_valid_dimensions(primary_metric)
+    has_map = dimension == "region" and "region" in (valid_dims or [])
 
     # If map is present, it goes first at row 3 left; charts shift to row 6
     # If no map, charts start at row 3
