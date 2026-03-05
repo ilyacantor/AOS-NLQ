@@ -66,6 +66,11 @@ class NLQRequest(BaseModel):
         description="Data mode: 'live' for DCL, 'demo' for local fact_base.json"
     )
 
+    persona: Optional[str] = Field(
+        default=None,
+        description="Active persona (CFO/CRO/COO/CTO/CHRO). Authoritative for dashboard generation."
+    )
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {

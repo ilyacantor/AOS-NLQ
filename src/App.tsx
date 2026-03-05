@@ -131,8 +131,19 @@ function App() {
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Dashboard state - always use DashboardRenderer
-  const [dashboardSchema, setDashboardSchema] = useState<DashboardSchema | null>(null)
-  const [dashboardWidgetData, setDashboardWidgetData] = useState<Record<string, any>>({})
+  // Restore from sessionStorage so dashboards survive view mode switches
+  const [dashboardSchema, setDashboardSchema] = useState<DashboardSchema | null>(() => {
+    try {
+      const stored = sessionStorage.getItem('aos_dashboard_schema')
+      return stored ? JSON.parse(stored) : null
+    } catch { return null }
+  })
+  const [dashboardWidgetData, setDashboardWidgetData] = useState<Record<string, any>>(() => {
+    try {
+      const stored = sessionStorage.getItem('aos_dashboard_data')
+      return stored ? JSON.parse(stored) : {}
+    } catch { return {} }
+  })
   const [isGeneratingDashboard, setIsGeneratingDashboard] = useState(false)
   const [dashboardError, setDashboardError] = useState<string | null>(null)
 
@@ -243,7 +254,8 @@ function App() {
           question: queryText,
           reference_date: new Date().toISOString().split('T')[0],
           session_id: sessionId,
-          data_mode: dataModeRef.current
+          data_mode: dataModeRef.current,
+          persona: selectedPersona
         })
       })
 
@@ -322,6 +334,11 @@ function App() {
       if (data.response_type === 'dashboard' && data.dashboard) {
         setDashboardSchema(data.dashboard)
         setDashboardWidgetData(data.dashboard_data || {})
+        // Persist to sessionStorage so dashboard survives view mode switches
+        try {
+          sessionStorage.setItem('aos_dashboard_schema', JSON.stringify(data.dashboard))
+          sessionStorage.setItem('aos_dashboard_data', JSON.stringify(data.dashboard_data || {}))
+        } catch { /* sessionStorage full or unavailable — non-fatal */ }
         setViewMode('dashboard')
         setGalaxyResponse(null)
       } else {
@@ -363,7 +380,7 @@ function App() {
     setIsLoading(false)
     refreshLLMStats()
     setHistoryVersion(v => v + 1)
-  }, [sessionId])
+  }, [sessionId, selectedPersona])
 
   // Default search on load suppressed — Galaxy starts empty with centered chatbox
 
@@ -396,6 +413,13 @@ function App() {
     if (widgetData) {
       setDashboardWidgetData(widgetData)
     }
+    // Persist refined dashboard to sessionStorage
+    try {
+      sessionStorage.setItem('aos_dashboard_schema', JSON.stringify(newSchema))
+      if (widgetData) {
+        sessionStorage.setItem('aos_dashboard_data', JSON.stringify(widgetData))
+      }
+    } catch { /* non-fatal */ }
   }, [])
 
   // Handle navigation from DashboardRenderer when it detects a factual query

@@ -166,30 +166,10 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
     setNodeStates(newStates);
   }, [data.nodes, targetPositions]);
 
-  // Animation time for smooth orbit effect
-  const [animTime, setAnimTime] = useState(0);
+  // Animation removed — nodes are positioned statically (no orbit wobble)
 
-  // Throttled animation loop — ~10fps for a subtle 3px orbit wobble.
-  // Full 60fps is unnecessary and wastes CPU with constant re-renders.
-  useEffect(() => {
-    let rafId: number;
-    let lastTime = performance.now();
-
-    const animate = (now: number) => {
-      const delta = (now - lastTime) / 1000;
-      if (delta >= 0.1) { // ~10fps
-        lastTime = now;
-        setAnimTime(t => t + delta);
-      }
-      rafId = requestAnimationFrame(animate);
-    };
-
-    rafId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(rafId);
-  }, []);
-
-  // Get current position for a node with smooth orbit animation
-  const getNodePosition = useCallback((nodeId: string, nodeIndex: number) => {
+  // Get current position for a node (static — no orbit wobble)
+  const getNodePosition = useCallback((nodeId: string, _nodeIndex: number) => {
     const state = nodeStates.get(nodeId);
     const basePos = state
       ? { x: state.targetX, y: state.targetY }
@@ -200,18 +180,8 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
       return { x: state.x, y: state.y };
     }
 
-    // Apply gentle orbit animation
-    const orbitPhase = nodeIndex * 0.9;
-    const orbitAmplitude = 3;
-    const orbitSpeed = 0.4;
-    const offsetX = Math.sin(animTime * orbitSpeed + orbitPhase) * orbitAmplitude;
-    const offsetY = Math.cos(animTime * orbitSpeed * 0.7 + orbitPhase) * orbitAmplitude;
-
-    return {
-      x: basePos.x + offsetX,
-      y: basePos.y + offsetY,
-    };
-  }, [nodeStates, targetPositions, centerX, centerY, animTime, draggedNodeId]);
+    return basePos;
+  }, [nodeStates, targetPositions, centerX, centerY, draggedNodeId]);
 
   // Drag handlers
   const handleMouseDown = useCallback((e: React.MouseEvent, node: IntentNode, nodeIndex: number) => {
@@ -385,62 +355,8 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
     >
-            {/* Gradient definitions */}
-            <defs>
-              <radialGradient id="bgGradient" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#0f172a" />
-                <stop offset="100%" stopColor="#020617" />
-              </radialGradient>
-            </defs>
-            <rect width={width} height={height} fill="url(#bgGradient)" />
-
-            {/* Orbital Rings */}
-            <circle
-              cx={centerX}
-              cy={centerY}
-              r={ringRadii.outer}
-              fill="none"
-              stroke={RING_CONFIG.outer.strokeColor}
-              strokeWidth="1"
-              strokeDasharray="4 4"
-            />
-            <circle
-              cx={centerX}
-              cy={centerY}
-              r={ringRadii.middle}
-              fill="none"
-              stroke={RING_CONFIG.middle.strokeColor}
-              strokeWidth="1"
-              strokeDasharray="4 4"
-            />
-            <circle
-              cx={centerX}
-              cy={centerY}
-              r={ringRadii.inner}
-              fill="none"
-              stroke={RING_CONFIG.inner.strokeColor}
-              strokeWidth="2"
-            />
-
-            {/* Ring Labels */}
-            <text
-              x={centerX}
-              y={centerY - ringRadii.inner - 8}
-              textAnchor="middle"
-              fill="#64748b"
-              fontSize="10"
-            >
-              Inner
-            </text>
-            <text
-              x={centerX + ringRadii.middle + 15}
-              y={centerY}
-              textAnchor="start"
-              fill="#475569"
-              fontSize="10"
-            >
-              Outer
-            </text>
+            {/* Plain dark background */}
+            <rect width={width} height={height} fill="#0f172a" />
 
             {/* Center - Query */}
             <g transform={`translate(${centerX}, ${centerY})`}>

@@ -2182,13 +2182,8 @@ def _handle_ambiguous_query_text(
         _needs_clarif = False
         _clarif_prompt = None
 
-        # "show me the margin" without specifying which → ask
-        if "margin" in q and not any(x in q for x in ("gross", "operating", "net", "ebitda")):
-            _needs_clarif = True
-            _clarif_prompt = "Which margin did you mean? We track: Gross margin, Operating margin, and Net margin."
-
         # "how did we do?" without specifying what → ask
-        elif re.search(r'\bhow\b.*\bdo\b|\bhow\b.*\bdid\b', q) and not any(
+        if re.search(r'\bhow\b.*\bdo\b|\bhow\b.*\bdid\b', q) and not any(
             x in q for x in ("revenue", "profit", "margin", "arr", "bookings", "income")
         ):
             _needs_clarif = True
@@ -3171,6 +3166,30 @@ async def query(request: NLQRequest) -> NLQResponse:
             return _result
 
         # =================================================================
+        # HANDLED AMBIGUITY PRE-CHECK - YES_NO, JUDGMENT_CALL, SHORTHAND,
+        # BURN_RATE all have dedicated handlers in _handle_ambiguous_query_text.
+        # Intercept early so they never fall through to the LLM/cache path
+        # which can misinterpret them (e.g. "are we profitable" -> metric "ar").
+        # =================================================================
+        _EARLY_INTERCEPT_TYPES = {
+            AmbiguityType.YES_NO,
+            AmbiguityType.JUDGMENT_CALL,
+            AmbiguityType.SHORTHAND,
+            AmbiguityType.BURN_RATE,
+        }
+        if _pre_amb_type in _EARLY_INTERCEPT_TYPES:
+            _result = _handle_ambiguous_query_text(
+                request.question, _pre_amb_type, _pre_candidates, _pre_clarification,
+            )
+            await _log_query_event(
+                request.question, "bypass",
+                message=f"Ambiguity pre-check -> {_pre_amb_type.value}",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
+            return _result
+
+        # =================================================================
         # SIMPLE METRIC QUERIES - Handle "what is X?" queries early (no Claude needed)
         # =================================================================
         simple_result = _try_simple_metric_query(request.question)
@@ -3204,7 +3223,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         # generate proper dashboard widgets. Only text-mode dashboard summaries go through the old handler.
         if _is_dashboard_query(request.question):
             # Check if this should be a visual dashboard first
-            should_viz, viz_requirements = should_generate_visualization(request.question)
+            should_viz, viz_requirements = should_generate_visualization(request.question, persona=request.persona)
             if should_viz and viz_requirements.intent != VisualizationIntent.SIMPLE_ANSWER:
                 # Let the visualization intent handler below generate proper widgets
                 pass
@@ -3314,7 +3333,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                 current_schema = DashboardSchema(**current_dashboard_dict)
 
                 # Detect visualization requirements for the refinement
-                _, viz_requirements = should_generate_visualization(request.question)
+                _, viz_requirements = should_generate_visualization(request.question, persona=request.persona)
 
                 # Apply refinement
                 updated_schema = refine_dashboard_schema(
@@ -3374,7 +3393,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                 # In production, fall through to new dashboard generation
 
         # Check for new visualization request
-        should_viz, viz_requirements = should_generate_visualization(request.question)
+        should_viz, viz_requirements = should_generate_visualization(request.question, persona=request.persona)
 
         if should_viz and viz_requirements.intent != VisualizationIntent.SIMPLE_ANSWER:
             logger.info(f"Visualization intent detected: {viz_requirements.intent.value}")

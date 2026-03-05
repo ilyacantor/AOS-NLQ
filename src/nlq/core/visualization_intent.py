@@ -214,7 +214,7 @@ TIME_GRANULARITY_PATTERNS = {
 }
 
 
-def detect_visualization_intent(query: str) -> VisualizationRequirements:
+def detect_visualization_intent(query: str, persona: Optional[str] = None) -> VisualizationRequirements:
     """
     Detect visualization intent from a natural language query.
 
@@ -303,7 +303,7 @@ def detect_visualization_intent(query: str) -> VisualizationRequirements:
                 filter_dimensions.append(match.group(1))
 
     # Extract metrics (simplified - in production would use Claude)
-    metrics, detected_persona = _extract_metrics_from_query(q)
+    metrics, detected_persona = _extract_metrics_from_query(q, persona=persona)
 
     # --- Single-metric override ---
     # "show me EBITDA" should be a point query, not a dashboard.
@@ -386,7 +386,20 @@ def _resolve_for_viz(phrase: str, semantic_client, local_only: bool = True) -> O
     return metric.id if metric else None
 
 
-def _extract_metrics_from_query(query: str) -> Tuple[List[str], Optional[str]]:
+# Persona metric packs — authoritative metric lists per persona.
+# When the request includes an explicit persona, these are used unconditionally
+# instead of keyword detection from query text.
+PERSONA_METRICS = {
+    "CFO": ["revenue", "gross_margin_pct", "arr", "ebitda", "net_income", "operating_profit"],
+    "CRO": ["pipeline", "win_rate_pct", "quota_attainment_pct", "sales_cycle_days", "arr", "revenue"],
+    "COO": ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months", "ltv_cac", "attrition_rate_pct"],
+    "CTO": ["uptime_pct", "p1_incidents", "deployment_frequency", "mttr", "open_bugs"],
+    "CHRO": ["headcount", "attrition_rate_pct", "hires", "offer_acceptance_rate_pct", "time_to_fill"],
+    "CS": ["nrr", "churn_rate_pct", "customer_count", "nps", "csat"],
+}
+
+
+def _extract_metrics_from_query(query: str, persona: Optional[str] = None) -> Tuple[List[str], Optional[str]]:
     """
     Extract metric names from a query using DCL semantic catalog.
 
@@ -495,38 +508,44 @@ def _extract_metrics_from_query(query: str) -> Tuple[List[str], Optional[str]]:
     # resolved metrics with persona defaults for consistent layout
     extraction_method = "semantic_resolution" if metrics else None
 
-    persona_metrics = None
+    persona_metrics_list = None
     persona_detected = None
 
-    # Persona metric lists are ordered by priority. Provide extras so that
-    # after validation filters out metrics DCL doesn't have, we still have
-    # enough for a useful dashboard (target: 4 widgets).
-    if any(term in q for term in ["ops dashboard", "operations dashboard", "coo dashboard"]):
-        persona_metrics = ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months", "ltv_cac", "attrition_rate_pct"]
-        persona_detected = "COO"
-    elif any(term in q for term in ["sales dashboard", "cro dashboard", "growth dashboard"]):
-        persona_metrics = ["pipeline", "win_rate_pct", "quota_attainment_pct", "sales_cycle_days", "arr", "revenue"]
-        persona_detected = "CRO"
-    elif any(term in q for term in ["finance dashboard", "cfo dashboard", "financial dashboard"]):
-        persona_metrics = ["revenue", "gross_margin_pct", "arr", "ebitda", "net_income", "operating_profit"]
-        persona_detected = "CFO"
-    elif any(term in q for term in ["engineering dashboard", "cto dashboard", "tech dashboard"]):
-        persona_metrics = ["uptime_pct", "p1_incidents", "deployment_frequency", "mttr", "open_bugs"]
-        persona_detected = "CTO"
-    elif any(term in q for term in ["customer dashboard", "cs dashboard", "success dashboard"]):
-        persona_metrics = ["nrr", "churn_rate_pct", "customer_count", "nps", "csat"]
-        persona_detected = "CS"
+    # AUTHORITATIVE PERSONA: When the request includes an explicit persona param
+    # (from the frontend's selectedPersona), use that unconditionally instead of
+    # keyword detection from query text. The persona param IS the persona.
+    if persona and persona.upper() in PERSONA_METRICS:
+        persona_metrics_list = list(PERSONA_METRICS[persona.upper()])
+        persona_detected = persona.upper()
+        logger.info(f"[METRIC_EXTRACTION] Using authoritative persona={persona_detected} from request")
+    else:
+        # Fallback: infer persona from query keywords (legacy path for when no persona param)
+        if any(term in q for term in ["ops dashboard", "operations dashboard", "coo dashboard"]):
+            persona_metrics_list = list(PERSONA_METRICS["COO"])
+            persona_detected = "COO"
+        elif any(term in q for term in ["sales dashboard", "cro dashboard", "growth dashboard"]):
+            persona_metrics_list = list(PERSONA_METRICS["CRO"])
+            persona_detected = "CRO"
+        elif any(term in q for term in ["finance dashboard", "cfo dashboard", "financial dashboard"]):
+            persona_metrics_list = list(PERSONA_METRICS["CFO"])
+            persona_detected = "CFO"
+        elif any(term in q for term in ["engineering dashboard", "cto dashboard", "tech dashboard"]):
+            persona_metrics_list = list(PERSONA_METRICS["CTO"])
+            persona_detected = "CTO"
+        elif any(term in q for term in ["customer dashboard", "cs dashboard", "success dashboard"]):
+            persona_metrics_list = list(PERSONA_METRICS["CS"])
+            persona_detected = "CS"
 
-    if persona_metrics:
+    if persona_metrics_list:
         if metrics:
             # Merge: keep resolved metrics, fill remaining slots from persona defaults
-            for pm in persona_metrics:
+            for pm in persona_metrics_list:
                 if pm not in metrics and len(metrics) < 4:
                     metrics.append(pm)
             extraction_method = f"semantic_resolution+persona_fill:{persona_detected}"
             logger.info(f"[METRIC_EXTRACTION] Merged resolved + {persona_detected} defaults: {metrics}")
         else:
-            metrics = persona_metrics
+            metrics = persona_metrics_list
             extraction_method = f"persona_default:{persona_detected}"
             logger.info(f"[METRIC_EXTRACTION] Using {persona_detected} persona metrics: {metrics}")
     elif not metrics:
@@ -594,16 +613,17 @@ def is_ambiguous_visualization_query(query: str) -> Tuple[bool, Optional[str], L
     return False, None, []
 
 
-def should_generate_visualization(query: str) -> Tuple[bool, VisualizationRequirements]:
+def should_generate_visualization(query: str, persona: Optional[str] = None) -> Tuple[bool, VisualizationRequirements]:
     """
     Determine if a query should result in a visualization.
 
     Args:
         query: The user's natural language query
+        persona: Active persona from frontend (CFO/CRO/COO/CTO/CHRO). Authoritative for dashboard generation.
 
     Returns:
         Tuple of (should_visualize, requirements)
     """
-    requirements = detect_visualization_intent(query)
+    requirements = detect_visualization_intent(query, persona=persona)
     should_visualize = requirements.intent != VisualizationIntent.SIMPLE_ANSWER
     return should_visualize, requirements

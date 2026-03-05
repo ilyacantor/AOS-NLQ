@@ -388,7 +388,17 @@ def format_answer(parsed, result, unit: str) -> tuple:
         parts = []
         for metric, value in breakdown.items():
             display = metric.replace('_', ' ').title()
-            parts.append(f"{display}: {format_value_with_unit(value, unit)}")
+            if isinstance(value, (int, float)):
+                parts.append(f"{display}: {format_value_with_unit(value, unit)}")
+            elif isinstance(value, dict):
+                # Nested breakdown — extract numeric value if present
+                numeric = value.get("value") or value.get("result")
+                if isinstance(numeric, (int, float)):
+                    parts.append(f"{display}: {format_value_with_unit(numeric, unit)}")
+                else:
+                    parts.append(f"{display}: {value}")
+            else:
+                parts.append(f"{display}: {value}")
         answer = f"Breakdown for {period}: {', '.join(parts)}" if parts else f"Breakdown for {period} (no data)"
         return answer, data
 
