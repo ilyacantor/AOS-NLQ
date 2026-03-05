@@ -45,11 +45,11 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const [nodeStates, setNodeStates] = useState<Map<string, NodeState>>(new Map());
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
 
-  // Auto-open left panel when query results arrive (but close for funny/easter egg responses)
+  // Auto-open left panel when any query result arrives (close only for funny/easter egg responses)
   useEffect(() => {
     if (data && data.query_type === 'OFF_TOPIC' && data.nodes.length === 0) {
       setLeftPanelOpen(false);
-    } else if (data && data.nodes && data.nodes.length > 0) {
+    } else if (data) {
       setLeftPanelOpen(true);
     }
   }, [data]);

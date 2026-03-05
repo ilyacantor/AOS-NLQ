@@ -86,8 +86,10 @@ AMBIGUITY_PATTERNS = {
     AmbiguityType.BROAD_REQUEST: [
         r"p&l",                         # CFO - P&L (any mention)
         r"profit.* loss",               # CFO - profit and loss
-        r"why.*(rev|margin|churn|cost|expense|profit|growth|incr|decr|drop|rise|fell|spike)",  # Causal "why" questions
-        r"what.*(drove|driving|caused|behind)",  # Causal "what drove" questions
+        # Causal "why" / "what drove" patterns removed — these must flow to LLM
+        # which parses them as BREAKDOWN_QUERY with proper breakdown_metrics
+        # (e.g. revenue → new_logo, expansion, renewal). Intercepting here
+        # short-circuited the bridge and returned a single number.
         r"full (report|breakdown)",     # Comprehensive request
         r"^support metrics",            # COO - support metrics
         r"^ops summary",                # COO - operations summary
