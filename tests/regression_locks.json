@@ -1,5 +1,19 @@
 [
   {
+    "id": 1,
+    "name": "A1: 'why did rev incr' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "f02e1a9",
+    "reason": "Fixed TypeError crash — DCL confidence dict + graph fallthrough"
+  },
+  {
+    "id": 2,
+    "name": "A2: 'why did revenue increase' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "f02e1a9",
+    "reason": "Fixed TypeError crash — DCL confidence dict + graph fallthrough"
+  },
+  {
     "id": 3,
     "name": "A3: 'whats the margin' (CFO)",
     "locked_date": "2026-03-05",
@@ -126,18 +140,18 @@
     "reason": "Initial baseline lock — passing at system initialization"
   },
   {
-    "id": 21,
-    "name": "B6: opex drivers (CFO)",
-    "locked_date": "2026-03-05",
-    "locked_by_commit": "a43c44d",
-    "reason": "Initial baseline lock — passing at system initialization"
-  },
-  {
     "id": 22,
     "name": "B7: revenue by region (CRO)",
     "locked_date": "2026-03-05",
     "locked_by_commit": "a43c44d",
     "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 23,
+    "name": "B8: YoY revenue growth (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "f02e1a9",
+    "reason": "Fixed TypeError crash — DCL confidence dict + graph fallthrough"
   },
   {
     "id": 24,
@@ -460,6 +474,13 @@
     "locked_date": "2026-03-05",
     "locked_by_commit": "a43c44d",
     "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 79,
+    "name": "F4: 'tell me everything' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "f02e1a9",
+    "reason": "Fixed TypeError crash — DCL confidence dict + graph fallthrough"
   },
   {
     "id": 81,
