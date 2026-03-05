@@ -1,0 +1,576 @@
+[
+  {
+    "id": 3,
+    "name": "A3: 'whats the margin' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 4,
+    "name": "A4: 'are we profitable' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 5,
+    "name": "A5: 'build me a dashboard' (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 6,
+    "name": "A6: 'build me a dashboard' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 7,
+    "name": "A7: 'build me a dashboard' (COO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 8,
+    "name": "A8: 'how are we doing' (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 9,
+    "name": "A9: 'how are we doing' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 10,
+    "name": "A10: 'how are we doing' (COO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 11,
+    "name": "A11: 'how's the business' (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 12,
+    "name": "A12: '2025 KPIs in dash' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 13,
+    "name": "A13: 'platform stable?' (CTO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 14,
+    "name": "A14: 'what's our headcount' (COO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 15,
+    "name": "A15: 'show me attrition trends' (CHRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 16,
+    "name": "B1: churn rate by segment (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 17,
+    "name": "B2: P1 incidents last quarter (CTO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 18,
+    "name": "B3: churn vs NRR 3 years (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 19,
+    "name": "B4: worst churn segment (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 20,
+    "name": "B5: full P&L 2025 (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 21,
+    "name": "B6: opex drivers (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 22,
+    "name": "B7: revenue by region (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 24,
+    "name": "B9: top 5 customers by ARR (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 25,
+    "name": "B10: burn rate (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 26,
+    "name": "B11: pipeline next quarter (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 27,
+    "name": "B12: hitting quota (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 28,
+    "name": "B13: customer satisfaction trend (COO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 29,
+    "name": "B14: engineering velocity (CTO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 30,
+    "name": "B15: compare Q1 vs Q2 revenue (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 31,
+    "name": "B16: gross margin trend (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 32,
+    "name": "B17: hiring metrics (CHRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 33,
+    "name": "B18: revenue per employee (COO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 35,
+    "name": "B20: cost of revenue breakdown (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 36,
+    "name": "C1: 'give me an overview' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 37,
+    "name": "C2: 'give me an overview' (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 38,
+    "name": "C3: 'give me an overview' (COO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 39,
+    "name": "C4: 'give me an overview' (CTO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 40,
+    "name": "C5: 'give me an overview' (CHRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 41,
+    "name": "C6: 'what should I worry about?' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 42,
+    "name": "C7: 'what should I worry about?' (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 45,
+    "name": "C10: 'how did we do last quarter?' (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 47,
+    "name": "C12: 'build me a CHRO dashboard' (CHRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 48,
+    "name": "C13: 'build me a CTO dashboard' (CTO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 49,
+    "name": "C14: 'what are our KPIs?' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 50,
+    "name": "C15: 'what are our KPIs?' (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 51,
+    "name": "D1: 'what's our revenue?' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 52,
+    "name": "D2: 'what's our ARR?' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 53,
+    "name": "D3: 'gross margin' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 54,
+    "name": "D4: 'operating margin' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 55,
+    "name": "D5: 'net margin' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 56,
+    "name": "D6: 'what's EBITDA?' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 57,
+    "name": "D7: 'cash position' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 58,
+    "name": "D8: 'what's NRR?' (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 59,
+    "name": "D9: 'pipeline value' (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 60,
+    "name": "D10: 'win rate' (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 61,
+    "name": "D11: 'quota attainment' (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 62,
+    "name": "D12: 'sales cycle days' (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 63,
+    "name": "D13: 'what's our churn rate?' (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 64,
+    "name": "D14: 'customer count' (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 65,
+    "name": "D15: 'what's net income?' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 66,
+    "name": "E1: compare Q1 vs Q2 2025 revenue (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 67,
+    "name": "E2: revenue trend last 4 quarters (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 70,
+    "name": "E5: YoY growth in ARR (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 73,
+    "name": "E8: pipeline trend since January (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 74,
+    "name": "E9: compare gross vs net margin (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 75,
+    "name": "E10: bookings this year vs last (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 76,
+    "name": "F1: 'hi' (no persona)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 77,
+    "name": "F2: 'what's the weather?' (no persona)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 81,
+    "name": "F6: '$' (no persona)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 82,
+    "name": "F7: empty string (no persona)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 83,
+    "name": "F8: 'show me the data' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 85,
+    "name": "F10: 'thanks' (no persona)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 86,
+    "name": "G1: full P&L 2025 (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 87,
+    "name": "G2: executive summary (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 89,
+    "name": "G4: sales performance scorecard (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 90,
+    "name": "G5: operational efficiency report (COO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 92,
+    "name": "G7: revenue and EBITDA trend (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 93,
+    "name": "G8: customer health overview (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 94,
+    "name": "G9: unit economics (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 95,
+    "name": "G10: board deck metrics (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 96,
+    "name": "H1: worst churn segment (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 97,
+    "name": "H2: best performing region (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 99,
+    "name": "H4: largest customer (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 100,
+    "name": "H5: lowest margin product (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "a43c44d",
+    "reason": "Initial baseline lock — passing at system initialization"
+  }
+]
