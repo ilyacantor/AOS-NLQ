@@ -190,15 +190,10 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     hasDragged.current = false;
 
-    // Capture current visual position (including orbit animation) to prevent jump
+    // Capture current visual position to prevent jump on drag start
     const target = targetPositions.get(node.id) || { x: centerX, y: centerY };
-    const orbitPhase = nodeIndex * 0.9;
-    const orbitAmplitude = 3;
-    const orbitSpeed = 0.4;
-    const offsetX = Math.sin(animTime * orbitSpeed + orbitPhase) * orbitAmplitude;
-    const offsetY = Math.cos(animTime * orbitSpeed * 0.7 + orbitPhase) * orbitAmplitude;
-    const currentX = target.x + offsetX;
-    const currentY = target.y + offsetY;
+    const currentX = target.x;
+    const currentY = target.y;
 
     setNodeStates(prev => {
       const next = new Map(prev);
@@ -216,7 +211,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
 
     // Set dragged node after updating position to prevent flicker
     setDraggedNodeId(node.id);
-  }, [targetPositions, centerX, centerY, animTime]);
+  }, [targetPositions, centerX, centerY]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!draggedNodeId || !svgRef.current) return;

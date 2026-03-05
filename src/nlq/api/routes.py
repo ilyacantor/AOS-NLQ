@@ -404,7 +404,7 @@ def _extract_period_from_dashboard_query(question: str) -> str:
     return get_semantic_client().get_latest_period()
 
 
-def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
+def _handle_dashboard_query(question: str, persona: Optional[str] = None) -> Optional[IntentMapResponse]:
     """
     Generate persona-specific dashboard with key metrics.
 
@@ -486,8 +486,8 @@ def _handle_dashboard_query(question: str) -> Optional[IntentMapResponse]:
         period_data = _build_period_data(period)
     # Default to annual data (already fetched above)
 
-    # Detect persona from question or default based on keywords
-    persona = _detect_dashboard_persona(question)
+    # Use explicitly passed persona; fall back to keyword detection
+    persona = persona or _detect_dashboard_persona(question)
 
     # Build dashboard based on persona
     nodes = []
@@ -3229,7 +3229,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                 pass
             else:
                 # Fallback to text summary for non-visual dashboard requests
-                dashboard_response = _handle_dashboard_query(request.question)
+                dashboard_response = _handle_dashboard_query(request.question, persona=request.persona)
                 if dashboard_response:
                     await _log_query_event(
                         request.question, "bypass",

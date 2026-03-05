@@ -107,6 +107,9 @@ VISUALIZATION_TRIGGERS = {
     "how's": 0.7,  # "how's revenue"
     "how is": 0.7,  # "how is pipeline"
     "doing": 0.7,  # "how's revenue doing"
+    # Status queries - should route to visual dashboard, not text summary
+    "how are we doing": 0.95,
+    "how's the business": 0.95,
 }
 
 # Answer triggers - just want a simple answer
@@ -550,12 +553,13 @@ def _extract_metrics_from_query(query: str, persona: Optional[str] = None) -> Tu
             logger.info(f"[METRIC_EXTRACTION] Using {persona_detected} persona metrics: {metrics}")
     elif not metrics:
         # Check for generic year+summary queries (e.g., "2025 results", "2024 summary")
-        # These should default to CFO persona since they're asking for a business overview
+        # Use the passed persona if available, otherwise default to CFO
         import re
         if re.search(r"\b20\d{2}\b", q) and any(term in q for term in ["results", "summary", "overview", "performance", "p&l", "dashboard", "dash", "kpi", "kpis"]):
-            metrics = ["revenue", "gross_margin_pct", "arr", "ebitda", "operating_profit", "net_income"]
-            extraction_method = "year_summary_default:CFO"
-            logger.info(f"[METRIC_EXTRACTION] Year summary query detected, using CFO metrics: {metrics}")
+            target_persona = persona.upper() if persona else "CFO"
+            metrics = list(PERSONA_METRICS.get(target_persona, PERSONA_METRICS["CFO"]))
+            extraction_method = f"year_summary_default:{target_persona}"
+            logger.info(f"[METRIC_EXTRACTION] Year summary query detected, using {target_persona} metrics: {metrics}")
         else:
             # NO SILENT DEFAULT - log a warning and return empty
             # The caller must decide what to do

@@ -303,8 +303,10 @@ def format_ambiguous_response(
     return ". ".join(parts) + "." if parts else "Query interpreted with multiple possibilities."
 
 
-def format_value_with_unit(value: float, unit: str) -> str:
+def format_value_with_unit(value, unit: str) -> str:
     """Format a value with its unit for answer text."""
+    if not isinstance(value, (int, float)):
+        return str(value)
     if unit == "%":
         return f"{round(value, 1)}%"
     elif unit == "USD millions":
@@ -350,6 +352,11 @@ def format_answer(parsed, result, unit: str) -> tuple:
 
     elif parsed.intent == QueryIntent.COMPARISON_QUERY:
         data = result.value
+        # Guard against non-dict values (e.g., graph resolution metadata)
+        if not isinstance(data, dict) or "value1" not in data:
+            formatted_str = str(data)
+            answer = f"{metric_display} for {parsed.resolved_period}: {formatted_str}"
+            return answer, data
         val1 = round(data["value1"], 1)
         val2 = round(data["value2"], 1)
         diff = round(data["difference"], 1)
@@ -373,9 +380,14 @@ def format_answer(parsed, result, unit: str) -> tuple:
 
     elif parsed.intent == QueryIntent.AGGREGATION_QUERY:
         data = result.value
+        # Guard against non-dict values
+        if not isinstance(data, dict):
+            formatted_str = str(data)
+            answer = f"{metric_display} for {parsed.resolved_period}: {formatted_str}"
+            return answer, data
         agg_type = data.get("aggregation_type", "sum")
         agg_result = data.get("result", 0)
-        formatted_value = round(agg_result, 1)
+        formatted_value = round(agg_result, 1) if isinstance(agg_result, (int, float)) else agg_result
         formatted_str = format_value_with_unit(agg_result, unit)
         periods = data.get("periods", [])
         answer = f"The {agg_type} of {metric_display} across {len(periods)} periods is {formatted_str}"
