@@ -3646,7 +3646,7 @@ async def query(request: NLQRequest) -> NLQResponse:
             entity=dcl_data.get("entity_name"),
             entity_id=dcl_data.get("entity_id"),
             entity_resolution=dcl_data.get("entity_resolution"),
-            provenance=dcl_data.get("provenance"),
+            provenance=dcl_data.get("provenance") if isinstance(dcl_data.get("provenance"), dict) else None,
             conflicts=dcl_data.get("conflicts"),
             temporal_warning=dcl_data.get("temporal_warning"),
             persona=dcl_data.get("persona_value", {}).get("persona") if dcl_data.get("persona_value") else None,
