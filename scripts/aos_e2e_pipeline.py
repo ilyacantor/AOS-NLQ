@@ -8,7 +8,7 @@ with the exact step name and error if anything breaks.
 
 Sequence:
   1. Health-check all modules (Farm, AOD, AAM, DCL, NLQ)
-  0. Pipeline Reset -- flush stale state from AAM, DCL, Farm
+  0. Pipeline Reset -- no-op (modules handle their own idempotency)
   2. Farm    -- POST /api/snapshots  (generate snapshot)
  2b. Open Farm UI in browser
   3. AOD     -- POST /api/runs/from-farm  (discovery)
@@ -241,18 +241,6 @@ def _get(
     return client.get(url, params=params, headers=hdrs, timeout=timeout)
 
 
-def _delete(
-    client: httpx.Client,
-    url: str,
-    *,
-    params: dict | None = None,
-    timeout: float = 30,
-    urls: dict[str, str] | None = None,
-) -> httpx.Response:
-    hdrs = _headers_for(url, urls or {})
-    return client.delete(url, params=params, headers=hdrs, timeout=timeout)
-
-
 def _body_preview(r: httpx.Response, limit: int = 600) -> str:
     """Truncated response text for error messages."""
     txt = r.text[:limit]
@@ -266,81 +254,19 @@ def _body_preview(r: httpx.Response, limit: int = 600) -> str:
 # =========================================================================
 
 def step_00_reset(client: httpx.Client, urls: dict[str, str]) -> None:
-    """Flush stale pipeline state from AAM, DCL, and Farm so the new run
-    starts clean.  Order matters: AAM jobs first (they reference pipes),
-    then AAM data (candidates/pipes/handoff), then DCL (pipe definitions
-    + ingest buffers), then Farm reconciliations.  Snapshots are NOT deleted.
+    """No-op — the pipeline no longer clears any state.
+
+    Each module handles its own idempotency:
+      - Farm: snapshot fingerprint dedup (returns existing on match)
+      - AAM: runner job UPSERT (re-dispatch overwrites previous jobs)
+      - DCL: pipe definition UPSERT + receipt cap eviction
+
+    Data is additive across runs.  Manual cleanup is available via
+    each module's UI (Farm "Erase All", DCL flush button, AAM admin).
     """
-    label = "0. Pipeline Reset (flush stale state)"
+    label = "0. Pipeline Reset (no-op)"
     t0 = _step_start(label)
-
-    errors: list[str] = []
-
-    # 0a -- AAM runner jobs  (clears old completed/failed/stuck jobs)
-    _log("   AAM: clearing runner jobs...", _C.DIM)
-    try:
-        r = _delete(client, f"{urls['aam']}/api/runner-jobs", timeout=15, urls=urls)
-        if r.status_code < 400:
-            data = r.json()
-            cleared = data.get("jobs_deleted", "?")
-            _log(f"   AAM: {cleared} runner jobs cleared", _C.CYAN)
-        else:
-            errors.append(f"AAM DELETE /api/runner-jobs HTTP {r.status_code}: {_body_preview(r)}")
-    except Exception as exc:
-        errors.append(f"AAM DELETE /api/runner-jobs failed: {exc}")
-
-    # 0b -- AAM data  (candidates, pipes, handoff logs, SOR, policies, etc.)
-    _log("   AAM: clearing pipeline data...", _C.DIM)
-    try:
-        r = _delete(client, f"{urls['aam']}/api/data", timeout=15, urls=urls)
-        if r.status_code < 400:
-            data = r.json()
-            tables = data.get("tables_cleared", "?")
-            _log(f"   AAM: {tables} tables cleared", _C.CYAN)
-        else:
-            errors.append(f"AAM DELETE /api/data HTTP {r.status_code}: {_body_preview(r)}")
-    except Exception as exc:
-        errors.append(f"AAM DELETE /api/data failed: {exc}")
-
-    # 0c -- DCL flush  (pipe definitions + ingest: memory, disk, Redis, Postgres)
-    _log("   DCL: flushing ingest + pipe store...", _C.DIM)
-    try:
-        r = _post(client, f"{urls['dcl']}/api/dcl/ingest/flush", timeout=30, urls=urls)
-        if r.status_code < 400:
-            data = r.json()
-            before = data.get("before", {})
-            pipes_before = before.get("pipe_definitions", 0)
-            rows_before = before.get("total_rows", 0)
-            _log(
-                f"   DCL: flushed {pipes_before} pipe defs, {rows_before} rows",
-                _C.CYAN,
-            )
-        else:
-            errors.append(f"DCL POST /api/dcl/ingest/flush HTTP {r.status_code}: {_body_preview(r)}")
-    except Exception as exc:
-        errors.append(f"DCL POST /api/dcl/ingest/flush failed: {exc}")
-
-    # 0d -- Farm reconciliation cleanup (snapshots are NOT deleted — they persist)
-    try:
-        r = _delete(
-            client, f"{urls['farm']}/api/reconcile/cleanup",
-            params={"keep": 0}, timeout=15, urls=urls,
-        )
-        if r.status_code < 400:
-            data = r.json()
-            deleted = data.get("deleted_count", 0)
-            if deleted:
-                _log(f"   Farm: deleted {deleted} old reconciliations", _C.CYAN)
-    except Exception:
-        pass  # reconciliation cleanup is nice-to-have, not critical
-
-    if errors:
-        _step_fail(
-            label, t0,
-            "Pipeline reset had failures:\n      " + "\n      ".join(errors),
-        )
-
-    _step_pass(label, t0, "stale state flushed from AAM, DCL, Farm (snapshots preserved)")
+    _step_pass(label, t0, "skipped -- pipeline does not clear state")
 
 
 def step_01_health(client: httpx.Client, urls: dict[str, str]) -> None:
@@ -781,8 +707,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-browser", action="store_true",
                     help="Skip opening browser at the end")
     p.add_argument("--skip-reset", action="store_true",
-                    help="Skip Step 0 (pipeline reset). Use when you want to "
-                         "preserve state from a previous run.")
+                    help="Deprecated (no-op). Pipeline no longer clears state.")
     return p
 
 
@@ -814,11 +739,7 @@ def main() -> None:
 
     try:
         step_01_health(client, urls)
-        if args.skip_reset:
-            _log("   Step 0 skipped (--skip-reset)", _C.DIM)
-            _steps.append({"name": "0. Pipeline Reset", "status": "PASS", "elapsed": 0.0})
-        else:
-            step_00_reset(client, urls)
+        step_00_reset(client, urls)
 
         snapshot_id, tenant_id = step_02_farm_snapshot(client, urls, tenant_id)
         if not nb:
