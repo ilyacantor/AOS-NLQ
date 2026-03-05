@@ -373,6 +373,11 @@ def format_answer(parsed, result, unit: str) -> tuple:
 
     elif parsed.intent == QueryIntent.TREND_QUERY:
         data = result.value
+        # Guard against None or non-dict values (e.g., graph resolution with no data)
+        if not isinstance(data, dict):
+            formatted_str = str(data) if data is not None else "data unavailable"
+            answer = f"{metric_display} trend for {parsed.resolved_period}: {formatted_str}"
+            return answer, data
         trend_dir = data.get("trend_direction", "unknown")
         change = data.get("change_pct", 0)
         answer = f"{metric_display} has been {trend_dir} ({change:+.1f}% change over {data.get('period_count', 0)} periods)"
@@ -382,7 +387,7 @@ def format_answer(parsed, result, unit: str) -> tuple:
         data = result.value
         # Guard against non-dict values
         if not isinstance(data, dict):
-            formatted_str = str(data)
+            formatted_str = str(data) if data is not None else "data unavailable"
             answer = f"{metric_display} for {parsed.resolved_period}: {formatted_str}"
             return answer, data
         agg_type = data.get("aggregation_type", "sum")
@@ -395,6 +400,11 @@ def format_answer(parsed, result, unit: str) -> tuple:
 
     elif parsed.intent == QueryIntent.BREAKDOWN_QUERY:
         data = result.value
+        # Guard against None or non-dict values
+        if not isinstance(data, dict):
+            formatted_str = str(data) if data is not None else "data unavailable"
+            answer = f"{metric_display} breakdown for {parsed.resolved_period}: {formatted_str}"
+            return answer, data
         breakdown = data.get("breakdown", {})
         period = data.get("period", parsed.resolved_period)
         parts = []

@@ -142,8 +142,12 @@ class QueryExecutor:
         # GRAPH RESOLUTION — try semantic graph first, fall back to flat query
         # =====================================================================
         graph_result = self._try_graph_resolution(parsed_query)
-        if graph_result is not None:
+        if graph_result is not None and graph_result.value is not None:
+            # Graph provided both provenance AND data — use it
             return graph_result
+        # Graph either can't answer (graph_result is None) or answered with
+        # provenance only (value=None). Fall through to flat query for actual data.
+        # The graph provenance is captured in graph_result.metadata for later use.
 
         # =====================================================================
         # FLAT QUERY PATH — existing behavior (fallback)
