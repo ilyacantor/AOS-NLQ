@@ -323,8 +323,6 @@ function App() {
         setDashboardSchema(data.dashboard)
         setDashboardWidgetData(data.dashboard_data || {})
         setViewMode('dashboard')
-        // Clear galaxy response so switching back to Ask tab doesn't
-        // trigger GalaxyView's onNavigateToDashboard redirect loop
         setGalaxyResponse(null)
       } else {
         setViewMode('galaxy')
@@ -399,16 +397,6 @@ function App() {
       setDashboardWidgetData(widgetData)
     }
   }, [])
-
-  // Handle navigation from GalaxyView when it detects a dashboard query
-  // (query_type === 'DASHBOARD' from the intent-map API)
-  const handleNavigateToDashboard = useCallback((queryText: string, _data: IntentMapResponse) => {
-    // Clear galaxy response so returning to Ask tab doesn't re-trigger navigation
-    setGalaxyResponse(null)
-    // Switch to dashboard view and submit through unified endpoint
-    setViewMode('dashboard')
-    submitQuery(queryText)
-  }, [submitQuery])
 
   // Handle navigation from DashboardRenderer when it detects a factual query
   // (should go to Galaxy space instead of refining the dashboard)
@@ -717,7 +705,6 @@ function App() {
                     <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
                     <GalaxyView
                       data={galaxyResponse}
-                      onNavigateToDashboard={handleNavigateToDashboard}
                     />
                     </Suspense>
                   </div>

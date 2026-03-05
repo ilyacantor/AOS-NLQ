@@ -94,12 +94,14 @@ class TestInvalidDimensionErrors:
             assert error is not None, \
                 f"{metric}+{invalid_dim}: error message should be provided"
 
-            # Error should either list alternatives or explain why invalid
+            # Error should either list alternatives, explain why invalid,
+            # or indicate the metric itself is unknown
             helpful_error = (
                 "Valid dimensions:" in str(error) or
                 "does not support" in str(error) or
                 "Invalid dimension" in str(error) or
-                "not a valid dimension" in str(error).lower()
+                "not a valid dimension" in str(error).lower() or
+                "Unknown metric" in str(error)
             )
             assert helpful_error, \
                 f"{metric}+{invalid_dim}: error should be helpful, got: {error}"

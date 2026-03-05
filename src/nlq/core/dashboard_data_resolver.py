@@ -15,6 +15,7 @@ from src.nlq.knowledge.schema import get_metric_unit
 from src.nlq.knowledge.display import get_display_name
 from src.nlq.models.dashboard_schema import (
     DashboardSchema,
+    MetricBinding,
     Widget,
     WidgetType,
 )
@@ -279,7 +280,13 @@ class DashboardDataResolver:
 
         metric = metrics[0].metric
         dimensions = widget.data.dimensions
-        dimension = dimensions[0].dimension if dimensions else "region"
+        dimension = dimensions[0].dimension if dimensions else None
+        if dimension is None:
+            # Multi-metric comparison bar chart (no dimensional breakdown)
+            # Each metric becomes a category with its total value
+            if len(metrics) > 1:
+                return self._resolve_multi_metric_comparison(metrics, reference_year, filters)
+            return {"loading": False, "error": f"No dimension specified for '{metric}' breakdown"}
 
         # Query DCL for dimensional breakdown
         # Try yearly grain; fall back to quarterly if DCL rejects yearly
@@ -306,18 +313,7 @@ class DashboardDataResolver:
         breakdown = self._extract_dimensional_data(result, dimension, metric)
 
         if not breakdown:
-            # Fallback: try to get total and apply standard ratios
-            total_result = self._query_dcl(
-                metric=metric,
-                filters=filters,
-                time_range={"period": reference_year, "granularity": "yearly"},
-            )
-            total_value = self._extract_value_from_result(total_result)
-
-            if total_value is not None:
-                breakdown = self._generate_estimated_breakdown(dimension, total_value, filters)
-            else:
-                return {"loading": False, "error": f"No data for '{metric}'"}
+            return {"loading": False, "error": f"No {dimension} breakdown data for '{metric}'"}
 
         return {
             "loading": False,
@@ -328,6 +324,40 @@ class DashboardDataResolver:
             }],
             "clickable": True,
             "filter_dimension": dimension,
+        }
+
+    def _resolve_multi_metric_comparison(
+        self,
+        metrics: List[MetricBinding],
+        reference_year: str,
+        filters: Dict[str, str],
+    ) -> Dict[str, Any]:
+        """Resolve multi-metric comparison bar chart — each metric is a category."""
+        data_points = []
+        for metric_binding in metrics:
+            metric = metric_binding.metric
+            result = self._query_dcl(
+                metric=metric,
+                filters=filters,
+                time_range={"period": reference_year, "granularity": "yearly"},
+            )
+            value = self._extract_value_from_result(result)
+            if value is not None:
+                data_points.append({
+                    "label": get_display_name(metric),
+                    "value": round(value, 1),
+                })
+
+        if not data_points:
+            return {"loading": False, "error": "No data for any of the requested metrics"}
+
+        return {
+            "loading": False,
+            "categories": [p["label"] for p in data_points],
+            "series": [{
+                "name": "Metrics",
+                "data": data_points,
+            }],
         }
 
     def _resolve_stacked_data(
@@ -616,62 +646,6 @@ class DashboardDataResolver:
         # Add ratios
         for item in breakdown:
             item["ratio"] = round(item["value"] / total, 2) if total > 0 else 0
-
-        return breakdown
-
-    def _generate_estimated_breakdown(
-        self, dimension: str, total_value: float, filters: Dict[str, str]
-    ) -> List[Dict[str, Any]]:
-        """Generate estimated breakdown using standard ratios when DCL doesn't have dimensional data."""
-
-        # Standard distribution ratios
-        distributions = {
-            "region": [
-                ("AMER", 0.50),
-                ("EMEA", 0.30),
-                ("APAC", 0.20),
-            ],
-            "segment": [
-                ("Enterprise", 0.55),
-                ("Mid-Market", 0.30),
-                ("SMB", 0.15),
-            ],
-            "product": [
-                ("Enterprise", 0.45),
-                ("Professional", 0.30),
-                ("Team", 0.18),
-                ("Starter", 0.07),
-            ],
-            "stage": [
-                ("Lead", 0.20),
-                ("Qualified", 0.30),
-                ("Proposal", 0.20),
-                ("Negotiation", 0.15),
-                ("Closed-Won", 0.15),
-            ],
-        }
-
-        dist = distributions.get(dimension, [])
-        if not dist:
-            return []
-
-        breakdown = []
-        for label, ratio in dist:
-            value = total_value * ratio
-            breakdown.append({
-                "label": label,
-                "value": round(value, 1),
-                "ratio": ratio,
-            })
-
-        # Apply dimension filter if present
-        if dimension in filters:
-            filter_value = filters[dimension]
-            breakdown = [
-                b for b in breakdown
-                if b["label"].lower() == filter_value.lower()
-                or b["label"].upper() == filter_value.upper()
-            ]
 
         return breakdown
 

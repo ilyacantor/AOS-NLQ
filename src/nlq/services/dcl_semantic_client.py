@@ -1785,6 +1785,13 @@ class DCLSemanticClient:
             },
         }
 
+        # Validate dimensions before attempting lookup
+        if dimensions:
+            for dim in dimensions:
+                is_valid, error_msg = self.validate_dimension(metric, dim)
+                if not is_valid:
+                    return {"error": error_msg, "status": "error"}
+
         # Handle dimensional queries
         period_filter = time_range.get("period") if time_range else None
         default_period = self.get_latest_period()

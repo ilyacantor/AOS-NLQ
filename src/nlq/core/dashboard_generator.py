@@ -75,27 +75,33 @@ def _validate_metric_dimension(metric: str, dimension: str) -> tuple[bool, str, 
     return is_valid, error_msg or "", valid_dims
 
 
-def _get_fallback_dimension(metric: str, requested_dimension: str) -> str | None:
+def _get_fallback_dimension(metric: str, requested_dimension: str | None) -> str | None:
     """
-    Get a fallback dimension if the requested one isn't valid.
+    Get a valid dimension for the metric.
 
-    Returns the first valid dimension for the metric, or None if no breakdowns exist.
+    If requested_dimension is None (no user request), returns the first valid
+    dimension from the metric's catalog. If requested_dimension is provided but
+    invalid, falls back to the first valid dimension with a warning.
+
+    Returns None if the metric has no dimensional breakdowns.
     """
     semantic_client = get_semantic_client()
     valid_dims = semantic_client.get_valid_dimensions(metric)
 
     if not valid_dims:
-        logger.warning(f"Metric '{metric}' does not support any dimensional breakdowns")
+        logger.warning(f"Metric '{metric}' has no dimensional breakdowns")
         return None
+
+    if requested_dimension is None:
+        return valid_dims[0]
 
     if requested_dimension in valid_dims:
         return requested_dimension
 
-    # Try common dimension mappings
+    # Try common dimension aliases
     dim_aliases = {
         "salesperson": "rep",
         "sales rep": "rep",
-        "customer": "customer",
         "territory": "region",
         "area": "region",
     }
@@ -104,10 +110,9 @@ def _get_fallback_dimension(metric: str, requested_dimension: str) -> str | None
     if normalized in valid_dims:
         return normalized
 
-    # Return first valid dimension as fallback
     logger.warning(
         f"Dimension '{requested_dimension}' not valid for '{metric}'. "
-        f"Falling back to '{valid_dims[0]}'. Valid dimensions: {', '.join(valid_dims)}"
+        f"Falling back to '{valid_dims[0]}'. Valid: {', '.join(valid_dims)}"
     )
     return valid_dims[0]
 
@@ -340,7 +345,7 @@ def _generate_breakdown_chart(requirements: VisualizationRequirements) -> List[W
     """Generate a breakdown chart by dimension."""
     widgets = []
     metric = requirements.metrics[0] if requirements.metrics else "revenue"
-    requested_dimension = requirements.dimensions[0] if requirements.dimensions else "region"
+    requested_dimension = requirements.dimensions[0] if requirements.dimensions else None
 
     # Validate dimension for this metric - use fallback if invalid
     dimension = _get_fallback_dimension(metric, requested_dimension)
@@ -450,7 +455,7 @@ def _generate_drill_down_view(requirements: VisualizationRequirements) -> List[W
     """Generate a view with drill-down capability."""
     widgets = []
     metric = requirements.metrics[0] if requirements.metrics else "revenue"
-    requested_dimension = requirements.dimensions[0] if requirements.dimensions else "region"
+    requested_dimension = requirements.dimensions[0] if requirements.dimensions else None
 
     # Validate dimension for this metric
     dimension = _get_fallback_dimension(metric, requested_dimension)
@@ -634,7 +639,7 @@ def _generate_full_dashboard(
 
     # Primary metric and dimension setup
     primary_metric = metrics[0]  # Safe - we already checked metrics is not empty above
-    requested_dimension = requirements.dimensions[0] if requirements.dimensions else "region"
+    requested_dimension = requirements.dimensions[0] if requirements.dimensions else None
     dimension = _get_fallback_dimension(primary_metric, requested_dimension)
 
     # Determine if map will be shown (affects layout row offsets)

@@ -18,8 +18,6 @@ interface GalaxyViewProps {
   data: IntentMapResponse;
   width?: number;
   height?: number;
-  /** Callback when a dashboard query is detected - navigates to dashboard space */
-  onNavigateToDashboard?: (query: string, data: IntentMapResponse) => void;
 }
 
 // Bottom sheet height states
@@ -41,7 +39,6 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   data,
   width: propWidth,
   height: propHeight,
-  onNavigateToDashboard,
 }) => {
   const [selectedNode, setSelectedNode] = useState<IntentNode | null>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
@@ -100,16 +97,8 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const [sheetDragOffset, setSheetDragOffset] = useState<number>(0);
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  // Navigate to dashboard space when dashboard query is detected
-  const isDashboard = data.response_type === 'dashboard' || data.query_type === 'DASHBOARD';
   const isFunnyResponse = data.query_type === 'OFF_TOPIC' && data.nodes.length === 0 && !!data.text_response;
   const isTextOnlyResponse = !isFunnyResponse && data.query_type !== 'OFF_TOPIC' && data.nodes.length === 0 && !!data.text_response;
-
-  useEffect(() => {
-    if (isDashboard && onNavigateToDashboard) {
-      onNavigateToDashboard(data.query, data);
-    }
-  }, [isDashboard, data.query, data, onNavigateToDashboard]);
 
   const svgRef = useRef<SVGSVGElement>(null);
 
