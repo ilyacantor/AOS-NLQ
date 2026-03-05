@@ -3358,6 +3358,37 @@ async def query(request: NLQRequest) -> NLQResponse:
             return missing_result
 
         # =================================================================
+        # COMPOSITE METRIC QUERIES - "all margins", "financial health"
+        # Must intercept before visualization to return text, not dashboard.
+        # =================================================================
+        _q_lower = request.question.lower()
+        if "margin" in _q_lower and ("all" in _q_lower or "margins" in _q_lower):
+            _composite = _handle_ambiguous_query_text(
+                request.question, AmbiguityType.BROAD_REQUEST, [], None,
+            )
+            if _composite:
+                await _log_query_event(
+                    request.question, "bypass",
+                    message="Composite margins query",
+                    execution_time_ms=_elapsed_ms(_start_time),
+                    session_id=request.session_id,
+                )
+                return _composite
+
+        if "financial health" in _q_lower:
+            _composite = _handle_ambiguous_query_text(
+                request.question, AmbiguityType.BROAD_REQUEST, [], None,
+            )
+            if _composite:
+                await _log_query_event(
+                    request.question, "bypass",
+                    message="Financial health composite query",
+                    execution_time_ms=_elapsed_ms(_start_time),
+                    session_id=request.session_id,
+                )
+                return _composite
+
+        # =================================================================
         # VISUALIZATION INTENT DETECTION - Check if user wants a dashboard
         # =================================================================
         # Get session ID for dashboard state tracking
