@@ -224,6 +224,13 @@
     "reason": "Initial baseline lock — passing at system initialization"
   },
   {
+    "id": 34,
+    "name": "B19: what did we close last month (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "3d8b399",
+    "reason": "Fix session 2: bookings synonyms + prefix stripping + period detection"
+  },
+  {
     "id": 35,
     "name": "B20: cost of revenue breakdown (CFO)",
     "locked_date": "2026-03-05",
@@ -441,6 +448,13 @@
     "reason": "Initial baseline lock — passing at system initialization"
   },
   {
+    "id": 71,
+    "name": "E6: churn rate last 3 quarters (CRO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "3d8b399",
+    "reason": "Fix session 2: last N quarters -> TREND complexity"
+  },
+  {
     "id": 73,
     "name": "E8: pipeline trend since January (CRO)",
     "locked_date": "2026-03-05",
@@ -481,6 +495,13 @@
     "locked_date": "2026-03-05",
     "locked_by_commit": "f02e1a9",
     "reason": "Fixed TypeError crash — DCL confidence dict + graph fallthrough"
+  },
+  {
+    "id": 80,
+    "name": "F5: 'rev' (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "3d8b399",
+    "reason": "Fix session 2: rev synonym -> revenue"
   },
   {
     "id": 81,
@@ -525,6 +546,13 @@
     "reason": "Initial baseline lock — passing at system initialization"
   },
   {
+    "id": 88,
+    "name": "G3: financial health (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "3d8b399",
+    "reason": "Fix session 2: financial health BROAD_REQUEST handler"
+  },
+  {
     "id": 89,
     "name": "G4: sales performance scorecard (CRO)",
     "locked_date": "2026-03-05",
@@ -537,6 +565,13 @@
     "locked_date": "2026-03-05",
     "locked_by_commit": "a43c44d",
     "reason": "Initial baseline lock — passing at system initialization"
+  },
+  {
+    "id": 91,
+    "name": "G6: show me all the margins (CFO)",
+    "locked_date": "2026-03-05",
+    "locked_by_commit": "3d8b399",
+    "reason": "Fix session 2: all margins intercept before viz handler"
   },
   {
     "id": 92,

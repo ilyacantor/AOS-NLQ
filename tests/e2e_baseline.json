@@ -10,17 +10,24 @@
       "persona": "CFO"
     },
     "response_body": {
-      "success": false,
-      "answer": null,
-      "value": null,
-      "unit": null,
-      "confidence": 0.0,
-      "parsed_intent": null,
-      "resolved_metric": null,
-      "resolved_period": null,
+      "success": true,
+      "answer": "Breakdown for 2026-Q1: New Logo Revenue: $0.5M, Expansion Revenue: $0.7M, Renewal Revenue: $34.5M",
+      "value": {
+        "period": "2026-Q1",
+        "breakdown": {
+          "new_logo_revenue": 0.47,
+          "expansion_revenue": 0.65,
+          "renewal_revenue": 34.45
+        }
+      },
+      "unit": "usd_millions",
+      "confidence": 0.95,
+      "parsed_intent": "BREAKDOWN_QUERY",
+      "resolved_metric": "revenue",
+      "resolved_period": "2026-Q1",
       "related_metrics": null,
-      "error_code": "INTERNAL_ERROR",
-      "error_message": "TypeError: must be real number, not dict",
+      "error_code": null,
+      "error_message": null,
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": null,
@@ -47,30 +54,154 @@
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() called: metric=new_logo_revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] /query EXCEPTION: TypeError: must be real number, not dict"
-        ],
-        "error": "must be real number, not dict",
-        "error_type": "TypeError"
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"new_logo_revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"new_logo_revenue\",\"metric_name\":\"New Logo Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":0.47,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:43:36.963467Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_d48a062e73cc_20260305_221741\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T22:17:47.672748Z\",\"total_count\":nu",
+          "[NLQ-DIAG] query() called: metric=expansion_revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"expansion_revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"expansion_revenue\",\"metric_name\":\"Expansion Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":0.65,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:43:37.136810Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_d48a062e73cc_20260305_221741\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T22:17:47.672748Z\",\"total_count\":",
+          "[NLQ-DIAG] query() called: metric=renewal_revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"renewal_revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"renewal_revenue\",\"metric_name\":\"Renewal Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":34.45,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:43:37.199327Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_d48a062e73cc_20260305_221741\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T22:17:47.672748Z\",\"total_count\":nul"
+        ]
       },
       "entity": null,
       "entity_id": null,
       "entity_resolution": null,
-      "provenance": null,
-      "conflicts": null,
+      "provenance": {
+        "metric": "revenue",
+        "lineage": [
+          {
+            "source_system": "sap_erp",
+            "source_table": "BSEG",
+            "source_field": "DMBTR",
+            "transformation": "Aggregate by fiscal period, convert from EUR to USD at month-end rate",
+            "is_system_of_record": true,
+            "trust_score": 0.92,
+            "freshness": "daily",
+            "last_refreshed": "2026-02-07T06:00:00Z"
+          },
+          {
+            "source_system": "salesforce_crm",
+            "source_table": "Opportunity",
+            "source_field": "Amount",
+            "transformation": "Sum of closed-won opportunities by close date",
+            "is_system_of_record": false,
+            "trust_score": 0.85,
+            "freshness": "real-time",
+            "last_refreshed": "2026-02-07T10:30:00Z"
+          },
+          {
+            "source_system": "netsuite_erp",
+            "source_table": "Transaction",
+            "source_field": "amount",
+            "transformation": "Sum of invoice transactions by accounting period",
+            "is_system_of_record": false,
+            "trust_score": 0.88,
+            "freshness": "daily",
+            "last_refreshed": "2026-02-07T05:00:00Z"
+          }
+        ],
+        "system_of_record": "sap_erp",
+        "trust_score": 0.92,
+        "freshness": "daily"
+      },
+      "conflicts": [
+        {
+          "id": "conflict_001",
+          "entity": "Acme Corp",
+          "entity_id": "ent_acme_001",
+          "metric": "revenue",
+          "severity": "CRITICAL",
+          "systems": {
+            "salesforce_crm": {
+              "value": 45000000,
+              "formatted": "$45.0M",
+              "last_updated": "2026-01-15T10:30:00Z",
+              "trust_score": 0.85,
+              "is_sor": false
+            },
+            "sap_erp": {
+              "value": 42800000,
+              "formatted": "$42.8M",
+              "last_updated": "2026-01-10T08:00:00Z",
+              "trust_score": 0.92,
+              "is_sor": true
+            }
+          },
+          "delta": {
+            "absolute": 2200000,
+            "formatted": "$2.2M",
+            "percentage": 5.14
+          },
+          "root_cause": {
+            "type": "timing",
+            "explanation": "SAP ERP recognizes revenue on invoice date; Salesforce CRM records it at deal close. The $2.2M gap represents deals closed in CRM but not yet invoiced in ERP.",
+            "recommendation": "Trust ERP (SAP) for recognized revenue. CRM figure includes unbilled deals."
+          },
+          "trust_recommendation": {
+            "winner": "sap_erp",
+            "reason": "SAP is the system of record for financial data. Revenue recognition follows GAAP standards in ERP.",
+            "confidence": 0.92
+          },
+          "status": "open"
+        },
+        {
+          "id": "conflict_002",
+          "entity": "Massive Dynamic",
+          "entity_id": "ent_massive_004",
+          "metric": "revenue",
+          "severity": "HIGH",
+          "systems": {
+            "salesforce_crm": {
+              "value": 120000000,
+              "formatted": "$120.0M",
+              "last_updated": "2026-01-22T13:00:00Z",
+              "trust_score": 0.8,
+              "is_sor": false
+            },
+            "sap_erp": {
+              "value": 118500000,
+              "formatted": "$118.5M",
+              "last_updated": "2026-01-08T10:00:00Z",
+              "trust_score": 0.9,
+              "is_sor": true
+            }
+          },
+          "delta": {
+            "absolute": 1500000,
+            "formatted": "$1.5M",
+            "percentage": 1.27
+          },
+          "root_cause": {
+            "type": "scope",
+            "explanation": "CRM includes revenue from a recently acquired subsidiary not yet integrated into SAP. The $1.5M delta represents the subsidiary's contribution.",
+            "recommendation": "Trust SAP for core business revenue. Add subsidiary data once SAP integration completes."
+          },
+          "trust_recommendation": {
+            "winner": "sap_erp",
+            "reason": "SAP is authoritative for recognized revenue. CRM scope is broader but includes unverified subsidiary data.",
+            "confidence": 0.88
+          },
+          "status": "open"
+        }
+      ],
       "temporal_warning": null,
       "data_source": null,
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1669,
+    "response_time_ms": 3270,
     "assertions": {
-      "success": false,
-      "no_typeerror": false,
-      "has_answer": false,
+      "success": true,
+      "no_typeerror": true,
+      "has_answer": true,
       "no_raw_dict": true
     },
-    "passed": false,
+    "passed": true,
     "error": null
   },
   {
@@ -84,17 +215,24 @@
       "persona": "CFO"
     },
     "response_body": {
-      "success": false,
-      "answer": null,
-      "value": null,
-      "unit": null,
-      "confidence": 0.0,
-      "parsed_intent": null,
-      "resolved_metric": null,
-      "resolved_period": null,
+      "success": true,
+      "answer": "Breakdown for 2026-Q1: New Logo Revenue: $0.5M, Expansion Revenue: $0.7M, Renewal Revenue: $34.5M",
+      "value": {
+        "period": "2026-Q1",
+        "breakdown": {
+          "new_logo_revenue": 0.47,
+          "expansion_revenue": 0.65,
+          "renewal_revenue": 34.45
+        }
+      },
+      "unit": "usd_millions",
+      "confidence": 0.95,
+      "parsed_intent": "BREAKDOWN_QUERY",
+      "resolved_metric": "revenue",
+      "resolved_period": "2026-Q1",
       "related_metrics": null,
-      "error_code": "INTERNAL_ERROR",
-      "error_message": "TypeError: must be real number, not dict",
+      "error_code": null,
+      "error_message": null,
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": null,
@@ -119,28 +257,153 @@
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] /query EXCEPTION: TypeError: must be real number, not dict"
-        ],
-        "error": "must be real number, not dict",
-        "error_type": "TypeError"
+          "[NLQ-DIAG] query() called: metric=new_logo_revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"new_logo_revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"new_logo_revenue\",\"metric_name\":\"New Logo Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":0.47,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:43:40.706788Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_d48a062e73cc_20260305_221741\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T22:17:47.672748Z\",\"total_count\":nu",
+          "[NLQ-DIAG] query() called: metric=expansion_revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"expansion_revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"expansion_revenue\",\"metric_name\":\"Expansion Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":0.65,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:43:40.869661Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_d48a062e73cc_20260305_221741\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T22:17:47.672748Z\",\"total_count\":",
+          "[NLQ-DIAG] query() called: metric=renewal_revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"renewal_revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"renewal_revenue\",\"metric_name\":\"Renewal Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":34.45,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:43:40.917037Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_d48a062e73cc_20260305_221741\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T22:17:47.672748Z\",\"total_count\":nul"
+        ]
       },
       "entity": null,
       "entity_id": null,
       "entity_resolution": null,
-      "provenance": null,
-      "conflicts": null,
+      "provenance": {
+        "metric": "revenue",
+        "lineage": [
+          {
+            "source_system": "sap_erp",
+            "source_table": "BSEG",
+            "source_field": "DMBTR",
+            "transformation": "Aggregate by fiscal period, convert from EUR to USD at month-end rate",
+            "is_system_of_record": true,
+            "trust_score": 0.92,
+            "freshness": "daily",
+            "last_refreshed": "2026-02-07T06:00:00Z"
+          },
+          {
+            "source_system": "salesforce_crm",
+            "source_table": "Opportunity",
+            "source_field": "Amount",
+            "transformation": "Sum of closed-won opportunities by close date",
+            "is_system_of_record": false,
+            "trust_score": 0.85,
+            "freshness": "real-time",
+            "last_refreshed": "2026-02-07T10:30:00Z"
+          },
+          {
+            "source_system": "netsuite_erp",
+            "source_table": "Transaction",
+            "source_field": "amount",
+            "transformation": "Sum of invoice transactions by accounting period",
+            "is_system_of_record": false,
+            "trust_score": 0.88,
+            "freshness": "daily",
+            "last_refreshed": "2026-02-07T05:00:00Z"
+          }
+        ],
+        "system_of_record": "sap_erp",
+        "trust_score": 0.92,
+        "freshness": "daily"
+      },
+      "conflicts": [
+        {
+          "id": "conflict_001",
+          "entity": "Acme Corp",
+          "entity_id": "ent_acme_001",
+          "metric": "revenue",
+          "severity": "CRITICAL",
+          "systems": {
+            "salesforce_crm": {
+              "value": 45000000,
+              "formatted": "$45.0M",
+              "last_updated": "2026-01-15T10:30:00Z",
+              "trust_score": 0.85,
+              "is_sor": false
+            },
+            "sap_erp": {
+              "value": 42800000,
+              "formatted": "$42.8M",
+              "last_updated": "2026-01-10T08:00:00Z",
+              "trust_score": 0.92,
+              "is_sor": true
+            }
+          },
+          "delta": {
+            "absolute": 2200000,
+            "formatted": "$2.2M",
+            "percentage": 5.14
+          },
+          "root_cause": {
+            "type": "timing",
+            "explanation": "SAP ERP recognizes revenue on invoice date; Salesforce CRM records it at deal close. The $2.2M gap represents deals closed in CRM but not yet invoiced in ERP.",
+            "recommendation": "Trust ERP (SAP) for recognized revenue. CRM figure includes unbilled deals."
+          },
+          "trust_recommendation": {
+            "winner": "sap_erp",
+            "reason": "SAP is the system of record for financial data. Revenue recognition follows GAAP standards in ERP.",
+            "confidence": 0.92
+          },
+          "status": "open"
+        },
+        {
+          "id": "conflict_002",
+          "entity": "Massive Dynamic",
+          "entity_id": "ent_massive_004",
+          "metric": "revenue",
+          "severity": "HIGH",
+          "systems": {
+            "salesforce_crm": {
+              "value": 120000000,
+              "formatted": "$120.0M",
+              "last_updated": "2026-01-22T13:00:00Z",
+              "trust_score": 0.8,
+              "is_sor": false
+            },
+            "sap_erp": {
+              "value": 118500000,
+              "formatted": "$118.5M",
+              "last_updated": "2026-01-08T10:00:00Z",
+              "trust_score": 0.9,
+              "is_sor": true
+            }
+          },
+          "delta": {
+            "absolute": 1500000,
+            "formatted": "$1.5M",
+            "percentage": 1.27
+          },
+          "root_cause": {
+            "type": "scope",
+            "explanation": "CRM includes revenue from a recently acquired subsidiary not yet integrated into SAP. The $1.5M delta represents the subsidiary's contribution.",
+            "recommendation": "Trust SAP for core business revenue. Add subsidiary data once SAP integration completes."
+          },
+          "trust_recommendation": {
+            "winner": "sap_erp",
+            "reason": "SAP is authoritative for recognized revenue. CRM scope is broader but includes unverified subsidiary data.",
+            "confidence": 0.88
+          },
+          "status": "open"
+        }
+      ],
       "temporal_warning": null,
       "data_source": null,
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1481,
+    "response_time_ms": 1684,
     "assertions": {
-      "success": false,
-      "no_typeerror": false,
-      "has_answer": false
+      "success": true,
+      "no_typeerror": true,
+      "has_answer": true
     },
-    "passed": false,
+    "passed": true,
     "error": null
   },
   {
@@ -239,7 +502,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1706,
+    "response_time_ms": 1663,
     "assertions": {
       "success": true,
       "has_percent": true,
@@ -311,7 +574,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1280,
+    "response_time_ms": 1184,
     "assertions": {
       "success": true,
       "no_ar": true,
@@ -345,7 +608,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_a80fff38",
+        "id": "dash_7278c36f",
         "title": "CRO Dashboard",
         "description": "Generated from: build me a dashboard",
         "source_query": "build me a dashboard",
@@ -897,7 +1160,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2670,
+    "response_time_ms": 2541,
     "assertions": {
       "is_dashboard": true,
       "has_cro_metrics": true
@@ -930,7 +1193,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_d20f5f60",
+        "id": "dash_a7d74caf",
         "title": "CFO Dashboard",
         "description": "Generated from: build me a dashboard",
         "source_query": "build me a dashboard",
@@ -1482,7 +1745,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2214,
+    "response_time_ms": 2212,
     "assertions": {
       "is_dashboard": true,
       "has_cfo_metrics": true
@@ -1515,7 +1778,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_cbd95048",
+        "id": "dash_87de78b9",
         "title": "Operations Dashboard",
         "description": "Generated from: build me a dashboard",
         "source_query": "build me a dashboard",
@@ -2066,7 +2329,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2377,
+    "response_time_ms": 2378,
     "assertions": {
       "is_dashboard": true,
       "has_coo_metrics": true
@@ -2099,7 +2362,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_2ef3a0bf",
+        "id": "dash_ecef2cf8",
         "title": "Pipeline & Win Rate Pct Dashboard",
         "description": "Generated from: how are we doing",
         "source_query": "how are we doing",
@@ -2640,7 +2903,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2553,
+    "response_time_ms": 2552,
     "assertions": {
       "is_dashboard": true,
       "has_cro_metrics": true
@@ -2673,7 +2936,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_419f1841",
+        "id": "dash_861702b7",
         "title": "Revenue & Gross Margin Dashboard",
         "description": "Generated from: how are we doing",
         "source_query": "how are we doing",
@@ -3237,7 +3500,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2530,
+    "response_time_ms": 2402,
     "assertions": {
       "is_dashboard": true
     },
@@ -3269,7 +3532,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_04f96593",
+        "id": "dash_634e60ab",
         "title": "Headcount & Revenue Per Employee Dashboard",
         "description": "Generated from: how are we doing",
         "source_query": "how are we doing",
@@ -3827,7 +4090,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 9314,
+    "response_time_ms": 2619,
     "assertions": {
       "is_dashboard": true,
       "has_coo_metrics": true
@@ -3860,7 +4123,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_343da16b",
+        "id": "dash_5628c92d",
         "title": "New Logo Arr & Pipeline Dashboard",
         "description": "Generated from: how's the business",
         "source_query": "how's the business",
@@ -4399,7 +4662,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2591,
+    "response_time_ms": 2464,
     "assertions": {
       "is_dashboard": true
     },
@@ -4431,7 +4694,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_fb106929",
+        "id": "dash_b26f9576",
         "title": "Revenue & Gross Margin Dashboard",
         "description": "Generated from: 2025 KPIs in dash",
         "source_query": "2025 KPIs in dash",
@@ -4995,7 +5258,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2387,
+    "response_time_ms": 2353,
     "assertions": {
       "is_dashboard": true
     },
@@ -5065,7 +5328,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1332,
+    "response_time_ms": 1331,
     "assertions": {
       "success": true,
       "references_platform": true,
@@ -5108,10 +5371,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_cd2a0358c902_20260305_212654",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:29:17.294853Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
           "workday_hcm"
         ],
@@ -5127,7 +5390,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1037,
+    "response_time_ms": 874,
     "assertions": {
       "success": true,
       "has_number": true
@@ -5160,7 +5423,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_8471bfc7",
+        "id": "dash_a5941542",
         "title": "Attrition Rate Pct & Headcount Over Time",
         "description": "Generated from: show me attrition trends",
         "source_query": "show me attrition trends",
@@ -5641,7 +5904,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2148,
+    "response_time_ms": 2086,
     "assertions": {
       "success": true,
       "references_attrition": true
@@ -5707,10 +5970,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
+        "run_id": "aam_run_cd2a0358c902_20260305_212654",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
+        "run_timestamp": "2026-03-05T21:29:17.294853Z",
         "source_systems": [
           "chargebee"
         ],
@@ -5726,7 +5989,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 992,
+    "response_time_ms": 915,
     "assertions": {
       "success": true,
       "references_churn": true,
@@ -5769,10 +6032,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
           "datadog"
         ],
@@ -5788,7 +6051,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 921,
+    "response_time_ms": 883,
     "assertions": {
       "success": true,
       "references_incidents": true,
@@ -5822,7 +6085,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_aa50db1a",
+        "id": "dash_314c9a19",
         "title": "Churn Rate Pct & Nrr Dashboard",
         "description": "Generated from: Compare churn vs NRR over the last 3 years",
         "source_query": "Compare churn vs NRR over the last 3 years",
@@ -6379,7 +6642,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2522,
+    "response_time_ms": 2669,
     "assertions": {
       "success": true,
       "references_churn": true,
@@ -6401,7 +6664,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "**SMB** is the top segment with 1.25% churn rate.",
+      "answer": "**SMB** is the worst-performing segment with 1.25% churn rate.",
       "value": 1.25,
       "unit": "pct",
       "confidence": 0.95,
@@ -6429,7 +6692,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 916,
+    "response_time_ms": 957,
     "assertions": {
       "success": true,
       "identifies_segment": true
@@ -6621,7 +6884,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2309,
+    "response_time_ms": 2254,
     "assertions": {
       "success": true,
       "multiple_pl_items": true
@@ -6641,15 +6904,10 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Breakdown for 2026: Ar: $72.2M",
-      "value": {
-        "period": "2026",
-        "breakdown": {
-          "ar": 72.21
-        }
-      },
-      "unit": "usd_millions",
-      "confidence": 0.95,
+      "answer": "I'm stumped! But I can definitely help with:\n• Financial metrics (revenue, margin, profit)\n• Sales metrics (pipeline, bookings, win rate)\n• Or try 'show me KPIs'\n\n⚠️ Possible insufficient data condition (50% confidence)",
+      "value": null,
+      "unit": null,
+      "confidence": 0.5,
       "parsed_intent": "BREAKDOWN_QUERY",
       "resolved_metric": "sga",
       "resolved_period": "2026",
@@ -6663,65 +6921,7 @@
       "response_type": "text",
       "active_filters": null,
       "error_details": null,
-      "debug_info": {
-        "nlq_diag_trace": [
-          "[NLQ-DIAG] /query endpoint: question='What's driving the increase in opex?', data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() called: metric=selling_expenses, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"selling_expenses\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026\", \"end\": \"2026\"}, \"grain\": \"year\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=400, body={\"detail\":{\"error\":\"Grain 'year' not valid for metric 'selling_expenses'\",\"code\":\"INVALID_GRAIN\",\"details\":{\"metric\":\"selling_expenses\",\"requested_grain\":\"year\",\"valid_grains\":[\"month\",\"quarter\"]}}}",
-          "[NLQ-DIAG] query() called: metric=g_and_a_expenses, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"g_and_a_expenses\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026\", \"end\": \"2026\"}, \"grain\": \"year\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=400, body={\"detail\":{\"error\":\"Grain 'year' not valid for metric 'g_and_a_expenses'\",\"code\":\"INVALID_GRAIN\",\"details\":{\"metric\":\"g_and_a_expenses\",\"requested_grain\":\"year\",\"valid_grains\":[\"month\",\"quarter\"]}}}",
-          "[NLQ-DIAG] query() called: metric=cloud_spend, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"cloud_spend\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026\", \"end\": \"2026\"}, \"grain\": \"year\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=400, body={\"detail\":{\"error\":\"Grain 'year' not valid for metric 'cloud_spend'\",\"code\":\"INVALID_GRAIN\",\"details\":{\"metric\":\"cloud_spend\",\"requested_grain\":\"year\",\"valid_grains\":[\"month\",\"quarter\"]}}}",
-          "[NLQ-DIAG] query() called: metric=ar, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"ar\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026\", \"end\": \"2026\"}, \"grain\": \"year\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"ar\",\"metric_name\":\"Accounts Receivable\",\"dimensions\":[],\"grain\":\"year\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":16.99,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q2\",\"value\":17.68,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q3\",\"value\":18.4,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q4\",\"value\":19.14,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T21:47:04.814046Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":4,\"source\"",
-          "[NLQ-DIAG] query() called: metric=cloud_spend, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"cloud_spend\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026\", \"end\": \"2026\"}, \"grain\": \"year\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=400, body={\"detail\":{\"error\":\"Grain 'year' not valid for metric 'cloud_spend'\",\"code\":\"INVALID_GRAIN\",\"details\":{\"metric\":\"cloud_spend\",\"requested_grain\":\"year\",\"valid_grains\":[\"month\",\"quarter\"]}}}",
-          "[NLQ-DIAG] query() called: metric=cloud_spend, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"cloud_spend\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026\", \"end\": \"2026\"}, \"grain\": \"year\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=400, body={\"detail\":{\"error\":\"Grain 'year' not valid for metric 'cloud_spend'\",\"code\":\"INVALID_GRAIN\",\"details\":{\"metric\":\"cloud_spend\",\"requested_grain\":\"year\",\"valid_grains\":[\"month\",\"quarter\"]}}}"
-        ]
-      },
+      "debug_info": null,
       "entity": null,
       "entity_id": null,
       "entity_resolution": null,
@@ -6732,13 +6932,13 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 4646,
+    "response_time_ms": 1516,
     "assertions": {
       "success": true,
-      "references_opex": true,
+      "references_opex": false,
       "no_typeerror": true
     },
-    "passed": true,
+    "passed": false,
     "error": null
   },
   {
@@ -6799,10 +6999,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
           "salesforce_crm",
           "netsuite_erp"
@@ -6819,7 +7019,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 919,
+    "response_time_ms": 924,
     "assertions": {
       "success": true,
       "references_revenue": true,
@@ -6839,17 +7039,22 @@
       "persona": "CFO"
     },
     "response_body": {
-      "success": false,
-      "answer": null,
-      "value": null,
-      "unit": null,
-      "confidence": 0.0,
-      "parsed_intent": null,
-      "resolved_metric": null,
-      "resolved_period": null,
+      "success": true,
+      "answer": "Revenue increased from $124.2M (2025) to $152.6M (2026), a change of $28.4M (22.8%)",
+      "value": {
+        "value1": 152.6,
+        "value2": 124.2,
+        "difference": 28.4,
+        "pct_change": 22.8
+      },
+      "unit": "usd_millions",
+      "confidence": 0.95,
+      "parsed_intent": "COMPARISON_QUERY",
+      "resolved_metric": "revenue",
+      "resolved_period": "2026",
       "related_metrics": null,
-      "error_code": "INTERNAL_ERROR",
-      "error_message": "TypeError: must be real number, not dict",
+      "error_code": null,
+      "error_message": null,
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": null,
@@ -6877,28 +7082,150 @@
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] /query EXCEPTION: TypeError: must be real number, not dict"
-        ],
-        "error": "must be real number, not dict",
-        "error_type": "TypeError"
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026\", \"end\": \"2026\"}, \"grain\": \"year\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"year\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":35.57,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q2\",\"value\":37.23,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q3\",\"value\":38.97,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q4\",\"value\":40.78,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:45:01.445002Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":4,\"source\"",
+          "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025\", \"end\": \"2025\"}, \"grain\": \"year\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"year\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q1\",\"value\":28.41,\"dimensions\":{},\"rank\":null},{\"period\":\"2025-Q2\",\"value\":30.1,\"dimensions\":{},\"rank\":null},{\"period\":\"2025-Q3\",\"value\":31.89,\"dimensions\":{},\"rank\":null},{\"period\":\"2025-Q4\",\"value\":33.78,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:45:01.620221Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":4,\"source\":"
+        ]
       },
       "entity": null,
       "entity_id": null,
       "entity_resolution": null,
-      "provenance": null,
-      "conflicts": null,
+      "provenance": {
+        "metric": "revenue",
+        "lineage": [
+          {
+            "source_system": "sap_erp",
+            "source_table": "BSEG",
+            "source_field": "DMBTR",
+            "transformation": "Aggregate by fiscal period, convert from EUR to USD at month-end rate",
+            "is_system_of_record": true,
+            "trust_score": 0.92,
+            "freshness": "daily",
+            "last_refreshed": "2026-02-07T06:00:00Z"
+          },
+          {
+            "source_system": "salesforce_crm",
+            "source_table": "Opportunity",
+            "source_field": "Amount",
+            "transformation": "Sum of closed-won opportunities by close date",
+            "is_system_of_record": false,
+            "trust_score": 0.85,
+            "freshness": "real-time",
+            "last_refreshed": "2026-02-07T10:30:00Z"
+          },
+          {
+            "source_system": "netsuite_erp",
+            "source_table": "Transaction",
+            "source_field": "amount",
+            "transformation": "Sum of invoice transactions by accounting period",
+            "is_system_of_record": false,
+            "trust_score": 0.88,
+            "freshness": "daily",
+            "last_refreshed": "2026-02-07T05:00:00Z"
+          }
+        ],
+        "system_of_record": "sap_erp",
+        "trust_score": 0.92,
+        "freshness": "daily"
+      },
+      "conflicts": [
+        {
+          "id": "conflict_001",
+          "entity": "Acme Corp",
+          "entity_id": "ent_acme_001",
+          "metric": "revenue",
+          "severity": "CRITICAL",
+          "systems": {
+            "salesforce_crm": {
+              "value": 45000000,
+              "formatted": "$45.0M",
+              "last_updated": "2026-01-15T10:30:00Z",
+              "trust_score": 0.85,
+              "is_sor": false
+            },
+            "sap_erp": {
+              "value": 42800000,
+              "formatted": "$42.8M",
+              "last_updated": "2026-01-10T08:00:00Z",
+              "trust_score": 0.92,
+              "is_sor": true
+            }
+          },
+          "delta": {
+            "absolute": 2200000,
+            "formatted": "$2.2M",
+            "percentage": 5.14
+          },
+          "root_cause": {
+            "type": "timing",
+            "explanation": "SAP ERP recognizes revenue on invoice date; Salesforce CRM records it at deal close. The $2.2M gap represents deals closed in CRM but not yet invoiced in ERP.",
+            "recommendation": "Trust ERP (SAP) for recognized revenue. CRM figure includes unbilled deals."
+          },
+          "trust_recommendation": {
+            "winner": "sap_erp",
+            "reason": "SAP is the system of record for financial data. Revenue recognition follows GAAP standards in ERP.",
+            "confidence": 0.92
+          },
+          "status": "open"
+        },
+        {
+          "id": "conflict_002",
+          "entity": "Massive Dynamic",
+          "entity_id": "ent_massive_004",
+          "metric": "revenue",
+          "severity": "HIGH",
+          "systems": {
+            "salesforce_crm": {
+              "value": 120000000,
+              "formatted": "$120.0M",
+              "last_updated": "2026-01-22T13:00:00Z",
+              "trust_score": 0.8,
+              "is_sor": false
+            },
+            "sap_erp": {
+              "value": 118500000,
+              "formatted": "$118.5M",
+              "last_updated": "2026-01-08T10:00:00Z",
+              "trust_score": 0.9,
+              "is_sor": true
+            }
+          },
+          "delta": {
+            "absolute": 1500000,
+            "formatted": "$1.5M",
+            "percentage": 1.27
+          },
+          "root_cause": {
+            "type": "scope",
+            "explanation": "CRM includes revenue from a recently acquired subsidiary not yet integrated into SAP. The $1.5M delta represents the subsidiary's contribution.",
+            "recommendation": "Trust SAP for core business revenue. Add subsidiary data once SAP integration completes."
+          },
+          "trust_recommendation": {
+            "winner": "sap_erp",
+            "reason": "SAP is authoritative for recognized revenue. CRM scope is broader but includes unverified subsidiary data.",
+            "confidence": 0.88
+          },
+          "status": "open"
+        }
+      ],
       "temporal_warning": null,
-      "data_source": null,
+      "data_source": "dcl",
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 3846,
+    "response_time_ms": 1901,
     "assertions": {
-      "success": false,
+      "success": true,
       "references_growth": true,
       "references_revenue": true
     },
-    "passed": false,
+    "passed": true,
     "error": null
   },
   {
@@ -6941,7 +7268,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 595,
+    "response_time_ms": 546,
     "assertions": {
       "success": true,
       "references_customers": true,
@@ -7024,7 +7351,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1153,
+    "response_time_ms": 1182,
     "assertions": {
       "success": true,
       "references_burn": true
@@ -7066,10 +7393,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_cd2a0358c902_20260305_212654",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:29:17.294853Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
           "salesforce_crm"
         ],
@@ -7085,7 +7412,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 942,
+    "response_time_ms": 926,
     "assertions": {
       "success": true,
       "references_pipeline": true,
@@ -7157,7 +7484,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1186,
+    "response_time_ms": 1208,
     "assertions": {
       "success": true,
       "references_quota": true,
@@ -7191,7 +7518,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_85e5086a",
+        "id": "dash_535d8239",
         "title": "Csat & Headcount Over Time",
         "description": "Generated from: What's the trend in customer satisfaction?",
         "source_query": "What's the trend in customer satisfaction?",
@@ -7748,7 +8075,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2483,
+    "response_time_ms": 2522,
     "assertions": {
       "success": true,
       "references_satisfaction": true
@@ -7809,7 +8136,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 944,
+    "response_time_ms": 1006,
     "assertions": {
       "success": true,
       "references_engineering": true
@@ -7842,7 +8169,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_8a37e1af",
+        "id": "dash_87fa3639",
         "title": "Revenue & Gross Margin Dashboard",
         "description": "Generated from: Compare Q1 vs Q2 revenue",
         "source_query": "Compare Q1 vs Q2 revenue",
@@ -8404,7 +8731,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2383,
+    "response_time_ms": 2351,
     "assertions": {
       "success": true,
       "references_q1": true,
@@ -8439,7 +8766,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_6e868a8d",
+        "id": "dash_32fd946d",
         "title": "Gross Margin & Revenue Over Time",
         "description": "Generated from: What's our gross margin trend?",
         "source_query": "What's our gross margin trend?",
@@ -9001,7 +9328,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2370,
+    "response_time_ms": 2398,
     "assertions": {
       "success": true,
       "references_gross_margin": true,
@@ -9035,7 +9362,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_da58ca48",
+        "id": "dash_42106705",
         "title": "Headcount & Attrition Rate Pct Dashboard",
         "description": "Generated from: Show me hiring metrics",
         "source_query": "Show me hiring metrics",
@@ -9516,7 +9843,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2029,
+    "response_time_ms": 2040,
     "assertions": {
       "success": true,
       "references_hiring": true
@@ -9558,10 +9885,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
+        "run_id": "aam_run_cd2a0358c902_20260305_212654",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
+        "run_timestamp": "2026-03-05T21:29:17.294853Z",
         "source_systems": [
           "netsuite_erp"
         ],
@@ -9577,7 +9904,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 974,
+    "response_time_ms": 945,
     "assertions": {
       "success": true,
       "references_revenue": true,
@@ -9598,13 +9925,13 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Win Rate Pct for 2026-Q1 is 40.0%",
-      "value": 40.0,
-      "unit": "pct",
-      "confidence": 0.95,
+      "answer": "Hmm, that's a head-scratcher. Try asking me about:\n• Revenue, bookings, or ARR\n• Pipeline or churn\n• Any of the dashboards (CFO, CRO, COO, CTO)\n\n⚠️ Possible insufficient data condition (50% confidence)",
+      "value": null,
+      "unit": null,
+      "confidence": 0.5,
       "parsed_intent": "POINT_QUERY",
-      "resolved_metric": "win_rate_pct",
-      "resolved_period": "2026-Q1",
+      "resolved_metric": "bookings",
+      "resolved_period": "last_month",
       "related_metrics": null,
       "error_code": null,
       "error_message": null,
@@ -9619,33 +9946,20 @@
       "entity": null,
       "entity_id": null,
       "entity_resolution": null,
-      "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
-        "tenant_id": "default",
-        "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
-        "source_systems": [
-          "salesforce_crm"
-        ],
-        "source_system": "salesforce_crm",
-        "is_sor": true,
-        "freshness": "2026-02-07T00:00:00Z",
-        "quality_score": 1.0,
-        "mode": "Ingest"
-      },
+      "provenance": null,
       "conflicts": null,
       "temporal_warning": null,
-      "data_source": "dcl",
+      "data_source": null,
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 990,
+    "response_time_ms": 2769,
     "assertions": {
       "success": true,
-      "references_closed": false,
+      "references_closed": true,
       "has_temporal": true
     },
-    "passed": false,
+    "passed": true,
     "error": null
   },
   {
@@ -9673,7 +9987,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_2488f193",
+        "id": "dash_8ee442b7",
         "title": "COGS & Revenue Dashboard",
         "description": "Generated from: Cost of revenue breakdown",
         "source_query": "Cost of revenue breakdown",
@@ -10235,7 +10549,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2258,
+    "response_time_ms": 2409,
     "assertions": {
       "success": true,
       "references_cogs": true
@@ -10268,7 +10582,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_87b36ef5",
+        "id": "dash_ee24caea",
         "title": "Revenue & Gross Margin Dashboard",
         "description": "Generated from: give me an overview",
         "source_query": "give me an overview",
@@ -10832,7 +11146,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2291,
+    "response_time_ms": 2293,
     "assertions": {
       "success": true,
       "has_financial_metrics": true
@@ -10865,7 +11179,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_3c719a29",
+        "id": "dash_e06c1a30",
         "title": "Pipeline & Win Rate Pct Dashboard",
         "description": "Generated from: give me an overview",
         "source_query": "give me an overview",
@@ -11406,7 +11720,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2382,
+    "response_time_ms": 2686,
     "assertions": {
       "success": true,
       "has_sales_metrics": true
@@ -11439,7 +11753,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_8fc981e7",
+        "id": "dash_7d372581",
         "title": "Headcount & Revenue Per Employee Dashboard",
         "description": "Generated from: give me an overview",
         "source_query": "give me an overview",
@@ -11997,7 +12311,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2304,
+    "response_time_ms": 2484,
     "assertions": {
       "success": true,
       "has_ops_metrics": true
@@ -12030,7 +12344,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_7ec60a1f",
+        "id": "dash_8765fe1c",
         "title": "Uptime Pct & P1 Incidents Dashboard",
         "description": "Generated from: give me an overview",
         "source_query": "give me an overview",
@@ -12493,7 +12807,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2048,
+    "response_time_ms": 2110,
     "assertions": {
       "success": true,
       "has_tech_metrics": true
@@ -12526,7 +12840,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_b164b02d",
+        "id": "dash_7a411613",
         "title": "Headcount & Attrition Rate Pct Dashboard",
         "description": "Generated from: give me an overview",
         "source_query": "give me an overview",
@@ -13088,7 +13402,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2314,
+    "response_time_ms": 2375,
     "assertions": {
       "success": true,
       "has_people_metrics": true
@@ -13108,120 +13422,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Breakdown for 2026-Q1: Churn Rate Pct: 7.2, Pipeline: 128.05, Ar: 16.99",
-      "value": {
-        "period": "2026-Q1",
-        "breakdown": {
-          "churn_rate_pct": 7.2,
-          "pipeline": 128.05,
-          "ar": 16.99
-        }
-      },
-      "unit": "unknown",
-      "confidence": 0.95,
-      "parsed_intent": "BREAKDOWN_QUERY",
-      "resolved_metric": "churn_risk",
-      "resolved_period": "2026-Q1",
-      "related_metrics": null,
-      "error_code": null,
-      "error_message": null,
-      "needs_clarification": false,
-      "clarification_prompt": null,
-      "dashboard": null,
-      "dashboard_data": null,
-      "response_type": "text",
-      "active_filters": null,
-      "error_details": null,
-      "debug_info": {
-        "nlq_diag_trace": [
-          "[NLQ-DIAG] /query endpoint: question='what should I worry about?', data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() called: metric=what_should_i_worry_about, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"what_should_i_worry_about\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=404, body={\"detail\":{\"error\":\"Metric 'what_should_i_worry_about' not found\",\"code\":\"METRIC_NOT_FOUND\",\"details\":{\"available_metrics\":[\"arr\",\"mrr\",\"revenue\",\"services_revenue\",\"ar\",\"dso\",\"burn_rate\",\"gross_margin_pct\",\"ar_aging\",\"pipeline\",\"win_rate_pct\",\"quota_attainment_pct\",\"churn_rate_pct\",\"nrr\",\"pipeline_value\",\"churn_risk\",\"nrr_by_cohort\",\"throughput\",\"cycle_time\",\"sla_compliance_pct\",\"deploy_frequency\",\"mttr\",\"uptime_pct\",\"slo_attainment_pct\",\"cloud_spend\",\"headcount\",\"attrition_rate_pct\",\"time_to_f",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() called: metric=burn_rate, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"burn_rate\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"burn_rate\",\"metric_name\":\"Burn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T21:48:24.635967Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"fact_base\",\"run_id\":\"aam_run_ae1958d48dcd_20260305_214231\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T21:42:37.815518Z\",\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":nul",
-          "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2026-Q1\",\"value\":7.2,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T21:48:24.809309Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_ae1958d48dcd_20260305_214231\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T21:42:37.815518Z\",\"total_count\":null,\"ranking_type",
-          "[NLQ-DIAG] query() called: metric=pipeline, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"pipeline\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"pipeline\",\"metric_name\":\"Sales Pipeline\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":128.05,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T21:48:24.862302Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_ae1958d48dcd_20260305_214231\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T21:42:37.815518Z\",\"total_count\":null,\"rank",
-          "[NLQ-DIAG] query() called: metric=ar, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"ar\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"ar\",\"metric_name\":\"Accounts Receivable\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":16.99,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T21:48:24.906945Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_ae1958d48dcd_20260305_214231\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T21:42:37.815518Z\",\"total_count\":null,\"rankin",
-          "[NLQ-DIAG] query() called: metric=ar, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"ar\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"ar\",\"metric_name\":\"Accounts Receivable\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":16.99,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T21:48:25.067382Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_ae1958d48dcd_20260305_214231\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T21:42:37.815518Z\",\"total_count\":null,\"rankin"
-        ]
-      },
-      "entity": null,
-      "entity_id": null,
-      "entity_resolution": null,
-      "provenance": null,
-      "conflicts": null,
-      "temporal_warning": null,
-      "data_source": null,
-      "persona": null
-    },
-    "http_status": 200,
-    "response_time_ms": 5762,
-    "assertions": {
-      "success": true,
-      "references_financial": true
-    },
-    "passed": true,
-    "error": null
-  },
-  {
-    "id": 42,
-    "name": "C7: 'what should I worry about?' (CRO)",
-    "category": "C: Persona Fidelity",
-    "query": "what should I worry about?",
-    "persona": "CRO",
-    "request_body": {
-      "question": "what should I worry about?",
-      "persona": "CRO"
-    },
-    "response_body": {
-      "success": true,
-      "answer": "I'm stumped! But I can definitely help with:\n• Financial metrics (revenue, margin, profit)\n• Sales metrics (pipeline, bookings, win rate)\n• Or try 'show me KPIs'\n\n⚠️ Possible insufficient data condition (50% confidence)",
+      "answer": "Hmm, that's a head-scratcher. Try asking me about:\n• Revenue, bookings, or ARR\n• Pipeline or churn\n• Any of the dashboards (CFO, CRO, COO, CTO)\n\n⚠️ Possible insufficient data condition (50% confidence)",
       "value": null,
       "unit": null,
       "confidence": 0.5,
@@ -13249,7 +13450,55 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 3885,
+    "response_time_ms": 4298,
+    "assertions": {
+      "success": true,
+      "references_financial": true
+    },
+    "passed": true,
+    "error": null
+  },
+  {
+    "id": 42,
+    "name": "C7: 'what should I worry about?' (CRO)",
+    "category": "C: Persona Fidelity",
+    "query": "what should I worry about?",
+    "persona": "CRO",
+    "request_body": {
+      "question": "what should I worry about?",
+      "persona": "CRO"
+    },
+    "response_body": {
+      "success": true,
+      "answer": "I'm not sure what you mean, but here are some things I'm great at:\n• 'What's revenue?'\n• 'How's pipeline looking?'\n• 'Show me the CFO dashboard'\n\n⚠️ Possible insufficient data condition (50% confidence)",
+      "value": null,
+      "unit": null,
+      "confidence": 0.5,
+      "parsed_intent": "BREAKDOWN_QUERY",
+      "resolved_metric": "churn_risk",
+      "resolved_period": "2026-Q1",
+      "related_metrics": null,
+      "error_code": null,
+      "error_message": null,
+      "needs_clarification": false,
+      "clarification_prompt": null,
+      "dashboard": null,
+      "dashboard_data": null,
+      "response_type": "text",
+      "active_filters": null,
+      "error_details": null,
+      "debug_info": null,
+      "entity": null,
+      "entity_id": null,
+      "entity_resolution": null,
+      "provenance": null,
+      "conflicts": null,
+      "temporal_warning": null,
+      "data_source": null,
+      "persona": null
+    },
+    "http_status": 200,
+    "response_time_ms": 4004,
     "assertions": {
       "success": true,
       "references_sales": true
@@ -13297,7 +13546,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 4058,
+    "response_time_ms": 4481,
     "assertions": {
       "success": true,
       "references_tech": false
@@ -13390,7 +13639,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1288,
+    "response_time_ms": 1197,
     "assertions": {
       "success": true,
       "references_financial": true,
@@ -13484,7 +13733,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1443,
+    "response_time_ms": 1156,
     "assertions": {
       "success": true,
       "references_sales": true
@@ -13577,7 +13826,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1171,
+    "response_time_ms": 1234,
     "assertions": {
       "success": true,
       "references_ops": false
@@ -13610,7 +13859,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_61a86dcb",
+        "id": "dash_877d7216",
         "title": "Executive Dashboard",
         "description": "Generated from: build me a CHRO dashboard",
         "source_query": "build me a CHRO dashboard",
@@ -14160,7 +14409,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2163,
+    "response_time_ms": 1946,
     "assertions": {
       "is_dashboard": true,
       "has_people_metrics": true
@@ -14193,7 +14442,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_5f51d141",
+        "id": "dash_529231f1",
         "title": "CTO Dashboard",
         "description": "Generated from: build me a CTO dashboard",
         "source_query": "build me a CTO dashboard",
@@ -14674,7 +14923,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2102,
+    "response_time_ms": 2303,
     "assertions": {
       "is_dashboard": true,
       "has_tech_metrics": true
@@ -14707,7 +14956,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_3759f4e1",
+        "id": "dash_acd8e322",
         "title": "Revenue & Gross Margin Dashboard",
         "description": "Generated from: what are our KPIs?",
         "source_query": "what are our KPIs?",
@@ -15271,7 +15520,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2476,
+    "response_time_ms": 2545,
     "assertions": {
       "success": true,
       "references_financial_kpis": true
@@ -15304,7 +15553,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_4d71d18f",
+        "id": "dash_459cbbdf",
         "title": "Pipeline & Win Rate Pct Dashboard",
         "description": "Generated from: what are our KPIs?",
         "source_query": "what are our KPIs?",
@@ -15845,7 +16094,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2487,
+    "response_time_ms": 2512,
     "assertions": {
       "success": true,
       "references_sales_kpis": true
@@ -15887,10 +16136,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_cd2a0358c902_20260305_212654",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:29:17.294853Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
           "salesforce_crm",
           "netsuite_erp"
@@ -15907,7 +16156,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 944,
+    "response_time_ms": 936,
     "assertions": {
       "success": true,
       "has_value": true
@@ -15949,10 +16198,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
+        "run_id": "aam_run_cd2a0358c902_20260305_212654",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
+        "run_timestamp": "2026-03-05T21:29:17.294853Z",
         "source_systems": [
           "chargebee_billing"
         ],
@@ -15968,7 +16217,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 908,
+    "response_time_ms": 943,
     "assertions": {
       "success": true,
       "has_value": true
@@ -16029,7 +16278,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 879,
+    "response_time_ms": 927,
     "assertions": {
       "success": true,
       "has_percent": true
@@ -16071,10 +16320,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
           "netsuite_erp"
         ],
@@ -16090,7 +16339,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 894,
+    "response_time_ms": 897,
     "assertions": {
       "success": true,
       "has_percent": true
@@ -16132,10 +16381,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
           "netsuite_erp"
         ],
@@ -16151,7 +16400,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 887,
+    "response_time_ms": 913,
     "assertions": {
       "success": true,
       "has_percent": true
@@ -16212,7 +16461,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 921,
+    "response_time_ms": 870,
     "assertions": {
       "success": true,
       "has_value": true
@@ -16272,7 +16521,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1081,
+    "response_time_ms": 1084,
     "assertions": {
       "success": true,
       "has_value": true
@@ -16314,10 +16563,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
           "chargebee"
         ],
@@ -16333,7 +16582,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 901,
+    "response_time_ms": 889,
     "assertions": {
       "success": true,
       "has_value": true
@@ -16375,10 +16624,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
+        "run_id": "aam_run_cd2a0358c902_20260305_212654",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
+        "run_timestamp": "2026-03-05T21:29:17.294853Z",
         "source_systems": [
           "salesforce_crm"
         ],
@@ -16394,7 +16643,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 903,
+    "response_time_ms": 916,
     "assertions": {
       "success": true,
       "has_value": true
@@ -16436,10 +16685,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
           "salesforce_crm"
         ],
@@ -16455,7 +16704,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 887,
+    "response_time_ms": 881,
     "assertions": {
       "success": true,
       "has_percent": true
@@ -16497,10 +16746,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
+        "run_id": "aam_run_cd2a0358c902_20260305_212654",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
+        "run_timestamp": "2026-03-05T21:29:17.294853Z",
         "source_systems": [
           "salesforce_crm"
         ],
@@ -16516,7 +16765,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 863,
+    "response_time_ms": 914,
     "assertions": {
       "success": true,
       "has_percent": true
@@ -16558,10 +16807,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
           "salesforce_crm"
         ],
@@ -16577,7 +16826,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 801,
+    "response_time_ms": 901,
     "assertions": {
       "success": true,
       "has_number": true,
@@ -16639,7 +16888,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 863,
+    "response_time_ms": 977,
     "assertions": {
       "success": true,
       "has_percent": true
@@ -16681,10 +16930,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_cd2a0358c902_20260305_212654",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:29:17.294853Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
           "salesforce_crm"
         ],
@@ -16700,7 +16949,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 901,
+    "response_time_ms": 876,
     "assertions": {
       "success": true,
       "has_number": true
@@ -16742,10 +16991,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_cd2a0358c902_20260305_212654",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:29:17.294853Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
           "netsuite_erp"
         ],
@@ -16761,7 +17010,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 895,
+    "response_time_ms": 950,
     "assertions": {
       "success": true,
       "has_value": true
@@ -16794,7 +17043,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_96699ea9",
+        "id": "dash_9df51513",
         "title": "Revenue & Gross Margin Dashboard",
         "description": "Generated from: compare Q1 vs Q2 2025 revenue",
         "source_query": "compare Q1 vs Q2 2025 revenue",
@@ -17356,7 +17605,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2352,
+    "response_time_ms": 2498,
     "assertions": {
       "success": true,
       "references_q1": true,
@@ -17390,7 +17639,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_4760f798",
+        "id": "dash_ec1bb043",
         "title": "Revenue & Rule Of 40 Over Time",
         "description": "Generated from: revenue trend last 4 quarters",
         "source_query": "revenue trend last 4 quarters",
@@ -17952,7 +18201,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2404,
+    "response_time_ms": 2412,
     "assertions": {
       "success": true,
       "references_quarters": true
@@ -17971,17 +18220,17 @@
       "persona": "CRO"
     },
     "response_body": {
-      "success": false,
-      "answer": null,
+      "success": true,
+      "answer": "Hmm, that's a head-scratcher. Try asking me about:\n• Revenue, bookings, or ARR\n• Pipeline or churn\n• Any of the dashboards (CFO, CRO, COO, CTO)\n\n⚠️ Possible insufficient data condition (50% confidence)",
       "value": null,
       "unit": null,
-      "confidence": 0.0,
-      "parsed_intent": null,
-      "resolved_metric": null,
-      "resolved_period": null,
+      "confidence": 0.5,
+      "parsed_intent": "COMPARISON_QUERY",
+      "resolved_metric": "pipeline",
+      "resolved_period": "2026",
       "related_metrics": null,
-      "error_code": "INTERNAL_ERROR",
-      "error_message": "TypeError: must be real number, not dict",
+      "error_code": null,
+      "error_message": null,
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": null,
@@ -17989,29 +18238,7 @@
       "response_type": "text",
       "active_filters": null,
       "error_details": null,
-      "debug_info": {
-        "nlq_diag_trace": [
-          "[NLQ-DIAG] /query endpoint: question='how has pipeline changed this year?', data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] /query EXCEPTION: TypeError: must be real number, not dict"
-        ],
-        "error": "must be real number, not dict",
-        "error_type": "TypeError"
-      },
+      "debug_info": null,
       "entity": null,
       "entity_id": null,
       "entity_resolution": null,
@@ -18022,11 +18249,11 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 3872,
+    "response_time_ms": 1821,
     "assertions": {
-      "success": false,
+      "success": true,
       "references_pipeline": true,
-      "references_change": true
+      "references_change": false
     },
     "passed": false,
     "error": null
@@ -18094,7 +18321,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1161,
+    "response_time_ms": 1124,
     "assertions": {
       "success": true,
       "references_comparison": false
@@ -18158,11 +18385,11 @@
           "[NLQ-DIAG] query() called: metric=arr, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"arr\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026\", \"end\": \"2026\"}, \"grain\": \"year\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"arr\",\"metric_name\":\"Annual Recurring Revenue\",\"dimensions\":[],\"grain\":\"year\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":145.52,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q2\",\"value\":152.31,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q3\",\"value\":159.41,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q4\",\"value\":166.84,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T21:50:11.474487Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\"",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"arr\",\"metric_name\":\"Annual Recurring Revenue\",\"dimensions\":[],\"grain\":\"year\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":145.52,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q2\",\"value\":152.31,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q3\",\"value\":159.41,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q4\",\"value\":166.84,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:47:56.783558Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\"",
           "[NLQ-DIAG] query() called: metric=arr, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"arr\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025\", \"end\": \"2025\"}, \"grain\": \"year\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"arr\",\"metric_name\":\"Annual Recurring Revenue\",\"dimensions\":[],\"grain\":\"year\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q1\",\"value\":116.91,\"dimensions\":{},\"rank\":null},{\"period\":\"2025-Q2\",\"value\":123.86,\"dimensions\":{},\"rank\":null},{\"period\":\"2025-Q3\",\"value\":131.23,\"dimensions\":{},\"rank\":null},{\"period\":\"2025-Q4\",\"value\":139.04,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T21:50:11.650415Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\""
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"arr\",\"metric_name\":\"Annual Recurring Revenue\",\"dimensions\":[],\"grain\":\"year\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q1\",\"value\":116.91,\"dimensions\":{},\"rank\":null},{\"period\":\"2025-Q2\",\"value\":123.86,\"dimensions\":{},\"rank\":null},{\"period\":\"2025-Q3\",\"value\":131.23,\"dimensions\":{},\"rank\":null},{\"period\":\"2025-Q4\",\"value\":139.04,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:47:56.952644Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\""
         ]
       },
       "entity": null,
@@ -18175,7 +18402,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 4159,
+    "response_time_ms": 1615,
     "assertions": {
       "success": true,
       "references_yoy": true,
@@ -18196,13 +18423,52 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Accounts Receivable for 2026-Q1 is $17.0M",
-      "value": 16.99,
-      "unit": "usd_millions",
+      "answer": "Churn Rate Pct has been decreasing (-6.1% change over 8 periods)",
+      "value": {
+        "metric": "churn_rate_pct",
+        "trend_data": [
+          {
+            "period": "2024-Q1",
+            "value": 8.2
+          },
+          {
+            "period": "2024-Q2",
+            "value": 8.2
+          },
+          {
+            "period": "2024-Q3",
+            "value": 8.2
+          },
+          {
+            "period": "2024-Q4",
+            "value": 8.2
+          },
+          {
+            "period": "2025-Q1",
+            "value": 7.7
+          },
+          {
+            "period": "2025-Q2",
+            "value": 7.7
+          },
+          {
+            "period": "2025-Q3",
+            "value": 7.7
+          },
+          {
+            "period": "2025-Q4",
+            "value": 7.7
+          }
+        ],
+        "change_pct": -6.1,
+        "trend_direction": "decreasing",
+        "period_count": 8
+      },
+      "unit": "pct",
       "confidence": 0.95,
-      "parsed_intent": "POINT_QUERY",
-      "resolved_metric": "ar",
-      "resolved_period": "2026-Q1",
+      "parsed_intent": "TREND_QUERY",
+      "resolved_metric": "churn_rate_pct",
+      "resolved_period": "last_3_quarters",
       "related_metrics": null,
       "error_code": null,
       "error_message": null,
@@ -18213,37 +18479,70 @@
       "response_type": "text",
       "active_filters": null,
       "error_details": null,
-      "debug_info": null,
+      "debug_info": {
+        "nlq_diag_trace": [
+          "[NLQ-DIAG] /query endpoint: question='churn rate last 3 quarters', data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q1\", \"end\": \"2024-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2024-Q1\",\"value\":8.2,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:48:00.485472Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_d48a062e73cc_20260305_221741\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T22:17:47.672748Z\",\"total_count\":null,\"ranking_type",
+          "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q2\", \"end\": \"2024-Q2\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2024-Q2\",\"value\":8.2,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:48:00.658983Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_d48a062e73cc_20260305_221741\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T22:17:47.672748Z\",\"total_count\":null,\"ranking_type",
+          "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q3\", \"end\": \"2024-Q3\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2024-Q3\",\"value\":8.2,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:48:00.711821Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_d48a062e73cc_20260305_221741\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T22:17:47.672748Z\",\"total_count\":null,\"ranking_type",
+          "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q4\", \"end\": \"2024-Q4\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2024-Q4\",\"value\":8.2,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:48:00.759296Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_d48a062e73cc_20260305_221741\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T22:17:47.672748Z\",\"total_count\":null,\"ranking_type",
+          "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q1\", \"end\": \"2025-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2025-Q1\",\"value\":7.7,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:48:00.920834Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_d48a062e73cc_20260305_221741\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T22:17:47.672748Z\",\"total_count\":null,\"ranking_type",
+          "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q2\", \"end\": \"2025-Q2\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2025-Q2\",\"value\":7.7,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:48:00.977339Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_d48a062e73cc_20260305_221741\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T22:17:47.672748Z\",\"total_count\":null,\"ranking_type",
+          "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q3\", \"end\": \"2025-Q3\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2025-Q3\",\"value\":7.7,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:48:01.024159Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_d48a062e73cc_20260305_221741\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T22:17:47.672748Z\",\"total_count\":null,\"ranking_type",
+          "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q4\", \"end\": \"2025-Q4\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2025-Q4\",\"value\":7.7,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:48:01.191710Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"fact_base\",\"run_id\":\"aam_run_d48a062e73cc_20260305_221741\",\"tenant_id\":\"default\",\"snapshot_name\":\"Ingest-v5.0\",\"run_timestamp\":\"2026-03-05T22:17:47.672748Z\",\"total_count\":null,\"ranking_type"
+        ]
+      },
       "entity": null,
       "entity_id": null,
       "entity_resolution": null,
-      "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
-        "tenant_id": "default",
-        "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
-        "source_systems": [
-          "netsuite_erp"
-        ],
-        "source_system": "netsuite_erp",
-        "is_sor": true,
-        "freshness": "2026-02-06T00:00:00Z",
-        "quality_score": 1.0,
-        "mode": "Ingest"
-      },
+      "provenance": null,
       "conflicts": null,
       "temporal_warning": null,
       "data_source": "dcl",
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 937,
+    "response_time_ms": 2242,
     "assertions": {
       "success": true,
-      "references_churn": false,
+      "references_churn": true,
       "references_quarters": true
     },
-    "passed": false,
+    "passed": true,
     "error": null
   },
   {
@@ -18309,7 +18608,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1209,
+    "response_time_ms": 1126,
     "assertions": {
       "success": true,
       "indicates_direction": false
@@ -18342,7 +18641,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_f6b8c59e",
+        "id": "dash_e3fd079d",
         "title": "Pipeline & Retained Earnings Over Time",
         "description": "Generated from: pipeline trend since January",
         "source_query": "pipeline trend since January",
@@ -18894,7 +19193,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2461,
+    "response_time_ms": 2444,
     "assertions": {
       "success": true,
       "references_pipeline": true,
@@ -18928,7 +19227,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_a6d7db0a",
+        "id": "dash_fc11e3e3",
         "title": "Gross Margin & Net Margin Pct Dashboard",
         "description": "Generated from: compare gross vs net margin",
         "source_query": "compare gross vs net margin",
@@ -19490,7 +19789,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2789,
+    "response_time_ms": 2360,
     "assertions": {
       "success": true,
       "references_gross": true,
@@ -19562,7 +19861,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1208,
+    "response_time_ms": 1136,
     "assertions": {
       "success": true,
       "references_bookings": true,
@@ -19582,7 +19881,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Ready to orchestrate.",
+      "answer": "Waiting for your input... I have all day. Literally.",
       "value": null,
       "unit": null,
       "confidence": 1.0,
@@ -19610,7 +19909,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 466,
+    "response_time_ms": 451,
     "assertions": {
       "success": true,
       "not_metric": true
@@ -19629,7 +19928,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Outside my wheelhouse. Inside my wheelhouse: every financial metric.",
+      "answer": "No idea about the weather. Perfect visibility on the pipeline though.",
       "value": null,
       "unit": null,
       "confidence": 1.0,
@@ -19657,7 +19956,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 486,
+    "response_time_ms": 453,
     "assertions": {
       "success": true,
       "off_topic_handled": true
@@ -19720,7 +20019,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 3689,
+    "response_time_ms": 2418,
     "assertions": {
       "success": false,
       "handled_gracefully": true
@@ -19739,17 +20038,24 @@
       "persona": "CFO"
     },
     "response_body": {
-      "success": false,
-      "answer": null,
-      "value": null,
-      "unit": null,
-      "confidence": 0.0,
-      "parsed_intent": null,
-      "resolved_metric": null,
-      "resolved_period": null,
+      "success": true,
+      "answer": "Breakdown for 2026: New Logo Revenue: $2.0M, Expansion Revenue: $2.8M, Renewal Revenue: $147.7M",
+      "value": {
+        "period": "2026",
+        "breakdown": {
+          "new_logo_revenue": 2.02,
+          "expansion_revenue": 2.79,
+          "renewal_revenue": 147.74
+        }
+      },
+      "unit": "usd_millions",
+      "confidence": 0.95,
+      "parsed_intent": "BREAKDOWN_QUERY",
+      "resolved_metric": "revenue",
+      "resolved_period": "2026",
       "related_metrics": null,
-      "error_code": "INTERNAL_ERROR",
-      "error_message": "TypeError: must be real number, not dict",
+      "error_code": null,
+      "error_message": null,
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": null,
@@ -19774,31 +20080,152 @@
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() called: metric=new_logo_revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"new_logo_revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026\", \"end\": \"2026\"}, \"grain\": \"year\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"new_logo_revenue\",\"metric_name\":\"New Logo Revenue\",\"dimensions\":[],\"grain\":\"year\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":0.47,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q2\",\"value\":0.49,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q3\",\"value\":0.52,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q4\",\"value\":0.54,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:48:29.134896Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":4,",
+          "[NLQ-DIAG] query() called: metric=expansion_revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"expansion_revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026\", \"end\": \"2026\"}, \"grain\": \"year\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"expansion_revenue\",\"metric_name\":\"Expansion Revenue\",\"dimensions\":[],\"grain\":\"year\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":0.65,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q2\",\"value\":0.68,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q3\",\"value\":0.71,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q4\",\"value\":0.75,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:48:29.291997Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":",
+          "[NLQ-DIAG] query() called: metric=renewal_revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] /query EXCEPTION: TypeError: must be real number, not dict"
-        ],
-        "error": "must be real number, not dict",
-        "error_type": "TypeError"
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"renewal_revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026\", \"end\": \"2026\"}, \"grain\": \"year\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"renewal_revenue\",\"metric_name\":\"Renewal Revenue\",\"dimensions\":[],\"grain\":\"year\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":34.45,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q2\",\"value\":36.06,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q3\",\"value\":37.74,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q4\",\"value\":39.49,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:48:29.348084Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":"
+        ]
       },
       "entity": null,
       "entity_id": null,
       "entity_resolution": null,
-      "provenance": null,
-      "conflicts": null,
+      "provenance": {
+        "metric": "revenue",
+        "lineage": [
+          {
+            "source_system": "sap_erp",
+            "source_table": "BSEG",
+            "source_field": "DMBTR",
+            "transformation": "Aggregate by fiscal period, convert from EUR to USD at month-end rate",
+            "is_system_of_record": true,
+            "trust_score": 0.92,
+            "freshness": "daily",
+            "last_refreshed": "2026-02-07T06:00:00Z"
+          },
+          {
+            "source_system": "salesforce_crm",
+            "source_table": "Opportunity",
+            "source_field": "Amount",
+            "transformation": "Sum of closed-won opportunities by close date",
+            "is_system_of_record": false,
+            "trust_score": 0.85,
+            "freshness": "real-time",
+            "last_refreshed": "2026-02-07T10:30:00Z"
+          },
+          {
+            "source_system": "netsuite_erp",
+            "source_table": "Transaction",
+            "source_field": "amount",
+            "transformation": "Sum of invoice transactions by accounting period",
+            "is_system_of_record": false,
+            "trust_score": 0.88,
+            "freshness": "daily",
+            "last_refreshed": "2026-02-07T05:00:00Z"
+          }
+        ],
+        "system_of_record": "sap_erp",
+        "trust_score": 0.92,
+        "freshness": "daily"
+      },
+      "conflicts": [
+        {
+          "id": "conflict_001",
+          "entity": "Acme Corp",
+          "entity_id": "ent_acme_001",
+          "metric": "revenue",
+          "severity": "CRITICAL",
+          "systems": {
+            "salesforce_crm": {
+              "value": 45000000,
+              "formatted": "$45.0M",
+              "last_updated": "2026-01-15T10:30:00Z",
+              "trust_score": 0.85,
+              "is_sor": false
+            },
+            "sap_erp": {
+              "value": 42800000,
+              "formatted": "$42.8M",
+              "last_updated": "2026-01-10T08:00:00Z",
+              "trust_score": 0.92,
+              "is_sor": true
+            }
+          },
+          "delta": {
+            "absolute": 2200000,
+            "formatted": "$2.2M",
+            "percentage": 5.14
+          },
+          "root_cause": {
+            "type": "timing",
+            "explanation": "SAP ERP recognizes revenue on invoice date; Salesforce CRM records it at deal close. The $2.2M gap represents deals closed in CRM but not yet invoiced in ERP.",
+            "recommendation": "Trust ERP (SAP) for recognized revenue. CRM figure includes unbilled deals."
+          },
+          "trust_recommendation": {
+            "winner": "sap_erp",
+            "reason": "SAP is the system of record for financial data. Revenue recognition follows GAAP standards in ERP.",
+            "confidence": 0.92
+          },
+          "status": "open"
+        },
+        {
+          "id": "conflict_002",
+          "entity": "Massive Dynamic",
+          "entity_id": "ent_massive_004",
+          "metric": "revenue",
+          "severity": "HIGH",
+          "systems": {
+            "salesforce_crm": {
+              "value": 120000000,
+              "formatted": "$120.0M",
+              "last_updated": "2026-01-22T13:00:00Z",
+              "trust_score": 0.8,
+              "is_sor": false
+            },
+            "sap_erp": {
+              "value": 118500000,
+              "formatted": "$118.5M",
+              "last_updated": "2026-01-08T10:00:00Z",
+              "trust_score": 0.9,
+              "is_sor": true
+            }
+          },
+          "delta": {
+            "absolute": 1500000,
+            "formatted": "$1.5M",
+            "percentage": 1.27
+          },
+          "root_cause": {
+            "type": "scope",
+            "explanation": "CRM includes revenue from a recently acquired subsidiary not yet integrated into SAP. The $1.5M delta represents the subsidiary's contribution.",
+            "recommendation": "Trust SAP for core business revenue. Add subsidiary data once SAP integration completes."
+          },
+          "trust_recommendation": {
+            "winner": "sap_erp",
+            "reason": "SAP is authoritative for recognized revenue. CRM scope is broader but includes unverified subsidiary data.",
+            "confidence": 0.88
+          },
+          "status": "open"
+        }
+      ],
       "temporal_warning": null,
       "data_source": null,
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 4961,
+    "response_time_ms": 1752,
     "assertions": {
-      "success": false,
-      "responded": false
+      "success": true,
+      "responded": true
     },
-    "passed": false,
+    "passed": true,
     "error": null
   },
   {
@@ -19813,12 +20240,12 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Arr for 2026-Q1 is $145.5M",
-      "value": 145.52,
+      "answer": "Revenue for 2026-Q1 is $35.6M",
+      "value": 35.57,
       "unit": "usd_millions",
       "confidence": 0.95,
       "parsed_intent": "POINT_QUERY",
-      "resolved_metric": "arr",
+      "resolved_metric": "revenue",
       "resolved_period": "2026-Q1",
       "related_metrics": null,
       "error_code": null,
@@ -19835,14 +20262,15 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_cd2a0358c902_20260305_212654",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:29:17.294853Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
-          "chargebee_billing"
+          "salesforce_crm",
+          "netsuite_erp"
         ],
-        "source_system": "chargebee_billing",
+        "source_system": "netsuite_erp",
         "is_sor": true,
         "freshness": "2026-02-07T00:00:00Z",
         "quality_score": 1.0,
@@ -19854,12 +20282,12 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 923,
+    "response_time_ms": 927,
     "assertions": {
       "success": true,
-      "references_revenue": false
+      "references_revenue": true
     },
-    "passed": false,
+    "passed": true,
     "error": null
   },
   {
@@ -19872,17 +20300,17 @@
       "question": "$"
     },
     "response_body": {
-      "success": false,
-      "answer": null,
-      "value": null,
-      "unit": null,
-      "confidence": 0.0,
-      "parsed_intent": null,
-      "resolved_metric": null,
-      "resolved_period": null,
+      "success": true,
+      "answer": "Revenue for 2026 was $152.6M",
+      "value": 152.6,
+      "unit": "usd_millions",
+      "confidence": 1.0,
+      "parsed_intent": "POINT_QUERY",
+      "resolved_metric": "revenue",
+      "resolved_period": "2026",
       "related_metrics": null,
-      "error_code": "INTERNAL_ERROR",
-      "error_message": "TypeError: must be real number, not dict",
+      "error_code": null,
+      "error_message": null,
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": null,
@@ -19902,22 +20330,140 @@
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
-          "[NLQ-DIAG] /query EXCEPTION: TypeError: must be real number, not dict"
-        ],
-        "error": "must be real number, not dict",
-        "error_type": "TypeError"
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=https://aos-dclv2.onrender.com, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST https://aos-dclv2.onrender.com/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026\", \"end\": \"2026\"}, \"grain\": \"year\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"year\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":35.57,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q2\",\"value\":37.23,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q3\",\"value\":38.97,\"dimensions\":{},\"rank\":null},{\"period\":\"2026-Q4\",\"value\":40.78,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"farm\"],\"freshness\":\"2026-03-05T23:48:35.857589Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":4,\"source\""
+        ]
       },
       "entity": null,
       "entity_id": null,
       "entity_resolution": null,
-      "provenance": null,
-      "conflicts": null,
+      "provenance": {
+        "metric": "revenue",
+        "lineage": [
+          {
+            "source_system": "sap_erp",
+            "source_table": "BSEG",
+            "source_field": "DMBTR",
+            "transformation": "Aggregate by fiscal period, convert from EUR to USD at month-end rate",
+            "is_system_of_record": true,
+            "trust_score": 0.92,
+            "freshness": "daily",
+            "last_refreshed": "2026-02-07T06:00:00Z"
+          },
+          {
+            "source_system": "salesforce_crm",
+            "source_table": "Opportunity",
+            "source_field": "Amount",
+            "transformation": "Sum of closed-won opportunities by close date",
+            "is_system_of_record": false,
+            "trust_score": 0.85,
+            "freshness": "real-time",
+            "last_refreshed": "2026-02-07T10:30:00Z"
+          },
+          {
+            "source_system": "netsuite_erp",
+            "source_table": "Transaction",
+            "source_field": "amount",
+            "transformation": "Sum of invoice transactions by accounting period",
+            "is_system_of_record": false,
+            "trust_score": 0.88,
+            "freshness": "daily",
+            "last_refreshed": "2026-02-07T05:00:00Z"
+          }
+        ],
+        "system_of_record": "sap_erp",
+        "trust_score": 0.92,
+        "freshness": "daily"
+      },
+      "conflicts": [
+        {
+          "id": "conflict_001",
+          "entity": "Acme Corp",
+          "entity_id": "ent_acme_001",
+          "metric": "revenue",
+          "severity": "CRITICAL",
+          "systems": {
+            "salesforce_crm": {
+              "value": 45000000,
+              "formatted": "$45.0M",
+              "last_updated": "2026-01-15T10:30:00Z",
+              "trust_score": 0.85,
+              "is_sor": false
+            },
+            "sap_erp": {
+              "value": 42800000,
+              "formatted": "$42.8M",
+              "last_updated": "2026-01-10T08:00:00Z",
+              "trust_score": 0.92,
+              "is_sor": true
+            }
+          },
+          "delta": {
+            "absolute": 2200000,
+            "formatted": "$2.2M",
+            "percentage": 5.14
+          },
+          "root_cause": {
+            "type": "timing",
+            "explanation": "SAP ERP recognizes revenue on invoice date; Salesforce CRM records it at deal close. The $2.2M gap represents deals closed in CRM but not yet invoiced in ERP.",
+            "recommendation": "Trust ERP (SAP) for recognized revenue. CRM figure includes unbilled deals."
+          },
+          "trust_recommendation": {
+            "winner": "sap_erp",
+            "reason": "SAP is the system of record for financial data. Revenue recognition follows GAAP standards in ERP.",
+            "confidence": 0.92
+          },
+          "status": "open"
+        },
+        {
+          "id": "conflict_002",
+          "entity": "Massive Dynamic",
+          "entity_id": "ent_massive_004",
+          "metric": "revenue",
+          "severity": "HIGH",
+          "systems": {
+            "salesforce_crm": {
+              "value": 120000000,
+              "formatted": "$120.0M",
+              "last_updated": "2026-01-22T13:00:00Z",
+              "trust_score": 0.8,
+              "is_sor": false
+            },
+            "sap_erp": {
+              "value": 118500000,
+              "formatted": "$118.5M",
+              "last_updated": "2026-01-08T10:00:00Z",
+              "trust_score": 0.9,
+              "is_sor": true
+            }
+          },
+          "delta": {
+            "absolute": 1500000,
+            "formatted": "$1.5M",
+            "percentage": 1.27
+          },
+          "root_cause": {
+            "type": "scope",
+            "explanation": "CRM includes revenue from a recently acquired subsidiary not yet integrated into SAP. The $1.5M delta represents the subsidiary's contribution.",
+            "recommendation": "Trust SAP for core business revenue. Add subsidiary data once SAP integration completes."
+          },
+          "trust_recommendation": {
+            "winner": "sap_erp",
+            "reason": "SAP is authoritative for recognized revenue. CRM scope is broader but includes unverified subsidiary data.",
+            "confidence": 0.88
+          },
+          "status": "open"
+        }
+      ],
       "temporal_warning": null,
-      "data_source": null,
+      "data_source": "dcl",
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 3598,
+    "response_time_ms": 1601,
     "assertions": {
       "no_crash": true
     },
@@ -19950,7 +20496,7 @@
       ]
     },
     "http_status": 422,
-    "response_time_ms": 388,
+    "response_time_ms": 329,
     "assertions": {
       "no_crash": true
     },
@@ -19991,10 +20537,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
           "culture_amp"
         ],
@@ -20010,7 +20556,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 958,
+    "response_time_ms": 985,
     "assertions": {
       "success": true,
       "responded": true
@@ -20079,7 +20625,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 11412,
+    "response_time_ms": 4099,
     "assertions": {
       "success": false,
       "no_crash": true
@@ -20098,7 +20644,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Glad I could help. What else?",
+      "answer": "You're welcome. I'm here all quarter.",
       "value": null,
       "unit": null,
       "confidence": 1.0,
@@ -20126,7 +20672,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 528,
+    "response_time_ms": 491,
     "assertions": {
       "no_crash": true
     },
@@ -20317,7 +20863,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2354,
+    "response_time_ms": 2288,
     "assertions": {
       "success": true,
       "multiple_pl_items": true
@@ -20350,7 +20896,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_808a085a",
+        "id": "dash_25be90a1",
         "title": "Revenue & Gross Margin Dashboard",
         "description": "Generated from: executive summary",
         "source_query": "executive summary",
@@ -20914,7 +21460,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2360,
+    "response_time_ms": 2358,
     "assertions": {
       "success": true,
       "multiple_metrics": true
@@ -20934,14 +21480,14 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Span Of Control for 2026-Q1 is 6.8",
-      "value": 6.8,
-      "unit": "unknown",
+      "answer": "2026 Financial Health: Revenue $152.6M, Gross Margin 66.7%, Operating Profit $56.0M, Net Income $42.0M, Cash $672.4M, ARR $624.1M",
+      "value": 152.55,
+      "unit": "usd_millions",
       "confidence": 0.95,
-      "parsed_intent": "POINT_QUERY",
-      "resolved_metric": "span_of_control",
-      "resolved_period": "2026-Q1",
-      "related_metrics": null,
+      "parsed_intent": "BROAD_REQUEST",
+      "resolved_metric": "financial_health",
+      "resolved_period": "2026",
+      "related_metrics": [],
       "error_code": null,
       "error_message": null,
       "needs_clarification": false,
@@ -20955,32 +21501,19 @@
       "entity": null,
       "entity_id": null,
       "entity_resolution": null,
-      "provenance": {
-        "run_id": "aam_run_cd2a0358c902_20260305_212654",
-        "tenant_id": "default",
-        "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:29:17.294853Z",
-        "source_systems": [
-          "workday"
-        ],
-        "source_system": "workday",
-        "is_sor": true,
-        "freshness": "2026-02-07T00:00:00Z",
-        "quality_score": 1.0,
-        "mode": "Ingest"
-      },
+      "provenance": null,
       "conflicts": null,
       "temporal_warning": null,
-      "data_source": "dcl",
+      "data_source": null,
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 980,
+    "response_time_ms": 1494,
     "assertions": {
       "success": true,
-      "multiple_indicators": false
+      "multiple_indicators": true
     },
-    "passed": false,
+    "passed": true,
     "error": null
   },
   {
@@ -21008,7 +21541,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_81a17c76",
+        "id": "dash_89d67dec",
         "title": "Accounts Receivable & Pipeline Dashboard",
         "description": "Generated from: sales performance scorecard",
         "source_query": "sales performance scorecard",
@@ -21547,7 +22080,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2515,
+    "response_time_ms": 2400,
     "assertions": {
       "success": true,
       "multiple_sales_metrics": true
@@ -21640,7 +22173,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 3520,
+    "response_time_ms": 3514,
     "assertions": {
       "success": true,
       "references_efficiency": true
@@ -21660,14 +22193,14 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Accounts Receivable for 2026-Q1 is $17.0M",
-      "value": 16.99,
-      "unit": "usd_millions",
+      "answer": "2026: Gross Margin: 66.7%, Operating Margin: 36.7%, Net Margin: 27.5%",
+      "value": 66.65,
+      "unit": "pct",
       "confidence": 0.95,
-      "parsed_intent": "POINT_QUERY",
-      "resolved_metric": "ar",
-      "resolved_period": "2026-Q1",
-      "related_metrics": null,
+      "parsed_intent": "BROAD_REQUEST",
+      "resolved_metric": "margins",
+      "resolved_period": "2026",
+      "related_metrics": [],
       "error_code": null,
       "error_message": null,
       "needs_clarification": false,
@@ -21681,34 +22214,21 @@
       "entity": null,
       "entity_id": null,
       "entity_resolution": null,
-      "provenance": {
-        "run_id": "aam_run_ae1958d48dcd_20260305_214231",
-        "tenant_id": "default",
-        "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:42:37.815518Z",
-        "source_systems": [
-          "netsuite_erp"
-        ],
-        "source_system": "netsuite_erp",
-        "is_sor": true,
-        "freshness": "2026-02-06T00:00:00Z",
-        "quality_score": 1.0,
-        "mode": "Ingest"
-      },
+      "provenance": null,
       "conflicts": null,
       "temporal_warning": null,
-      "data_source": "dcl",
+      "data_source": null,
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 929,
+    "response_time_ms": 1145,
     "assertions": {
       "success": true,
-      "references_gross": false,
-      "references_operating": false,
+      "references_gross": true,
+      "references_operating": true,
       "references_net": true
     },
-    "passed": false,
+    "passed": true,
     "error": null
   },
   {
@@ -21736,7 +22256,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_810e1be5",
+        "id": "dash_8f8c2dec",
         "title": "Revenue & EBITDA Over Time",
         "description": "Generated from: revenue and EBITDA trend",
         "source_query": "revenue and EBITDA trend",
@@ -22298,7 +22818,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2356,
+    "response_time_ms": 2444,
     "assertions": {
       "success": true,
       "references_revenue": true,
@@ -22332,7 +22852,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_ea4d337d",
+        "id": "dash_5c766ad4",
         "title": "Span Of Control & Pipeline Dashboard",
         "description": "Generated from: customer health overview",
         "source_query": "customer health overview",
@@ -22871,7 +23391,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 2423,
+    "response_time_ms": 2690,
     "assertions": {
       "success": true,
       "references_customer_health": true
@@ -22913,10 +23433,10 @@
       "entity_id": null,
       "entity_resolution": null,
       "provenance": {
-        "run_id": "aam_run_cd2a0358c902_20260305_212654",
+        "run_id": "aam_run_d48a062e73cc_20260305_221741",
         "tenant_id": "default",
         "snapshot_name": "Ingest-v5.0",
-        "run_timestamp": "2026-03-05T21:29:17.294853Z",
+        "run_timestamp": "2026-03-05T22:17:47.672748Z",
         "source_systems": [
           "chargebee"
         ],
@@ -22932,7 +23452,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 1005,
+    "response_time_ms": 932,
     "assertions": {
       "success": true,
       "references_unit": true
@@ -23036,7 +23556,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 3447,
+    "response_time_ms": 3617,
     "assertions": {
       "success": true,
       "multiple_key_metrics": true
@@ -23056,7 +23576,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "**SMB** is the top segment with 1.25% churn rate.",
+      "answer": "**SMB** is the worst-performing segment with 1.25% churn rate.",
       "value": 1.25,
       "unit": "pct",
       "confidence": 0.95,
@@ -23084,7 +23604,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 905,
+    "response_time_ms": 923,
     "assertions": {
       "success": true,
       "identifies_segment": true
@@ -23104,7 +23624,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "**AMER** is the top region with $17.79M revenue.",
+      "answer": "**AMER** is the best-performing region with $17.79M revenue.",
       "value": 17.79,
       "unit": "usd_millions",
       "confidence": 0.95,
@@ -23132,7 +23652,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 884,
+    "response_time_ms": 770,
     "assertions": {
       "success": true,
       "identifies_region": true
@@ -23180,7 +23700,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 918,
+    "response_time_ms": 1048,
     "assertions": {
       "success": true,
       "identifies_expense": false
@@ -23228,7 +23748,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 883,
+    "response_time_ms": 921,
     "assertions": {
       "success": true,
       "addresses_question": true
@@ -23276,7 +23796,7 @@
       "persona": null
     },
     "http_status": 200,
-    "response_time_ms": 911,
+    "response_time_ms": 956,
     "assertions": {
       "success": true,
       "addresses_question": true
