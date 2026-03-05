@@ -10,16 +10,19 @@ Sequence:
   1. Health-check all modules (Farm, AOD, AAM, DCL, NLQ)
   0. Pipeline Reset -- flush stale state from AAM, DCL, Farm
   2. Farm    -- POST /api/snapshots  (generate snapshot)
+ 2b. Open Farm UI in browser
   3. AOD     -- POST /api/runs/from-farm  (discovery)
- 3b. Open AOD Console in browser
+ 3b. Open AOD Discovery in browser
   4. AOD->AAM bridge  (fetch manifest, send to AAM)
   5. AAM     -- POST /api/aam/infer  (create pipes)
+ 5b. Open AAM Topology in browser
   6. AAM     -- POST /api/export/dcl/push  (push schemas to DCL)
   7. AAM     -- POST /api/export/dcl/dispatch  (dispatch ingest)
+ 7b. Open DCL Ingest in browser
   8. AAM     -- POST /api/runners/dispatch-batch (sync) + verify
- 8b. Open AAM Topology in browser
   9. NLQ     -- POST /api/v1/query  ("What is ARR?")
- 10. Open DCL frontend in browser
+ 9b. Open NLQ in browser
+ 10. Open DCL Recon in browser
 
 Usage:
   python scripts/aos_e2e_pipeline.py
@@ -470,22 +473,6 @@ def step_03_aod_discovery(
     return run_id
 
 
-def step_03b_open_aod(urls: dict[str, str]) -> None:
-    """Open AOD Console in browser after discovery completes."""
-    label = "3b. Open AOD Console"
-    t0 = _step_start(label)
-    aod_backend = urls["aod"]
-    if "localhost:8001" in aod_backend or "127.0.0.1:8001" in aod_backend:
-        aod_frontend = aod_backend.replace(":8001", ":3001")
-    else:
-        aod_frontend = aod_backend  # Render serves frontend from same URL
-    try:
-        webbrowser.open(aod_frontend)
-        _step_pass(label, t0, f"opened {aod_frontend}")
-    except Exception as exc:
-        _step_fail(label, t0, f"Could not open browser: {exc}")
-
-
 def step_04_aod_aam_bridge(
     client: httpx.Client, urls: dict[str, str], run_id: str,
 ) -> None:
@@ -696,18 +683,6 @@ def step_08_aam_runners(client: httpx.Client, urls: dict[str, str]) -> None:
     _step_pass(label, t0, f"dispatched={dispatched}, skipped={skipped}")
 
 
-def step_08b_open_aam(urls: dict[str, str]) -> None:
-    """Open AAM Topology in browser after runners complete."""
-    label = "8b. Open AAM Topology"
-    t0 = _step_start(label)
-    aam_url = f"{urls['aam']}/ui/topology"
-    try:
-        webbrowser.open(aam_url)
-        _step_pass(label, t0, f"opened {aam_url}")
-    except Exception as exc:
-        _step_fail(label, t0, f"Could not open browser: {exc}")
-
-
 def step_09_nlq_test(client: httpx.Client, urls: dict[str, str]) -> None:
     """Fire a test NLQ query to verify the full chain end-to-end."""
     label = "9. NLQ -- Test Query"
@@ -753,23 +728,49 @@ def step_09_nlq_test(client: httpx.Client, urls: dict[str, str]) -> None:
     _step_pass(label, t0, "  ".join(detail_parts))
 
 
-def step_10_open_dcl(urls: dict[str, str]) -> None:
-    """Open the DCL frontend in the default browser."""
-    label = "10. Open DCL Recon Tab"
-    t0 = _step_start(label)
+# ---------------------------------------------------------------------------
+# Browser-open helpers
+# ---------------------------------------------------------------------------
+# Module frontend ports (Vite dev servers). None = server-rendered on backend port.
+_FRONTEND_PORTS: dict[str, int | None] = {
+    "farm": None,   # server-rendered on 8003
+    "aod":  3001,   # Vite dev server (Discovery page)
+    "aam":  None,   # server-rendered on 8002
+    "dcl":  3004,   # Vite dev server
+    "nlq":  3005,   # Vite dev server
+}
+_BACKEND_PORTS: dict[str, int] = {
+    "farm": 8003, "aod": 8001, "aam": 8002, "dcl": 8004, "nlq": 8005,
+}
 
-    # DCL frontend runs on port 3004 in local dev (backend is 8004)
-    # Derive frontend URL: if backend is localhost:8004, frontend is localhost:3004
-    dcl_backend = urls["dcl"]
-    if "localhost:8004" in dcl_backend or "127.0.0.1:8004" in dcl_backend:
-        dcl_frontend = dcl_backend.replace(":8004", ":3004")
+
+def _frontend_url(urls: dict[str, str], module: str, path: str = "") -> str:
+    """Derive the browser-facing URL for a module.
+
+    Local dev: remaps backend port to Vite frontend port (e.g. 8004 -> 3004).
+    Render:    backend URL serves the frontend too, no remap needed.
+    Server-rendered modules (Farm, AAM): always use the backend URL.
+    """
+    backend = urls[module]
+    fp = _FRONTEND_PORTS.get(module)
+    bp = _BACKEND_PORTS.get(module)
+    if fp and bp:
+        local_markers = (f"localhost:{bp}", f"127.0.0.1:{bp}")
+        if any(m in backend for m in local_markers):
+            base = backend.replace(f":{bp}", f":{fp}")
+        else:
+            base = backend
     else:
-        # Render or custom -- use the backend URL (serves frontend too)
-        dcl_frontend = dcl_backend
+        base = backend
+    return f"{base}{path}" if path else base
 
+
+def _open_ui(urls: dict[str, str], label: str, url: str) -> None:
+    """Open a URL in the default browser, recorded as a pipeline step."""
+    t0 = _step_start(label)
     try:
-        webbrowser.open(dcl_frontend)
-        _step_pass(label, t0, f"opened {dcl_frontend}")
+        webbrowser.open(url)
+        _step_pass(label, t0, f"opened {url}")
     except Exception as exc:
         _step_fail(label, t0, f"Could not open browser: {exc}")
 
@@ -826,6 +827,8 @@ def main() -> None:
 
     client = httpx.Client()
 
+    nb = args.no_browser
+
     try:
         step_01_health(client, urls)
         if args.skip_reset:
@@ -833,24 +836,35 @@ def main() -> None:
             _steps.append({"name": "0. Pipeline Reset", "status": "PASS", "elapsed": 0.0})
         else:
             step_00_reset(client, urls)
-        snapshot_id, tenant_id = step_02_farm_snapshot(client, urls, tenant_id)
-        run_id = step_03_aod_discovery(client, urls, snapshot_id, tenant_id)
-        if not args.no_browser:
-            step_03b_open_aod(urls)
-        step_04_aod_aam_bridge(client, urls, run_id)
-        step_05_aam_infer(client, urls)
-        step_06_aam_dcl_push(client, urls)
-        step_07_aam_dcl_dispatch(client, urls)
-        step_08_aam_runners(client, urls)
-        if not args.no_browser:
-            step_08b_open_aam(urls)
-        step_09_nlq_test(client, urls)
 
-        if not args.no_browser:
-            step_10_open_dcl(urls)
-        else:
-            _steps.append({"name": "10. Open DCL Recon Tab", "status": "PASS", "elapsed": 0.0})
-            _log("   Skipped (--no-browser)", _C.DIM)
+        snapshot_id, tenant_id = step_02_farm_snapshot(client, urls, tenant_id)
+        if not nb:
+            _open_ui(urls, "2b. Open Farm", urls["farm"])
+
+        run_id = step_03_aod_discovery(client, urls, snapshot_id, tenant_id)
+        if not nb:
+            _open_ui(urls, "3b. Open AOD Discovery", _frontend_url(urls, "aod"))
+
+        step_04_aod_aam_bridge(client, urls, run_id)
+
+        step_05_aam_infer(client, urls)
+        if not nb:
+            _open_ui(urls, "5b. Open AAM Topology", f"{urls['aam']}/ui/topology")
+
+        step_06_aam_dcl_push(client, urls)
+
+        step_07_aam_dcl_dispatch(client, urls)
+        if not nb:
+            _open_ui(urls, "7b. Open DCL Ingest", _frontend_url(urls, "dcl"))
+
+        step_08_aam_runners(client, urls)
+
+        step_09_nlq_test(client, urls)
+        if not nb:
+            _open_ui(urls, "9b. Open NLQ", _frontend_url(urls, "nlq"))
+
+        if not nb:
+            _open_ui(urls, "10. Open DCL Recon", _frontend_url(urls, "dcl"))
 
     finally:
         client.close()
