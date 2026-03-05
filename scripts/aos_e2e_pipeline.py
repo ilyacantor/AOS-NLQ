@@ -559,35 +559,47 @@ def step_08_aam_runners(client: httpx.Client, urls: dict[str, str]) -> None:
     errors = dispatch_data.get("errors", 0)
     _log(f"   Dispatched: {dispatched}  Skipped: {skipped}  Errors: {errors}", _C.CYAN)
 
-    # Dispatch-batch runs synchronously -- Farm processes manifests inline
-    # during the HTTP call. By the time we get the response, the work is done.
-    # No polling needed.
-
     if dispatched == 0 and skipped == 0:
         _step_fail(label, t0, "dispatch-batch returned 0 dispatched and 0 skipped")
         return
 
-    # 8c -- best-effort verification via /api/runners/jobs
-    _log("   Verifying job results...", _C.DIM)
-    try:
-        r = _get(client, f"{urls['aam']}/api/runners/jobs", timeout=15, urls=urls)
-        if r.status_code < 400:
-            jobs = r.json()
-            if isinstance(jobs, list):
-                completed = sum(1 for j in jobs if isinstance(j, dict) and j.get("status") == "completed")
-                failed = sum(1 for j in jobs if isinstance(j, dict) and j.get("status") == "failed")
-                _log(f"   Jobs total: {len(jobs)}  completed: {completed}  failed: {failed}", _C.CYAN)
-            elif isinstance(jobs, dict) and "jobs" in jobs:
-                job_list = jobs["jobs"]
-                completed = sum(1 for j in job_list if isinstance(j, dict) and j.get("status") == "completed")
-                failed = sum(1 for j in job_list if isinstance(j, dict) and j.get("status") == "failed")
-                _log(f"   Jobs total: {len(job_list)}  completed: {completed}  failed: {failed}", _C.CYAN)
-            else:
-                _log(f"   Jobs endpoint returned unexpected shape: {type(jobs).__name__}", _C.YELLOW)
-        else:
-            _log(f"   Jobs endpoint HTTP {r.status_code} (non-fatal)", _C.YELLOW)
-    except Exception as exc:
-        _log(f"   Jobs verification skipped: {exc} (non-fatal)", _C.YELLOW)
+    # 8c -- poll for Farm completion (dispatch is now fire-and-forget;
+    # Farm callbacks update job statuses asynchronously).
+    # Step 9 (NLQ) needs Farm data in DCL, so we wait here.
+    _log("   Waiting for Farm to process jobs...", _C.DIM)
+    import time as _time
+    _poll_deadline = _time.time() + 120  # 2-minute cap
+    _terminal_statuses = ("completed", "failed", "timed_out")
+    _last_terminal = 0
+
+    while _time.time() < _poll_deadline:
+        try:
+            r = _get(client, f"{urls['aam']}/api/runners/jobs", timeout=10, urls=urls)
+            if r.status_code < 400:
+                jobs_resp = r.json()
+                if isinstance(jobs_resp, dict) and "jobs" in jobs_resp:
+                    job_list = jobs_resp["jobs"]
+                elif isinstance(jobs_resp, list):
+                    job_list = jobs_resp
+                else:
+                    job_list = []
+                terminal = sum(
+                    1 for j in job_list
+                    if isinstance(j, dict) and j.get("status") in _terminal_statuses
+                )
+                if terminal != _last_terminal:
+                    _log(f"   Farm progress: {terminal}/{dispatched} jobs done", _C.CYAN)
+                    _last_terminal = terminal
+                if terminal >= dispatched:
+                    completed = sum(1 for j in job_list if isinstance(j, dict) and j.get("status") == "completed")
+                    failed = sum(1 for j in job_list if isinstance(j, dict) and j.get("status") == "failed")
+                    _log(f"   All jobs terminal: {completed} completed, {failed} failed", _C.CYAN)
+                    break
+        except Exception as exc:
+            _log(f"   Poll error (will retry): {exc}", _C.YELLOW)
+        _time.sleep(3)
+    else:
+        _log(f"   Poll timeout after 120s — {_last_terminal}/{dispatched} jobs terminal", _C.YELLOW)
 
     _step_pass(label, t0, f"dispatched={dispatched}, skipped={skipped}")
 
