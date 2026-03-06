@@ -53,9 +53,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 673
+      "response_time_ms": 845
     },
-    "response_time_ms": 673,
+    "response_time_ms": 845,
     "checks": {
       "has_data": {
         "passed": true,
@@ -71,7 +71,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "673ms"
+        "detail": "845ms"
       }
     },
     "passed": true,
@@ -130,9 +130,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 586
+      "response_time_ms": 657
     },
-    "response_time_ms": 586,
+    "response_time_ms": 657,
     "checks": {
       "has_data": {
         "passed": true,
@@ -211,9 +211,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 576
+      "response_time_ms": 578
     },
-    "response_time_ms": 576,
+    "response_time_ms": 578,
     "checks": {
       "has_data": {
         "passed": true,
@@ -229,7 +229,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "576ms"
+        "detail": "578ms"
       }
     },
     "passed": true,
@@ -288,9 +288,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 551
+      "response_time_ms": 655
     },
-    "response_time_ms": 551,
+    "response_time_ms": 655,
     "checks": {
       "has_data": {
         "passed": true,
@@ -365,9 +365,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 568
+      "response_time_ms": 566
     },
-    "response_time_ms": 568,
+    "response_time_ms": 566,
     "checks": {
       "has_data": {
         "passed": true,
@@ -438,9 +438,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 727
+      "response_time_ms": 736
     },
-    "response_time_ms": 727,
+    "response_time_ms": 736,
     "checks": {
       "has_data": {
         "passed": true,
@@ -521,9 +521,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 756
+      "response_time_ms": 790
     },
-    "response_time_ms": 756,
+    "response_time_ms": 790,
     "checks": {
       "has_data": {
         "passed": false,
@@ -619,9 +619,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 709
+      "response_time_ms": 767
     },
-    "response_time_ms": 709,
+    "response_time_ms": 767,
     "checks": {
       "has_data": {
         "passed": true,
@@ -692,9 +692,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 545
+      "response_time_ms": 857
     },
-    "response_time_ms": 545,
+    "response_time_ms": 857,
     "checks": {
       "has_data": {
         "passed": true,
@@ -786,9 +786,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1140
+      "response_time_ms": 735
     },
-    "response_time_ms": 1140,
+    "response_time_ms": 735,
     "checks": {
       "has_data": {
         "passed": true,
@@ -859,9 +859,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 552
+      "response_time_ms": 582
     },
-    "response_time_ms": 552,
+    "response_time_ms": 582,
     "checks": {
       "has_data": {
         "passed": true,
@@ -932,9 +932,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 471
+      "response_time_ms": 580
     },
-    "response_time_ms": 471,
+    "response_time_ms": 580,
     "checks": {
       "has_data": {
         "passed": true,
@@ -1005,9 +1005,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 560
+      "response_time_ms": 829
     },
-    "response_time_ms": 560,
+    "response_time_ms": 829,
     "checks": {
       "has_data": {
         "passed": true,
@@ -1082,9 +1082,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 562
+      "response_time_ms": 586
     },
-    "response_time_ms": 562,
+    "response_time_ms": 586,
     "checks": {
       "has_data": {
         "passed": true,
@@ -1165,9 +1165,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 846
+      "response_time_ms": 650
     },
-    "response_time_ms": 846,
+    "response_time_ms": 650,
     "checks": {
       "has_data": {
         "passed": true,
@@ -1247,9 +1247,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 649
+      "response_time_ms": 574
     },
-    "response_time_ms": 649,
+    "response_time_ms": 574,
     "checks": {
       "has_data": {
         "passed": true,
@@ -1281,7 +1281,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "I'm not sure what you mean, but here are some things I'm great at:\n\u2022 'What's revenue?'\n\u2022 'How's pipeline looking?'\n\u2022 'Show me the CFO dashboard'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
+      "answer": "I'm stumped! But I can definitely help with:\n\u2022 Financial metrics (revenue, margin, profit)\n\u2022 Sales metrics (pipeline, bookings, win rate)\n\u2022 Or try 'show me KPIs'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
       "value": null,
       "unit": null,
       "confidence": 0.5,
@@ -1307,25 +1307,25 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 4726
+      "response_time_ms": 2979
     },
-    "response_time_ms": 4726,
+    "response_time_ms": 2979,
     "checks": {
       "has_data": {
         "passed": false,
-        "detail": "contains 'i'm not sure'"
+        "detail": "contains 'i'm stumped'"
       },
       "professional": {
         "passed": true,
         "detail": "professional"
       },
       "mentions_any": {
-        "passed": false,
-        "detail": "none of ['booking', 'closed', 'deal', 'booked'] found"
+        "passed": true,
+        "detail": "found: ['booking']"
       }
     },
     "passed": false,
-    "answer_preview": "I'm not sure what you mean, but here are some things I'm great at:\n\u2022 'What's revenue?'\n\u2022 'How's pipeline looking?'\n\u2022 'Show me the CFO dashboard'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidenc"
+    "answer_preview": "I'm stumped! But I can definitely help with:\n\u2022 Financial metrics (revenue, margin, profit)\n\u2022 Sales metrics (pipeline, bookings, win rate)\n\u2022 Or try 'show me KPIs'\n\n\u26a0\ufe0f Possible insufficient data conditi"
   },
   {
     "id": 18,
@@ -1380,9 +1380,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 814
+      "response_time_ms": 606
     },
-    "response_time_ms": 814,
+    "response_time_ms": 606,
     "checks": {
       "has_data": {
         "passed": true,
@@ -1410,7 +1410,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "I'm stumped! But I can definitely help with:\n\u2022 Financial metrics (revenue, margin, profit)\n\u2022 Sales metrics (pipeline, bookings, win rate)\n\u2022 Or try 'show me KPIs'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
+      "answer": "Hmm, that's a head-scratcher. Try asking me about:\n\u2022 Revenue, bookings, or ARR\n\u2022 Pipeline or churn\n\u2022 Any of the dashboards (CFO, CRO, COO, CTO)\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
       "value": null,
       "unit": null,
       "confidence": 0.5,
@@ -1436,9 +1436,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 4423
+      "response_time_ms": 4393
     },
-    "response_time_ms": 4423,
+    "response_time_ms": 4393,
     "checks": {
       "professional": {
         "passed": true,
@@ -1446,11 +1446,11 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "4423ms"
+        "detail": "4393ms"
       }
     },
     "passed": true,
-    "answer_preview": "I'm stumped! But I can definitely help with:\n\u2022 Financial metrics (revenue, margin, profit)\n\u2022 Sales metrics (pipeline, bookings, win rate)\n\u2022 Or try 'show me KPIs'\n\n\u26a0\ufe0f Possible insufficient data conditi"
+    "answer_preview": "Hmm, that's a head-scratcher. Try asking me about:\n\u2022 Revenue, bookings, or ARR\n\u2022 Pipeline or churn\n\u2022 Any of the dashboards (CFO, CRO, COO, CTO)\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence"
   },
   {
     "id": 20,
@@ -1479,7 +1479,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_5be9a725",
+        "id": "dash_41fa8d34",
         "title": "Accounts Receivable & Pipeline Dashboard",
         "description": "Generated from: Show me the sales scorecard",
         "source_query": "Show me the sales scorecard",
@@ -2003,9 +2003,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1102
+      "response_time_ms": 1108
     },
-    "response_time_ms": 1102,
+    "response_time_ms": 1108,
     "checks": {
       "professional": {
         "passed": true,
@@ -2013,7 +2013,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1102ms"
+        "detail": "1108ms"
       },
       "has_data_or_dashboard": {
         "passed": true,
@@ -2080,9 +2080,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 636
+      "response_time_ms": 717
     },
-    "response_time_ms": 636,
+    "response_time_ms": 717,
     "checks": {
       "has_data": {
         "passed": true,
@@ -2110,9 +2110,9 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Revenue Per Employee for 2026-Q1 is $106.8M",
+      "answer": "Revenue Per Employee for 2026-Q1 is $106.8K",
       "value": 106.8,
-      "unit": "usd_millions",
+      "unit": "usd_thousands",
       "confidence": 0.95,
       "parsed_intent": "POINT_QUERY",
       "resolved_metric": "revenue_per_employee",
@@ -2149,9 +2149,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 696
+      "response_time_ms": 702
     },
-    "response_time_ms": 696,
+    "response_time_ms": 702,
     "checks": {
       "has_data": {
         "passed": true,
@@ -2166,12 +2166,12 @@
         "detail": "found: ['per employee', '$']"
       },
       "value_in_range": {
-        "passed": false,
-        "detail": "value 106.8 too large for per-employee metric"
+        "passed": true,
+        "detail": "value in range"
       }
     },
-    "passed": false,
-    "answer_preview": "Revenue Per Employee for 2026-Q1 is $106.8M"
+    "passed": true,
+    "answer_preview": "Revenue Per Employee for 2026-Q1 is $106.8K"
   },
   {
     "id": 23,
@@ -2226,9 +2226,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 641
+      "response_time_ms": 584
     },
-    "response_time_ms": 641,
+    "response_time_ms": 584,
     "checks": {
       "has_data": {
         "passed": true,
@@ -2299,9 +2299,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 579
+      "response_time_ms": 576
     },
-    "response_time_ms": 579,
+    "response_time_ms": 576,
     "checks": {
       "has_data": {
         "passed": true,
@@ -2359,9 +2359,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 779
+      "response_time_ms": 752
     },
-    "response_time_ms": 779,
+    "response_time_ms": 752,
     "checks": {
       "has_data": {
         "passed": false,
@@ -2432,9 +2432,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 585
+      "response_time_ms": 836
     },
-    "response_time_ms": 585,
+    "response_time_ms": 836,
     "checks": {
       "has_data": {
         "passed": true,
@@ -2505,9 +2505,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 595
+      "response_time_ms": 593
     },
-    "response_time_ms": 595,
+    "response_time_ms": 593,
     "checks": {
       "has_data": {
         "passed": true,
@@ -2558,7 +2558,7 @@
           "[NLQ-DIAG] query() called: metric=open_roles, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"open_roles\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"open_roles\",\"metric_name\":\"Open Roles\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"count\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:32:24.271358Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"temporal_warning\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"open_roles\",\"metric_name\":\"Open Roles\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"count\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:42:14.348140Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"temporal_warning\":n",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
@@ -2590,9 +2590,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1391
+      "response_time_ms": 1455
     },
-    "response_time_ms": 1391,
+    "response_time_ms": 1455,
     "checks": {
       "has_data": {
         "passed": false,
@@ -2659,9 +2659,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 877
+      "response_time_ms": 726
     },
-    "response_time_ms": 877,
+    "response_time_ms": 726,
     "checks": {
       "has_data": {
         "passed": true,
@@ -2731,9 +2731,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 707
+      "response_time_ms": 751
     },
-    "response_time_ms": 707,
+    "response_time_ms": 751,
     "checks": {
       "has_data": {
         "passed": true,
@@ -2774,7 +2774,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_be5bd08a",
+        "id": "dash_96827b76",
         "title": "CFO Dashboard",
         "description": "Generated from: Build me a CFO dashboard",
         "source_query": "Build me a CFO dashboard",
@@ -3288,9 +3288,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1113
+      "response_time_ms": 1170
     },
-    "response_time_ms": 1113,
+    "response_time_ms": 1170,
     "checks": {
       "is_dashboard": {
         "passed": true,
@@ -3302,7 +3302,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1113ms"
+        "detail": "1170ms"
       }
     },
     "passed": true,
@@ -3335,7 +3335,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_a99ce0d0",
+        "id": "dash_66b772c3",
         "title": "CRO Dashboard",
         "description": "Generated from: Build me a CRO dashboard",
         "source_query": "Build me a CRO dashboard",
@@ -3849,9 +3849,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1177
+      "response_time_ms": 1171
     },
-    "response_time_ms": 1177,
+    "response_time_ms": 1171,
     "checks": {
       "is_dashboard": {
         "passed": true,
@@ -3863,7 +3863,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1177ms"
+        "detail": "1171ms"
       }
     },
     "passed": true,
@@ -3896,7 +3896,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_4f133ae4",
+        "id": "dash_280272a6",
         "title": "Operations Dashboard",
         "description": "Generated from: Build me a COO dashboard",
         "source_query": "Build me a COO dashboard",
@@ -3961,7 +3961,7 @@
                   "metric": "revenue_per_employee",
                   "alias": null,
                   "aggregation": "last",
-                  "format": "$0.0M",
+                  "format": "0.0",
                   "color": null
                 }
               ],
@@ -4225,7 +4225,7 @@
         "kpi_revenue_per_employee": {
           "loading": false,
           "value": 106.8,
-          "formatted_value": "$106.8M",
+          "formatted_value": "106.8",
           "trend": {
             "direction": "up",
             "percent_change": 1.5,
@@ -4375,9 +4375,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1508
+      "response_time_ms": 1173
     },
-    "response_time_ms": 1508,
+    "response_time_ms": 1173,
     "checks": {
       "is_dashboard": {
         "passed": true,
@@ -4389,7 +4389,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1508ms"
+        "detail": "1173ms"
       }
     },
     "passed": false,
@@ -4422,7 +4422,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_360a9d8e",
+        "id": "dash_e9fa1e98",
         "title": "CTO Dashboard",
         "description": "Generated from: Build me a CTO dashboard",
         "source_query": "Build me a CTO dashboard",
@@ -4869,9 +4869,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1203
+      "response_time_ms": 1173
     },
-    "response_time_ms": 1203,
+    "response_time_ms": 1173,
     "checks": {
       "is_dashboard": {
         "passed": true,
@@ -4883,7 +4883,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1203ms"
+        "detail": "1173ms"
       }
     },
     "passed": true,
@@ -4916,7 +4916,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_f1b7e015",
+        "id": "dash_652f8c04",
         "title": "Executive Dashboard",
         "description": "Generated from: Build me a CHRO dashboard",
         "source_query": "Build me a CHRO dashboard",
@@ -5394,9 +5394,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1557
+      "response_time_ms": 1259
     },
-    "response_time_ms": 1557,
+    "response_time_ms": 1259,
     "checks": {
       "is_dashboard": {
         "passed": true,
@@ -5408,7 +5408,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1557ms"
+        "detail": "1259ms"
       }
     },
     "passed": false,
@@ -5441,7 +5441,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_0b8c1026",
+        "id": "dash_ad3e233d",
         "title": "Revenue & Gross Margin Dashboard",
         "description": "Generated from: How are we doing?",
         "source_query": "How are we doing?",
@@ -5967,9 +5967,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1137
+      "response_time_ms": 1617
     },
-    "response_time_ms": 1137,
+    "response_time_ms": 1617,
     "checks": {
       "is_dashboard": {
         "passed": true,
@@ -5981,7 +5981,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1137ms"
+        "detail": "1617ms"
       }
     },
     "passed": true,
@@ -6014,7 +6014,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_b7fad6ad",
+        "id": "dash_86db7325",
         "title": "Pipeline & Win Rate Pct Dashboard",
         "description": "Generated from: How are we doing?",
         "source_query": "How are we doing?",
@@ -6540,9 +6540,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1204
+      "response_time_ms": 1393
     },
-    "response_time_ms": 1204,
+    "response_time_ms": 1393,
     "checks": {
       "is_dashboard": {
         "passed": true,
@@ -6554,7 +6554,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1204ms"
+        "detail": "1393ms"
       }
     },
     "passed": true,
@@ -6587,7 +6587,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_76177c73",
+        "id": "dash_7c6c073f",
         "title": "Headcount & Revenue Per Employee Dashboard",
         "description": "Generated from: How are we doing?",
         "source_query": "How are we doing?",
@@ -6652,7 +6652,7 @@
                   "metric": "revenue_per_employee",
                   "alias": null,
                   "aggregation": "last",
-                  "format": "$0.0M",
+                  "format": "0.0",
                   "color": null
                 }
               ],
@@ -6826,7 +6826,7 @@
                   "metric": "revenue_per_employee",
                   "alias": null,
                   "aggregation": "last",
-                  "format": "$0.0M",
+                  "format": "0.0",
                   "color": null
                 },
                 {
@@ -6912,7 +6912,7 @@
         "kpi_revenue_per_employee": {
           "loading": false,
           "value": 106.8,
-          "formatted_value": "$106.8M",
+          "formatted_value": "106.8",
           "trend": {
             "direction": "up",
             "percent_change": 1.5,
@@ -7068,9 +7068,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1160
+      "response_time_ms": 1565
     },
-    "response_time_ms": 1160,
+    "response_time_ms": 1565,
     "checks": {
       "is_dashboard": {
         "passed": true,
@@ -7082,7 +7082,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1160ms"
+        "detail": "1565ms"
       }
     },
     "passed": false,
@@ -7115,7 +7115,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_ad7d3486",
+        "id": "dash_da6107b2",
         "title": "2025 CFO Dashboard",
         "description": "Generated from: 2025 KPIs in a dashboard",
         "source_query": "2025 KPIs in a dashboard",
@@ -7629,9 +7629,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1384
+      "response_time_ms": 1529
     },
-    "response_time_ms": 1384,
+    "response_time_ms": 1529,
     "checks": {
       "is_dashboard": {
         "passed": true,
@@ -7639,7 +7639,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1384ms"
+        "detail": "1529ms"
       }
     },
     "passed": true,
@@ -7672,7 +7672,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_8ccd206a",
+        "id": "dash_93ec59ab",
         "title": "Revenue & Gross Margin Dashboard",
         "description": "Generated from: Show me the executive summary",
         "source_query": "Show me the executive summary",
@@ -8198,9 +8198,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1525
+      "response_time_ms": 1318
     },
-    "response_time_ms": 1525,
+    "response_time_ms": 1318,
     "checks": {
       "has_data_or_dashboard": {
         "passed": true,
@@ -8212,7 +8212,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1525ms"
+        "detail": "1318ms"
       }
     },
     "passed": true,
@@ -8245,7 +8245,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_75d4a2aa",
+        "id": "dash_fbbe253d",
         "title": "Revenue & Gross Margin Dashboard",
         "description": "Generated from: Compare Q1 vs Q2 2025 revenue",
         "source_query": "Compare Q1 vs Q2 2025 revenue",
@@ -8769,9 +8769,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1521
+      "response_time_ms": 1396
     },
-    "response_time_ms": 1521,
+    "response_time_ms": 1396,
     "checks": {
       "has_data": {
         "passed": false,
@@ -8816,7 +8816,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_2731c345",
+        "id": "dash_e7b21b25",
         "title": "Revenue & Accounts Receivable Over Time",
         "description": "Generated from: How has revenue trended this year?",
         "source_query": "How has revenue trended this year?",
@@ -9340,9 +9340,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 990
+      "response_time_ms": 1328
     },
-    "response_time_ms": 990,
+    "response_time_ms": 1328,
     "checks": {
       "has_data_or_dashboard": {
         "passed": true,
@@ -9354,7 +9354,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "990ms"
+        "detail": "1328ms"
       }
     },
     "passed": true,
@@ -9400,9 +9400,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 4212
+      "response_time_ms": 4551
     },
-    "response_time_ms": 4212,
+    "response_time_ms": 4551,
     "checks": {
       "has_data": {
         "passed": false,
@@ -9447,7 +9447,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_8f780b7c",
+        "id": "dash_5d1879dd",
         "title": "Gross Margin & Net Margin Pct Dashboard",
         "description": "Generated from: Compare gross vs net margin",
         "source_query": "Compare gross vs net margin",
@@ -9971,9 +9971,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1081
+      "response_time_ms": 1785
     },
-    "response_time_ms": 1081,
+    "response_time_ms": 1785,
     "checks": {
       "has_data": {
         "passed": false,
@@ -10058,9 +10058,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1042
+      "response_time_ms": 875
     },
-    "response_time_ms": 1042,
+    "response_time_ms": 875,
     "checks": {
       "has_data": {
         "passed": false,
@@ -10096,7 +10096,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "I'm stumped! But I can definitely help with:\n\u2022 Financial metrics (revenue, margin, profit)\n\u2022 Sales metrics (pipeline, bookings, win rate)\n\u2022 Or try 'show me KPIs'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
+      "answer": "I'm not sure what you mean, but here are some things I'm great at:\n\u2022 'What's revenue?'\n\u2022 'How's pipeline looking?'\n\u2022 'Show me the CFO dashboard'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
       "value": null,
       "unit": null,
       "confidence": 0.5,
@@ -10122,13 +10122,13 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1212
+      "response_time_ms": 1182
     },
-    "response_time_ms": 1212,
+    "response_time_ms": 1182,
     "checks": {
       "has_data_or_dashboard": {
         "passed": false,
-        "detail": "neither dashboard nor data: contains 'i'm stumped'"
+        "detail": "neither dashboard nor data: contains 'i'm not sure'"
       },
       "professional": {
         "passed": true,
@@ -10136,11 +10136,11 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1212ms"
+        "detail": "1182ms"
       }
     },
     "passed": false,
-    "answer_preview": "I'm stumped! But I can definitely help with:\n\u2022 Financial metrics (revenue, margin, profit)\n\u2022 Sales metrics (pipeline, bookings, win rate)\n\u2022 Or try 'show me KPIs'\n\n\u26a0\ufe0f Possible insufficient data conditi"
+    "answer_preview": "I'm not sure what you mean, but here are some things I'm great at:\n\u2022 'What's revenue?'\n\u2022 'How's pipeline looking?'\n\u2022 'Show me the CFO dashboard'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidenc"
   },
   {
     "id": 47,
@@ -10205,9 +10205,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 750
+      "response_time_ms": 912
     },
-    "response_time_ms": 750,
+    "response_time_ms": 912,
     "checks": {
       "has_data": {
         "passed": false,
@@ -10311,35 +10311,35 @@
           "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q1\", \"end\": \"2024-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2024-Q1\",\"value\":8.2,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:33:31.781580Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2024-Q1\",\"value\":8.2,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:43:23.362353Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"",
           "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q2\", \"end\": \"2024-Q2\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2024-Q2\",\"value\":8.2,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:33:31.871435Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2024-Q2\",\"value\":8.2,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:43:23.457616Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"",
           "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q3\", \"end\": \"2024-Q3\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2024-Q3\",\"value\":8.2,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:33:31.879712Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2024-Q3\",\"value\":8.2,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:43:23.466004Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"",
           "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q4\", \"end\": \"2024-Q4\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2024-Q4\",\"value\":8.2,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:33:31.887147Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2024-Q4\",\"value\":8.2,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:43:23.473112Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"",
           "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q1\", \"end\": \"2025-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2025-Q1\",\"value\":7.7,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:33:31.893564Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2025-Q1\",\"value\":7.7,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:43:23.479547Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"",
           "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q2\", \"end\": \"2025-Q2\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2025-Q2\",\"value\":7.7,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:33:31.901098Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2025-Q2\",\"value\":7.7,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:43:23.487860Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"",
           "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q3\", \"end\": \"2025-Q3\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2025-Q3\",\"value\":7.7,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:33:31.908269Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2025-Q3\",\"value\":7.7,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:43:23.497649Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"",
           "[NLQ-DIAG] query() called: metric=churn_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"churn_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q4\", \"end\": \"2025-Q4\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2025-Q4\",\"value\":7.7,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:33:31.915159Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\""
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_rate_pct\",\"metric_name\":\"Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2025-Q4\",\"value\":7.7,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:43:23.506354Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\""
         ]
       },
       "entity": null,
@@ -10350,9 +10350,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 1558
+      "response_time_ms": 1474
     },
-    "response_time_ms": 1558,
+    "response_time_ms": 1474,
     "checks": {
       "has_data": {
         "passed": true,
@@ -10397,7 +10397,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_d75a4539",
+        "id": "dash_ed23f08c",
         "title": "Arr & Retained Earnings Over Time",
         "description": "Generated from: ARR trend since Q1 2025",
         "source_query": "ARR trend since Q1 2025",
@@ -10899,9 +10899,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 962
+      "response_time_ms": 1097
     },
-    "response_time_ms": 962,
+    "response_time_ms": 1097,
     "checks": {
       "has_data_or_dashboard": {
         "passed": true,
@@ -10913,7 +10913,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "962ms"
+        "detail": "1097ms"
       }
     },
     "passed": true,
@@ -10982,9 +10982,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1197
+      "response_time_ms": 1051
     },
-    "response_time_ms": 1197,
+    "response_time_ms": 1051,
     "checks": {
       "has_data": {
         "passed": false,
@@ -10996,7 +10996,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1197ms"
+        "detail": "1051ms"
       }
     },
     "passed": false,
@@ -11042,9 +11042,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 146
+      "response_time_ms": 251
     },
-    "response_time_ms": 146,
+    "response_time_ms": 251,
     "checks": {
       "has_data": {
         "passed": false,
@@ -11076,7 +11076,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "I'm not sure what you mean, but here are some things I'm great at:\n\u2022 'What's revenue?'\n\u2022 'How's pipeline looking?'\n\u2022 'Show me the CFO dashboard'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
+      "answer": "Hmm, that's a head-scratcher. Try asking me about:\n\u2022 Revenue, bookings, or ARR\n\u2022 Pipeline or churn\n\u2022 Any of the dashboards (CFO, CRO, COO, CTO)\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
       "value": null,
       "unit": null,
       "confidence": 0.5,
@@ -11102,13 +11102,13 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 4227
+      "response_time_ms": 3943
     },
-    "response_time_ms": 4227,
+    "response_time_ms": 3943,
     "checks": {
       "has_data": {
         "passed": false,
-        "detail": "contains 'i'm not sure'"
+        "detail": "contains 'head-scratcher'"
       },
       "professional": {
         "passed": true,
@@ -11116,11 +11116,11 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "4227ms"
+        "detail": "3943ms"
       }
     },
     "passed": false,
-    "answer_preview": "I'm not sure what you mean, but here are some things I'm great at:\n\u2022 'What's revenue?'\n\u2022 'How's pipeline looking?'\n\u2022 'Show me the CFO dashboard'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidenc"
+    "answer_preview": "Hmm, that's a head-scratcher. Try asking me about:\n\u2022 Revenue, bookings, or ARR\n\u2022 Pipeline or churn\n\u2022 Any of the dashboards (CFO, CRO, COO, CTO)\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence"
   },
   {
     "id": 53,
@@ -11149,7 +11149,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_b12b90fc",
+        "id": "dash_5803305f",
         "title": "Pipeline & Rule Of 40 Over Time",
         "description": "Generated from: Pipeline trend last 4 quarters",
         "source_query": "Pipeline trend last 4 quarters",
@@ -11651,9 +11651,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1114
+      "response_time_ms": 1260
     },
-    "response_time_ms": 1114,
+    "response_time_ms": 1260,
     "checks": {
       "has_data_or_dashboard": {
         "passed": true,
@@ -11665,7 +11665,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1114ms"
+        "detail": "1260ms"
       }
     },
     "passed": true,
@@ -11711,9 +11711,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 820
+      "response_time_ms": 900
     },
-    "response_time_ms": 820,
+    "response_time_ms": 900,
     "checks": {
       "has_data": {
         "passed": false,
@@ -11758,7 +11758,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_844eb4d9",
+        "id": "dash_a50f9f02",
         "title": "Nrr & Pipeline Over Time",
         "description": "Generated from: NRR trend",
         "source_query": "NRR trend",
@@ -12282,9 +12282,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1109
+      "response_time_ms": 1636
     },
-    "response_time_ms": 1109,
+    "response_time_ms": 1636,
     "checks": {
       "has_data_or_dashboard": {
         "passed": true,
@@ -12296,7 +12296,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1109ms"
+        "detail": "1636ms"
       }
     },
     "passed": true,
@@ -12358,19 +12358,19 @@
           "[NLQ-DIAG] query() called: metric=new_logo_revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"new_logo_revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"new_logo_revenue\",\"metric_name\":\"New Logo Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:33:59.277407Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"new_logo_revenue\",\"metric_name\":\"New Logo Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:43:51.433364Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null",
           "[NLQ-DIAG] query() called: metric=expansion_revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"expansion_revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"expansion_revenue\",\"metric_name\":\"Expansion Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:33:59.394230Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":nu",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"expansion_revenue\",\"metric_name\":\"Expansion Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:43:51.551500Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":nu",
           "[NLQ-DIAG] query() called: metric=renewal_revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"renewal_revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"renewal_revenue\",\"metric_name\":\"Renewal Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:33:59.419582Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"renewal_revenue\",\"metric_name\":\"Renewal Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:43:51.576997Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":35.57,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:33:59.426100Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n"
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":35.57,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:43:51.584881Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n"
         ]
       },
       "entity": null,
@@ -12497,9 +12497,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1924
+      "response_time_ms": 1933
     },
-    "response_time_ms": 1924,
+    "response_time_ms": 1933,
     "checks": {
       "has_data": {
         "passed": true,
@@ -12511,7 +12511,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1924ms"
+        "detail": "1933ms"
       },
       "not_about": {
         "passed": true,
@@ -12535,7 +12535,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Breakdown for 2026-Q1: Revenue: 35.6%, Cogs: 11.9%, Gross Profit: 23.6%",
+      "answer": "Breakdown for 2026-Q1: Revenue: $35.6M, Cogs: $11.9M, Gross Profit: $23.6M",
       "value": {
         "period": "2026-Q1",
         "breakdown": {
@@ -12583,15 +12583,15 @@
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":35.57,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:34:02.832586Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":35.57,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:43:55.429130Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
           "[NLQ-DIAG] query() called: metric=cogs, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"cogs\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"cogs\",\"metric_name\":\"Cost of Goods Sold\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":11.95,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:34:02.929515Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\"",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"cogs\",\"metric_name\":\"Cost of Goods Sold\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":11.95,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:43:55.531295Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\"",
           "[NLQ-DIAG] query() called: metric=gross_profit, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"gross_profit\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"gross_profit\",\"metric_name\":\"Gross Profit\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":23.62,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:34:02.941692Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_coun"
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"gross_profit\",\"metric_name\":\"Gross Profit\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":23.62,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:43:55.542537Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_coun"
         ]
       },
       "entity": null,
@@ -12602,9 +12602,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1515
+      "response_time_ms": 1956
     },
-    "response_time_ms": 1515,
+    "response_time_ms": 1956,
     "checks": {
       "has_data": {
         "passed": true,
@@ -12616,11 +12616,11 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1515ms"
+        "detail": "1956ms"
       }
     },
     "passed": true,
-    "answer_preview": "Breakdown for 2026-Q1: Revenue: 35.6%, Cogs: 11.9%, Gross Profit: 23.6%"
+    "answer_preview": "Breakdown for 2026-Q1: Revenue: $35.6M, Cogs: $11.9M, Gross Profit: $23.6M"
   },
   {
     "id": 58,
@@ -12662,9 +12662,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 685
+      "response_time_ms": 666
     },
-    "response_time_ms": 685,
+    "response_time_ms": 666,
     "checks": {
       "has_data": {
         "passed": false,
@@ -12696,7 +12696,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Breakdown for 2026-Q1: Nrr: 114.0%, Customer Count: 3336.0%",
+      "answer": "Breakdown for 2026-Q1: Nrr: 114.0%, Customer Count: 3,336",
       "value": {
         "period": "2026-Q1",
         "breakdown": {
@@ -12743,15 +12743,15 @@
           "[NLQ-DIAG] query() called: metric=logo_churn_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"logo_churn_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"logo_churn_pct\",\"metric_name\":\"Logo Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:34:08.907134Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"temporal",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"logo_churn_pct\",\"metric_name\":\"Logo Churn Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:44:01.542693Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"temporal",
           "[NLQ-DIAG] query() called: metric=nrr, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"nrr\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"nrr\",\"metric_name\":\"Net Revenue Retention\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2026-Q1\",\"value\":114.0,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:34:09.008975Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"nrr\",\"metric_name\":\"Net Revenue Retention\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2026-Q1\",\"value\":114.0,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:44:01.643069Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null",
           "[NLQ-DIAG] query() called: metric=customer_count, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"customer_count\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"customer_count\",\"metric_name\":\"Customer Count\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"count\",\"data\":[{\"period\":\"2026-Q1\",\"value\":3336.0,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"okta\"],\"freshness\":\"2026-03-06T22:34:09.023062Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586319\",\"total_count\":nul"
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"customer_count\",\"metric_name\":\"Customer Count\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"count\",\"data\":[{\"period\":\"2026-Q1\",\"value\":3336.0,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"okta\"],\"freshness\":\"2026-03-06T22:44:01.657623Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586319\",\"total_count\":nul"
         ]
       },
       "entity": null,
@@ -12762,9 +12762,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1393
+      "response_time_ms": 1448
     },
-    "response_time_ms": 1393,
+    "response_time_ms": 1448,
     "checks": {
       "professional": {
         "passed": true,
@@ -12772,11 +12772,11 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1393ms"
+        "detail": "1448ms"
       }
     },
     "passed": true,
-    "answer_preview": "Breakdown for 2026-Q1: Nrr: 114.0%, Customer Count: 3336.0%"
+    "answer_preview": "Breakdown for 2026-Q1: Nrr: 114.0%, Customer Count: 3,336"
   },
   {
     "id": 60,
@@ -12831,9 +12831,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 571
+      "response_time_ms": 679
     },
-    "response_time_ms": 571,
+    "response_time_ms": 679,
     "checks": {
       "professional": {
         "passed": true,
@@ -12841,7 +12841,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "571ms"
+        "detail": "679ms"
       }
     },
     "passed": true,
@@ -12884,7 +12884,7 @@
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [\"segment\"], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": null, \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[\"segment\"],\"grain\":\"month\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:34:14.125281Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"tem",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[\"segment\"],\"grain\":\"month\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:44:06.807764Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"tem",
           "[NLQ-DIAG] /query EXCEPTION: AttributeError: 'str' object has no attribute 'get'"
         ],
         "error": "'str' object has no attribute 'get'",
@@ -12898,9 +12898,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 536
+      "response_time_ms": 475
     },
-    "response_time_ms": 536,
+    "response_time_ms": 475,
     "checks": {
       "has_data_or_professional": {
         "passed": false,
@@ -12908,7 +12908,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "536ms"
+        "detail": "475ms"
       }
     },
     "passed": false,
@@ -12954,9 +12954,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 755
+      "response_time_ms": 585
     },
-    "response_time_ms": 755,
+    "response_time_ms": 585,
     "checks": {
       "has_data_or_professional": {
         "passed": true,
@@ -12964,7 +12964,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "755ms"
+        "detail": "585ms"
       }
     },
     "passed": true,
@@ -13010,9 +13010,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 601
+      "response_time_ms": 600
     },
-    "response_time_ms": 601,
+    "response_time_ms": 600,
     "checks": {
       "has_data_or_professional": {
         "passed": true,
@@ -13020,7 +13020,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "601ms"
+        "detail": "600ms"
       }
     },
     "passed": true,
@@ -13066,9 +13066,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 587
+      "response_time_ms": 586
     },
-    "response_time_ms": 587,
+    "response_time_ms": 586,
     "checks": {
       "professional": {
         "passed": true,
@@ -13076,7 +13076,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "587ms"
+        "detail": "586ms"
       },
       "has_data_or_guidance": {
         "passed": true,
@@ -13100,7 +13100,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "I'm not sure what you mean, but here are some things I'm great at:\n\u2022 'What's revenue?'\n\u2022 'How's pipeline looking?'\n\u2022 'Show me the CFO dashboard'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
+      "answer": "Hmm, that's a head-scratcher. Try asking me about:\n\u2022 Revenue, bookings, or ARR\n\u2022 Pipeline or churn\n\u2022 Any of the dashboards (CFO, CRO, COO, CTO)\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence)",
       "value": null,
       "unit": null,
       "confidence": 0.5,
@@ -13126,9 +13126,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 3458
+      "response_time_ms": 3895
     },
-    "response_time_ms": 3458,
+    "response_time_ms": 3895,
     "checks": {
       "professional": {
         "passed": true,
@@ -13136,7 +13136,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "3458ms"
+        "detail": "3895ms"
       },
       "has_data_or_guidance": {
         "passed": true,
@@ -13144,7 +13144,7 @@
       }
     },
     "passed": true,
-    "answer_preview": "I'm not sure what you mean, but here are some things I'm great at:\n\u2022 'What's revenue?'\n\u2022 'How's pipeline looking?'\n\u2022 'Show me the CFO dashboard'\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidenc"
+    "answer_preview": "Hmm, that's a head-scratcher. Try asking me about:\n\u2022 Revenue, bookings, or ARR\n\u2022 Pipeline or churn\n\u2022 Any of the dashboards (CFO, CRO, COO, CTO)\n\n\u26a0\ufe0f Possible insufficient data condition (50% confidence"
   },
   {
     "id": 66,
@@ -13297,9 +13297,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 1109
+      "response_time_ms": 1160
     },
-    "response_time_ms": 1109,
+    "response_time_ms": 1160,
     "checks": {
       "has_data": {
         "passed": true,
@@ -13311,7 +13311,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1109ms"
+        "detail": "1160ms"
       },
       "mentions_all": {
         "passed": true,
@@ -13432,9 +13432,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1753
+      "response_time_ms": 1809
     },
-    "response_time_ms": 1753,
+    "response_time_ms": 1809,
     "checks": {
       "has_data": {
         "passed": true,
@@ -13446,7 +13446,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1753ms"
+        "detail": "1809ms"
       },
       "mentions_any": {
         "passed": true,
@@ -13611,9 +13611,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 1808
+      "response_time_ms": 1270
     },
-    "response_time_ms": 1808,
+    "response_time_ms": 1270,
     "checks": {
       "has_data": {
         "passed": true,
@@ -13625,7 +13625,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1808ms"
+        "detail": "1270ms"
       },
       "multi_value": {
         "passed": true,
@@ -13675,9 +13675,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 949
+      "response_time_ms": 648
     },
-    "response_time_ms": 949,
+    "response_time_ms": 648,
     "checks": {
       "has_data": {
         "passed": false,
@@ -13726,7 +13726,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_0b8fb5e1",
+        "id": "dash_1dd860b6",
         "title": "Gross Margin & Revenue Over Time",
         "description": "Generated from: What's the gross margin trend?",
         "source_query": "What's the gross margin trend?",
@@ -14250,9 +14250,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1210
+      "response_time_ms": 1121
     },
-    "response_time_ms": 1210,
+    "response_time_ms": 1121,
     "checks": {
       "has_data_or_dashboard": {
         "passed": true,
@@ -14264,7 +14264,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1210ms"
+        "detail": "1121ms"
       }
     },
     "passed": true,
@@ -14323,9 +14323,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 1137
+      "response_time_ms": 797
     },
-    "response_time_ms": 1137,
+    "response_time_ms": 797,
     "checks": {
       "has_data": {
         "passed": true,
@@ -14374,7 +14374,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_32ba85b2",
+        "id": "dash_9fb70dbd",
         "title": "Opex & Revenue Dashboard",
         "description": "Generated from: Operating expenses breakdown",
         "source_query": "Operating expenses breakdown",
@@ -14898,9 +14898,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1188
+      "response_time_ms": 1568
     },
-    "response_time_ms": 1188,
+    "response_time_ms": 1568,
     "checks": {
       "has_data": {
         "passed": false,
@@ -14912,7 +14912,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1188ms"
+        "detail": "1568ms"
       }
     },
     "passed": false,
@@ -14972,9 +14972,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 1027
+      "response_time_ms": 812
     },
-    "response_time_ms": 1027,
+    "response_time_ms": 812,
     "checks": {
       "has_data": {
         "passed": true,
@@ -15040,9 +15040,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 833
+      "response_time_ms": 824
     },
-    "response_time_ms": 833,
+    "response_time_ms": 824,
     "checks": {
       "has_data": {
         "passed": false,
@@ -15054,7 +15054,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "833ms"
+        "detail": "824ms"
       },
       "mentions_any": {
         "passed": false,
@@ -15078,14 +15078,81 @@
     },
     "response_body": {
       "success": true,
-      "answer": "**CFO Dashboard (2026-Q1)**\nRevenue: $NoneM | Gross Margin: None%\nOperating Margin: None% | Net Income: $NoneM\nCash: $NoneM | ARR: $NoneM | Burn: Nonex",
+      "answer": "**CFO Dashboard (2026-Q1)**\nRevenue: $35.57M | Gross Margin: 66.4%\nOperating Margin: 36.4% | Net Income: $9.72M\nCash: $148.0M | ARR: $145.52M | Burn: Nonex",
       "value": null,
       "unit": null,
       "confidence": 0.95,
       "parsed_intent": "DASHBOARD",
       "resolved_metric": "dashboard",
-      "resolved_period": null,
-      "related_metrics": [],
+      "resolved_period": "2026-Q1",
+      "related_metrics": [
+        {
+          "metric": "revenue",
+          "display_name": "Revenue",
+          "value": 35.57,
+          "formatted_value": "$35.57M",
+          "period": "2026-Q1",
+          "confidence": 0.95,
+          "match_type": "exact",
+          "rationale": null,
+          "domain": "finance"
+        },
+        {
+          "metric": "gross_margin_pct",
+          "display_name": "Gross Margin",
+          "value": 66.4,
+          "formatted_value": "66.4%",
+          "period": "2026-Q1",
+          "confidence": 0.95,
+          "match_type": "exact",
+          "rationale": null,
+          "domain": "finance"
+        },
+        {
+          "metric": "operating_margin_pct",
+          "display_name": "Operating Margin",
+          "value": 36.4,
+          "formatted_value": "36.4%",
+          "period": "2026-Q1",
+          "confidence": 0.95,
+          "match_type": "exact",
+          "rationale": null,
+          "domain": "finance"
+        },
+        {
+          "metric": "net_income",
+          "display_name": "Net Income",
+          "value": 9.72,
+          "formatted_value": "$9.72M",
+          "period": "2026-Q1",
+          "confidence": 0.95,
+          "match_type": "exact",
+          "rationale": null,
+          "domain": "finance"
+        },
+        {
+          "metric": "cash",
+          "display_name": "Cash",
+          "value": 148.0,
+          "formatted_value": "$148.0M",
+          "period": "2026-Q1",
+          "confidence": 0.95,
+          "match_type": "exact",
+          "rationale": null,
+          "domain": "finance"
+        },
+        {
+          "metric": "arr",
+          "display_name": "ARR",
+          "value": 145.52,
+          "formatted_value": "$145.52M",
+          "period": "2026-Q1",
+          "confidence": 0.95,
+          "match_type": "exact",
+          "rationale": null,
+          "domain": "finance"
+        }
+      ],
       "error_code": null,
       "error_message": null,
       "needs_clarification": false,
@@ -15104,9 +15171,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 2412
+      "response_time_ms": 2793
     },
-    "response_time_ms": 2412,
+    "response_time_ms": 2793,
     "checks": {
       "has_data": {
         "passed": true,
@@ -15118,11 +15185,11 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "2412ms"
+        "detail": "2793ms"
       },
       "multi_value": {
         "passed": true,
-        "detail": "2 distinct values"
+        "detail": "8 distinct values"
       },
       "no_none": {
         "passed": false,
@@ -15130,7 +15197,7 @@
       }
     },
     "passed": false,
-    "answer_preview": "**CFO Dashboard (2026-Q1)**\nRevenue: $NoneM | Gross Margin: None%\nOperating Margin: None% | Net Income: $NoneM\nCash: $NoneM | ARR: $NoneM | Burn: Nonex"
+    "answer_preview": "**CFO Dashboard (2026-Q1)**\nRevenue: $35.57M | Gross Margin: 66.4%\nOperating Margin: 36.4% | Net Income: $9.72M\nCash: $148.0M | ARR: $145.52M | Burn: Nonex"
   },
   {
     "id": 76,
@@ -15159,7 +15226,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_bfb7276c",
+        "id": "dash_d18626c8",
         "title": "Revenue & Gross Margin Dashboard",
         "description": "Generated from: Give me a quick overview",
         "source_query": "Give me a quick overview",
@@ -15685,9 +15752,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1173
+      "response_time_ms": 1088
     },
-    "response_time_ms": 1173,
+    "response_time_ms": 1088,
     "checks": {
       "has_data": {
         "passed": false,
@@ -15699,7 +15766,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1173ms"
+        "detail": "1088ms"
       },
       "multi_value": {
         "passed": false,
@@ -15736,7 +15803,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_7ba172fb",
+        "id": "dash_ba2c951b",
         "title": "New Logo Arr & Revenue Dashboard",
         "description": "Generated from: How's the business doing?",
         "source_query": "How's the business doing?",
@@ -16195,9 +16262,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1503
+      "response_time_ms": 1566
     },
-    "response_time_ms": 1503,
+    "response_time_ms": 1566,
     "checks": {
       "has_data_or_dashboard": {
         "passed": true,
@@ -16209,7 +16276,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1503ms"
+        "detail": "1566ms"
       }
     },
     "passed": true,
@@ -16284,30 +16351,30 @@
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
-          "[NLQ-DIAG] query() called: metric=customer_engagement_score, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] query() called: metric=customer_satisfaction_score, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"customer_engagement_score\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"customer_engagement_score\",\"metric_name\":\"Engagement Score\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"score\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:35:13.151844Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null",
-          "[NLQ-DIAG] query() called: metric=payment_history, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"customer_satisfaction_score\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"customer_satisfaction_score\",\"metric_name\":\"Customer Satisfaction Score\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"score\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:45:06.383273Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"co",
+          "[NLQ-DIAG] query() called: metric=product_usage_frequency, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"payment_history\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"payment_history\",\"metric_name\":\"Days Sales Outstanding\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"days\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:35:13.268693Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"tem",
-          "[NLQ-DIAG] query() called: metric=support_ticket_frequency, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"product_usage_frequency\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=400, body={\"detail\":{\"error\":\"Grain 'quarter' not valid for metric 'product_usage_frequency'\",\"code\":\"INVALID_GRAIN\",\"details\":{\"metric\":\"product_usage_frequency\",\"requested_grain\":\"quarter\",\"valid_grains\":[\"week\",\"month\"]}}}",
+          "[NLQ-DIAG] query() called: metric=support_ticket_volume, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"support_ticket_frequency\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"support_ticket_frequency\",\"metric_name\":\"Support Tickets\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"count\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:35:13.300346Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"",
+          "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"support_ticket_volume\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"support_ticket_volume\",\"metric_name\":\"Support Tickets\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"count\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:45:06.511283Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"tem",
+          "[NLQ-DIAG] query() called: metric=payment_delinquency_rate, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"payment_delinquency_rate\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"payment_delinquency_rate\",\"metric_name\":\"Days Sales Outstanding\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"days\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:45:06.545502Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":",
           "[NLQ-DIAG] query() called: metric=contract_renewal_date, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"contract_renewal_date\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"contract_renewal_date\",\"metric_name\":\"Renewal Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:35:13.334024Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":",
-          "[NLQ-DIAG] query() called: metric=product_usage_decline, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
-          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
-          "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"product_usage_decline\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"product_usage_decline\",\"metric_name\":\"Net Promoter Score\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"score\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:35:13.364370Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"contract_renewal_date\",\"metric_name\":\"Renewal Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:45:06.573627Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":",
           "[NLQ-DIAG] query() called: metric=churn_risk, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"churn_risk\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_risk\",\"metric_name\":\"Churn Risk Score\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"score\",\"data\":[{\"period\":\"2026-Q1\",\"value\":12.96,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:13.372798Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null"
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"churn_risk\",\"metric_name\":\"Churn Risk Score\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"score\",\"data\":[{\"period\":\"2026-Q1\",\"value\":12.96,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:06.581833Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null"
         ]
       },
       "entity": null,
@@ -16318,9 +16385,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 3720
+      "response_time_ms": 4627
     },
-    "response_time_ms": 3720,
+    "response_time_ms": 4627,
     "checks": {
       "professional": {
         "passed": true,
@@ -16328,7 +16395,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "3720ms"
+        "detail": "4627ms"
       },
       "has_data_or_guidance": {
         "passed": true,
@@ -16390,7 +16457,7 @@
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":35.57,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:16.960219Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n"
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":35.57,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:09.957928Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n"
         ]
       },
       "entity": null,
@@ -16517,9 +16584,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 1586
+      "response_time_ms": 1375
     },
-    "response_time_ms": 1586,
+    "response_time_ms": 1375,
     "checks": {
       "has_data": {
         "passed": true,
@@ -16531,7 +16598,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1586ms"
+        "detail": "1375ms"
       }
     },
     "passed": true,
@@ -16564,7 +16631,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_380f96ac",
+        "id": "dash_d29cb8c0",
         "title": "Revenue & Gross Margin Dashboard",
         "description": "Generated from: What are our KPIs?",
         "source_query": "What are our KPIs?",
@@ -17090,9 +17157,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1148
+      "response_time_ms": 1085
     },
-    "response_time_ms": 1148,
+    "response_time_ms": 1085,
     "checks": {
       "has_data": {
         "passed": false,
@@ -17104,7 +17171,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1148ms"
+        "detail": "1085ms"
       }
     },
     "passed": false,
@@ -17137,7 +17204,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_d565f244",
+        "id": "dash_93ac2da0",
         "title": "Revenue & Gross Margin Dashboard",
         "description": "Generated from: Show me something interesting",
         "source_query": "Show me something interesting",
@@ -17663,9 +17730,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1214
+      "response_time_ms": 1151
     },
-    "response_time_ms": 1214,
+    "response_time_ms": 1151,
     "checks": {
       "professional": {
         "passed": true,
@@ -17673,7 +17740,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1214ms"
+        "detail": "1151ms"
       }
     },
     "passed": true,
@@ -17732,9 +17799,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 757
+      "response_time_ms": 659
     },
-    "response_time_ms": 757,
+    "response_time_ms": 659,
     "checks": {
       "has_data": {
         "passed": true,
@@ -17746,7 +17813,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "757ms"
+        "detail": "659ms"
       },
       "multi_value": {
         "passed": true,
@@ -17831,11 +17898,11 @@
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":35.57,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:29.597491Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":35.57,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:22.290262Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q4\", \"end\": \"2025-Q4\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q4\",\"value\":33.78,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:29.696413Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n"
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q4\",\"value\":33.78,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:22.382038Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n"
         ]
       },
       "entity": null,
@@ -17962,9 +18029,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 1613
+      "response_time_ms": 1524
     },
-    "response_time_ms": 1613,
+    "response_time_ms": 1524,
     "checks": {
       "has_data": {
         "passed": true,
@@ -17976,7 +18043,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1613ms"
+        "detail": "1524ms"
       },
       "indicates_direction": {
         "passed": true,
@@ -18049,9 +18116,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 751
+      "response_time_ms": 782
     },
-    "response_time_ms": 751,
+    "response_time_ms": 782,
     "checks": {
       "has_data": {
         "passed": false,
@@ -18063,7 +18130,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "751ms"
+        "detail": "782ms"
       }
     },
     "passed": false,
@@ -18122,9 +18189,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 679
+      "response_time_ms": 563
     },
-    "response_time_ms": 679,
+    "response_time_ms": 563,
     "checks": {
       "has_data": {
         "passed": true,
@@ -18136,7 +18203,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "679ms"
+        "detail": "563ms"
       },
       "mentions_any": {
         "passed": false,
@@ -18250,35 +18317,35 @@
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q1\", \"end\": \"2024-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q1\",\"value\":21.65,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:38.631999Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q1\",\"value\":21.65,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:31.559285Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q2\", \"end\": \"2024-Q2\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q2\",\"value\":23.21,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:38.817051Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q2\",\"value\":23.21,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:31.646527Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q3\", \"end\": \"2024-Q3\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q3\",\"value\":24.88,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:38.823897Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q3\",\"value\":24.88,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:31.654938Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q4\", \"end\": \"2024-Q4\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q4\",\"value\":26.66,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:38.829990Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q4\",\"value\":26.66,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:31.661963Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q1\", \"end\": \"2025-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q1\",\"value\":28.41,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:38.836388Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q1\",\"value\":28.41,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:31.669018Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q2\", \"end\": \"2025-Q2\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q2\",\"value\":30.1,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:38.841761Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":nu",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q2\",\"value\":30.1,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:31.677331Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":nu",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q3\", \"end\": \"2025-Q3\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q3\",\"value\":31.89,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:38.848275Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q3\",\"value\":31.89,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:31.686782Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q4\", \"end\": \"2025-Q4\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q4\",\"value\":33.78,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:38.854910Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n"
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q4\",\"value\":33.78,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:31.693508Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n"
         ]
       },
       "entity": null,
@@ -18405,9 +18472,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 1726
+      "response_time_ms": 1963
     },
-    "response_time_ms": 1726,
+    "response_time_ms": 1963,
     "checks": {
       "has_data": {
         "passed": true,
@@ -18419,7 +18486,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1726ms"
+        "detail": "1963ms"
       },
       "multi_value": {
         "passed": true,
@@ -18443,7 +18510,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Breakdown for 2026-Q1: Win Rate Pct: $40.0M, Sales Cycle Days: $86.0M",
+      "answer": "Breakdown for 2026-Q1: Win Rate Pct: 40.0%, Sales Cycle Days: 86.0 days",
       "value": {
         "period": "2026-Q1",
         "breakdown": {
@@ -18473,7 +18540,7 @@
           "[NLQ-DIAG] query() called: metric=new_arr, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"new_arr\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"new_arr\",\"metric_name\":\"New ARR\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:35:41.500099Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"temporal_warning",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"new_arr\",\"metric_name\":\"New ARR\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:45:34.376236Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"temporal_warning",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
@@ -18509,19 +18576,25 @@
           "[NLQ-DIAG] query() called: metric=qualified_pipeline, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"qualified_pipeline\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"qualified_pipeline\",\"metric_name\":\"Sales Pipeline\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:35:42.993292Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"qualified_pipeline\",\"metric_name\":\"Sales Pipeline\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:45:35.546526Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null",
           "[NLQ-DIAG] query() called: metric=win_rate_pct, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"win_rate_pct\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"win_rate_pct\",\"metric_name\":\"Win Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2026-Q1\",\"value\":40.0,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:43.086779Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"ran",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"win_rate_pct\",\"metric_name\":\"Win Rate\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"percent\",\"data\":[{\"period\":\"2026-Q1\",\"value\":40.0,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:35.641176Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":null,\"ran",
           "[NLQ-DIAG] query() called: metric=sales_cycle_days, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
+          "[NLQ-DIAG] Fetching catalog from DCL: http://localhost:8004/api/dcl/semantic-export",
+          "[NLQ-DIAG] _fetch_from_dcl GET http://localhost:8004/api/dcl/semantic-export (attempt 1/3)",
+          "[NLQ-DIAG] _fetch_from_dcl status=200, size=79724 bytes",
+          "[NLQ-DIAG] _fetch_from_dcl parsed: 114 metrics, mode={'data_mode': 'Ingest', 'run_mode': 'Dev', 'last_updated': '2026-03-06T21:18:52.091283Z'}, first_5=['arr', 'mrr', 'revenue', 'services_revenue', 'ar']",
+          "[NLQ-DIAG] ingest_summary: 0 rows, 88 sources, tenants=['FluxSystems-YE3J', 'HelixDynamics-20FZ', 'default']",
+          "[NLQ-DIAG] DCL catalog loaded OK: 114 metrics",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"sales_cycle_days\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"sales_cycle_days\",\"metric_name\":\"Sales Cycle Length\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"days\",\"data\":[{\"period\":\"2026-Q1\",\"value\":86.0,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:43.102982Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"sales_cycle_days\",\"metric_name\":\"Sales Cycle Length\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"days\",\"data\":[{\"period\":\"2026-Q1\",\"value\":86.0,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:35.671488Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count",
           "[NLQ-DIAG] query() called: metric=avg_deal_size, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"avg_deal_size\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"avg_deal_size\",\"metric_name\":\"Average Deal Size\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:35:43.132176Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\""
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"avg_deal_size\",\"metric_name\":\"Average Deal Size\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:45:35.699290Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\""
         ]
       },
       "entity": null,
@@ -18549,9 +18622,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 2276
+      "response_time_ms": 2004
     },
-    "response_time_ms": 2276,
+    "response_time_ms": 2004,
     "checks": {
       "has_data_or_dashboard": {
         "passed": true,
@@ -18563,15 +18636,15 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "2276ms"
+        "detail": "2004ms"
       },
       "no_dollar_on_pct": {
-        "passed": false,
-        "detail": "Win Rate shown with $ sign"
+        "passed": true,
+        "detail": "no dollar on pct metrics"
       }
     },
-    "passed": false,
-    "answer_preview": "Breakdown for 2026-Q1: Win Rate Pct: $40.0M, Sales Cycle Days: $86.0M"
+    "passed": true,
+    "answer_preview": "Breakdown for 2026-Q1: Win Rate Pct: 40.0%, Sales Cycle Days: 86.0 days"
   },
   {
     "id": 88,
@@ -18611,7 +18684,7 @@
           "[NLQ-DIAG] query() called: metric=span_of_control, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"span_of_control\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"span_of_control\",\"metric_name\":\"Span of Control\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"ratio\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:35:45.619989Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"temporal_",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"span_of_control\",\"metric_name\":\"Span of Control\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"ratio\",\"data\":[],\"metadata\":{\"sources\":[\"live\"],\"freshness\":\"2026-03-06T22:45:38.163050Z\",\"quality_score\":0.0,\"mode\":\"Ingest\",\"record_count\":0,\"source\":\"ingest_empty\",\"run_id\":null,\"tenant_id\":\"default\",\"snapshot_name\":null,\"run_timestamp\":null,\"total_count\":null,\"ranking_type\":null,\"order\":null,\"persona\":null,\"persona_definition\":null},\"provenance\":null,\"entity\":null,\"conflicts\":null,\"temporal_",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
@@ -18629,7 +18702,7 @@
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2026-Q1\", \"end\": \"2026-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":35.57,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:46.739769Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n"
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2026-Q1\",\"value\":35.57,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:39.173372Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n"
         ]
       },
       "entity": null,
@@ -18756,9 +18829,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 1605
+      "response_time_ms": 1472
     },
-    "response_time_ms": 1605,
+    "response_time_ms": 1472,
     "checks": {
       "has_data": {
         "passed": true,
@@ -18770,7 +18843,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1605ms"
+        "detail": "1472ms"
       }
     },
     "passed": true,
@@ -18878,41 +18951,35 @@
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q1\", \"end\": \"2024-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q1\",\"value\":21.65,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:50.166875Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q1\",\"value\":21.65,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:42.472296Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
-          "[NLQ-DIAG] Fetching catalog from DCL: http://localhost:8004/api/dcl/semantic-export",
-          "[NLQ-DIAG] _fetch_from_dcl GET http://localhost:8004/api/dcl/semantic-export (attempt 1/3)",
-          "[NLQ-DIAG] _fetch_from_dcl status=200, size=79724 bytes",
-          "[NLQ-DIAG] _fetch_from_dcl parsed: 114 metrics, mode={'data_mode': 'Ingest', 'run_mode': 'Dev', 'last_updated': '2026-03-06T21:18:52.091283Z'}, first_5=['arr', 'mrr', 'revenue', 'services_revenue', 'ar']",
-          "[NLQ-DIAG] ingest_summary: 0 rows, 88 sources, tenants=['FluxSystems-YE3J', 'HelixDynamics-20FZ', 'default']",
-          "[NLQ-DIAG] DCL catalog loaded OK: 114 metrics",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q2\", \"end\": \"2024-Q2\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q2\",\"value\":23.21,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:50.278672Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q2\",\"value\":23.21,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:42.565842Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q3\", \"end\": \"2024-Q3\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q3\",\"value\":24.88,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:50.285946Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q3\",\"value\":24.88,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:42.574965Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2024-Q4\", \"end\": \"2024-Q4\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q4\",\"value\":26.66,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:50.293027Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2024-Q4\",\"value\":26.66,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:42.582819Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q1\", \"end\": \"2025-Q1\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q1\",\"value\":28.41,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:50.300190Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q1\",\"value\":28.41,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:42.589739Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q2\", \"end\": \"2025-Q2\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q2\",\"value\":30.1,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:50.306897Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":nu",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q2\",\"value\":30.1,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:42.597365Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":nu",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q3\", \"end\": \"2025-Q3\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q3\",\"value\":31.89,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:50.313799Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q3\",\"value\":31.89,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:42.604167Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n",
           "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q4\", \"end\": \"2025-Q4\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
-          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q4\",\"value\":33.78,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:35:50.321167Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n"
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q4\",\"value\":33.78,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:42.610940Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n"
         ]
       },
       "entity": null,
@@ -19039,9 +19106,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 1579
+      "response_time_ms": 1436
     },
-    "response_time_ms": 1579,
+    "response_time_ms": 1436,
     "checks": {
       "professional": {
         "passed": true,
@@ -19049,7 +19116,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1579ms"
+        "detail": "1436ms"
       }
     },
     "passed": true,
@@ -19109,9 +19176,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 841
+      "response_time_ms": 657
     },
-    "response_time_ms": 841,
+    "response_time_ms": 657,
     "checks": {
       "has_data": {
         "passed": true,
@@ -19127,7 +19194,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "841ms"
+        "detail": "657ms"
       },
       "not_about": {
         "passed": true,
@@ -19154,7 +19221,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "Ready to orchestrate.",
+      "answer": "Awaiting orders.",
       "value": null,
       "unit": null,
       "confidence": 1.0,
@@ -19180,9 +19247,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 152
+      "response_time_ms": 267
     },
-    "response_time_ms": 152,
+    "response_time_ms": 267,
     "checks": {
       "professional": {
         "passed": true,
@@ -19190,7 +19257,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "152ms"
+        "detail": "267ms"
       },
       "no_crash": {
         "passed": true,
@@ -19198,7 +19265,7 @@
       }
     },
     "passed": true,
-    "answer_preview": "Ready to orchestrate."
+    "answer_preview": "Awaiting orders."
   },
   {
     "id": 92,
@@ -19213,7 +19280,7 @@
     },
     "response_body": {
       "success": true,
-      "answer": "You're welcome. I'm here all quarter.",
+      "answer": "Appreciate it. Ready for your next query.",
       "value": null,
       "unit": null,
       "confidence": 1.0,
@@ -19239,9 +19306,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 233
+      "response_time_ms": 241
     },
-    "response_time_ms": 233,
+    "response_time_ms": 241,
     "checks": {
       "professional": {
         "passed": true,
@@ -19249,7 +19316,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "233ms"
+        "detail": "241ms"
       },
       "no_crash": {
         "passed": true,
@@ -19257,7 +19324,7 @@
       }
     },
     "passed": true,
-    "answer_preview": "You're welcome. I'm here all quarter."
+    "answer_preview": "Appreciate it. Ready for your next query."
   },
   {
     "id": 93,
@@ -19271,17 +19338,17 @@
       "mode": "ai"
     },
     "response_body": {
-      "success": false,
-      "answer": null,
-      "value": null,
-      "unit": null,
-      "confidence": 0.0,
-      "parsed_intent": null,
-      "resolved_metric": null,
-      "resolved_period": null,
+      "success": true,
+      "answer": "Revenue for 2025-Q4 was $33.8M",
+      "value": 33.8,
+      "unit": "usd_millions",
+      "confidence": 1.0,
+      "parsed_intent": "POINT_QUERY",
+      "resolved_metric": "revenue",
+      "resolved_period": "2025-Q4",
       "related_metrics": null,
-      "error_code": "PARSE_ERROR",
-      "error_message": "Invalid JSON from Claude: Expecting value: line 1 column 1 (char 0)",
+      "error_code": null,
+      "error_message": null,
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": null,
@@ -19305,22 +19372,140 @@
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
           "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
-          "[NLQ-DIAG] /query PARSE_ERROR: Invalid JSON from Claude: Expecting value: line 1 column 1 (char 0)"
-        ],
-        "error": "Invalid JSON from Claude: Expecting value: line 1 column 1 (char 0)",
-        "error_type": "PARSE_ERROR"
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
+          "[NLQ-DIAG] query() called: metric=revenue, force_local=False, ctx_force=False, dcl_url=True, data_mode=live",
+          "[NLQ-DIAG] get_catalog called: force_local=False, ctx_force=False, dcl_url=http://localhost:8004, data_mode=live",
+          "[NLQ-DIAG] query() -> DCL POST http://localhost:8004/api/dcl/query payload={\"metric\": \"revenue\", \"dimensions\": [], \"filters\": {}, \"time_range\": {\"start\": \"2025-Q4\", \"end\": \"2025-Q4\"}, \"grain\": \"quarter\", \"data_mode\": \"live\"}",
+          "[NLQ-DIAG] query() <- DCL status=200, body={\"metric\":\"revenue\",\"metric_name\":\"Total Revenue\",\"dimensions\":[],\"grain\":\"quarter\",\"unit\":\"USD (millions)\",\"data\":[{\"period\":\"2025-Q4\",\"value\":33.78,\"dimensions\":{},\"rank\":null}],\"metadata\":{\"sources\":[\"oracle\"],\"freshness\":\"2026-03-06T22:45:55.543085Z\",\"quality_score\":1.0,\"mode\":\"Ingest\",\"record_count\":1,\"source\":\"ingest\",\"run_id\":\"aam_run_bacaa7b6d4c0_20260306_211840\",\"tenant_id\":\"FluxSystems-YE3J\",\"snapshot_name\":\"FluxSystems-YE3J\",\"run_timestamp\":\"2026-03-06T21:18:40.586112\",\"total_count\":n"
+        ]
       },
       "entity": null,
       "entity_id": null,
       "entity_resolution": null,
-      "provenance": null,
-      "conflicts": null,
+      "provenance": {
+        "metric": "revenue",
+        "lineage": [
+          {
+            "source_system": "sap_erp",
+            "source_table": "BSEG",
+            "source_field": "DMBTR",
+            "transformation": "Aggregate by fiscal period, convert from EUR to USD at month-end rate",
+            "is_system_of_record": true,
+            "trust_score": 0.92,
+            "freshness": "daily",
+            "last_refreshed": "2026-02-07T06:00:00Z"
+          },
+          {
+            "source_system": "salesforce_crm",
+            "source_table": "Opportunity",
+            "source_field": "Amount",
+            "transformation": "Sum of closed-won opportunities by close date",
+            "is_system_of_record": false,
+            "trust_score": 0.85,
+            "freshness": "real-time",
+            "last_refreshed": "2026-02-07T10:30:00Z"
+          },
+          {
+            "source_system": "netsuite_erp",
+            "source_table": "Transaction",
+            "source_field": "amount",
+            "transformation": "Sum of invoice transactions by accounting period",
+            "is_system_of_record": false,
+            "trust_score": 0.88,
+            "freshness": "daily",
+            "last_refreshed": "2026-02-07T05:00:00Z"
+          }
+        ],
+        "system_of_record": "sap_erp",
+        "trust_score": 0.92,
+        "freshness": "daily"
+      },
+      "conflicts": [
+        {
+          "id": "conflict_001",
+          "entity": "Acme Corp",
+          "entity_id": "ent_acme_001",
+          "metric": "revenue",
+          "severity": "CRITICAL",
+          "systems": {
+            "salesforce_crm": {
+              "value": 45000000,
+              "formatted": "$45.0M",
+              "last_updated": "2026-01-15T10:30:00Z",
+              "trust_score": 0.85,
+              "is_sor": false
+            },
+            "sap_erp": {
+              "value": 42800000,
+              "formatted": "$42.8M",
+              "last_updated": "2026-01-10T08:00:00Z",
+              "trust_score": 0.92,
+              "is_sor": true
+            }
+          },
+          "delta": {
+            "absolute": 2200000,
+            "formatted": "$2.2M",
+            "percentage": 5.14
+          },
+          "root_cause": {
+            "type": "timing",
+            "explanation": "SAP ERP recognizes revenue on invoice date; Salesforce CRM records it at deal close. The $2.2M gap represents deals closed in CRM but not yet invoiced in ERP.",
+            "recommendation": "Trust ERP (SAP) for recognized revenue. CRM figure includes unbilled deals."
+          },
+          "trust_recommendation": {
+            "winner": "sap_erp",
+            "reason": "SAP is the system of record for financial data. Revenue recognition follows GAAP standards in ERP.",
+            "confidence": 0.92
+          },
+          "status": "open"
+        },
+        {
+          "id": "conflict_002",
+          "entity": "Massive Dynamic",
+          "entity_id": "ent_massive_004",
+          "metric": "revenue",
+          "severity": "HIGH",
+          "systems": {
+            "salesforce_crm": {
+              "value": 120000000,
+              "formatted": "$120.0M",
+              "last_updated": "2026-01-22T13:00:00Z",
+              "trust_score": 0.8,
+              "is_sor": false
+            },
+            "sap_erp": {
+              "value": 118500000,
+              "formatted": "$118.5M",
+              "last_updated": "2026-01-08T10:00:00Z",
+              "trust_score": 0.9,
+              "is_sor": true
+            }
+          },
+          "delta": {
+            "absolute": 1500000,
+            "formatted": "$1.5M",
+            "percentage": 1.27
+          },
+          "root_cause": {
+            "type": "scope",
+            "explanation": "CRM includes revenue from a recently acquired subsidiary not yet integrated into SAP. The $1.5M delta represents the subsidiary's contribution.",
+            "recommendation": "Trust SAP for core business revenue. Add subsidiary data once SAP integration completes."
+          },
+          "trust_recommendation": {
+            "winner": "sap_erp",
+            "reason": "SAP is authoritative for recognized revenue. CRM scope is broader but includes unverified subsidiary data.",
+            "confidence": 0.88
+          },
+          "status": "open"
+        }
+      ],
       "temporal_warning": null,
-      "data_source": null,
+      "data_source": "live",
       "persona": null,
-      "response_time_ms": 3939
+      "response_time_ms": 4416
     },
-    "response_time_ms": 3939,
+    "response_time_ms": 4416,
     "checks": {
       "professional": {
         "passed": true,
@@ -19328,7 +19513,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "3939ms"
+        "detail": "4416ms"
       },
       "no_crash": {
         "passed": true,
@@ -19336,7 +19521,7 @@
       }
     },
     "passed": true,
-    "answer_preview": ""
+    "answer_preview": "Revenue for 2025-Q4 was $33.8M"
   },
   {
     "id": 94,
@@ -19399,9 +19584,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 4452
+      "response_time_ms": 4041
     },
-    "response_time_ms": 4452,
+    "response_time_ms": 4041,
     "checks": {
       "professional": {
         "passed": true,
@@ -19409,7 +19594,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "4452ms"
+        "detail": "4041ms"
       },
       "no_crash": {
         "passed": true,
@@ -19491,9 +19676,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 2618
+      "response_time_ms": 2275
     },
-    "response_time_ms": 2618,
+    "response_time_ms": 2275,
     "checks": {
       "professional": {
         "passed": true,
@@ -19501,7 +19686,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "2618ms"
+        "detail": "2275ms"
       },
       "no_crash": {
         "passed": true,
@@ -19581,9 +19766,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 2300
+      "response_time_ms": 2773
     },
-    "response_time_ms": 2300,
+    "response_time_ms": 2773,
     "checks": {
       "professional": {
         "passed": true,
@@ -19591,7 +19776,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "2300ms"
+        "detail": "2773ms"
       }
     },
     "passed": true,
@@ -19650,9 +19835,9 @@
       "temporal_warning": null,
       "data_source": "live",
       "persona": null,
-      "response_time_ms": 955
+      "response_time_ms": 1030
     },
-    "response_time_ms": 955,
+    "response_time_ms": 1030,
     "checks": {
       "professional": {
         "passed": true,
@@ -19660,7 +19845,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "955ms"
+        "detail": "1030ms"
       }
     },
     "passed": true,
@@ -19743,9 +19928,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 2611
+      "response_time_ms": 3020
     },
-    "response_time_ms": 2611,
+    "response_time_ms": 3020,
     "checks": {
       "professional": {
         "passed": true,
@@ -19753,7 +19938,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "2611ms"
+        "detail": "3020ms"
       }
     },
     "passed": true,
@@ -19786,7 +19971,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_c53c0cff",
+        "id": "dash_eeef6adc",
         "title": "Revenue & Gross Margin Dashboard",
         "description": "Generated from: show me more",
         "source_query": "show me more",
@@ -20312,9 +20497,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1164
+      "response_time_ms": 1549
     },
-    "response_time_ms": 1164,
+    "response_time_ms": 1549,
     "checks": {
       "professional": {
         "passed": true,
@@ -20322,7 +20507,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1164ms"
+        "detail": "1549ms"
       }
     },
     "passed": true,
@@ -20355,7 +20540,7 @@
       "needs_clarification": false,
       "clarification_prompt": null,
       "dashboard": {
-        "id": "dash_1a867204",
+        "id": "dash_4d09066d",
         "title": "Pipeline & Win Rate Pct Dashboard",
         "description": "Generated from: actually show me CRO metrics",
         "source_query": "actually show me CRO metrics",
@@ -20881,9 +21066,9 @@
       "temporal_warning": null,
       "data_source": null,
       "persona": null,
-      "response_time_ms": 1592
+      "response_time_ms": 1692
     },
-    "response_time_ms": 1592,
+    "response_time_ms": 1692,
     "checks": {
       "professional": {
         "passed": true,
@@ -20891,7 +21076,7 @@
       },
       "responsive": {
         "passed": true,
-        "detail": "1592ms"
+        "detail": "1692ms"
       },
       "mentions_any": {
         "passed": true,

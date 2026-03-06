@@ -3,441 +3,455 @@
     "id": 1,
     "name": "A1: revenue this quarter",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 3,
     "name": "A3: EBITDA",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 4,
     "name": "A4: net income",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 5,
     "name": "A5: cash position",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 6,
     "name": "A6: ARR",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 8,
     "name": "A8: burn rate",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 10,
     "name": "A10: runway",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 11,
     "name": "B1: pipeline",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 12,
     "name": "B2: win rate",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 13,
     "name": "B3: churn",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 14,
     "name": "B4: NRR",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 18,
     "name": "B8: customer count",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 19,
     "name": "B9: expansion revenue",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 21,
     "name": "C1: headcount",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
+    "reason": "Genuine pass"
+  },
+  {
+    "id": 22,
+    "name": "C2: revenue per employee",
+    "locked_date": "2026-03-06",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 23,
     "name": "C3: platform uptime",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 24,
     "name": "C4: P1 incidents",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 26,
     "name": "C6: attrition",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 27,
     "name": "C7: employee engagement",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 30,
     "name": "C10: deployment frequency",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 31,
     "name": "D1: CFO dashboard",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 32,
     "name": "D2: CRO dashboard",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 34,
     "name": "D4: CTO dashboard",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 36,
     "name": "D6: how are we doing (CFO)",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 37,
     "name": "D7: how are we doing (CRO)",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 39,
     "name": "D9: 2025 KPIs dashboard",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 40,
     "name": "D10: executive summary",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 42,
     "name": "E2: revenue trend this year",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 48,
     "name": "E8: churn rate last 3 quarters",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 49,
     "name": "E9: ARR trend since Q1 2025",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 53,
     "name": "E13: pipeline trend 4 quarters",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 55,
     "name": "E15: NRR trend",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 56,
     "name": "F1: why did revenue increase",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 57,
     "name": "F2: margin improvement driver",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 59,
     "name": "F4: why is churn going up",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 60,
     "name": "F5: win rate impact",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 62,
     "name": "F7: top performing region",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 63,
     "name": "F8: highest attrition dept",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 64,
     "name": "F9: biggest risk",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 65,
     "name": "F10: what to focus on",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 66,
     "name": "G1: show P&L",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 67,
     "name": "G2: full P&L 2025",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 68,
     "name": "G3: P&L Q1 2026",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 70,
     "name": "G5: gross margin trend",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 71,
     "name": "G6: revenue COGS gross profit",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 77,
     "name": "H2: how's the business",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 78,
     "name": "H3: what should I worry about",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 79,
     "name": "H4: TL;DR",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 81,
     "name": "H6: show me something interesting",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 83,
     "name": "H8: what changed since last quarter",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 86,
     "name": "H11: run through the numbers",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
+    "reason": "Genuine pass"
+  },
+  {
+    "id": 87,
+    "name": "H12: new CRO catch me up",
+    "locked_date": "2026-03-06",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 88,
     "name": "H13: quick health check",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 89,
     "name": "H14: anything unusual",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 90,
     "name": "H15: let's start with revenue",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 91,
     "name": "I1: hi",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 92,
     "name": "I2: thanks",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 93,
     "name": "I3: go back",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 94,
     "name": "I4: more detail",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 95,
     "name": "I5: can you explain that",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 96,
     "name": "I6: what about last year",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 97,
     "name": "I7: break that down",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 98,
     "name": "I8: that doesn't look right",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 99,
     "name": "I9: show me more",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   },
   {
     "id": 100,
     "name": "I10: actually show CRO metrics",
     "locked_date": "2026-03-06",
-    "locked_by_commit": "iter2-dashboard-fix",
+    "locked_by_commit": "iter3-formatting",
     "reason": "Genuine pass"
   }
 ]

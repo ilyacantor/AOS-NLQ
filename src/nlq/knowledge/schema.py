@@ -384,7 +384,7 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         name="revenue_per_employee",
         display_name="Revenue per Employee",
         metric_type=MetricType.CURRENCY,
-        unit="USD millions",
+        unit="USD thousands",
         description="Revenue divided by headcount"
     ),
     "cost_per_employee": MetricDefinition(
@@ -1036,6 +1036,7 @@ def get_metric_unit(metric_name: str) -> str:
 _UNIT_TO_CANONICAL = {
     "%": "pct",
     "USD millions": "usd_millions",
+    "USD thousands": "usd_thousands",
     "USD": "usd",
     "millions/month": "usd_millions",
     "people": "count",

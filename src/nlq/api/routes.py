@@ -415,13 +415,19 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None) -> Opt
     dcl_client = get_semantic_client()
 
     def _query_metric_value(metric: str, period: Optional[str] = None) -> Optional[float]:
-        period = period or current_year()
         """Query a single metric value from DCL."""
+        period = period or current_quarter()
         try:
             result = dcl_client.query(
                 metric=metric,
-                time_range={"period": period, "granularity": "annual"}
+                time_range={"period": period, "granularity": "quarterly"}
             )
+            if result.get("error") or not result.get("data"):
+                # Retry with annual grain as fallback
+                result = dcl_client.query(
+                    metric=metric,
+                    time_range={"period": current_year(), "granularity": "annual"}
+                )
             if result.get("error"):
                 return None
             data = result.get("data", [])
@@ -470,8 +476,8 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None) -> Opt
                 period_data[metric] = value
         return period_data
 
-    # Get period data from DCL
-    period_data = _build_period_data(current_year())
+    # Get period data from DCL (use current quarter — DCL ingest data is at quarterly grain)
+    period_data = _build_period_data(current_quarter())
 
     q = question.lower()
     period = _extract_period_from_dashboard_query(question)
@@ -1349,7 +1355,10 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None) -> Op
     canonical_unit = get_canonical_unit(metric)
 
     # Format the value for human-readable answer
-    if display_unit in ("USD millions", "USD", "$"):
+    if display_unit == "USD thousands":
+        formatted = f"${round(value, 1)}K"
+        answer = f"{display_name} for {requested_period} is {formatted}"
+    elif display_unit in ("USD millions", "USD", "$"):
         formatted = f"${round(value, 1)}M"
         answer = f"{display_name} for {requested_period} is {formatted}"
     elif display_unit == "%":

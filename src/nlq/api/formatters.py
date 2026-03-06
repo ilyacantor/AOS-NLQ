@@ -311,6 +311,8 @@ def format_value_with_unit(value, unit: str) -> str:
         return f"{round(value, 1)}%"
     elif unit == "USD millions":
         return f"${round(value, 1)}M"
+    elif unit == "USD thousands":
+        return f"${round(value, 1)}K"
     elif unit == "USD":
         return f"${round(value, 2):,.2f}"
     elif unit == "millions/month":
@@ -408,15 +410,20 @@ def format_answer(parsed, result, unit: str) -> tuple:
         breakdown = data.get("breakdown", {})
         period = data.get("period", parsed.resolved_period)
         parts = []
-        for metric, value in breakdown.items():
-            display = metric.replace('_', ' ').title()
+        for metric_key, value in breakdown.items():
+            display = metric_key.replace('_', ' ').title()
+            # Use per-metric unit instead of parent unit — prevents e.g. Win Rate showing as $40M
+            from src.nlq.knowledge.schema import get_metric_unit as _get_unit
+            item_unit = _get_unit(metric_key)
+            if item_unit == "unknown":
+                item_unit = unit  # fallback to parent unit
             if isinstance(value, (int, float)):
-                parts.append(f"{display}: {format_value_with_unit(value, unit)}")
+                parts.append(f"{display}: {format_value_with_unit(value, item_unit)}")
             elif isinstance(value, dict):
                 # Nested breakdown — extract numeric value if present
                 numeric = value.get("value") or value.get("result")
                 if isinstance(numeric, (int, float)):
-                    parts.append(f"{display}: {format_value_with_unit(numeric, unit)}")
+                    parts.append(f"{display}: {format_value_with_unit(numeric, item_unit)}")
                 else:
                     parts.append(f"{display}: {value}")
             else:
