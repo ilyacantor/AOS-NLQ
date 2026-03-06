@@ -3369,6 +3369,77 @@ async def query(request: NLQRequest) -> NLQResponse:
             return _result
 
         # =================================================================
+        # PERIOD SUMMARY QUERIES - "how did last quarter go?", "how did Q3 go?"
+        # These are broad overview questions, not point queries. Route to summary.
+        # =================================================================
+        _q_lower = request.question.lower()
+        import re as _re_summary
+        _period_summary = _re_summary.match(
+            r'how did (?:last quarter|this quarter|q[1-4]|20\d{2}|last year|this year).*(?:go|look|do|perform|turn out)',
+            _q_lower
+        )
+        if _period_summary:
+            from src.nlq.core.dates import prior_quarter
+            # Determine the period
+            if "last quarter" in _q_lower:
+                _summary_period = prior_quarter()
+            elif "this quarter" in _q_lower:
+                _summary_period = current_quarter()
+            elif "last year" in _q_lower:
+                _summary_period = str(int(current_year()) - 1)
+            else:
+                _summary_period = current_quarter()
+            # Build a multi-metric summary
+            from src.nlq.services.dcl_semantic_client import get_semantic_client as _get_sc
+            dcl_client_summary = _get_sc()
+            _summary_metrics = ["revenue", "gross_margin_pct", "ebitda", "net_income", "arr"]
+            _summary_parts = []
+            for _sm in _summary_metrics:
+                _sr = dcl_client_summary.query(metric=_sm, time_range={"period": _summary_period, "granularity": "quarterly"})
+                if _sr.get("data") and not _sr.get("error"):
+                    _data = _sr["data"]
+                    if isinstance(_data, list) and _data:
+                        _sv = _data[-1].get("value") if isinstance(_data[-1], dict) else _data[-1]
+                    else:
+                        _sv = None
+                    if _sv is not None:
+                        from src.nlq.knowledge.schema import get_metric_unit as _gmu
+                        from src.nlq.knowledge.display import get_display_name as _gdn
+                        _unit = _gmu(_sm)
+                        _dn = _gdn(_sm)
+                        if _unit in ("USD millions",):
+                            _summary_parts.append(f"{_dn}: ${round(_sv, 1)}M")
+                        elif _unit == "%":
+                            _summary_parts.append(f"{_dn}: {round(_sv, 1)}%")
+                        else:
+                            _summary_parts.append(f"{_dn}: {round(_sv, 1)}")
+            if _summary_parts:
+                _summary_answer = f"**{_summary_period} Summary**\n" + " | ".join(_summary_parts)
+                return NLQResponse(
+                    success=True, answer=_summary_answer, value=None,
+                    confidence=0.95, parsed_intent="BROAD_REQUEST",
+                    resolved_metric="summary", resolved_period=_summary_period,
+                )
+
+        # =================================================================
+        # COMPOSITE MARGIN QUERIES - "margins", "all margins", "what are our margins"
+        # Must intercept before simple metric query to avoid routing to gross_margin_pct
+        # =================================================================
+        _q_lower = request.question.lower()
+        if "margin" in _q_lower and ("all" in _q_lower or "margins" in _q_lower):
+            _composite = _handle_ambiguous_query_text(
+                request.question, AmbiguityType.BROAD_REQUEST, [], None,
+            )
+            if _composite:
+                await _log_query_event(
+                    request.question, "bypass",
+                    message="Composite margins query (early)",
+                    execution_time_ms=_elapsed_ms(_start_time),
+                    session_id=request.session_id,
+                )
+                return _composite
+
+        # =================================================================
         # MULTI-METRIC QUERIES - Handle "X and Y" queries (no Claude needed)
         # =================================================================
         multi_result = _try_multi_metric_query(request.question)

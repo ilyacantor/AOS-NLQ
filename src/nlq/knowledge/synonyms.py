@@ -59,7 +59,6 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
         "gm%",
         "gm pct",
         "gm",
-        "margins",
         "margin",
         # Common misspellings
         "gross margn",
