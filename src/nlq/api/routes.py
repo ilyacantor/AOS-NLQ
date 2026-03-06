@@ -547,9 +547,23 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None) -> Opt
             ("burn_multiple", "Burn Multiple", period_data.get('burn_multiple'), "x", Domain.FINANCE),
         ]
         text_lines.append(f"**CFO Dashboard ({period})**")
-        text_lines.append(f"Revenue: ${period_data.get('revenue')}M | Gross Margin: {period_data.get('gross_margin_pct')}%")
-        text_lines.append(f"Operating Margin: {period_data.get('operating_margin_pct')}% | Net Income: ${period_data.get('net_income')}M")
-        text_lines.append(f"Cash: ${period_data.get('cash')}M | ARR: ${period_data.get('arr')}M | Burn: {period_data.get('burn_multiple')}x")
+        def _fmt(label, val, unit):
+            if val is None: return None
+            v = round(val, 1) if isinstance(val, float) else val
+            if unit == "M": return f"{label}: ${v}M"
+            elif unit == "%": return f"{label}: {v}%"
+            elif unit == "x": return f"{label}: {v}x"
+            return f"{label}: {v}"
+        cfo_items = [
+            _fmt("Revenue", period_data.get('revenue'), "M"),
+            _fmt("Gross Margin", period_data.get('gross_margin_pct'), "%"),
+            _fmt("Operating Margin", period_data.get('operating_margin_pct'), "%"),
+            _fmt("Net Income", period_data.get('net_income'), "M"),
+            _fmt("Cash", period_data.get('cash'), "M"),
+            _fmt("ARR", period_data.get('arr'), "M"),
+            _fmt("Burn", period_data.get('burn_multiple'), "x"),
+        ]
+        text_lines.append(" | ".join(item for item in cfo_items if item))
 
     elif persona == "CRO":
         metrics = [
@@ -1410,6 +1424,85 @@ def _try_pl_statement_query(question: str) -> Optional[NLQResponse]:
     return handler.execute()
 
 
+def _try_multi_metric_query(question: str) -> Optional[NLQResponse]:
+    """
+    Handle queries that ask for multiple metrics joined by 'and' or commas.
+    E.g., "EBITDA and net income", "Revenue, COGS, and gross profit"
+    """
+    import re
+    from src.nlq.knowledge.synonyms import normalize_metric
+
+    q = question.lower().strip().rstrip("?")
+    # Strip common prefixes
+    for prefix in ["what's ", "what is ", "what are ", "show me ", "give me ", "tell me "]:
+        if q.startswith(prefix):
+            q = q[len(prefix):]
+    q = q.strip()
+
+    # Split on " and " or ", "
+    parts = re.split(r'\s+and\s+|,\s*', q)
+    if len(parts) < 2:
+        return None
+
+    # Try to resolve each part as a metric
+    resolved = []
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+        metric = normalize_metric(part)
+        if metric:
+            resolved.append((part, metric))
+
+    if len(resolved) < 2:
+        return None
+
+    # Build results for each metric
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    from src.nlq.knowledge.schema import get_metric_unit, get_canonical_unit
+    from src.nlq.knowledge.display import get_display_name
+
+    dcl_client = get_semantic_client()
+    period = current_quarter()
+    parts_text = []
+    primary_value = None
+
+    for term, metric in resolved:
+        result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"})
+        if result.get("error") or not result.get("data"):
+            continue
+        data = result.get("data", [])
+        if isinstance(data, list) and data:
+            val = data[-1].get("value") if isinstance(data[-1], dict) else data[-1]
+        elif isinstance(data, (int, float)):
+            val = data
+        else:
+            continue
+        if val is None:
+            continue
+        if primary_value is None:
+            primary_value = val
+        display = get_display_name(metric)
+        unit = get_metric_unit(metric)
+        if unit in ("USD millions",):
+            parts_text.append(f"{display}: ${round(val, 1)}M")
+        elif unit == "%":
+            parts_text.append(f"{display}: {round(val, 1)}%")
+        else:
+            parts_text.append(f"{display}: {round(val, 1)}")
+
+    if len(parts_text) < 2:
+        return None
+
+    answer = f"For {period}: " + ", ".join(parts_text)
+    return NLQResponse(
+        success=True, answer=answer, value=primary_value,
+        unit=get_canonical_unit(resolved[0][1]),
+        confidence=0.95, parsed_intent="POINT_QUERY",
+        resolved_metric=resolved[0][1], resolved_period=period,
+    )
+
+
 def _try_simple_metric_query(question: str) -> Optional[NLQResponse]:
     """
     Try to answer a simple metric query directly from DCL.
@@ -2149,7 +2242,18 @@ def _handle_ambiguous_query_text(
     def get_val(metric: str, period: str) -> Optional[float]:
         """Get value from DCL with period-aware filtering and correct aggregation."""
         from src.nlq.knowledge.schema import is_additive_metric
-        result = dcl_client.query(metric=metric, time_range={"period": period})
+        # Use quarterly granularity for specific quarters, try quarterly first for years
+        is_annual = bool(re.match(r'^20\d{2}$', str(period)))
+        if is_annual:
+            # For annual periods, query the current quarter directly
+            result = dcl_client.query(metric=metric, time_range={"period": current_quarter(), "granularity": "quarterly"})
+            if result.get("error") or not result.get("data"):
+                # Fallback to yearly
+                result = dcl_client.query(metric=metric, time_range={"period": period})
+        else:
+            result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"})
+            if result.get("error") or not result.get("data"):
+                result = dcl_client.query(metric=metric, time_range={"period": period})
         if result.get("error"):
             return None
         data = result.get("data", [])
@@ -3263,6 +3367,18 @@ async def query(request: NLQRequest) -> NLQResponse:
                 session_id=request.session_id,
             )
             return _result
+
+        # =================================================================
+        # MULTI-METRIC QUERIES - Handle "X and Y" queries (no Claude needed)
+        # =================================================================
+        multi_result = _try_multi_metric_query(request.question)
+        if multi_result:
+            await _log_query_event(
+                request.question, "bypass",
+                message=f"Multi-metric -> {multi_result.resolved_metric}",
+                persona=detect_persona_from_metric(multi_result.resolved_metric) or "CFO",
+            )
+            return multi_result
 
         # =================================================================
         # SIMPLE METRIC QUERIES - Handle "what is X?" queries early (no Claude needed)
