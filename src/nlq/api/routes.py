@@ -1062,6 +1062,7 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
         # Casual prefixes
         "yo whats ", "yo what's ", "quick question ", "need ",
         "how we doing on ", "how are we doing on ",
+        "let's start with ", "lets start with ", "start with ",
         # Simple prefixes (check last)
         "show ", "see ", "view ",
         "our ", "the ", "current ", "total ", "latest ", "a ",
@@ -1232,14 +1233,14 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
                     # Fall through to LLM
                     pass
                 else:
-                    result = loop.run_until_complete(metric_index.lookup(question))
+                    result = loop.run_until_complete(metric_index.lookup(metric_query))
                     if result and result.is_high_confidence:
-                        return _build_simple_metric_result(result.canonical_metric)
+                        return _build_simple_metric_result(result.canonical_metric, period=_extracted_period)
             except RuntimeError:
                 # No event loop, create one
-                result = asyncio.run(metric_index.lookup(question))
+                result = asyncio.run(metric_index.lookup(metric_query))
                 if result and result.is_high_confidence:
-                    return _build_simple_metric_result(result.canonical_metric)
+                    return _build_simple_metric_result(result.canonical_metric, period=_extracted_period)
     except ImportError:
         pass  # Embedding index not available, fall through
     except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
@@ -2231,8 +2232,8 @@ def _handle_ambiguous_query_text(
         if "margin" in q:
             gross = get_val("gross_margin_pct", current_year)
             op = get_val("operating_margin_pct", current_year)
-            net = get_val("net_income_pct", current_year)
-            answer = f"Gross: {fmt_val('gross_margin_pct', gross)}, Operating: {fmt_val('operating_margin_pct', op)}, Net: {fmt_val('net_income_pct', net)}"
+            net = get_val("net_margin_pct", current_year)
+            answer = f"Gross: {fmt_val('gross_margin_pct', gross)}, Operating: {fmt_val('operating_margin_pct', op)}, Net: {fmt_val('net_margin_pct', net)}"
             return NLQResponse(success=True, answer=answer, value=None, unit="%",
                 confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="margin", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -2358,10 +2359,10 @@ def _handle_ambiguous_query_text(
     if ambiguity_type == AmbiguityType.YES_NO:
         # "are we profitable" -> "Yes, 22.5% net margin in 2026 forecast"
         if "profitable" in q:
-            margin = get_val("net_income_pct", current_year)
-            answer = f"Yes, {fmt_val('net_income_pct', margin)} net margin in {current_year} forecast"
+            margin = get_val("net_margin_pct", current_year)
+            answer = f"Yes, {fmt_val('net_margin_pct', margin)} net margin in {current_year} forecast"
             return NLQResponse(success=True, answer=answer, value=margin, unit="%",
-                confidence=0.95, parsed_intent="YES_NO", resolved_metric="net_income_pct", resolved_period=current_year,
+                confidence=0.95, parsed_intent="YES_NO", resolved_metric="net_margin_pct", resolved_period=current_year,
                 related_metrics=related_metrics)
 
         # "are we hitting quota" -> "Yes, 95.8% attainment"
@@ -2896,7 +2897,7 @@ def _handle_ambiguous_query_text(
         if "margin" in q and ("all" in q or "margins" in q):
             gm = get_val("gross_margin_pct", current_year)
             om = get_val("operating_margin_pct", current_year)
-            nm = get_val("net_income_pct", current_year)
+            nm = get_val("net_margin_pct", current_year)
             parts = []
             if gm is not None:
                 parts.append(f"Gross Margin: {round(gm, 1)}%")
