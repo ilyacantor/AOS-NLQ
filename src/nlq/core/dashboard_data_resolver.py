@@ -8,7 +8,7 @@ NLQ holds no local data - it's a stateless UI layer.
 import logging
 from typing import Any, Dict, List, Optional
 
-from src.nlq.core.dates import current_year
+from src.nlq.core.dates import current_year, current_quarter
 
 from src.nlq.services.dcl_semantic_client import get_semantic_client
 from src.nlq.knowledge.schema import get_metric_unit
@@ -21,6 +21,23 @@ from src.nlq.models.dashboard_schema import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _quarter_range(num_quarters: int) -> List[str]:
+    """Return a list of quarter strings going back num_quarters from current quarter.
+    E.g., _quarter_range(4) might return ['2025-Q2', '2025-Q3', '2025-Q4', '2026-Q1'].
+    """
+    cq = current_quarter()  # e.g. "2026-Q1"
+    year, q = int(cq[:4]), int(cq[-1])
+    quarters = []
+    for _ in range(num_quarters):
+        quarters.append(f"{year}-Q{q}")
+        q -= 1
+        if q == 0:
+            q = 4
+            year -= 1
+    quarters.reverse()
+    return quarters
 
 
 class DashboardDataResolver:
@@ -135,82 +152,56 @@ class DashboardDataResolver:
             return {"loading": False, "error": "No metric specified"}
 
         metric = metrics[0].metric
+        cq = current_quarter()
 
-        # Query DCL for current year value
-        # Try yearly grain first; if DCL rejects it (not all metrics support
-        # yearly aggregation), fall back to quarterly grain with latest quarter.
+        # Query DCL for latest quarter value (quarterly grain is most reliable
+        # because DCL ingest data is stored at quarter grain)
         result = self._query_dcl(
             metric=metric,
             filters=filters,
-            time_range={"period": reference_year, "granularity": "yearly"},
+            time_range={"period": cq, "granularity": "quarterly"},
         )
 
-        if result.get("error"):
-            # Retry with quarterly grain — DCL may not support yearly for this metric
-            logger.info(f"KPI yearly query failed for '{metric}', retrying with quarterly grain")
+        if result.get("error") or not result.get("data"):
+            # Retry with yearly grain as fallback
+            logger.info(f"KPI quarterly query failed for '{metric}', retrying with yearly grain")
             result = self._query_dcl(
                 metric=metric,
                 filters=filters,
-                time_range={"period": "last 4 quarters", "granularity": "quarterly"},
-                grain="quarterly",
+                time_range={"period": reference_year, "granularity": "yearly"},
             )
-            if result.get("error"):
-                # Final fallback: try monthly grain (some balance sheet metrics only support monthly)
-                logger.info(f"KPI quarterly query also failed for '{metric}', retrying with monthly grain")
-                result = self._query_dcl(
-                    metric=metric,
-                    filters=filters,
-                    time_range={"period": "last 12 months", "granularity": "monthly"},
-                    grain="monthly",
-                )
-                if result.get("error"):
-                    return {"loading": False, "error": result["error"]}
+            if result.get("error") or not result.get("data"):
+                return {"loading": False, "error": result.get("error", f"No data for '{metric}'")}
 
         # Extract value from DCL response
         value = self._extract_value_from_result(result)
         if value is None:
             return {"loading": False, "error": f"No data for '{metric}'"}
 
-        # Get prior year for trend (best-effort — trend is optional)
-        prior_year = str(int(reference_year) - 1)
-        prior_result = self._query_dcl(
-            metric=metric,
-            filters=filters,
-            time_range={"period": prior_year, "granularity": "yearly"},
-        )
-        prior_value = self._extract_value_from_result(prior_result)
-        if prior_value is None and prior_result.get("error"):
-            # Retry with quarterly grain
+        # Get prior quarter for trend (best-effort — trend is optional)
+        quarters = _quarter_range(8)
+        prior_q = quarters[-2] if len(quarters) >= 2 else None
+        trend = None
+        if prior_q:
             prior_result = self._query_dcl(
                 metric=metric,
                 filters=filters,
-                time_range={"period": "last 8 quarters", "granularity": "quarterly"},
-                grain="quarterly",
+                time_range={"period": prior_q, "granularity": "quarterly"},
             )
-            # Use the oldest quarter value as a rough prior
             prior_value = self._extract_value_from_result(prior_result)
-
-        # Calculate trend
-        trend = None
-        if prior_value is not None and prior_value != 0:
-            pct_change = ((value - prior_value) / prior_value) * 100
-            trend = {
-                "direction": "up" if pct_change > 0 else "down" if pct_change < 0 else "flat",
-                "percent_change": abs(round(pct_change, 1)),
-                "comparison_label": f"vs {prior_year}"
-            }
+            if prior_value is not None and prior_value != 0:
+                pct_change = ((value - prior_value) / prior_value) * 100
+                trend = {
+                    "direction": "up" if pct_change > 0 else "down" if pct_change < 0 else "flat",
+                    "percent_change": abs(round(pct_change, 1)),
+                    "comparison_label": f"vs {prior_q}"
+                }
 
         # Format value
         formatted_value = self._format_value(metric, value)
 
         # Get sparkline data (last 8 quarters)
-        sparkline_result = self._query_dcl(
-            metric=metric,
-            filters=filters,
-            time_range={"period": "last 8 quarters", "granularity": "quarterly"},
-            grain="quarterly",
-        )
-        sparkline_data = self._extract_time_series_values(sparkline_result)
+        sparkline_data = self._query_quarters_sparkline(metric, filters, 8)
 
         # Include filter info in response
         filter_label = None
@@ -226,6 +217,23 @@ class DashboardDataResolver:
             "active_filter": filter_label,
         }
 
+    def _query_quarters_sparkline(self, metric: str, filters: dict, num_quarters: int) -> Optional[List[float]]:
+        """Query individual quarters and build sparkline data."""
+        quarters = _quarter_range(num_quarters)
+        values = []
+        for q in quarters:
+            result = self._query_dcl(
+                metric=metric,
+                filters=filters,
+                time_range={"period": q, "granularity": "quarterly"},
+            )
+            val = self._extract_value_from_result(result)
+            values.append(round(val, 1) if val is not None else 0)
+        # Only return if we got at least some real data
+        if any(v != 0 for v in values):
+            return values
+        return None
+
     def _resolve_time_series_data(
         self,
         widget: Widget,
@@ -240,19 +248,21 @@ class DashboardDataResolver:
 
         metric = metrics[0].metric
 
-        # Query DCL for quarterly data
-        result = self._query_dcl(
-            metric=metric,
-            filters=filters,
-            time_range={"period": "last 8 quarters", "granularity": "quarterly"},
-            grain="quarterly",
-        )
-
-        if result.get("error"):
-            return {"loading": False, "error": result["error"]}
-
-        # Extract data points
-        data_points = self._extract_time_series(result)
+        # Query each quarter individually to build the time series
+        quarters = _quarter_range(8)
+        data_points = []
+        for q in quarters:
+            result = self._query_dcl(
+                metric=metric,
+                filters=filters,
+                time_range={"period": q, "granularity": "quarterly"},
+            )
+            val = self._extract_value_from_result(result)
+            if val is not None:
+                # Format label nicely (2025-Q1 -> Q1 2025)
+                parts = q.split("-")
+                label = f"{parts[1]} {parts[0]}" if len(parts) == 2 else q
+                data_points.append({"label": label, "value": round(val, 1)})
 
         if not data_points:
             return {"loading": False, "error": f"No time series data for '{metric}'"}
@@ -288,23 +298,23 @@ class DashboardDataResolver:
                 return self._resolve_multi_metric_comparison(metrics, reference_year, filters)
             return {"loading": False, "error": f"No dimension specified for '{metric}' breakdown"}
 
-        # Query DCL for dimensional breakdown
-        # Try yearly grain; fall back to quarterly if DCL rejects yearly
+        # Query DCL for dimensional breakdown using current quarter
+        cq = current_quarter()
         result = self._query_dcl(
             metric=metric,
             dimensions=[dimension],
             filters=filters,
-            time_range={"period": reference_year, "granularity": "yearly"},
+            time_range={"period": cq, "granularity": "quarterly"},
         )
 
-        if result.get("error"):
-            logger.info(f"Category yearly query failed for '{metric}', retrying with quarterly")
+        if result.get("error") or not result.get("data"):
+            # Try yearly grain as fallback
+            logger.info(f"Category quarterly query failed for '{metric}', retrying with yearly")
             result = self._query_dcl(
                 metric=metric,
                 dimensions=[dimension],
                 filters=filters,
-                time_range={"period": "last 4 quarters", "granularity": "quarterly"},
-                grain="quarterly",
+                time_range={"period": reference_year, "granularity": "yearly"},
             )
             if result.get("error"):
                 return {"loading": False, "error": result["error"]}
@@ -333,13 +343,14 @@ class DashboardDataResolver:
         filters: Dict[str, str],
     ) -> Dict[str, Any]:
         """Resolve multi-metric comparison bar chart — each metric is a category."""
+        cq = current_quarter()
         data_points = []
         for metric_binding in metrics:
             metric = metric_binding.metric
             result = self._query_dcl(
                 metric=metric,
                 filters=filters,
-                time_range={"period": reference_year, "granularity": "yearly"},
+                time_range={"period": cq, "granularity": "quarterly"},
             )
             value = self._extract_value_from_result(result)
             if value is not None:
@@ -372,20 +383,22 @@ class DashboardDataResolver:
         if not metrics:
             return {"loading": False, "error": "No metrics specified"}
 
-        categories = ["Q1", "Q2", "Q3", "Q4"]
+        quarters = _quarter_range(4)
+        categories = [q.split("-")[1] for q in quarters]  # ["Q1", "Q2", ...]
         series = []
 
         for metric_binding in metrics[:3]:
             metric = metric_binding.metric
-
-            result = self._query_dcl(
-                metric=metric,
-                filters=filters,
-                time_range={"period": reference_year, "granularity": "quarterly"},
-                grain="quarterly",
-            )
-
-            data_points = self._extract_quarterly_values(result, reference_year)
+            data_points = []
+            for q in quarters:
+                result = self._query_dcl(
+                    metric=metric,
+                    filters=filters,
+                    time_range={"period": q, "granularity": "quarterly"},
+                )
+                val = self._extract_value_from_result(result)
+                label = q.split("-")[1]  # "Q1"
+                data_points.append({"label": label, "value": round(val, 1) if val else 0})
 
             series.append({
                 "name": get_display_name(metric),
@@ -422,39 +435,39 @@ class DashboardDataResolver:
         rows = []
 
         if dimension == "quarter":
-            for q in range(1, 5):
-                period = f"{reference_year}-Q{q}"
-                row = {"quarter": f"Q{q} {reference_year}"}
+            quarters = _quarter_range(4)
+            for q in quarters:
+                row = {"quarter": q.replace("-", " ")}
 
                 for metric_binding in metrics:
                     metric = metric_binding.metric
                     result = self._query_dcl(
                         metric=metric,
                         filters=filters,
-                        time_range={"period": period, "granularity": "quarterly"},
+                        time_range={"period": q, "granularity": "quarterly"},
                     )
                     val = self._extract_value_from_result(result)
                     row[metric] = round(val, 1) if val else None
 
                 rows.append(row)
         else:
-            # Get dimensional breakdown
+            # Get dimensional breakdown using current quarter
+            cq = current_quarter()
             for metric_binding in metrics[:1]:  # Primary metric
                 metric = metric_binding.metric
                 result = self._query_dcl(
                     metric=metric,
                     dimensions=[dimension],
                     filters=filters,
-                    time_range={"period": reference_year, "granularity": "yearly"},
+                    time_range={"period": cq, "granularity": "quarterly"},
                 )
-                if result.get("error"):
-                    logger.info(f"Table yearly query failed for '{metric}', retrying with quarterly")
+                if result.get("error") or not result.get("data"):
+                    logger.info(f"Table quarterly query failed for '{metric}', retrying with yearly")
                     result = self._query_dcl(
                         metric=metric,
                         dimensions=[dimension],
                         filters=filters,
-                        time_range={"period": "last 4 quarters", "granularity": "quarterly"},
-                        grain="quarterly",
+                        time_range={"period": reference_year, "granularity": "yearly"},
                     )
 
                 breakdown = self._extract_dimensional_data(result, dimension, metric)
@@ -482,12 +495,13 @@ class DashboardDataResolver:
 
         metric = metrics[0].metric
 
-        # Query DCL for regional breakdown
+        # Query DCL for regional breakdown using current quarter
+        cq = current_quarter()
         result = self._query_dcl(
             metric=metric,
             dimensions=["region"],
             filters=filters,
-            time_range={"period": reference_year, "granularity": "yearly"},
+            time_range={"period": cq, "granularity": "quarterly"},
         )
 
         if result.get("error"):
