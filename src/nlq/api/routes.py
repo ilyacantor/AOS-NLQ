@@ -3369,16 +3369,21 @@ async def query(request: NLQRequest) -> NLQResponse:
             return _result
 
         # =================================================================
-        # PERIOD SUMMARY QUERIES - "how did last quarter go?", "how did Q3 go?"
-        # These are broad overview questions, not point queries. Route to summary.
+        # OVERVIEW / SUMMARY QUERIES - "how did last quarter go?", "quick overview",
+        # "what are our KPIs?", "what does the data tell us?"
+        # These should return text with numbers, not a dashboard.
         # =================================================================
         _q_lower = request.question.lower()
         import re as _re_summary
+        _is_overview = any(phrase in _q_lower for phrase in [
+            "quick overview", "give me a quick",
+            "what does the data tell", "what are our kpis",
+        ])
         _period_summary = _re_summary.match(
             r'how did (?:last quarter|this quarter|q[1-4]|20\d{2}|last year|this year).*(?:go|look|do|perform|turn out)',
             _q_lower
         )
-        if _period_summary:
+        if _period_summary or _is_overview:
             from src.nlq.core.dates import prior_quarter
             # Determine the period
             if "last quarter" in _q_lower:

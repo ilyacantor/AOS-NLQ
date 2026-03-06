@@ -1451,7 +1451,7 @@ class DCLSemanticClient:
 
         # Preserve metadata with human-friendly freshness from provenance
         metadata = dcl_response.get("metadata", {})
-        provenance = dcl_response.get("provenance", [])
+        provenance = dcl_response.get("provenance") or []
         if provenance:
             # Use human-friendly freshness from provenance (e.g., "2h")
             # instead of metadata.freshness which is an ISO timestamp
