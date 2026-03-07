@@ -3226,9 +3226,10 @@ def _handle_ambiguous_query_text(
 
         # "all margins" -> "Gross 65%, Operating 35%, Net 22.5%"
         if "margin" in q and ("all" in q or "margins" in q):
-            gm = get_val("gross_margin_pct", current_year)
-            om = get_val("operating_margin_pct", current_year)
-            nm = get_val("net_margin_pct", current_year)
+            _cq = current_quarter()
+            gm = get_val("gross_margin_pct", _cq)
+            om = get_val("operating_margin_pct", _cq)
+            nm = get_val("net_margin_pct", _cq)
             parts = []
             if gm is not None:
                 parts.append(f"Gross Margin: {round(gm, 1)}%")
@@ -3236,9 +3237,9 @@ def _handle_ambiguous_query_text(
                 parts.append(f"Operating Margin: {round(om, 1)}%")
             if nm is not None:
                 parts.append(f"Net Margin: {round(nm, 1)}%")
-            answer = f"{current_year}: {', '.join(parts)}" if parts else "Margin data not available"
+            answer = f"{_cq}: {', '.join(parts)}" if parts else "Margin data not available"
             return NLQResponse(success=True, answer=answer, value=gm, unit="%",
-                confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="margins", resolved_period=current_year,
+                confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="margins", resolved_period=_cq,
                 related_metrics=related_metrics)
 
         # "platform overview" -> "99.95% uptime, 96 features, $4M cloud, 150 eng"
