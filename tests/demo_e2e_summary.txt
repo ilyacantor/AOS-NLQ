@@ -1,0 +1,58 @@
+DEMO EXPERIENCE HARNESS -- 2026-03-07 04:24:34
+Endpoint: http://127.0.0.1:8005/api/v1/query
+============================================================
+OVERALL: 95/100 (95%)
+
+CATEGORY BREAKDOWN:
+  A: CFO Point Queries           10/10
+  B: CRO Point Queries           9/10
+  C: COO/CTO/CHRO Queries        7/10
+  D: Dashboards That Work        10/10
+  E: Comparisons and Trends      14/15
+  F: Causal and Analytical       10/10
+  G: P&L and Financials          10/10
+  H: Demo Showstoppers           15/15
+  I: Edge Cases                  10/10
+
+FAILED TESTS:
+  [ 17] B7: bookings last quarter
+    Query: "What did we book last quarter?"
+    Answer (preview): "Hmm, that's a head-scratcher. Try asking me about:
+• Revenue, bookings, or ARR
+• Pipeline or churn
+• Any of the dashboards (CFO, CRO, COO, CTO)
+
+⚠️ Po"
+    Failed checks: has_data (contains 'head-scratcher')
+
+  [ 25] C5: MTTR
+    Query: "What's our MTTR?"
+    Answer (preview): "I recognize **Mttr P1 Hours** (Mean time to recover from P1), but I don't have data for it right now. This may indicate missing data in the current da"
+    Failed checks: has_data (contains 'don't have data')
+
+  [ 28] C8: open roles
+    Query: "How many open roles do we have?"
+    Answer (preview): "I'm stumped! But I can definitely help with:
+• Financial metrics (revenue, margin, profit)
+• Sales metrics (pipeline, bookings, win rate)
+• Or try 'sh"
+    Failed checks: has_data (contains 'i'm stumped')
+
+  [ 29] C9: time to hire
+    Query: "What's our time to hire?"
+    Answer (preview): "I recognize **Time to Fill** (Average days to fill a position), but I don't have data for it right now. This may indicate missing data in the current "
+    Failed checks: has_data (contains 'don't have data')
+
+  [ 50] E10: bookings this vs last year
+    Query: "Bookings this year vs last year"
+    Answer (preview): "Query interpreted with multiple possibilities."
+    Failed checks: has_data (no numeric data in answer)
+
+FAILURE CLASSIFICATION:
+  No data (N/A / stumped)        5
+  Wrong metric                   0
+  Unprofessional (errors)        0
+  Too slow (>15s)                0
+  Missing formatting             0
+  Incomplete (partial answer)    0
+  Connection/timeout             0
