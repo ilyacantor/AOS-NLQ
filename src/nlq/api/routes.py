@@ -1972,7 +1972,8 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
         )
         if graph_result.get("can_answer"):
             # Graph found a resolution path — return it
-            confidence = graph_result.get("confidence", 0.5)
+            _conf_raw = graph_result.get("confidence", 0.5)
+            confidence = _conf_raw.get("overall", 0.5) if isinstance(_conf_raw, dict) else float(_conf_raw)
             join_paths = graph_result.get("join_paths", [])
             provenance = graph_result.get("provenance", [])
             filters_resolved = graph_result.get("filters_resolved", {})
@@ -1982,13 +1983,13 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
             # Build answer describing the resolution path
             path_desc_parts = []
             for jp in join_paths:
-                if jp.get("type") == "cross_system_join":
+                if isinstance(jp, dict) and jp.get("type") == "cross_system_join":
                     path_desc_parts.append(
                         f"{jp['dimension']} via cross-system join "
                         f"({jp.get('source_system', '?')} -> {jp.get('join_system', '?')})"
                     )
             path_desc = "; ".join(path_desc_parts) if path_desc_parts else "graph resolution"
-            systems = [p.get("source_system", "") for p in provenance if p.get("source_system")]
+            systems = [p.get("source_system", "") for p in provenance if isinstance(p, dict) and p.get("source_system")]
 
             return NLQResponse(
                 success=True,
