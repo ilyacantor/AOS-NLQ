@@ -18,6 +18,9 @@ const DashboardRenderer = React.lazy(() =>
 const UserGuide = React.lazy(() =>
   import('./components/UserGuide').then(m => ({ default: m.UserGuide }))
 )
+const FinancialStatementView = React.lazy(() =>
+  import('./components/financial-statement/FinancialStatementView').then(m => ({ default: m.FinancialStatementView }))
+)
 
 async function fetchWithRetry(
   url: string,
@@ -57,8 +60,8 @@ const personaOptions: { label: string; value: Persona; query: string; refinePres
   {
     label: 'CFO',
     value: 'CFO',
-    query: 'Show me a finance dashboard with revenue KPI, gross margin percent KPI, operating margin trend, net income KPI, and cash breakdown by region',
-    refinePresets: ['Add EBITDA card', 'Which region has the most revenue?', 'Show revenue by region', 'Filter to AMER region']
+    query: 'Show me a finance dashboard with revenue KPI, gross margin percent KPI, operating margin trend, net income KPI, EBITDA KPI, and cash KPI',
+    refinePresets: ['Add EBITDA margin card', 'Show revenue trend', 'Add operating margin KPI', 'Show net margin trend']
   },
   {
     label: 'CRO',
@@ -148,6 +151,7 @@ function App() {
   const [dashboardError, setDashboardError] = useState<string | null>(null)
 
   const [hasLoadedDefaultDashboard, setHasLoadedDefaultDashboard] = useState(false)
+  const [financialStatementData, setFinancialStatementData] = useState<any>(null)
   const sessionId = useSessionId()
 
   const queryRef = useRef(query)
@@ -230,6 +234,7 @@ function App() {
     if (!queryText.trim()) return
 
     setIsLoading(true)
+    setFinancialStatementData(null)
     setQuery('')
     setGalaxyResponse(null)
     const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
@@ -318,9 +323,14 @@ function App() {
       } as IntentMapResponse
 
       // Auto-navigate based on response type:
+      // - Financial statement → show FinancialStatementView in galaxy area
       // - Dashboard response → switch to dashboard view
       // - Non-dashboard response → switch to galaxy view (so result is visible)
-      if (data.response_type === 'dashboard' && data.dashboard) {
+      if (data.response_type === 'financial_statement' && data.financial_statement_data) {
+        setFinancialStatementData(data.financial_statement_data)
+        setViewMode('galaxy')
+        setGalaxyResponse(adapted)
+      } else if (data.response_type === 'dashboard' && data.dashboard) {
         setDashboardSchema(data.dashboard)
         setDashboardWidgetData(data.dashboard_data || {})
         // Persist to sessionStorage so dashboard survives view mode switches
@@ -722,8 +732,17 @@ function App() {
             {/* Galaxy View — chatbox centered, visual appears above when results load */}
             {viewMode === 'galaxy' && (
               <div className="h-full flex flex-col overflow-hidden">
-                {/* Galaxy visualization — takes available space above chatbox */}
-                {hasGalaxyResponse && (
+                {/* Financial statement or Galaxy visualization — takes available space above chatbox */}
+                {financialStatementData ? (
+                  <div id="financial-statement-visual" className="flex-1 overflow-auto min-h-0">
+                    <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
+                    <FinancialStatementView
+                      data={financialStatementData}
+                      sessionId={sessionId}
+                    />
+                    </Suspense>
+                  </div>
+                ) : hasGalaxyResponse && (
                   <div id="galaxy-visual" className="flex-1 overflow-hidden min-h-0">
                     <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
                     <GalaxyView
