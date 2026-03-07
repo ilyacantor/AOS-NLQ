@@ -225,17 +225,6 @@ function App() {
     }
   }, [])
 
-  // Load default dashboard on first view
-  useEffect(() => {
-    if (!hasLoadedDefaultDashboard && viewMode === 'dashboard') {
-      setHasLoadedDefaultDashboard(true)
-      const personaConfig = personaOptions.find(p => p.value === selectedPersona)
-      if (personaConfig) {
-        setQuery(personaConfig.query)
-      }
-    }
-  }, [hasLoadedDefaultDashboard, viewMode, selectedPersona])
-
   // Submit query — ONE endpoint, ONE path: /api/v1/query
   const submitQuery = useCallback(async (queryText: string) => {
     if (!queryText.trim()) return
@@ -382,7 +371,17 @@ function App() {
     setHistoryVersion(v => v + 1)
   }, [sessionId, selectedPersona])
 
-  // Default search on load suppressed — Galaxy starts empty with centered chatbox
+  // Load default dashboard on first view — auto-submit the persona query
+  // so the user sees a dashboard immediately instead of "No Dashboard Loaded"
+  useEffect(() => {
+    if (!hasLoadedDefaultDashboard && viewMode === 'dashboard') {
+      setHasLoadedDefaultDashboard(true)
+      const personaConfig = personaOptions.find(p => p.value === selectedPersona)
+      if (personaConfig) {
+        submitQuery(personaConfig.query)
+      }
+    }
+  }, [hasLoadedDefaultDashboard, viewMode, selectedPersona, submitQuery])
 
   // Handle form submit
   const handleSubmit = useCallback(() => {
