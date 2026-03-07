@@ -3510,6 +3510,102 @@ async def query(request: NLQRequest) -> NLQResponse:
             )
 
         # =================================================================
+        # COST STRUCTURE / OPEX QUERIES
+        # "What's our cost structure?", "biggest cost driver", "opex breakdown"
+        # Build a structured cost breakdown from available cost metrics.
+        # =================================================================
+        _q_cost = request.question.lower()
+        _is_cost_query = any(phrase in _q_cost for phrase in [
+            "cost structure", "cost driver", "biggest cost",
+            "opex breakdown", "operating expenses breakdown",
+            "operating expense",
+        ])
+        if _is_cost_query:
+            from src.nlq.services.dcl_semantic_client import get_semantic_client as _get_cost_sc
+            _cost_client = _get_cost_sc()
+            _cost_metrics = [
+                ("cogs", "COGS"),
+                ("opex", "OpEx"),
+                ("sga", "SG&A"),
+                ("cloud_spend", "Cloud Spend"),
+            ]
+            _cost_parts = []
+            _cost_total = 0
+            for _cm_key, _cm_name in _cost_metrics:
+                _cr = _cost_client.query(metric=_cm_key, time_range={"period": current_quarter(), "granularity": "quarterly"})
+                if _cr.get("data") and not _cr.get("error"):
+                    _cd = _cr["data"]
+                    if isinstance(_cd, list) and _cd and isinstance(_cd[0], dict):
+                        _cv = _cd[0].get("value")
+                        if _cv is not None:
+                            _cost_parts.append((_cm_name, _cv))
+                            _cost_total += _cv
+            if _cost_parts:
+                # Sort by value descending for "biggest cost driver"
+                _cost_parts.sort(key=lambda x: x[1], reverse=True)
+                _rev_r = _cost_client.query(metric="revenue", time_range={"period": current_quarter(), "granularity": "quarterly"})
+                _rev_val = None
+                if _rev_r.get("data") and isinstance(_rev_r["data"], list) and _rev_r["data"]:
+                    _rev_val = _rev_r["data"][0].get("value") if isinstance(_rev_r["data"][0], dict) else None
+                _lines = [f"**Cost Structure ({current_quarter()})**"]
+                for _cn, _cv in _cost_parts:
+                    _pct = f" ({round(_cv / _rev_val * 100, 1)}% of revenue)" if _rev_val else ""
+                    _lines.append(f"• {_cn}: ${round(_cv, 1)}M{_pct}")
+                _lines.append(f"**Total: ${round(_cost_total, 1)}M**")
+                if "biggest" in _q_cost or "driver" in _q_cost:
+                    _lines.insert(1, f"Largest cost: **{_cost_parts[0][0]}** at ${round(_cost_parts[0][1], 1)}M")
+                _cost_answer = "\n".join(_lines)
+                await _log_query_event(
+                    request.question, "bypass",
+                    message="Cost structure query",
+                    execution_time_ms=_elapsed_ms(_start_time),
+                    session_id=request.session_id,
+                )
+                return NLQResponse(
+                    success=True, answer=_cost_answer, value=_cost_total,
+                    unit="usd_millions", confidence=0.9, parsed_intent="BREAKDOWN",
+                    resolved_metric="cost_structure", resolved_period=current_quarter(),
+                )
+
+        # =================================================================
+        # SALES SCORECARD - "show me the sales scorecard"
+        # Build a multi-metric CRO view instead of routing to dashboard.
+        # =================================================================
+        if "sales scorecard" in _q_cost or "sales score card" in _q_cost:
+            from src.nlq.services.dcl_semantic_client import get_semantic_client as _get_sales_sc
+            _sales_client = _get_sales_sc()
+            _sales_metrics = [
+                ("pipeline", "Pipeline", "usd_millions", "$", "M"),
+                ("win_rate_pct", "Win Rate", "%", "", "%"),
+                ("quota_attainment_pct", "Quota Attainment", "%", "", "%"),
+                ("arr", "ARR", "usd_millions", "$", "M"),
+                ("churn_rate_pct", "Churn Rate", "%", "", "%"),
+                ("nrr", "NRR", "%", "", "%"),
+            ]
+            _sales_parts = []
+            for _sm_key, _sm_name, _sm_unit, _sm_pre, _sm_suf in _sales_metrics:
+                _sr = _sales_client.query(metric=_sm_key, time_range={"period": current_quarter(), "granularity": "quarterly"})
+                if _sr.get("data") and not _sr.get("error"):
+                    _sd = _sr["data"]
+                    if isinstance(_sd, list) and _sd and isinstance(_sd[0], dict):
+                        _sv = _sd[0].get("value")
+                        if _sv is not None:
+                            _sales_parts.append(f"{_sm_name}: {_sm_pre}{round(_sv, 1)}{_sm_suf}")
+            if _sales_parts:
+                _sales_answer = f"**Sales Scorecard ({current_quarter()})**\n" + " | ".join(_sales_parts)
+                await _log_query_event(
+                    request.question, "bypass",
+                    message="Sales scorecard query",
+                    execution_time_ms=_elapsed_ms(_start_time),
+                    session_id=request.session_id,
+                )
+                return NLQResponse(
+                    success=True, answer=_sales_answer, value=None,
+                    unit=None, confidence=0.9, parsed_intent="BROAD_REQUEST",
+                    resolved_metric="sales_scorecard", resolved_period=current_quarter(),
+                )
+
+        # =================================================================
         # SIMPLE BREAKDOWN QUERIES - Handle "X by Y" queries early (no Claude needed)
         # Must come before simple metric queries to avoid "revenue by region" -> "revenue"
         # =================================================================
