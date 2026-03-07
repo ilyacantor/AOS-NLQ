@@ -784,6 +784,8 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
     "time_to_fill_days": [
         "time to fill",
         "time_to_fill",
+        "time to hire",
+        "time_to_hire",
         "ttf",
         "hiring time",
         "time to fill days",

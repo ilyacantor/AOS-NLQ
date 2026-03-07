@@ -314,11 +314,11 @@ def _cached_to_parsed_query(cached: dict) -> ParsedQuery:
         intent = QueryIntent.POINT_QUERY
 
     # Map string period_type back to PeriodType enum
-    period_type_str = cached.get("period_type", "FULL_YEAR")
+    period_type_str = cached.get("period_type", "annual")
     try:
         period_type = PeriodType(period_type_str)
     except ValueError:
-        period_type = PeriodType.FULL_YEAR
+        period_type = PeriodType.ANNUAL
 
     # Normalize metric using synonym system
     raw_metric = cached.get("metric", "revenue")
