@@ -37,14 +37,17 @@ def main():
     with open(LOCKS) as f:
         locks = json.load(f)
 
-    locked_ids = {l["id"] for l in locks}
+    # Handle both formats: list of ints or list of dicts
+    if locks and isinstance(locks[0], int):
+        locked_ids = set(locks)
+    else:
+        locked_ids = {l["id"] for l in locks}
 
     regressions = []
     improvements = []
     new_passes = []
 
-    for lock in locks:
-        tid = lock["id"]
+    for tid in locked_ids:
         current = results.get(tid)
         base = baseline.get(tid)
         if not current:

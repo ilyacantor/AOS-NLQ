@@ -841,6 +841,223 @@ def _has_complexity_signal(query: str) -> bool:
     return bool(_COMPLEXITY_SIGNALS.search(query))
 
 
+def _try_comparison_query(question: str) -> Optional[NLQResponse]:
+    """
+    Handle comparison, trend, direction, and YoY growth queries.
+
+    Patterns handled:
+    - "Compare Q1 vs Q2 revenue" (period vs period, same metric)
+    - "Compare gross vs net margin" (metric vs metric, same period)
+    - "Margin this quarter vs last" (period vs period)
+    - "Revenue growth year over year" / "YoY headcount growth" (YoY)
+    - "Is revenue going up or down?" (direction)
+    - "How has pipeline changed this year?" (change over time)
+    - "Which quarter had the best revenue?" (superlative across time)
+    - "Bookings this year vs last year" (period vs period)
+    """
+    import re as _re
+    from src.nlq.core.dates import current_year, current_quarter, prior_quarter, prior_year
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    from src.nlq.knowledge.synonyms import normalize_metric
+    from src.nlq.knowledge.schema import get_metric_unit, is_additive_metric
+    from src.nlq.knowledge.display import get_display_name
+
+    q = question.lower().strip()
+
+    def _dcl_val(metric: str, period: str) -> Optional[float]:
+        """Query a single metric value from DCL for a specific period."""
+        client = get_semantic_client()
+        result = client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"})
+        if result.get("error") or not result.get("data"):
+            return None
+        data = result.get("data", [])
+        if isinstance(data, list) and data:
+            if isinstance(data[0], dict) and "value" in data[0]:
+                vals = [d.get("value") for d in data if d.get("value") is not None]
+                if not vals:
+                    return None
+                if is_additive_metric(metric):
+                    return sum(vals)
+                return sum(vals) / len(vals)
+            return data[-1] if data else None
+        elif isinstance(data, (int, float)):
+            return data
+        return None
+
+    def _fmt(metric: str, value: float) -> str:
+        unit = get_metric_unit(metric)
+        if unit == "USD millions":
+            return f"${round(value, 1)}M"
+        elif unit == "USD thousands":
+            return f"${round(value, 1)}K"
+        elif unit == "%":
+            return f"{round(value, 1)}%"
+        elif unit in ("days", "hours", "months"):
+            return f"{round(value, 1)} {unit}"
+        return str(round(value, 1))
+
+    def _pct_change(new_val, old_val) -> str:
+        if old_val and old_val != 0:
+            chg = (new_val - old_val) / abs(old_val) * 100
+            sign = "+" if chg >= 0 else ""
+            return f"{sign}{round(chg, 1)}%"
+        return "N/A"
+
+    cq = current_quarter()
+    pq = prior_quarter()
+    cy = current_year()
+    py = prior_year()
+
+    # ── Pattern 1: "Compare Q1 vs Q2 2025 revenue" (explicit quarter vs quarter) ──
+    m = _re.search(r'q([1-4])\s*vs\.?\s*q([1-4])\s*(\d{4})?', q)
+    if m:
+        q1, q2 = m.group(1), m.group(2)
+        year = m.group(3) or cy
+        # Extract metric from surrounding text
+        metric_text = _re.sub(r'compare|q[1-4]|vs\.?|\d{4}', '', q).strip()
+        metric_key = normalize_metric(metric_text) if metric_text else "revenue"
+        if not metric_key:
+            metric_key = "revenue"
+        p1 = f"{year}-Q{q1}"
+        p2 = f"{year}-Q{q2}"
+        v1 = _dcl_val(metric_key, p1)
+        v2 = _dcl_val(metric_key, p2)
+        dn = get_display_name(metric_key)
+        if v1 is not None and v2 is not None:
+            chg = _pct_change(v2, v1)
+            answer = f"{dn}: {p1} {_fmt(metric_key, v1)} vs {p2} {_fmt(metric_key, v2)} ({chg})"
+            return NLQResponse(success=True, answer=answer, value=v2, unit=get_metric_unit(metric_key),
+                confidence=0.9, parsed_intent="COMPARISON", resolved_metric=metric_key, resolved_period=p2)
+
+    # ── Pattern 2: "Margin this quarter vs last" (period vs period, quarter) ──
+    m = _re.search(r'(\w[\w\s]*?)\s+this\s+(?:quarter|q)\s+vs\.?\s+last', q)
+    if m:
+        metric_text = m.group(1).strip()
+        metric_key = normalize_metric(metric_text)
+        if metric_key:
+            v_this = _dcl_val(metric_key, cq)
+            v_last = _dcl_val(metric_key, pq)
+            if v_this is not None and v_last is not None:
+                dn = get_display_name(metric_key)
+                chg = _pct_change(v_this, v_last)
+                answer = f"{dn}: {cq} {_fmt(metric_key, v_this)} vs {pq} {_fmt(metric_key, v_last)} ({chg})"
+                return NLQResponse(success=True, answer=answer, value=v_this, unit=get_metric_unit(metric_key),
+                    confidence=0.9, parsed_intent="COMPARISON", resolved_metric=metric_key, resolved_period=cq)
+
+    # ── Pattern 3: "X this year vs last year" (year vs year) ──
+    m = _re.search(r'(\w[\w\s]*?)\s+this\s+year\s+vs\.?\s+last\s+year', q)
+    if m:
+        metric_text = m.group(1).strip()
+        metric_key = normalize_metric(metric_text)
+        if metric_key:
+            v_this = _dcl_val(metric_key, cq)
+            v_last = _dcl_val(metric_key, pq)
+            if v_this is not None and v_last is not None:
+                dn = get_display_name(metric_key)
+                chg = _pct_change(v_this, v_last)
+                answer = f"{dn}: {cy} {_fmt(metric_key, v_this)} vs {py} {_fmt(metric_key, v_last)} ({chg})"
+                return NLQResponse(success=True, answer=answer, value=v_this, unit=get_metric_unit(metric_key),
+                    confidence=0.9, parsed_intent="COMPARISON", resolved_metric=metric_key, resolved_period=cy)
+
+    # ── Pattern 4: "Compare gross vs net margin" (metric vs metric) ──
+    # Must come AFTER period-vs-period patterns to avoid "X this year vs last year"
+    # being misinterpreted as metric-vs-metric.
+    m = _re.search(r'(?:compare\s+)?(\w[\w\s]*?)\s+vs\.?\s+(\w[\w\s]*?)(?:\s*$|\?)', q)
+    if m:
+        m1_text, m2_text = m.group(1).strip(), m.group(2).strip()
+        # Skip if this looks like a period comparison (contains "year", "quarter")
+        if not _re.search(r'\b(year|quarter|q[1-4]|20\d{2})\b', m2_text):
+            m1_key = normalize_metric(m1_text)
+            m2_key = normalize_metric(m2_text)
+            if m1_key and m2_key and m1_key != m2_key:
+                v1 = _dcl_val(m1_key, cq)
+                v2 = _dcl_val(m2_key, cq)
+                if v1 is not None and v2 is not None:
+                    dn1, dn2 = get_display_name(m1_key), get_display_name(m2_key)
+                    answer = f"{cq}: {dn1} {_fmt(m1_key, v1)} vs {dn2} {_fmt(m2_key, v2)}"
+                    return NLQResponse(success=True, answer=answer, value=v1, unit=get_metric_unit(m1_key),
+                        confidence=0.9, parsed_intent="COMPARISON", resolved_metric=f"{m1_key}_vs_{m2_key}", resolved_period=cq)
+
+    # ── Pattern 5: "Revenue growth year over year" / "YoY headcount growth" ──
+    if "year over year" in q or "yoy" in q:
+        # Extract metric
+        metric_text = _re.sub(r'year over year|yoy|growth|rate', '', q).strip()
+        metric_key = normalize_metric(metric_text)
+        if not metric_key:
+            metric_key = "revenue"
+        v_this = _dcl_val(metric_key, cq)
+        v_last = _dcl_val(metric_key, pq)
+        if v_this is not None and v_last is not None:
+            dn = get_display_name(metric_key)
+            chg = _pct_change(v_this, v_last)
+            answer = f"{dn} YoY: {cy} {_fmt(metric_key, v_this)} vs {py} {_fmt(metric_key, v_last)} (growth {chg})"
+            return NLQResponse(success=True, answer=answer, value=v_this, unit=get_metric_unit(metric_key),
+                confidence=0.9, parsed_intent="COMPARISON", resolved_metric=metric_key, resolved_period=cy)
+
+    # ── Pattern 6: "Is revenue going up or down?" (direction) ──
+    m = _re.search(r'(?:is|are)\s+(\w[\w\s]*?)\s+(?:going|trending|heading)\s+(?:up|down)', q)
+    if m:
+        metric_text = m.group(1).strip()
+        metric_key = normalize_metric(metric_text)
+        if metric_key:
+            v_this = _dcl_val(metric_key, cq)
+            v_last = _dcl_val(metric_key, pq)
+            if v_this is not None and v_last is not None:
+                dn = get_display_name(metric_key)
+                direction = "up" if v_this > v_last else "down" if v_this < v_last else "flat"
+                chg = _pct_change(v_this, v_last)
+                answer = f"{dn} is trending **{direction}**: {pq} {_fmt(metric_key, v_last)} → {cq} {_fmt(metric_key, v_this)} ({chg})"
+                return NLQResponse(success=True, answer=answer, value=v_this, unit=get_metric_unit(metric_key),
+                    confidence=0.9, parsed_intent="COMPARISON", resolved_metric=metric_key, resolved_period=cq)
+
+    # ── Pattern 7: "How has pipeline changed this year?" ──
+    m = _re.search(r'how (?:has|have|did)\s+(\w[\w\s]*?)\s+changed', q)
+    if m:
+        metric_text = m.group(1).strip()
+        metric_key = normalize_metric(metric_text)
+        if metric_key:
+            v_this = _dcl_val(metric_key, cq)
+            v_last = _dcl_val(metric_key, pq)
+            if v_this is not None and v_last is not None:
+                dn = get_display_name(metric_key)
+                direction = "increased" if v_this > v_last else "decreased" if v_this < v_last else "stayed flat"
+                chg = _pct_change(v_this, v_last)
+                answer = f"{dn} has {direction}: {pq} {_fmt(metric_key, v_last)} → {cq} {_fmt(metric_key, v_this)} ({chg})"
+                return NLQResponse(success=True, answer=answer, value=v_this, unit=get_metric_unit(metric_key),
+                    confidence=0.9, parsed_intent="COMPARISON", resolved_metric=metric_key, resolved_period=cq)
+
+    # ── Pattern 8: "Which quarter had the best revenue?" ──
+    m = _re.search(r'which\s+quarter\s+(?:had|has|was)\s+(?:the\s+)?(?:best|highest|most|largest)\s+(\w[\w\s]*)', q)
+    if m:
+        metric_text = m.group(1).strip().rstrip('?')
+        metric_key = normalize_metric(metric_text)
+        if metric_key:
+            # Check last 4 quarters
+            year, qn = int(cq[:4]), int(cq[-1])
+            best_q, best_v = None, None
+            quarters_data = []
+            for _ in range(4):
+                qstr = f"{year}-Q{qn}"
+                v = _dcl_val(metric_key, qstr)
+                if v is not None:
+                    quarters_data.append((qstr, v))
+                    if best_v is None or v > best_v:
+                        best_v = v
+                        best_q = qstr
+                qn -= 1
+                if qn == 0:
+                    qn = 4
+                    year -= 1
+            if best_q and quarters_data:
+                dn = get_display_name(metric_key)
+                parts = [f"{qstr}: {_fmt(metric_key, v)}" for qstr, v in sorted(quarters_data)]
+                answer = f"**{best_q}** had the highest {dn} at {_fmt(metric_key, best_v)}. All quarters: " + ", ".join(parts)
+                return NLQResponse(success=True, answer=answer, value=best_v, unit=get_metric_unit(metric_key),
+                    confidence=0.9, parsed_intent="COMPARISON", resolved_metric=metric_key, resolved_period=best_q)
+
+    return None
+
+
 def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
     """
     Handle superlative/ranking queries like 'who is our top rep?'
@@ -3306,6 +3523,21 @@ async def query(request: NLQRequest) -> NLQResponse:
                 session_id=request.session_id,
             )
             return breakdown_result
+
+        # =================================================================
+        # COMPARISON / TREND / DIRECTION QUERIES
+        # "Compare Q1 vs Q2 revenue", "Revenue growth YoY", "Is revenue going up?"
+        # Must intercept before ambiguity pre-check and simple metric queries.
+        # =================================================================
+        _comparison_result = _try_comparison_query(request.question)
+        if _comparison_result:
+            await _log_query_event(
+                request.question, "bypass",
+                message=f"Comparison/trend -> {_comparison_result.resolved_metric}",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
+            return _comparison_result
 
         # =================================================================
         # VAGUE METRIC PRE-CHECK - catch ambiguous queries before simple metric path
