@@ -133,35 +133,57 @@ async def _deferred_init():
 
         # Layer 5: Pre-warm DCL catalog in background so first user request
         # doesn't block on a cold-starting DCL (Render free tier cold starts
-        # take 15-30s).  Retries with backoff — logs each attempt for
-        # visibility in Render logs.  Does NOT block startup.
+        # take 15-30s).
+        #
+        # Strategy: poll DCL health cheaply (GET /api/health, <1s) every 3s.
+        # Only attempt the expensive catalog fetch (GET /api/dcl/semantic-export,
+        # 9s with retries) once DCL reports phase=ready.  This avoids wasting
+        # 9s × N failed fetch attempts while DCL is still warming, which
+        # previously compounded into 60-90s delays and tripped the circuit breaker.
         client = get_semantic_client()
         if client.dcl_url:
-            warmup_backoffs = [2, 5, 10, 15, 20]  # seconds between attempts
-            for attempt, wait in enumerate(warmup_backoffs, 1):
-                try:
-                    logger.info(f"DCL pre-warm attempt {attempt}/{len(warmup_backoffs)}...")
-                    catalog = await loop.run_in_executor(
-                        None, lambda: client.get_catalog(force_refresh=True)
-                    )
-                    logger.info(
-                        f"DCL pre-warm SUCCESS on attempt {attempt}: "
-                        f"{len(catalog.metrics)} metrics cached "
-                        f"(mode={catalog.dcl_mode})"
-                    )
-                    break  # Catalog is now cached — first user request will be instant
-                except Exception as e:
-                    logger.warning(
-                        f"DCL pre-warm attempt {attempt}/{len(warmup_backoffs)} failed: "
-                        f"{type(e).__name__}: {e}"
-                    )
-                    if attempt < len(warmup_backoffs):
-                        await asyncio.sleep(wait)
-                    else:
-                        logger.warning(
-                            "DCL pre-warm exhausted all attempts. "
-                            "First user request will trigger catalog fetch."
+            import time as _time
+            _prewarm_deadline = _time.time() + 60  # 60s max wait
+            _prewarm_attempt = 0
+            while _time.time() < _prewarm_deadline:
+                _prewarm_attempt += 1
+                health = await loop.run_in_executor(
+                    None, client.check_dcl_health
+                )
+                phase = health.get("phase")
+                connected = health.get("connected", False)
+
+                if connected and phase in ("ready", "degraded"):
+                    # DCL is ready — attempt the catalog fetch
+                    try:
+                        logger.info(f"DCL pre-warm: phase={phase}, fetching catalog...")
+                        catalog = await loop.run_in_executor(
+                            None, lambda: client.get_catalog(force_refresh=True)
                         )
+                        logger.info(
+                            f"DCL pre-warm SUCCESS: "
+                            f"{len(catalog.metrics)} metrics cached "
+                            f"(mode={catalog.dcl_mode})"
+                        )
+                        break
+                    except Exception as e:
+                        logger.warning(
+                            f"DCL pre-warm fetch failed despite phase={phase}: "
+                            f"{type(e).__name__}: {e}"
+                        )
+                        # Don't retry immediately — wait and re-check health
+                else:
+                    logger.info(
+                        f"DCL pre-warm poll {_prewarm_attempt}: "
+                        f"connected={connected}, phase={phase} — waiting..."
+                    )
+
+                await asyncio.sleep(3)
+            else:
+                logger.warning(
+                    "DCL pre-warm timed out after 60s. "
+                    "First user request will trigger catalog fetch."
+                )
         else:
             logger.info("DCL pre-warm skipped (DCL_API_URL not configured)")
 

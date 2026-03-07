@@ -99,9 +99,15 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
 
   const isDemo = dataMode === 'demo';
 
+  // Unified connectivity: DCL is reachable if EITHER the health check says so
+  // OR the catalog was successfully loaded from DCL (cached up to 5 min).
+  // This prevents contradictory states where the detail row shows "Connected"
+  // (catalog_source=dcl) but the header shows "Offline" (health check timeout).
+  const dclReachable = !!(status?.dcl_connected || status?.catalog_source === 'dcl');
+
   const mode = status?.dcl_mode?.toLowerCase() ?? null;
-  const isLive = !isDemo && (mode === 'farm' || mode === 'ingest' || mode === 'live');
-  const isConnectedDemo = !isDemo && status?.dcl_connected && !isLive;
+  const isLive = !isDemo && dclReachable && (mode === 'farm' || mode === 'ingest' || mode === 'live');
+  const isConnectedDemo = !isDemo && dclReachable && !isLive;
 
   const formatRelative = (iso: string | null): string => {
     if (!iso) return '';
