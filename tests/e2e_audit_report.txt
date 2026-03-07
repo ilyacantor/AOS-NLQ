@@ -1,0 +1,194 @@
+NLQ E2E Test Harness — Audit Report
+Audited: 2026-03-05
+Source: tests/e2e_results_20260305_134535.json
+Script: tests/e2e_nlq_validation.py
+============================================================
+
+1. SCRIPT INTEGRITY VERDICT: VALID (with caveats)
+
+  1a. All tests are real HTTP requests: YES
+      - Single requests.post in run_test() at line 953
+      - Hits production endpoint: https://aos-nlq.onrender.com/api/v1/query
+      - No mocks, stubs, patches, fixtures, or MagicMock anywhere in the file
+
+  1b. No data_mode in any request body: CONFIRMED
+      - Grep for data_mode/demo returns zero matches in request construction
+      - All request bodies contain only {"question": ..., "persona": ...}
+      - Verified in all 100 result entries: no data_mode key present
+
+  1c. All 100 tests exist: YES
+      - TESTS list has exactly 100 entries (IDs 1-100, all unique)
+      - Results JSON has exactly 100 entries matching
+
+  1d. Test queries match specification: MOSTLY
+      - A1 queries "why did rev incr" with persona CFO: CORRECT
+      - A5 sends persona=CRO: CORRECT
+      - B1 queries "What's our churn rate by segment?": CORRECT
+      - H1 checks worst/highest: PARTIALLY — see Assertion Weakness below
+      - B4 spec says check "top" NOT in answer: MISSING (see below)
+
+  1e. No cache manipulation or demo shortcuts: CONFIRMED
+
+============================================================
+
+2. ASSERTION STRENGTH: 15 ISSUES FOUND
+
+  ALWAYS-TRUE (lambda d: True) — 4 tests:
+    F6  (id=81): "$" query — only assertion is no_crash: True
+    F7  (id=82): empty string — only assertion is no_crash: True
+    F9  (id=84): "more detail" — has success check + no_crash: True
+    F10 (id=85): "thanks" — only assertion is no_crash: True
+    VERDICT: Acceptable for edge-case crash tests. These are smoke tests,
+    not content tests. F6/F7/F10 literally cannot fail if the server responds.
+
+  DASHBOARD-ONLY (no content verification) — 3 tests:
+    A9  (id=9):  "how are we doing" (CFO) — only checks response_type==dashboard
+    A11 (id=11): "how's the business" (CRO) — only checks response_type==dashboard
+    A12 (id=12): "2025 KPIs in dash" (CFO) — only checks response_type==dashboard
+    VERDICT: WEAK. A dashboard could contain completely wrong metrics and pass.
+    A9 returned "Revenue & Gross Margin Dashboard" — reasonable for CFO, but
+    the test doesn't verify any CFO-relevant metrics are present.
+
+  MISSING NEGATIVE ASSERTION — 2 tests:
+    B4 (id=19): "Which segment has the worst churn?" — checks segment is mentioned
+      but does NOT check that "top" or "best" is absent. The audit spec
+      explicitly requires this. Actual answer: "**SMB** is the top segment
+      with 1.25% churn rate." — says "top" when it means "worst". TEST PASSES
+      BUT ANSWER IS SEMANTICALLY MISLEADING.
+    H1 (id=96): "worst churn segment" — same issue, same answer. The system
+      says "top" when the user asked for "worst". No assertion catches this.
+    VERDICT: FALSE POSITIVE. Both B4 and H1 should verify the framing matches
+    the question (worst != top).
+
+  WEAK VALUE CHECKS (success + number/dollar only) — 6 tests:
+    D1 (id=51), D2 (id=52), D6 (id=56), D7 (id=57), D14 (id=64), D15 (id=65)
+    These only check that the answer contains a number or dollar sign.
+    Any numeric response would pass regardless of metric correctness.
+    VERDICT: MITIGATED. Spot-check of all 15 point queries confirms every one
+    returned the correct metric name in the answer. The assertions are
+    technically weak but the actual responses are correct.
+
+============================================================
+
+3. RESULTS INTEGRITY
+
+  3a. All 100 tests ran: YES (100 results, 82 passed, 18 failed)
+
+  3b. Null response bodies on passed tests: NONE FOUND
+
+  3c. Suspiciously fast responses: NONE
+      - Minimum response time: 388ms
+      - No responses under 200ms
+      - Timing range: 388ms - 11,412ms (avg 2,007ms, median 1,481ms)
+
+  3d. Response bleed between tests: NONE DETECTED
+      - Checked all 99 consecutive pairs for keyword overlap
+      - 2-second delay between tests provides adequate isolation
+
+============================================================
+
+4. CONFIRMED FAILURES (18 total — all genuine)
+
+  CRASH BUGS (TypeError: must be real number, not dict) — 5 tests:
+    A1:  "why did rev incr" (CFO) — server returns success:false, TypeError
+    A2:  "why did revenue increase" (CFO) — same TypeError
+    B8:  "Year over year revenue growth" (CFO) — same TypeError
+    E3:  "how has pipeline changed this year?" (CRO) — same TypeError
+    F4:  "tell me everything" (CFO) — same TypeError
+    ROOT CAUSE: All 5 share the same crash: "must be real number, not dict".
+    Likely a single bug in the comparison/temporal query path.
+
+  MISROUTED QUERIES (wrong metric returned) — 5 tests:
+    B19: "What did we close last month?" -> "Win Rate Pct for 2026-Q1 is 40.0%"
+         Asked about closed deals/bookings, got win rate instead.
+    E6:  "churn rate last 3 quarters" -> "Accounts Receivable for 2026-Q1 is $17.0M"
+         Asked about churn, got AR. Classic misroute.
+    F5:  "rev" (CFO) -> "Arr for 2026-Q1 is $145.5M"
+         Abbreviation "rev" resolved to ARR instead of revenue.
+    G3:  "financial health" (CFO) -> "Span Of Control for 2026-Q1 is 6.8"
+         Asked about financial health, got an HR metric.
+    G6:  "show me all the margins" (CFO) -> "Accounts Receivable for 2026-Q1 is $17.0M"
+         Asked about margins, got AR. Severe misroute.
+
+  PERSONA FAILURES (wrong persona behavior) — 3 tests:
+    C8:  "what should I worry about?" (CTO) -> generic clarification, no tech terms
+    C9:  "how did we do last quarter?" (CFO) -> clarification instead of CFO metrics
+    C11: "how did we do last quarter?" (COO) -> same clarification, no ops context
+
+  SEMANTIC/INTENT FAILURES — 3 tests:
+    E4:  "margin this quarter vs last" -> "Query interpreted with multiple possibilities"
+         Failed to resolve comparison intent.
+    E7:  "is revenue going up or down" -> "$42.0M" (just the number, no direction)
+    H3:  "biggest expense" -> response about quota attainment ranking (completely wrong topic)
+
+  EDGE CASE HANDLING — 2 tests:
+    F3:  "asdfghjkl" -> Pydantic validation crash (not graceful)
+    F9:  "more detail" -> "Invalid JSON from Claude" (LLM response parsing failure)
+
+============================================================
+
+5. QUESTIONABLE PASSES (tests that passed but have concerns)
+
+  B4 (id=19): QUESTIONABLE — "worst churn" answered with "top segment".
+    Technically passes because it mentions a segment name. But the framing
+    is wrong: "top" implies best, not worst. Missing negative assertion.
+
+  H1 (id=96): QUESTIONABLE — same as B4, same answer, same concern.
+
+  A9 (id=9): QUESTIONABLE — only checks response_type==dashboard.
+    Dashboard title "Revenue & Gross Margin Dashboard" is fine for CFO,
+    but no assertion verifies this.
+
+  A11 (id=11): QUESTIONABLE — same as A9.
+
+  A12 (id=12): QUESTIONABLE — same as A9.
+
+  F6 (id=81): TRIVIALLY TRUE — assertion is literally `lambda d: True`.
+  F7 (id=82): TRIVIALLY TRUE — same.
+  F10 (id=85): TRIVIALLY TRUE — same.
+
+============================================================
+
+6. CACHE POISONING INDICATORS: NONE
+   All response times >= 388ms. No evidence of stale cache hits.
+
+============================================================
+
+7. RESPONSE BLEED INDICATORS: NONE
+   No keyword overlap detected between consecutive test responses.
+
+============================================================
+
+8. FINAL SCORE
+
+   Genuine passes:    74 / 100
+   Genuine failures:  18 / 100
+   Questionable:       8 / 100 (5 weak-assertion passes, 3 trivially-true)
+
+   Adjusted pass rate: 74-82% (depending on how you count the 8 questionable)
+
+   The 18 failures break down as:
+     5 — same crash bug (TypeError: must be real number, not dict)
+     5 — metric misrouting
+     3 — persona not threading correctly
+     3 — semantic/intent resolution failures
+     2 — edge case handling gaps
+
+============================================================
+
+9. RECOMMENDATIONS FOR THE TEST HARNESS (not the NLQ codebase)
+
+   a) B4 and H1: Add assertion `answer_not_contains(d, ["top", "best", "highest"])`
+      when the query uses "worst". The current answers are semantically misleading.
+
+   b) A9, A11, A12: Add at least one content assertion checking persona-relevant
+      metrics appear in the dashboard_data or answer.
+
+   c) D1, D2, D6, D7, D14, D15: Add metric-name assertions (e.g., D1 should
+      check "revenue" appears in the answer). Currently any dollar amount passes.
+
+   d) F6, F7, F10: These are fine as crash-guards but should be noted in the
+      summary as "smoke tests" not "content tests" to avoid inflating the score.
+
+============================================================
+END OF AUDIT
