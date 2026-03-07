@@ -3777,15 +3777,18 @@ async def query(request: NLQRequest) -> NLQResponse:
 
         # =================================================================
         # MULTI-METRIC QUERIES - Handle "X and Y" queries (no Claude needed)
+        # Skip if this looks like a dashboard request — those list multiple
+        # metrics but should go through the visualization intent handler.
         # =================================================================
-        multi_result = _try_multi_metric_query(request.question)
-        if multi_result:
-            await _log_query_event(
-                request.question, "bypass",
-                message=f"Multi-metric -> {multi_result.resolved_metric}",
-                persona=detect_persona_from_metric(multi_result.resolved_metric) or "CFO",
-            )
-            return multi_result
+        if not _is_dashboard_query(request.question):
+            multi_result = _try_multi_metric_query(request.question)
+            if multi_result:
+                await _log_query_event(
+                    request.question, "bypass",
+                    message=f"Multi-metric -> {multi_result.resolved_metric}",
+                    persona=detect_persona_from_metric(multi_result.resolved_metric) or "CFO",
+                )
+                return multi_result
 
         # =================================================================
         # SIMPLE METRIC QUERIES - Handle "what is X?" queries early (no Claude needed)
