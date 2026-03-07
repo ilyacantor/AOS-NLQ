@@ -1267,6 +1267,7 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
     prefixes_to_strip = [
         # Multi-word question patterns (check these first)
         "can you show me ", "can you tell me ", "can you get me ",
+        "how long is our ", "how long is the ",
         "what did we ", "what have we ", "how much did we ",
         "what are our ", "what is our ", "what's our ", "whats our ",
         "what are the ", "what is the ", "what's the ", "whats the ",

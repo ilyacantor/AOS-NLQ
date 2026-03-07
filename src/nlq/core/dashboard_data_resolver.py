@@ -75,13 +75,16 @@ class DashboardDataResolver:
         for widget in schema.widgets:
             try:
                 data = self._resolve_widget_data(widget, reference_year, filters)
+                # Only include widgets that successfully resolved data.
+                # Widgets with errors are omitted — the dashboard renders with
+                # fewer tiles rather than showing "No data" placeholders.
+                if isinstance(data, dict) and data.get("error"):
+                    logger.info(f"Omitting widget {widget.id}: {data['error']}")
+                    continue
                 widget_data[widget.id] = data
             except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
                 logger.error(f"Error resolving data for widget {widget.id}: {e}")
-                widget_data[widget.id] = {
-                    "loading": False,
-                    "error": f"Failed to load data: {str(e)}"
-                }
+                # Omit failed widgets rather than including error entries
 
         return widget_data
 
