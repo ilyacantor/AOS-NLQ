@@ -341,14 +341,16 @@ async def export_bridge(
 
     try:
         chart = BarChart()
-        chart.type = "bar"
+        chart.type = "col"  # vertical bars (matches displayed version)
         chart.style = 10
         chart.title = title
         chart.y_axis.title = None
         chart.x_axis.title = None
+        chart.y_axis.numFmt = '$#,##0"M"'
         chart.width = 20
         chart.height = 12
         chart.legend = None
+        chart.gapWidth = 50  # tight gap (matches displayed 10% barCategoryGap)
 
         # Base series (invisible)
         base_data = Reference(ws2, min_col=2, min_row=1, max_row=num_bars + 1)
@@ -367,9 +369,8 @@ async def export_bridge(
         base_series.graphicalProperties.noFill = True
         base_series.graphicalProperties.line.noFill = True
 
-        # Color the value series bars
+        # Color the value series bars to match displayed version
         from openpyxl.chart.series import DataPoint
-        from openpyxl.drawing.fill import PatternFillProperties, ColorChoice
         val_series = chart.series[1]
 
         for i, bar in enumerate(bars):
@@ -384,10 +385,10 @@ async def export_bridge(
                 pt.graphicalProperties.solidFill = "EF4444"  # red
             val_series.data_points.append(pt)
 
-        # Add data labels to value series
+        # Add data labels above bars
         val_series.dLbls = DataLabelList()
         val_series.dLbls.showVal = True
-        val_series.dLbls.numFmt = '#,##0.0'
+        val_series.dLbls.numFmt = '$#,##0.0"M"'
 
         ws2.add_chart(chart, "E2")
     except Exception as e:

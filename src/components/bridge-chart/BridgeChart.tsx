@@ -133,12 +133,12 @@ export function BridgeChart({ data, sessionId }: Props) {
             <BarChart
               data={chartData}
               margin={{ top: 30, right: 20, left: 20, bottom: 5 }}
-              barSize={48}
+              barCategoryGap="10%"
             >
               <XAxis
                 type="category"
                 dataKey="label"
-                tick={{ fontSize: 11, fill: '#374151' }}
+                tick={{ fontSize: 11, fill: '#FFFFFF' }}
                 axisLine={{ stroke: '#D1D5DB' }}
                 tickLine={false}
                 interval={0}
@@ -147,19 +147,11 @@ export function BridgeChart({ data, sessionId }: Props) {
                 type="number"
                 domain={[0, Math.ceil(maxVal * 1.1)]}
                 tickFormatter={(v: number) => `$${v.toFixed(0)}M`}
-                tick={{ fontSize: 11, fill: '#6B7280' }}
+                tick={{ fontSize: 11, fill: '#FFFFFF' }}
                 axisLine={false}
                 tickLine={false}
               />
-              <Tooltip
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                {...{ formatter: (_val: any, name: string, props: any) => {
-                  if (name === 'base') return [null, null]
-                  const bar = props.payload
-                  return [formatLabel(bar.rawValue, bar.type), bar.label]
-                }} as any}
-                contentStyle={{ borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 13 }}
-              />
+              {/* Tooltip disabled — data labels on bars are sufficient */}
               {/* Invisible base bar */}
               <Bar dataKey="base" stackId="stack" fill="transparent" isAnimationActive={false} />
               {/* Visible value bar with per-bar colors */}
@@ -172,7 +164,7 @@ export function BridgeChart({ data, sessionId }: Props) {
                       x={x + width / 2}
                       y={y - 8}
                       textAnchor="middle"
-                      fill={bar.type === 'total' ? '#374151' : bar.rawValue != null && bar.rawValue >= 0 ? '#059669' : '#DC2626'}
+                      fill={bar.type === 'total' ? '#FFFFFF' : bar.rawValue != null && bar.rawValue >= 0 ? '#059669' : '#DC2626'}
                       fontSize={12}
                       fontWeight={bar.type === 'total' ? 600 : 400}
                       fontFamily="ui-monospace, monospace"
