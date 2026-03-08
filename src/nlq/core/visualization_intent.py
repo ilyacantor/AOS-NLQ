@@ -396,8 +396,8 @@ PERSONA_METRICS = {
     "CFO": ["revenue", "gross_margin_pct", "arr", "ebitda", "net_income", "operating_profit"],
     "CRO": ["pipeline", "win_rate_pct", "quota_attainment_pct", "sales_cycle_days", "arr", "revenue"],
     "COO": ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months", "ltv_cac", "attrition_rate_pct"],
-    "CTO": ["uptime_pct", "p1_incidents", "deployment_frequency", "mttr", "open_bugs"],
-    "CHRO": ["headcount", "attrition_rate_pct", "hires", "offer_acceptance_rate_pct", "time_to_fill"],
+    "CTO": ["uptime_pct", "p1_incidents", "deployment_frequency", "mttr_p1_hours", "open_bugs"],
+    "CHRO": ["headcount", "attrition_rate_pct", "hires", "offer_acceptance_rate_pct", "time_to_fill", "enps"],
     "CS": ["nrr", "churn_rate_pct", "customer_count", "nps", "csat"],
 }
 

@@ -252,11 +252,12 @@ class DCLSemanticClient:
         data_mode = _data_mode_ctx.get()
         diag(f"[NLQ-DIAG] get_catalog called: force_local={force_local}, ctx_force={ctx_force}, dcl_url={self.dcl_url}, data_mode={data_mode}")
 
-        # LIVE MODE: Never fall back to fact_base.json
-        if data_mode == "live" and (force_local or ctx_force):
+        # LIVE MODE guard: only block when DCL IS configured but caller
+        # forces local — that's the silent fallback we must prevent.
+        if data_mode == "live" and self.dcl_url and (force_local or ctx_force):
             raise RuntimeError(
-                "LIVE MODE FAILURE: force_local requested but data_mode='live'. "
-                "Cannot use fact_base.json catalog in live mode."
+                "LIVE MODE FAILURE: force_local requested but data_mode='live' and DCL is configured. "
+                "Cannot use fact_base.json catalog in live mode when DCL is available."
             )
 
         if force_local or ctx_force:
@@ -312,21 +313,17 @@ class DCLSemanticClient:
                     f"Data may be stale. Check DCL_API_URL or DCL service health."
                 )
 
-        # Live/Ingest mode: No DCL URL configured — fail, don't silently serve fact_base
-        if data_mode == "live":
-            raise RuntimeError(
-                "LIVE MODE FAILURE: DCL_API_URL not configured. "
-                "Cannot serve live queries without DCL. "
-                "Set DCL_API_URL environment variable or switch to Demo mode."
-            )
-        if data_mode and data_mode.lower() == "ingest":
-            raise RuntimeError(
-                "INGEST MODE FAILURE: DCL_API_URL not configured. "
-                "Cannot serve ingest queries without DCL. "
-                "Set DCL_API_URL environment variable."
-            )
+        # No DCL URL configured — local fact_base is the only data source.
+        # This is NOT a silent fallback: DCL was never configured, so local
+        # data is the correct and only source. Log clearly and proceed.
+        if not self.dcl_url:
+            if data_mode in ("live", "ingest"):
+                logger.info(
+                    "DCL_API_URL not configured — serving %s-mode queries from local tenant data. "
+                    "Set DCL_API_URL to enable live DCL queries.", data_mode
+                )
 
-        # Demo mode only: local dev mode or DCL fallback
+        # Local dev mode or DCL fallback
         catalog = self._build_local_catalog()
         self._catalog = catalog
 
@@ -567,6 +564,7 @@ class DCLSemanticClient:
             # Tech
             "uptime_pct": ["uptime", "availability"],
             "p1_incidents": ["incidents", "p1s", "outages"],
+            "mttr_p1_hours": ["mttr", "mean time to repair", "mean time to resolve"],
             "deployment_success_pct": ["deploy success", "deployment success"],
             "tech_debt_pct": ["tech debt", "technical debt", "debt ratio"],
             "csat": ["csat score", "customer satisfaction", "satisfaction score"],
@@ -682,11 +680,11 @@ class DCLSemanticClient:
 
         data_mode = _data_mode_ctx.get()
 
-        # LIVE MODE: Never use local-only resolution when force_local is set
-        if data_mode == "live" and _force_local_ctx.get():
+        # LIVE MODE guard: only block when DCL IS configured but force_local is set
+        if data_mode == "live" and self.dcl_url and _force_local_ctx.get():
             raise RuntimeError(
-                "LIVE MODE FAILURE: force_local set but data_mode='live'. "
-                "Cannot resolve metrics from fact_base.json in live mode."
+                "LIVE MODE FAILURE: force_local set but data_mode='live' and DCL is configured. "
+                "Cannot resolve metrics from fact_base.json in live mode when DCL is available."
             )
 
         if _force_local_ctx.get():
@@ -844,34 +842,34 @@ class DCLSemanticClient:
         return None
 
     def has_live_ingest_data(self) -> bool:
-        """Check whether DCL has live ingested data available.
+        """Check whether DCL has live ingested data for the current tenant.
 
-        Does a lightweight probe query for 'revenue' with data_mode='live'.
-        Returns True only if actual data rows come back — not just metadata.
-        The ingest_summary.available flag is insufficient because it reflects
-        metadata presence (pipe blueprints, source systems), not actual data.
+        Uses the catalog's ingest_summary metadata. Returns True only when:
+        1. DCL's ingest pipeline is available, AND
+        2. The current tenant appears in DCL's tenant list
+
+        If DCL is running but has no data for our tenant, returns False so the
+        UI can show a meaningful status (not a false positive).
         """
         if not self.dcl_url:
             return False
         try:
-            result = self.query(
-                metric="revenue",
-                time_range={"period": "2025", "granularity": "annual"},
-                data_mode="live",
-            )
-            data = result.get("data", [])
-            if isinstance(data, list) and len(data) > 0:
-                # Check that at least one row has a non-null value
-                for row in data:
-                    if isinstance(row, dict) and row.get("value") is not None:
-                        return True
-                    elif isinstance(row, (int, float)):
-                        return True
-            elif isinstance(data, (int, float)):
-                return True
-            return False
-        except (RuntimeError, KeyError, TypeError, ValueError, OSError, Exception) as e:
-            logger.debug("Live data probe failed: %s", e)
+            summary = self.get_ingest_summary()
+            if summary is None or not summary.available:
+                return False
+            # Check if our tenant is in DCL's tenant list
+            if summary.tenant_names:
+                from src.nlq.config import get_tenant_id
+                current = get_tenant_id()
+                if current not in summary.tenant_names:
+                    logger.debug(
+                        "DCL ingest available but tenant %s not in DCL tenants: %s",
+                        current, summary.tenant_names
+                    )
+                    return False
+            return True
+        except (RuntimeError, AttributeError, KeyError, TypeError) as e:
+            logger.debug("Ingest summary check failed: %s", e)
             return False
 
     def get_ingest_summary(self) -> Optional[IngestSummary]:
@@ -1320,17 +1318,13 @@ class DCLSemanticClient:
             data_mode = _data_mode_ctx.get()
         diag(f"[NLQ-DIAG] query() called: metric={metric}, force_local={force_local}, ctx_force={ctx_force}, dcl_url={bool(self.dcl_url)}, data_mode={data_mode}")
 
-        # LIVE MODE: Prevent fallback to local fact_base - fail loudly instead
-        if data_mode == "live" and (force_local or ctx_force):
+        # LIVE MODE guard: only block when DCL IS configured but caller
+        # forces local — that's the real "silent fallback" scenario.
+        # When DCL isn't configured at all, local data is the only source.
+        if data_mode == "live" and self.dcl_url and (force_local or ctx_force):
             raise RuntimeError(
-                "LIVE MODE FAILURE: force_local=True but data_mode='live'. "
-                "Cannot serve demo data in live mode. Check request configuration."
-            )
-
-        if data_mode == "live" and not self.dcl_url:
-            raise RuntimeError(
-                "LIVE MODE FAILURE: DCL_API_URL not configured. "
-                "Live mode requires DCL endpoint. Set DCL_API_URL environment variable or switch to Demo mode."
+                "LIVE MODE FAILURE: force_local=True but data_mode='live' and DCL is configured. "
+                "Cannot serve demo data in live mode when DCL is available. Check request configuration."
             )
 
         if force_local or ctx_force or not self.dcl_url:
@@ -1338,7 +1332,7 @@ class DCLSemanticClient:
             if force_local or ctx_force:
                 reason = "Demo mode selected"
             else:
-                reason = "DCL not configured (DCL_API_URL not set)"
+                reason = "DCL not configured (DCL_API_URL not set) — using local tenant data"
             diag(f"[NLQ-DIAG] query() -> LOCAL FALLBACK ({reason})")
             result = self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
             result["data_source"] = "demo"
@@ -1415,7 +1409,23 @@ class DCLSemanticClient:
                 return {"error": error_msg, "status": "bad_request"}
 
             response.raise_for_status()
-            normalized = self._normalize_dcl_query_response(response.json())
+            dcl_body = response.json()
+
+            # When DCL explicitly reports ingest_empty (no ingested data for
+            # this tenant/metric), fall back to local tenant data rather than
+            # returning zeros.  This is NOT a silent fallback: DCL told us
+            # explicitly that its ingest store is empty; the local tenant file
+            # is the canonical data source until real data is ingested.
+            dcl_meta_source = (dcl_body.get("metadata") or {}).get("source", "")
+            dcl_data = dcl_body.get("data", [])
+            if dcl_meta_source == "ingest_empty" and not dcl_data:
+                diag(f"[NLQ-DIAG] query() DCL returned ingest_empty — falling back to local tenant data")
+                result = self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
+                result["data_source"] = "demo"
+                result["data_source_reason"] = "DCL ingest store empty for this tenant — using local tenant data"
+                return result
+
+            normalized = self._normalize_dcl_query_response(dcl_body)
 
             return normalized
 

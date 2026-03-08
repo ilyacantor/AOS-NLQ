@@ -120,6 +120,14 @@ class DashboardDataResolver:
         else:
             return {"loading": False, "error": f"Unsupported widget type: {widget_type_str}"}
 
+    def _resolve_canonical_metric(self, metric: str) -> str:
+        """Resolve a metric name to its canonical ID via the semantic client."""
+        resolved = self.dcl_client.resolve_metric(metric, local_only=True)
+        if resolved and resolved.id != metric:
+            logger.info(f"Resolved metric alias '{metric}' -> '{resolved.id}'")
+            return resolved.id
+        return metric
+
     def _query_dcl(
         self,
         metric: str,
@@ -130,8 +138,9 @@ class DashboardDataResolver:
     ) -> Dict[str, Any]:
         """Execute query against DCL and handle errors."""
         from src.nlq.config import get_tenant_id
+        canonical = self._resolve_canonical_metric(metric)
         result = self.dcl_client.query(
-            metric=metric,
+            metric=canonical,
             dimensions=dimensions,
             filters=filters,
             time_range=time_range,
@@ -140,7 +149,7 @@ class DashboardDataResolver:
         )
 
         if result.get("status") == "error" or result.get("error"):
-            logger.warning(f"DCL query error for '{metric}': {result.get('error')}")
+            logger.warning(f"DCL query error for '{canonical}': {result.get('error')}")
 
         return result
 
@@ -303,29 +312,19 @@ class DashboardDataResolver:
                 return self._resolve_multi_metric_comparison(metrics, reference_year, filters)
             return {"loading": False, "error": f"No dimension specified for '{metric}' breakdown"}
 
-        # Query DCL for dimensional breakdown using current quarter
-        cq = current_quarter()
-        result = self._query_dcl(
-            metric=metric,
-            dimensions=[dimension],
-            filters=filters,
-            time_range={"period": cq, "granularity": "quarterly"},
-        )
+        # Validate dimension — if it has no data, try valid dimensions for this metric
+        breakdown = self._try_dimensional_query(metric, dimension, filters, reference_year)
 
-        if result.get("error") or not result.get("data"):
-            # Try yearly grain as fallback
-            logger.info(f"Category quarterly query failed for '{metric}', retrying with yearly")
-            result = self._query_dcl(
-                metric=metric,
-                dimensions=[dimension],
-                filters=filters,
-                time_range={"period": reference_year, "granularity": "yearly"},
-            )
-            if result.get("error"):
-                return {"loading": False, "error": result["error"]}
-
-        # Extract breakdown data
-        breakdown = self._extract_dimensional_data(result, dimension, metric)
+        if not breakdown:
+            # Requested dimension failed — try each valid dimension as fallback
+            valid_dims = self.dcl_client.get_valid_dimensions(metric) if hasattr(self.dcl_client, 'get_valid_dimensions') else []
+            for fallback_dim in valid_dims:
+                if fallback_dim != dimension:
+                    logger.info(f"Dimension '{dimension}' failed for '{metric}', trying '{fallback_dim}'")
+                    breakdown = self._try_dimensional_query(metric, fallback_dim, filters, reference_year)
+                    if breakdown:
+                        dimension = fallback_dim
+                        break
 
         if not breakdown:
             return {"loading": False, "error": f"No {dimension} breakdown data for '{metric}'"}
@@ -340,6 +339,35 @@ class DashboardDataResolver:
             "clickable": True,
             "filter_dimension": dimension,
         }
+
+    def _try_dimensional_query(
+        self,
+        metric: str,
+        dimension: str,
+        filters: Dict[str, str],
+        reference_year: str,
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Try querying DCL for a dimensional breakdown, returning data points or None."""
+        cq = current_quarter()
+        result = self._query_dcl(
+            metric=metric,
+            dimensions=[dimension],
+            filters=filters,
+            time_range={"period": cq, "granularity": "quarterly"},
+        )
+
+        if result.get("error") or not result.get("data"):
+            logger.info(f"Category quarterly query failed for '{metric}' by '{dimension}', retrying with yearly")
+            result = self._query_dcl(
+                metric=metric,
+                dimensions=[dimension],
+                filters=filters,
+                time_range={"period": reference_year, "granularity": "yearly"},
+            )
+            if result.get("error"):
+                return None
+
+        return self._extract_dimensional_data(result, dimension, metric) or None
 
     def _resolve_multi_metric_comparison(
         self,

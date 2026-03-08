@@ -127,28 +127,27 @@ export function BridgeChart({ data, sessionId }: Props) {
           </div>
         </div>
 
-        {/* Horizontal waterfall chart */}
-        <div className="w-full" style={{ height: `${Math.max(300, data.bars.length * 56 + 40)}px` }}>
+        {/* Vertical waterfall chart */}
+        <div className="w-full" style={{ height: '380px' }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              layout="vertical"
               data={chartData}
-              margin={{ top: 5, right: 80, left: 10, bottom: 5 }}
-              barSize={32}
+              margin={{ top: 30, right: 20, left: 20, bottom: 5 }}
+              barSize={48}
             >
               <XAxis
+                type="category"
+                dataKey="label"
+                tick={{ fontSize: 11, fill: '#374151' }}
+                axisLine={{ stroke: '#D1D5DB' }}
+                tickLine={false}
+                interval={0}
+              />
+              <YAxis
                 type="number"
                 domain={[0, Math.ceil(maxVal * 1.1)]}
                 tickFormatter={(v: number) => `$${v.toFixed(0)}M`}
                 tick={{ fontSize: 11, fill: '#6B7280' }}
-                axisLine={{ stroke: '#D1D5DB' }}
-                tickLine={false}
-              />
-              <YAxis
-                type="category"
-                dataKey="label"
-                width={160}
-                tick={{ fontSize: 12, fill: '#374151' }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -164,15 +163,15 @@ export function BridgeChart({ data, sessionId }: Props) {
               {/* Invisible base bar */}
               <Bar dataKey="base" stackId="stack" fill="transparent" isAnimationActive={false} />
               {/* Visible value bar with per-bar colors */}
-              <Bar dataKey="value" stackId="stack" radius={[0, 4, 4, 0]} isAnimationActive={false}
-                label={({ x, y, width, height, index }: any) => {
+              <Bar dataKey="value" stackId="stack" radius={[4, 4, 0, 0]} isAnimationActive={false}
+                label={({ x, y, width, index }: any) => {
                   const bar = chartData[index]
                   if (!bar) return null
                   return (
                     <text
-                      x={x + width + 6}
-                      y={y + height / 2}
-                      dominantBaseline="central"
+                      x={x + width / 2}
+                      y={y - 8}
+                      textAnchor="middle"
                       fill={bar.type === 'total' ? '#374151' : bar.rawValue != null && bar.rawValue >= 0 ? '#059669' : '#DC2626'}
                       fontSize={12}
                       fontWeight={bar.type === 'total' ? 600 : 400}

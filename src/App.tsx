@@ -236,16 +236,6 @@ function App() {
     return () => clearInterval(timer)
   }, [dataMode, liveDataAvailable])
 
-  // Handle persona selection - submit persona dashboard query through unified endpoint
-  const handlePersonaSelect = useCallback((persona: Persona) => {
-    setSelectedPersona(persona)
-    const personaConfig = personaOptions.find(p => p.value === persona)
-    if (personaConfig) {
-      // Will be submitted through submitQuery below
-      setQuery(personaConfig.query)
-    }
-  }, [])
-
   // Submit query — ONE endpoint, ONE path: /api/v1/query
   const submitQuery = useCallback(async (queryText: string) => {
     if (!queryText.trim()) return
@@ -403,17 +393,26 @@ function App() {
     setHistoryVersion(v => v + 1)
   }, [sessionId, selectedPersona])
 
+  // Handle persona selection - submit persona dashboard query through unified endpoint
+  const handlePersonaSelect = useCallback((persona: Persona) => {
+    setSelectedPersona(persona)
+    const personaConfig = personaOptions.find(p => p.value === persona)
+    if (personaConfig) {
+      submitQuery(personaConfig.query)
+    }
+  }, [submitQuery])
+
   // Load default dashboard on first view — auto-submit the persona query
   // so the user sees a dashboard immediately instead of "No Dashboard Loaded"
   useEffect(() => {
-    if (!hasLoadedDefaultDashboard && viewMode === 'dashboard') {
+    if (!hasLoadedDefaultDashboard) {
       setHasLoadedDefaultDashboard(true)
       const personaConfig = personaOptions.find(p => p.value === selectedPersona)
       if (personaConfig) {
         submitQuery(personaConfig.query)
       }
     }
-  }, [hasLoadedDefaultDashboard, viewMode, selectedPersona, submitQuery])
+  }, [hasLoadedDefaultDashboard, selectedPersona, submitQuery])
 
   // Handle form submit
   const handleSubmit = useCallback(() => {
@@ -738,6 +737,7 @@ function App() {
                     onPersonaChange={(value) => handlePersonaSelect(value as Persona)}
                     isGenerating={isGeneratingDashboard}
                     dataMode={dataMode}
+                    sessionId={sessionId}
                   />
                 </div>
 

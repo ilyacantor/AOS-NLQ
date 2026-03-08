@@ -3837,6 +3837,21 @@ async def query(request: NLQRequest) -> NLQResponse:
                 return multi_result
 
         # =================================================================
+        # BRIDGE / WATERFALL QUERIES — must run before simple metric
+        # so "why did rev increase" isn't swallowed as a single-metric query.
+        # =================================================================
+        bridge_result = _try_bridge_query(request.question, session_id=request.session_id)
+        if bridge_result:
+            await _log_query_event(
+                request.question, "bypass",
+                message="Revenue bridge query",
+                persona="CFO",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
+            return bridge_result
+
+        # =================================================================
         # SIMPLE METRIC QUERIES - Handle "what is X?" queries early (no Claude needed)
         # =================================================================
         simple_result = _try_simple_metric_query(request.question)
@@ -3854,17 +3869,6 @@ async def query(request: NLQRequest) -> NLQResponse:
         # P&L / INCOME STATEMENT COMPOSITE QUERIES
         # Fan out multiple DCL queries for all line items in parallel.
         # =================================================================
-        bridge_result = _try_bridge_query(request.question, session_id=request.session_id)
-        if bridge_result:
-            await _log_query_event(
-                request.question, "bypass",
-                message="Revenue bridge query",
-                persona="CFO",
-                execution_time_ms=_elapsed_ms(_start_time),
-                session_id=request.session_id,
-            )
-            return bridge_result
-
         pl_result = _try_pl_statement_query(request.question, session_id=request.session_id)
         if pl_result:
             await _log_query_event(

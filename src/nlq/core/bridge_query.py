@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 _BRIDGE_PATTERNS = [
     re.compile(r"revenue\s+(bridge|waterfall|walk|drivers?)", re.IGNORECASE),
-    re.compile(r"(why|what).*(revenue|rev).*(increase|decrease|change|grow|drop|move|go\s+up|go\s+down|went\s+up|went\s+down)", re.IGNORECASE),
+    re.compile(r"(why|what).*(revenue|rev).*(incr\w*|decr\w*|change\w*|grow\w*|drop\w*|move\w*|go\s+up|go\s+down|went\s+up|went\s+down|fell|rise|risen|rose|jump\w*|spike\w*|dip\w*|decline\w*|shrink\w*|shrunk)", re.IGNORECASE),
     re.compile(r"(drove|driving|explain|decompose|break\s*down).*(revenue|rev)", re.IGNORECASE),
     re.compile(r"revenue\s+growth\s+drivers?", re.IGNORECASE),
     re.compile(r"(what.s|what\s+is)\s+driving.*(revenue|rev)", re.IGNORECASE),

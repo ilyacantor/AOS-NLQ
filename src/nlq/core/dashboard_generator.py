@@ -104,6 +104,10 @@ def _get_fallback_dimension(metric: str, requested_dimension: str | None) -> str
         "sales rep": "rep",
         "territory": "region",
         "area": "region",
+        "customer": "segment",
+        "customers": "segment",
+        "account": "segment",
+        "accounts": "segment",
     }
 
     normalized = dim_aliases.get(requested_dimension.lower(), requested_dimension.lower())

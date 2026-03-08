@@ -64,6 +64,8 @@ interface DashboardRendererProps {
   isGenerating?: boolean;
   /** Data mode: 'live' for DCL, 'demo' for local fact_base.json */
   dataMode?: 'live' | 'demo';
+  /** Session ID for query endpoint refinements */
+  sessionId?: string;
 }
 
 // =============================================================================
@@ -115,6 +117,7 @@ export function DashboardRenderer({
   onPersonaChange,
   isGenerating = false,
   dataMode = 'live',
+  sessionId,
 }: DashboardRendererProps) {
   const [schema, setSchemaRaw] = useState<DashboardSchema | null>(initialSchema ? normalizeSchema(initialSchema) : null);
   // Wrapper that always normalizes before setting
@@ -323,6 +326,7 @@ export function DashboardRenderer({
     editMode,
     handleAutoArrange,
     dataMode,
+    sessionId,
   });
 
   // Reset dashboard — reverts to the default persona dashboard state

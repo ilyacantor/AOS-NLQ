@@ -68,6 +68,15 @@ DISPLAY_NAMES = {
     # People / HR
     "time_to_fill_days": "Time to Fill",
     "engagement_score": "Employee Engagement",
+    "enps": "eNPS",
+
+    # Engineering / CTO
+    "mttr_p1_hours": "MTTR (P1)",
+    "mttr_p2_hours": "MTTR (P2)",
+    "uptime_pct": "Uptime",
+    "p1_incidents": "P1 Incidents",
+    "deployment_frequency": "Deploy Frequency",
+    "open_bugs": "Open Bugs",
 
     # Special
     "not_applicable": "N/A",

@@ -4,7 +4,6 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   DashboardSchema,
   WidgetData,
-  DashboardRefinementResponse,
 } from '../types/generated-dashboard';
 import { refreshLLMStats } from '../components/rag';
 
@@ -18,6 +17,7 @@ interface UseDashboardRefinementProps {
   editMode: boolean;
   handleAutoArrange: () => void;
   dataMode?: 'live' | 'demo';
+  sessionId?: string;
 }
 
 interface UseDashboardRefinementReturn {
@@ -39,6 +39,7 @@ export function useDashboardRefinement({
   editMode,
   handleAutoArrange,
   dataMode = 'demo',
+  sessionId,
 }: UseDashboardRefinementProps): UseDashboardRefinementReturn {
   const [refinementQuery, setRefinementQuery] = useState('');
   const [isRefining, setIsRefining] = useState(false);
@@ -70,17 +71,17 @@ export function useDashboardRefinement({
       const currentSchema = schemaRef.current;
       if (!currentSchema) return;
 
-      const response = await fetch('/api/v1/dashboard/refine', {
+      const response = await fetch('/api/v1/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          dashboard_id: currentSchema.id,
-          refinement_query: query,
+          question: query,
+          session_id: sessionId || currentSchema.id,
           data_mode: dataMode,
         }),
       });
 
-      const data: DashboardRefinementResponse = await response.json();
+      const data = await response.json();
 
       if (refinementTimeoutRef.current) {
         clearTimeout(refinementTimeoutRef.current);
@@ -89,24 +90,20 @@ export function useDashboardRefinement({
 
       if (unmountedRef.current) return;
 
-      if (data.refinement_status === 'noop') {
-        setRefinementMessage(null);
-      } else if (data.success && data.dashboard) {
-        const changesDescription = data.changes_made && data.changes_made.length > 0
-          ? data.changes_made.join(', ')
-          : null;
+      if (data.response_type === 'dashboard' && data.dashboard) {
+        const changesDescription = data.answer || null;
 
         const oldWidgetCount = currentSchema.widgets.length;
         const newWidgetCount = data.dashboard.widgets.length;
 
         setSchema(data.dashboard);
 
-        const newWidgetData = data.widget_data && Object.keys(data.widget_data).length > 0
-          ? data.widget_data
+        const newWidgetData = data.dashboard_data && Object.keys(data.dashboard_data).length > 0
+          ? data.dashboard_data
           : widgetData;
 
-        if (data.widget_data && Object.keys(data.widget_data).length > 0) {
-          setWidgetData(data.widget_data);
+        if (data.dashboard_data && Object.keys(data.dashboard_data).length > 0) {
+          setWidgetData(data.dashboard_data);
         } else {
           fetchWidgetData(data.dashboard);
         }
@@ -122,7 +119,7 @@ export function useDashboardRefinement({
         } else if (widgetsRemoved) {
           const removed = oldWidgetCount - newWidgetCount;
           setRefinementMessage(`Removed ${removed} widget${removed > 1 ? 's' : ''} from dashboard`);
-        } else if (changesDescription && !changesDescription.includes('Applied refinement:')) {
+        } else if (changesDescription) {
           setRefinementMessage(changesDescription);
         } else {
           setRefinementMessage('Dashboard updated');
