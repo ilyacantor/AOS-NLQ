@@ -88,12 +88,16 @@ async def health() -> HealthResponse:
     except (KeyError, TypeError) as e:
         logger.warning(f"Claude API key check failed: {e}")
 
-    # Check if live ingest data is available
-    live_data_available = False
-    try:
-        live_data_available = dcl_client.has_live_ingest_data()
-    except (RuntimeError, AttributeError) as e:
-        logger.warning("Live ingest data check failed: %s", e)
+    # live_data_available: true when we have a working data source (DCL ingest
+    # or local fact base).  The banner should only warn when queries would
+    # actually return zeros — not when DCL's ingest store happens to be empty
+    # while the local fact base is perfectly fine.
+    live_data_available = dcl_available  # catalog has metrics → data is available
+    if not live_data_available:
+        try:
+            live_data_available = dcl_client.has_live_ingest_data()
+        except (RuntimeError, AttributeError) as e:
+            logger.warning("Live ingest data check failed: %s", e)
 
     session_stats = get_session_stats()
     return HealthResponse(

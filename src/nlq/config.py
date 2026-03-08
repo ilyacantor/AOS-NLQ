@@ -9,6 +9,7 @@ env var, then from the most recent data/tenants/*.json file. Never falls
 back silently; raises RuntimeError if no tenant can be determined.
 """
 
+import json
 import os
 from datetime import date
 from functools import lru_cache
@@ -30,7 +31,7 @@ def get_tenant_id() -> str:
 
     Resolution order:
       1. AOS_TENANT_ID environment variable
-      2. Most recently modified file in data/tenants/*.json (stem = tenant_id)
+      2. Most recently modified file in data/tenants/*.json (reads tenant_id from JSON content)
       3. RuntimeError — no silent fallback
 
     The result is cached after first resolution. Call reset_tenant_cache()
@@ -46,12 +47,14 @@ def get_tenant_id() -> str:
         _tenant_id_cache = env_tid
         return _tenant_id_cache
 
-    # 2. Most recent tenant JSON file
+    # 2. Most recent tenant JSON file — read tenant_id from file content
     tenants_dir = Path(__file__).resolve().parent.parent.parent / "data" / "tenants"
     if tenants_dir.is_dir():
         tenant_files = sorted(tenants_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
         if tenant_files:
-            _tenant_id_cache = tenant_files[0].stem
+            with open(tenant_files[0]) as f:
+                tenant_data = json.load(f)
+            _tenant_id_cache = tenant_data.get("tenant_id", tenant_files[0].stem)
             return _tenant_id_cache
 
     raise RuntimeError(
