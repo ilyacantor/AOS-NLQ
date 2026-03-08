@@ -53,7 +53,18 @@ export function useDashboardLayout({
     return () => window.removeEventListener('resize', updateWidth);
   }, []);
 
-  const MAX_COL_SPAN: Record<string, number> = { map: 6 };
+  // Max col span = half the grid so two widgets always fit side by side
+  const halfGrid = Math.floor((schema?.layout.columns || 12) / 2);
+  const MAX_COL_SPAN: Record<string, number> = {
+    map: halfGrid,
+    line_chart: halfGrid,
+    bar_chart: halfGrid,
+    area_chart: halfGrid,
+    stacked_bar: halfGrid,
+    donut_chart: halfGrid,
+    horizontal_bar: halfGrid,
+    data_table: halfGrid,
+  };
 
   const maxSpanForType = (type: string) => {
     if (type === 'kpi_card') return 2;
@@ -246,9 +257,10 @@ export function useDashboardLayout({
       const widgetTypeMap: Record<string, string> = {};
       prevSchema.widgets.forEach(w => { widgetTypeMap[w.id] = w.type; });
 
-      // Expand rightward (respect per-type max col span)
+      // Expand rightward (respect per-type max col span; skip KPIs — they're already evenly distributed)
       items.forEach(item => {
         const wType = widgetTypeMap[item.i] || '';
+        if (wType === 'kpi_card') return; // KPIs stay at their initial even width
         const maxW = MAX_COL_SPAN[wType];
         while (item.x + item.w < cols) {
           if (maxW && item.w >= maxW) break;
@@ -262,8 +274,10 @@ export function useDashboardLayout({
         }
       });
 
-      // Expand downward (bounded by maxRow)
+      // Expand downward (bounded by maxRow; skip KPIs)
       items.forEach(item => {
+        const wType2 = widgetTypeMap[item.i] || '';
+        if (wType2 === 'kpi_card') return;
         while (item.y + item.h < maxRow) {
           const nr = item.y + item.h;
           let ok = true;

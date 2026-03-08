@@ -452,6 +452,10 @@ def _extract_metrics_from_query(query: str, persona: Optional[str] = None) -> Tu
         'show', 'me', 'add', 'compare', 'vs', 'versus', 'trend',
         'chart', 'graph', 'display', 'build', 'create', 'make', 'get',
         'visualize', 'see', 'view', 'look', 'looking',
+        # Time granularity terms — NOT metric names
+        'quarterly', 'monthly', 'yearly', 'annual', 'weekly', 'daily',
+        'over', 'time', 'last', 'this', 'year', 'quarter', 'month',
+        'new',
         # Dashboard/visualization terms — NOT metric names
         'dashboard', 'dash', 'kpi', 'kpis', 'overview', 'summary',
         'report', 'panel', 'view', 'page',

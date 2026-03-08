@@ -402,17 +402,17 @@ function App() {
     }
   }, [submitQuery])
 
-  // Load default dashboard on first view — auto-submit the persona query
-  // so the user sees a dashboard immediately instead of "No Dashboard Loaded"
+  // Load default dashboard when user first navigates to the Dashboard tab
+  // (not on mount — Ask tab is the landing page)
   useEffect(() => {
-    if (!hasLoadedDefaultDashboard) {
+    if (viewMode === 'dashboard' && !hasLoadedDefaultDashboard) {
       setHasLoadedDefaultDashboard(true)
       const personaConfig = personaOptions.find(p => p.value === selectedPersona)
       if (personaConfig) {
         submitQuery(personaConfig.query)
       }
     }
-  }, [hasLoadedDefaultDashboard, selectedPersona, submitQuery])
+  }, [viewMode, hasLoadedDefaultDashboard, selectedPersona, submitQuery])
 
   // Handle form submit
   const handleSubmit = useCallback(() => {

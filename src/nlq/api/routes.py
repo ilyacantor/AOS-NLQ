@@ -374,6 +374,7 @@ def _is_dashboard_query(question: str) -> bool:
         "quarterly report", "q1 report", "q2 report", "q3 report", "q4 report",
         "monthly report", "weekly report", "status report",
         "kpis", "key metrics", "top metrics", "main metrics",
+        "health check", "quick check", "pulse check",
     ]
 
     return any(term in q for term in dashboard_terms)
@@ -1637,6 +1638,30 @@ def _has_explicit_period(question: str) -> bool:
     if re.search(r'20(2[4-6])', q):
         return True
     return False
+
+
+def _try_report_query(question: str, session_id: Optional[str] = None) -> Optional[NLQResponse]:
+    """Detect Standard Reporting Package queries and generate comparison reports."""
+    from src.nlq.core.report_intent import detect_report_intent
+
+    intent = detect_report_intent(question)
+    if intent is None:
+        return None
+
+    from src.nlq.services.report_generator import ReportGenerator
+    generator = ReportGenerator(query_fn=_build_simple_metric_result)
+    result = generator.generate_report(
+        statement_type=intent.statement_type,
+        variant=intent.variant,
+        selected_quarter=intent.selected_quarter,
+    )
+
+    if result and result.financial_statement_data and session_id:
+        from src.nlq.api.session import get_dashboard_session_store
+        store = get_dashboard_session_store()
+        store.set_financial_statement(session_id, result.financial_statement_data.model_dump())
+
+    return result
 
 
 def _try_pl_statement_query(question: str, session_id: Optional[str] = None) -> Optional[NLQResponse]:
@@ -3685,6 +3710,23 @@ async def query(request: NLQRequest) -> NLQResponse:
             return _comparison_result
 
         # =================================================================
+        # STANDARD REPORTING PACKAGE — Act/CF/PY comparison reports
+        # Must run before ambiguity pre-check because report queries contain
+        # comparison language (e.g., "vs prior year") that triggers
+        # AmbiguityType.COMPARISON in detect_ambiguity().
+        # =================================================================
+        report_result = _try_report_query(request.question, session_id=request.session_id)
+        if report_result:
+            await _log_query_event(
+                request.question, "bypass",
+                message=f"Report query: {report_result.resolved_metric}",
+                persona="CFO",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
+            return report_result
+
+        # =================================================================
         # VAGUE METRIC PRE-CHECK - catch ambiguous queries before simple metric path
         # e.g. "show me the margin" or "how did we do?" need clarification, not eager resolution
         # Skipped when query contains analytical/causal language (those need the LLM).
@@ -4029,7 +4071,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                 _, viz_requirements = should_generate_visualization(request.question, persona=request.persona)
 
                 # Apply refinement
-                updated_schema = refine_dashboard_schema(
+                updated_schema, refinement_status, refinement_msg = refine_dashboard_schema(
                     current_schema=current_schema,
                     refinement_query=request.question,
                     requirements=viz_requirements,
