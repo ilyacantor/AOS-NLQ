@@ -120,14 +120,6 @@ class DashboardDataResolver:
         else:
             return {"loading": False, "error": f"Unsupported widget type: {widget_type_str}"}
 
-    def _resolve_canonical_metric(self, metric: str) -> str:
-        """Resolve a metric name to its canonical ID via the semantic client."""
-        resolved = self.dcl_client.resolve_metric(metric, local_only=True)
-        if resolved and resolved.id != metric:
-            logger.info(f"Resolved metric alias '{metric}' -> '{resolved.id}'")
-            return resolved.id
-        return metric
-
     def _query_dcl(
         self,
         metric: str,
@@ -138,7 +130,10 @@ class DashboardDataResolver:
     ) -> Dict[str, Any]:
         """Execute query against DCL and handle errors."""
         from src.nlq.config import get_tenant_id
-        canonical = self._resolve_canonical_metric(metric)
+        from src.nlq.knowledge.synonyms import normalize_metric
+        canonical = normalize_metric(metric)
+        if canonical != metric:
+            logger.info(f"Resolved metric alias '{metric}' -> '{canonical}'")
         result = self.dcl_client.query(
             metric=canonical,
             dimensions=dimensions,
