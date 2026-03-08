@@ -44,7 +44,7 @@ node_modules/
 npm-debug.log
 
 # Build
-# dist/ — committed to git so Render serves pre-built frontend without npm build step
+dist/
 *.log
 
 # Local config (keep .env.example)
