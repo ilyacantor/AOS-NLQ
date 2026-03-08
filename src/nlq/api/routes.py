@@ -4471,6 +4471,182 @@ async def query(request: NLQRequest) -> NLQResponse:
 
 _GALAXY_ENDPOINT_DELETED = True  # Sentinel so automated grep can confirm deletion
 
+
+# ─── Reconciliation endpoint ────────────────────────────────────────────────
+
+@router.get("/reconciliation")
+async def reconciliation():
+    """
+    Run the reconciliation engine against Farm's ground truth and return
+    results in the portal-expected format.
+
+    Compares all scalar P&L metrics for every quarter in the ground truth
+    manifest against DCL's query endpoint. Returns per-period check summaries
+    plus aggregate totals.
+    """
+    import httpx
+    from src.nlq.services.reconciliation_engine import ReconciliationEngine
+
+    dcl_url = os.environ.get("DCL_URL", "http://localhost:8004")
+
+    def query_fn(metric_id: str, period: str):
+        """Query DCL for a metric value. Returns object with .value attribute."""
+        try:
+            r = httpx.post(
+                f"{dcl_url}/api/dcl/query",
+                json={
+                    "metric": metric_id,
+                    "time_range": {"start": period, "end": period},
+                },
+                timeout=30,
+            )
+        except httpx.ConnectError as exc:
+            raise RuntimeError(
+                f"DCL unreachable at {dcl_url}/api/dcl/query — connection refused: {exc}"
+            ) from exc
+        except httpx.TimeoutException as exc:
+            raise RuntimeError(
+                f"DCL request timed out at {dcl_url}/api/dcl/query "
+                f"for metric='{metric_id}', period='{period}': {exc}"
+            ) from exc
+
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        pts = data.get("data", [])
+        for pt in pts:
+            if pt.get("period") == period:
+                class _Result:
+                    pass
+                result = _Result()
+                result.value = pt["value"]
+                return result
+        return None
+
+    engine = ReconciliationEngine(query_fn=query_fn)
+
+    # Load ground truth to discover quarters (need per-period breakdown)
+    gt = engine._get_ground_truth()
+    if gt is None:
+        farm_url = os.environ.get("FARM_URL", "http://localhost:8003")
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Reconciliation aborted: could not load ground truth from "
+                f"Farm API at {farm_url} or local fallback. "
+                f"Ensure Farm is running and /api/ground-truth is reachable."
+            ),
+        )
+
+    from src.nlq.services.reconciliation_engine import _GT_NON_QUARTER_KEYS
+
+    gt_data = gt.get("ground_truth", gt)
+    quarters = sorted([
+        k for k in gt_data
+        if k not in _GT_NON_QUARTER_KEYS
+    ])
+
+    if not quarters:
+        raise HTTPException(
+            status_code=502,
+            detail="Reconciliation aborted: ground truth contains no quarter data.",
+        )
+
+    # Run reconciliation per quarter to get per-period breakdowns
+    checks = []
+    total_checks = 0
+    total_green = 0
+    total_red = 0
+
+    for period in quarters:
+        try:
+            qr = engine.reconcile_quarter(period)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    f"Reconciliation failed for period '{period}': "
+                    f"{type(exc).__name__}: {exc}"
+                ),
+            )
+
+        green = qr.passed
+        red = qr.failed + qr.errors
+        total = qr.total_checks
+
+        checks.append({
+            "statement": "Income Statement",
+            "period": period,
+            "total": total,
+            "green": green,
+            "red": red,
+            "mismatches": qr.mismatches,
+        })
+
+        total_checks += total
+        total_green += green
+        total_red += red
+
+    from datetime import datetime
+
+    return {
+        "checks": checks,
+        "totalChecks": total_checks,
+        "totalGreen": total_green,
+        "totalRed": total_red,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+
+
+# ─── Drill-through proxy ─────────────────────────────────────────────────────
+
+@router.get("/drill-through")
+async def drill_through(
+    level: str,
+    parent: Optional[str] = None,
+    quarter: Optional[str] = None,
+):
+    """
+    Proxy drill-through requests to DCL's drill-through endpoint.
+
+    NLQ owns the frontend; DCL owns the drill-through data. This proxy keeps
+    all frontend requests going through NLQ's API, avoiding direct DCL calls
+    from the browser and ensuring consistency with other NLQ endpoints.
+    """
+    import httpx
+
+    dcl_url = os.environ.get("DCL_URL", "http://localhost:8004")
+    params = {"level": level}
+    if parent:
+        params["parent"] = parent
+    if quarter:
+        params["quarter"] = quarter
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.get(f"{dcl_url}/api/dcl/drill-through", params=params)
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=502,
+            detail=f"DCL unreachable at {dcl_url}/api/dcl/drill-through — "
+                   f"connection refused. Ensure DCL backend is running on port 8004.",
+        )
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail=f"DCL request timed out at {dcl_url}/api/dcl/drill-through "
+                   f"for level={level}, parent={parent}.",
+        )
+
+    if r.status_code != 200:
+        raise HTTPException(
+            status_code=r.status_code,
+            detail=f"DCL drill-through error: {r.text[:500]}",
+        )
+
+    return r.json()
+
+
 # C1: Health, pipeline, schema endpoints extracted to api/health.py
 # C1: Eval endpoint extracted to api/eval.py
 # Both are wired as separate routers in main.py

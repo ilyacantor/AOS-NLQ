@@ -2,7 +2,7 @@
 # NLQ Cheatproof Test Harness — Test Case Definitions
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# 42 test cases across 10 coverage areas.
+# 82 test cases across 16 coverage areas.
 # All expected values derived from Farm financial_model.py Assumptions.
 # NEVER from fact_base.json.
 #
@@ -328,3 +328,538 @@
   assertions:
     - {field: provenance_source, operator: contains, expected: chargebee}
   tags: [provenance, cfo, point]
+
+
+# ── Group 11: Concept Schema Enrichment ────────────────────────────────────
+
+- id: CS_001
+  group: CONCEPT_SCHEMA
+  name: "Revenue concept has recognition_basis"
+  type: concept_check
+  concept_id: "revenue"
+  field: "recognition_basis"
+  assertions:
+    - {field: value, operator: not_null, expected: null}
+  tags: [concept_schema, revenue]
+
+- id: CS_002
+  group: CONCEPT_SCHEMA
+  name: "Revenue recognition_basis is specific"
+  type: concept_check
+  concept_id: "revenue"
+  field: "recognition_basis"
+  assertions:
+    - {field: length, operator: greater_than, expected: 50}
+  tags: [concept_schema, revenue]
+
+- id: CS_003
+  group: CONCEPT_SCHEMA
+  name: "Headcount concept has scope_boundaries"
+  type: concept_check
+  concept_id: "headcount"
+  field: "scope_boundaries"
+  assertions:
+    - {field: value, operator: not_null, expected: null}
+  tags: [concept_schema, headcount]
+
+- id: CS_004
+  group: CONCEPT_SCHEMA
+  name: "All priority concepts have all 5 new fields populated"
+  type: concept_batch_check
+  concept_ids: ["revenue", "headcount", "churn_event"]
+  fields: ["recognition_basis", "timing_semantics", "scope_boundaries", "calculation_methodology", "comparability_rules"]
+  assertions:
+    - {field: all_populated, operator: equals, expected: true}
+  tags: [concept_schema, priority]
+
+- id: CS_005
+  group: CONCEPT_SCHEMA
+  name: "Comparable fields includes more than the hardcoded 5"
+  type: config_check
+  check: "comparable_fields_count"
+  assertions:
+    - {field: count, operator: greater_than, expected: 5}
+  tags: [concept_schema, comparable]
+
+- id: CS_006
+  group: CONCEPT_SCHEMA
+  name: "Conflict detection uses concept metadata for revenue"
+  type: conflict_detection_check
+  field: "revenue"
+  assertions:
+    - {field: root_cause_source, operator: equals, expected: "concept_metadata"}
+  tags: [concept_schema, conflict]
+
+- id: CS_007
+  group: CONCEPT_SCHEMA
+  name: "Conflict detection logs warning when metadata missing"
+  type: conflict_detection_check
+  field: "obscure_field_with_no_concept"
+  assertions:
+    - {field: warning_logged, operator: contains, expected: "using heuristic classification"}
+  tags: [concept_schema, conflict]
+
+
+# ── Group 12: Hierarchical Dimensions ──────────────────────────────────────
+
+- id: HR_001
+  group: HIERARCHY
+  name: "Geo hierarchy has 3+ depth levels"
+  type: hierarchy_check
+  dimension: "geo"
+  assertions:
+    - {field: max_depth, operator: greater_than, expected: 2}
+  tags: [hierarchy, geo]
+
+- id: HR_002
+  group: HIERARCHY
+  name: "Roll-up: sub-regions sum to region total"
+  type: dimensional_query
+  query: "revenue for US"
+  assertions:
+    - {field: value, operator: not_null, expected: null}
+    - {field: is_rollup, operator: equals, expected: true}
+  tags: [hierarchy, rollup]
+
+- id: HR_003
+  group: HIERARCHY
+  name: "Drill-down: North America shows US, Canada"
+  type: drill_down_query
+  parent: "NA"
+  dimension: "geo"
+  assertions:
+    - {field: children, operator: contains, expected: "US"}
+    - {field: children, operator: contains, expected: "Canada"}
+  tags: [hierarchy, drilldown]
+
+- id: HR_004
+  group: HIERARCHY
+  name: "Period hierarchy: Q1 2025 contains Jan, Feb, Mar"
+  type: hierarchy_check
+  dimension: "period"
+  parent: "2025-Q1"
+  assertions:
+    - {field: children, operator: contains, expected: "2025-01"}
+    - {field: children, operator: contains, expected: "2025-02"}
+    - {field: children, operator: contains, expected: "2025-03"}
+  tags: [hierarchy, period]
+
+- id: HR_005
+  group: HIERARCHY
+  name: "Farm output includes dimensional attributes"
+  type: farm_output_check
+  assertions:
+    - {field: has_dimensions, operator: equals, expected: true}
+    - {field: dimensions_include, operator: contains, expected: "segment"}
+    - {field: dimensions_include, operator: contains, expected: "geo"}
+  tags: [hierarchy, farm]
+
+- id: HR_006
+  group: HIERARCHY
+  name: "Revenue by region returns aggregated data"
+  type: dimensional_query
+  query: "revenue by region"
+  assertions:
+    - {field: dimensions, operator: contains, expected: "AMER"}
+    - {field: dimensions, operator: contains, expected: "EMEA"}
+    - {field: dimensions, operator: contains, expected: "APAC"}
+    - {field: dimension_name, operator: equals, expected: "geo"}
+  tags: [hierarchy, dimensional]
+
+- id: HR_007
+  group: HIERARCHY
+  name: "Query at non-existent depth returns clear error"
+  type: dimensional_query
+  query: "revenue by zip code"
+  assertions:
+    - {field: error, operator: contains, expected: "not available"}
+  tags: [hierarchy, error]
+
+- id: HR_008
+  group: HIERARCHY
+  name: "Dimension values in Farm match hierarchy table"
+  type: consistency_check
+  assertions:
+    - {field: all_farm_values_in_hierarchy, operator: equals, expected: true}
+  tags: [hierarchy, consistency]
+
+
+# ── Group 13: Revenue Drill-Through ────────────────────────────────────────
+
+- id: DT_001
+  group: DRILL_THROUGH
+  name: "Revenue drill-through: region level returns all regions"
+  type: drill_through_query
+  level: "region"
+  assertions:
+    - {field: result_count, operator: greater_than, expected: 2}
+  tags: [drill_through, region]
+
+- id: DT_002
+  group: DRILL_THROUGH
+  name: "Revenue drill-through: region to reps"
+  type: drill_through_query
+  level: "rep"
+  parent: "EMEA"
+  assertions:
+    - {field: result_count, operator: greater_than, expected: 1}
+  tags: [drill_through, rep]
+
+- id: DT_003
+  group: DRILL_THROUGH
+  name: "Revenue drill-through: rep to customers"
+  type: drill_through_query
+  level: "customer"
+  parent_rep: "any"
+  assertions:
+    - {field: result_count, operator: greater_than, expected: 0}
+  tags: [drill_through, customer]
+
+- id: DT_004
+  group: DRILL_THROUGH
+  name: "Revenue drill-through: customer to projects"
+  type: drill_through_query
+  level: "project"
+  parent_customer: "any"
+  assertions:
+    - {field: result_count, operator: greater_than, expected: 0}
+  tags: [drill_through, project]
+
+- id: DT_005
+  group: DRILL_THROUGH
+  name: "Drill-through roll-up: project revenues sum to customer revenue"
+  type: drill_through_rollup
+  level: "project"
+  rollup_to: "customer"
+  assertions:
+    - {field: sum_matches_parent, operator: equals, expected: true}
+    - {field: max_delta_pct, operator: less_than, expected: 0.01}
+  tags: [drill_through, rollup, integrity]
+
+- id: DT_006
+  group: DRILL_THROUGH
+  name: "Drill-through roll-up: customer revenues sum to rep revenue"
+  type: drill_through_rollup
+  level: "customer"
+  rollup_to: "rep"
+  assertions:
+    - {field: sum_matches_parent, operator: equals, expected: true}
+    - {field: max_delta_pct, operator: less_than, expected: 0.01}
+  tags: [drill_through, rollup, integrity]
+
+- id: DT_007
+  group: DRILL_THROUGH
+  name: "Drill-through roll-up: rep revenues sum to region revenue"
+  type: drill_through_rollup
+  level: "rep"
+  rollup_to: "region"
+  assertions:
+    - {field: sum_matches_parent, operator: equals, expected: true}
+    - {field: max_delta_pct, operator: less_than, expected: 0.01}
+  tags: [drill_through, rollup, integrity]
+
+- id: DT_008
+  group: DRILL_THROUGH
+  name: "Drill-through roll-up: region revenues sum to total revenue"
+  type: drill_through_rollup
+  level: "region"
+  rollup_to: "total"
+  assertions:
+    - {field: sum_matches_parent, operator: equals, expected: true}
+    - {field: max_delta_pct, operator: less_than, expected: 0.01}
+  tags: [drill_through, rollup, integrity]
+
+- id: DT_009
+  group: DRILL_THROUGH
+  name: "Every project is assigned to exactly one customer"
+  type: drill_through_integrity
+  assertions:
+    - {field: orphan_projects, operator: equals, expected: 0}
+  tags: [drill_through, integrity]
+
+- id: DT_010
+  group: DRILL_THROUGH
+  name: "Every customer is assigned to exactly one rep"
+  type: drill_through_integrity
+  assertions:
+    - {field: orphan_customers, operator: equals, expected: 0}
+  tags: [drill_through, integrity]
+
+- id: DT_011
+  group: DRILL_THROUGH
+  name: "Every rep is assigned to exactly one region"
+  type: drill_through_integrity
+  assertions:
+    - {field: orphan_reps, operator: equals, expected: 0}
+  tags: [drill_through, integrity]
+
+
+# ── Group 14: Conflict Detection Expansion ─────────────────────────────────
+
+- id: CE_001
+  group: CONFLICT_EXPANSION
+  name: "Comparable fields count exceeds minimum 5"
+  type: config_check
+  check: "comparable_fields_count"
+  assertions:
+    - {field: count, operator: greater_than, expected: 10}
+  tags: [conflict_expansion, comparable]
+
+- id: CE_002
+  group: CONFLICT_EXPANSION
+  name: "Revenue-adjacent fields are comparable"
+  type: config_check
+  check: "comparable_fields_includes"
+  assertions:
+    - {field: fields, operator: contains, expected: "revenue"}
+    - {field: fields, operator: contains, expected: "headcount"}
+  tags: [conflict_expansion, comparable]
+
+- id: CE_003
+  group: CONFLICT_EXPANSION
+  name: "No silent fallback to minimum set"
+  type: log_check
+  assertions:
+    - {field: log_output, operator: not_null, expected: null}
+    - {field: log_output, operator: not_equals, expected: "Using minimum comparable fields"}
+  tags: [conflict_expansion, no_fallback]
+
+
+# ── Group 15: Standard Reporting Package ───────────────────────────────────
+
+- id: RP_001
+  group: REPORTING_PACKAGE
+  name: "Full Year Act vs PY P&L generates all line items"
+  type: report_check
+  query: "Show me the full year P&L"
+  variant: "full_year_act_vs_py"
+  assertions:
+    - {field: line_item_count, operator: greater_than, expected: 14}
+    - {field: has_revenue, operator: equals, expected: true}
+    - {field: has_cogs, operator: equals, expected: true}
+    - {field: has_gross_profit, operator: equals, expected: true}
+    - {field: has_ebitda, operator: equals, expected: true}
+  tags: [reporting, pnl, act_vs_py]
+
+- id: RP_002
+  group: REPORTING_PACKAGE
+  name: "P&L revenue line matches DCL metric query"
+  type: report_consistency
+  variant: "full_year_act_vs_py"
+  line_item: "total_revenue"
+  period: "2025"
+  metric_query: "total revenue for 2025"
+  assertions:
+    - {field: values_match, operator: equals, expected: true}
+  tags: [reporting, consistency]
+
+- id: RP_003
+  group: REPORTING_PACKAGE
+  name: "P&L balances: Revenue - COGS = Gross Profit"
+  type: report_arithmetic
+  variant: "full_year_act_vs_py"
+  formula: "total_revenue - total_cogs"
+  expected_line: "gross_profit"
+  assertions:
+    - {field: formula_matches, operator: equals, expected: true}
+  tags: [reporting, arithmetic]
+
+- id: RP_004
+  group: REPORTING_PACKAGE
+  name: "Variance calculation is correct"
+  type: report_arithmetic
+  variant: "full_year_act_vs_py"
+  line_item: "total_revenue"
+  assertions:
+    - {field: variance_correct, operator: equals, expected: true}
+  tags: [reporting, arithmetic]
+
+- id: RP_005
+  group: REPORTING_PACKAGE
+  name: "Quarterly Act vs PY returns correct periods"
+  type: report_check
+  query: "P&L Q3 2025 vs prior year"
+  variant: "quarterly_act_vs_py"
+  selected_quarter: "2025-Q3"
+  assertions:
+    - {field: left_period, operator: equals, expected: "2025-Q3"}
+    - {field: right_period, operator: equals, expected: "2024-Q3"}
+  tags: [reporting, quarterly]
+
+- id: RP_006
+  group: REPORTING_PACKAGE
+  name: "Full Year CF vs PY Act blends Act + CF correctly"
+  type: report_check
+  query: "Forecast P&L for 2026"
+  variant: "full_year_cf_vs_py_act"
+  assertions:
+    - {field: has_act_quarters, operator: equals, expected: true}
+    - {field: has_cf_quarters, operator: equals, expected: true}
+  tags: [reporting, forecast]
+
+- id: RP_007
+  group: REPORTING_PACKAGE
+  name: "CF quarters are clearly tagged"
+  type: report_check
+  variant: "full_year_cf_vs_py_act"
+  assertions:
+    - {field: cf_quarters_tagged, operator: equals, expected: true}
+  tags: [reporting, forecast]
+
+- id: RP_008
+  group: REPORTING_PACKAGE
+  name: "BS has no forecast variant"
+  type: report_check
+  variant: "full_year_cf_vs_py_act"
+  statement: "balance_sheet"
+  assertions:
+    - {field: error, operator: contains, expected: "not available"}
+  tags: [reporting, balance_sheet]
+
+- id: RP_009
+  group: REPORTING_PACKAGE
+  name: "P&L is dimensionally sliceable by segment"
+  type: report_check
+  query: "P&L for Digital/AI segment"
+  variant: "full_year_act_vs_py"
+  dimension_filter: "segment:Digital/AI"
+  assertions:
+    - {field: is_filtered, operator: equals, expected: true}
+    - {field: filter_dimension, operator: equals, expected: "segment"}
+  tags: [reporting, dimensional]
+
+- id: RP_010
+  group: REPORTING_PACKAGE
+  name: "Dimensional P&L sums to total P&L"
+  type: report_arithmetic
+  variant: "full_year_act_vs_py"
+  dimension: "segment"
+  line_item: "total_revenue"
+  assertions:
+    - {field: dimensional_sum_equals_total, operator: equals, expected: true}
+  tags: [reporting, dimensional, integrity]
+
+- id: RP_011
+  group: REPORTING_PACKAGE
+  name: "NLQ recognizes 'give me the P&L' as report intent"
+  type: intent_check
+  query: "give me the P&L"
+  assertions:
+    - {field: intent, operator: equals, expected: "report"}
+  tags: [reporting, intent]
+
+- id: RP_012
+  group: REPORTING_PACKAGE
+  name: "NLQ recognizes 'what's revenue' as metric intent (not report)"
+  type: intent_check
+  query: "what's revenue"
+  assertions:
+    - {field: intent, operator: not_equals, expected: "report"}
+  tags: [reporting, intent]
+
+- id: RP_013
+  group: REPORTING_PACKAGE
+  name: "Wall clock date determines Act/CF boundary"
+  type: period_logic_check
+  wall_clock: "2026-04-01"
+  quarter: "2026-Q1"
+  assertions:
+    - {field: period_type, operator: equals, expected: "actual"}
+  tags: [reporting, period_logic]
+
+- id: RP_014
+  group: REPORTING_PACKAGE
+  name: "SOCF generated from P&L and BS changes"
+  type: report_check
+  query: "Show me the cash flow statement"
+  variant: "full_year_act_vs_py"
+  statement: "cash_flow"
+  assertions:
+    - {field: has_operating, operator: equals, expected: true}
+    - {field: has_investing, operator: equals, expected: true}
+    - {field: has_financing, operator: equals, expected: true}
+  tags: [reporting, cash_flow]
+
+
+# ── Group 16: Ground Truth Reconciliation ──────────────────────────────────
+
+- id: RECON_001
+  group: RECONCILIATION
+  name: "Full reconciliation: zero RED items"
+  type: reconciliation
+  scope: "all"
+  assertions:
+    - {field: red_count, operator: equals, expected: 0}
+  tags: [reconciliation, gate]
+
+- id: RECON_002
+  group: RECONCILIATION
+  name: "Ground truth internal integrity: segments sum to total"
+  type: ground_truth_integrity
+  scope: "income_statement"
+  dimension: "segment"
+  assertions:
+    - {field: dimensional_sum_equals_total, operator: equals, expected: true}
+  tags: [reconciliation, integrity]
+
+- id: RECON_003
+  group: RECONCILIATION
+  name: "Ground truth internal integrity: geos sum to total"
+  type: ground_truth_integrity
+  scope: "income_statement"
+  dimension: "geo"
+  assertions:
+    - {field: dimensional_sum_equals_total, operator: equals, expected: true}
+  tags: [reconciliation, integrity]
+
+- id: RECON_004
+  group: RECONCILIATION
+  name: "Ground truth covers all 12 quarters"
+  type: ground_truth_integrity
+  assertions:
+    - {field: period_count, operator: equals, expected: 12}
+  tags: [reconciliation, integrity]
+
+- id: RECON_005
+  group: RECONCILIATION
+  name: "Ground truth has forecast data for CF quarters"
+  type: ground_truth_integrity
+  assertions:
+    - {field: has_forecast_periods, operator: equals, expected: true}
+  tags: [reconciliation, integrity]
+
+- id: RECON_006
+  group: RECONCILIATION
+  name: "P&L total revenue matches ground truth for every quarter"
+  type: reconciliation_line
+  statement: "income_statement"
+  line_item: "total_revenue"
+  scope: "all_periods"
+  assertions:
+    - {field: all_match, operator: equals, expected: true}
+    - {field: max_delta, operator: less_than, expected: 0.01}
+  tags: [reconciliation, revenue]
+
+- id: RECON_007
+  group: RECONCILIATION
+  name: "BS total assets matches ground truth for every quarter-end"
+  type: reconciliation_line
+  statement: "balance_sheet"
+  line_item: "total_assets"
+  scope: "all_periods"
+  assertions:
+    - {field: all_match, operator: equals, expected: true}
+    - {field: max_delta, operator: less_than, expected: 0.01}
+  tags: [reconciliation, balance_sheet]
+
+- id: RECON_008
+  group: RECONCILIATION
+  name: "Dimensional P&L reconciles to ground truth per segment per quarter"
+  type: reconciliation_dimensional
+  statement: "income_statement"
+  dimension: "segment"
+  scope: "all_periods"
+  assertions:
+    - {field: all_match, operator: equals, expected: true}
+    - {field: max_delta, operator: less_than, expected: 0.01}
+  tags: [reconciliation, dimensional]
