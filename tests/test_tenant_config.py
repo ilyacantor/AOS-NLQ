@@ -1,80 +1,143 @@
 """
-Tests for centralized DEFAULT_TENANT_ID (H3 fix).
+Tests for get_tenant_id() — the centralized tenant ID resolver.
 
 Validates:
-1. All 4 previously-hardcoded locations now import from config.py
-2. The constant is defined once in config.py
-3. The value is overridable via NLQ_DEFAULT_TENANT_ID env var
-4. No separate definitions remain (DRY)
+1. AOS_TENANT_ID env var takes priority
+2. Falls back to most recent data/tenants/*.json file
+3. Raises RuntimeError if no tenant can be determined
+4. Cache works and can be reset
 """
 
 import os
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 
 
-class TestTenantIdCentralization:
-    """Verify all modules source tenant ID from config.py."""
+class TestGetTenantIdFromEnv:
+    """AOS_TENANT_ID env var is the primary resolution path."""
 
-    def test_all_modules_share_same_value(self):
-        """All 4 service modules should have the same DEFAULT_TENANT_ID."""
-        from src.nlq.db.supabase_persistence import DEFAULT_TENANT_ID as db_tid
-        from src.nlq.services.rag_learning_log import DEFAULT_TENANT_ID as rag_tid
-        from src.nlq.services.llm_call_counter import DEFAULT_TENANT_ID as llm_tid
-        from src.nlq.services.insufficient_data_tracker import DEFAULT_TENANT_ID as ins_tid
+    def setup_method(self):
+        from src.nlq.config import reset_tenant_cache
+        reset_tenant_cache()
 
-        # All four should be identical
-        assert db_tid == rag_tid == llm_tid == ins_tid
+    def test_env_var_returns_value(self):
+        """AOS_TENANT_ID env var should be returned directly."""
+        from src.nlq.config import reset_tenant_cache
+        reset_tenant_cache()
+        with patch.dict(os.environ, {"AOS_TENANT_ID": "TestTenant-X1"}):
+            from src.nlq.config import get_tenant_id
+            result = get_tenant_id()
+            assert result == "TestTenant-X1"
+        reset_tenant_cache()
 
-    def test_default_value_is_expected_uuid(self):
-        """Default value should be the canonical default tenant UUID."""
-        from src.nlq.config import DEFAULT_TENANT_ID
-        assert DEFAULT_TENANT_ID == "00000000-0000-0000-0000-000000000001"
+    def test_env_var_takes_priority_over_file(self, tmp_path):
+        """Env var should win even when tenant files exist."""
+        from src.nlq.config import reset_tenant_cache
+        reset_tenant_cache()
+        with patch.dict(os.environ, {"AOS_TENANT_ID": "EnvTenant"}):
+            from src.nlq.config import get_tenant_id
+            result = get_tenant_id()
+            assert result == "EnvTenant"
+        reset_tenant_cache()
 
-    def test_db_init_exports_same_value(self):
-        """db/__init__.py re-export should match config."""
-        from src.nlq.db import DEFAULT_TENANT_ID as db_tid
-        from src.nlq.config import DEFAULT_TENANT_ID as config_tid
-        assert db_tid == config_tid
 
-    def test_config_module_level_constant_exists(self):
-        """config.py should define DEFAULT_TENANT_ID at module level."""
+class TestGetTenantIdFromFile:
+    """Fallback to most recent data/tenants/*.json."""
+
+    def setup_method(self):
+        from src.nlq.config import reset_tenant_cache
+        reset_tenant_cache()
+
+    def test_resolves_from_tenant_file(self):
+        """Should resolve tenant_id from the data/tenants/ directory."""
+        from src.nlq.config import reset_tenant_cache, get_tenant_id
+        reset_tenant_cache()
+        # Remove env var to force file-based resolution
+        env = {k: v for k, v in os.environ.items() if k != "AOS_TENANT_ID"}
+        with patch.dict(os.environ, env, clear=True):
+            result = get_tenant_id()
+            # Should return the stem of the most recent .json file
+            assert isinstance(result, str)
+            assert len(result) > 0
+        reset_tenant_cache()
+
+
+class TestGetTenantIdError:
+    """RuntimeError when no tenant can be determined."""
+
+    def setup_method(self):
+        from src.nlq.config import reset_tenant_cache
+        reset_tenant_cache()
+
+    def test_raises_when_no_env_and_no_files(self, tmp_path):
+        """Should raise RuntimeError when neither env nor files exist."""
         import src.nlq.config as cfg
-        assert hasattr(cfg, "DEFAULT_TENANT_ID")
-        assert isinstance(cfg.DEFAULT_TENANT_ID, str)
-        assert len(cfg.DEFAULT_TENANT_ID) == 36  # UUID format
+        from src.nlq.config import reset_tenant_cache
+        from pathlib import Path
 
-    def test_settings_class_also_has_field(self):
-        """Settings class should have the default_tenant_id field for app-level use."""
-        from src.nlq.config import Settings
+        reset_tenant_cache()
+        empty_tenants = tmp_path / "data" / "tenants"
+        empty_tenants.mkdir(parents=True)
 
-        field_info = Settings.model_fields.get("default_tenant_id")
-        assert field_info is not None
-        assert field_info.default == "00000000-0000-0000-0000-000000000001"
+        env = {k: v for k, v in os.environ.items() if k != "AOS_TENANT_ID"}
+        with patch.dict(os.environ, env, clear=True):
+            cfg._tenant_id_cache = None
+            # Patch __file__ resolution to point to tmp_path
+            fake_file = tmp_path / "src" / "nlq" / "config.py"
+            fake_file.parent.mkdir(parents=True, exist_ok=True)
+            fake_file.touch()
+            with patch("src.nlq.config.Path") as mock_path_cls:
+                mock_path_cls.return_value.resolve.return_value.parent.parent.parent = tmp_path
+                with pytest.raises(RuntimeError, match="Cannot determine tenant_id"):
+                    cfg.get_tenant_id()
+        reset_tenant_cache()
 
 
-class TestTenantIdEnvironmentOverride:
-    """Verify the tenant ID is overridable via environment variable."""
+class TestTenantIdCache:
+    """Cache behavior."""
 
-    def test_env_var_overrides_default(self):
-        """NLQ_DEFAULT_TENANT_ID env var should override the default at import time."""
-        # This test validates the os.environ.get approach in config.py.
-        # Since Python caches module-level constants after first import,
-        # we verify the mechanism (os.environ.get with fallback) rather than
-        # re-importing, which would return the cached value.
-        default = os.environ.get(
-            "NLQ_DEFAULT_TENANT_ID",
-            "00000000-0000-0000-0000-000000000001",
-        )
-        # In test environment, env var is not set, so we get the default
-        assert default == "00000000-0000-0000-0000-000000000001"
+    def setup_method(self):
+        from src.nlq.config import reset_tenant_cache
+        reset_tenant_cache()
 
-        # Verify the mechanism works with a custom value
-        custom_tid = "11111111-1111-1111-1111-111111111111"
-        with patch.dict(os.environ, {"NLQ_DEFAULT_TENANT_ID": custom_tid}):
-            result = os.environ.get(
-                "NLQ_DEFAULT_TENANT_ID",
-                "00000000-0000-0000-0000-000000000001",
-            )
-            assert result == custom_tid
+    def test_cache_returns_same_value(self):
+        """Repeated calls should return cached value."""
+        from src.nlq.config import get_tenant_id, reset_tenant_cache
+        reset_tenant_cache()
+        with patch.dict(os.environ, {"AOS_TENANT_ID": "CachedTenant"}):
+            first = get_tenant_id()
+            second = get_tenant_id()
+            assert first == second == "CachedTenant"
+        reset_tenant_cache()
+
+    def test_reset_clears_cache(self):
+        """reset_tenant_cache() should force re-resolution."""
+        from src.nlq.config import get_tenant_id, reset_tenant_cache
+        reset_tenant_cache()
+        with patch.dict(os.environ, {"AOS_TENANT_ID": "First"}):
+            assert get_tenant_id() == "First"
+        reset_tenant_cache()
+        with patch.dict(os.environ, {"AOS_TENANT_ID": "Second"}):
+            assert get_tenant_id() == "Second"
+        reset_tenant_cache()
+
+
+class TestAllModulesUseGetTenantId:
+    """Verify all modules import get_tenant_id, not DEFAULT_TENANT_ID."""
+
+    def test_config_exports_get_tenant_id(self):
+        """config.py should export get_tenant_id function."""
+        import src.nlq.config as cfg
+        assert hasattr(cfg, "get_tenant_id")
+        assert callable(cfg.get_tenant_id)
+
+    def test_config_no_longer_exports_default_tenant_id(self):
+        """DEFAULT_TENANT_ID constant should no longer exist."""
+        import src.nlq.config as cfg
+        assert not hasattr(cfg, "DEFAULT_TENANT_ID")
+
+    def test_db_init_exports_get_tenant_id(self):
+        """db/__init__.py should re-export get_tenant_id."""
+        from src.nlq.db import get_tenant_id
+        assert callable(get_tenant_id)

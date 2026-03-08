@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 import uuid
 
-from src.nlq.config import DEFAULT_TENANT_ID
+from src.nlq.config import get_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class InsufficientDataEntry:
     parsed_intent: Optional[str] = None
     timestamp: datetime = field(default_factory=datetime.utcnow)
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    tenant_id: str = DEFAULT_TENANT_ID
+    tenant_id: str = field(default_factory=get_tenant_id)
     session_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -172,7 +172,7 @@ class InsufficientDataTracker:
             try:
                 data = {
                     "id": entry.id,
-                    "tenant_id": entry.tenant_id or DEFAULT_TENANT_ID,
+                    "tenant_id": entry.tenant_id or get_tenant_id(),
                     "session_id": entry.session_id,
                     "query": entry.query[:500],
                     "confidence": entry.confidence,

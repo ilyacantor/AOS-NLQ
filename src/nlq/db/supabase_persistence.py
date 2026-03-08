@@ -19,7 +19,7 @@ from dataclasses import dataclass, asdict
 from typing import Optional, Dict, Any, List
 from uuid import UUID
 
-from src.nlq.config import DEFAULT_TENANT_ID
+from src.nlq.config import get_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ class SupabasePersistenceService:
         self,
         supabase_url: Optional[str] = None,
         supabase_key: Optional[str] = None,
-        default_tenant_id: str = DEFAULT_TENANT_ID,
+        default_tenant_id: str = None,
     ):
         """
         Initialize Supabase persistence service.
@@ -117,7 +117,7 @@ class SupabasePersistenceService:
             self.supabase_url = supabase_url or ""
             logger.warning(f"No valid https:// Supabase URL found")
         self.supabase_key = supabase_key or os.getenv("SUPABASE_KEY", "")
-        self.default_tenant_id = default_tenant_id
+        self.default_tenant_id = default_tenant_id or get_tenant_id()
         
         self._client = None
         self._initialized = False
@@ -715,7 +715,7 @@ def get_persistence_service() -> Optional[SupabasePersistenceService]:
 def init_persistence_service(
     supabase_url: Optional[str] = None,
     supabase_key: Optional[str] = None,
-    default_tenant_id: str = DEFAULT_TENANT_ID,
+    default_tenant_id: str = None,
 ) -> Optional[SupabasePersistenceService]:
     """
     Initialize the persistence service from environment or parameters.

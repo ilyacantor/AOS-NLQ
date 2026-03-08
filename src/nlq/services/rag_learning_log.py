@@ -14,7 +14,7 @@ from typing import Optional, List, Dict, Any
 import uuid
 import json
 
-from src.nlq.config import DEFAULT_TENANT_ID
+from src.nlq.config import get_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class LearningLogEntry:
     execution_time_ms: Optional[int] = None  # Wall-clock query duration
     timestamp: datetime = field(default_factory=datetime.utcnow)
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    tenant_id: str = DEFAULT_TENANT_ID
+    tenant_id: str = field(default_factory=get_tenant_id)
     session_id: Optional[str] = None
 
     def __post_init__(self):
@@ -169,7 +169,7 @@ class RAGLearningLog:
             try:
                 data = {
                     "id": entry.id,
-                    "tenant_id": entry.tenant_id or DEFAULT_TENANT_ID,
+                    "tenant_id": entry.tenant_id or get_tenant_id(),
                     "session_id": entry.session_id,
                     "query": entry.query[:500],  # Limit query length
                     "normalized_query": (entry.normalized_query or _normalize_query(entry.query))[:500],

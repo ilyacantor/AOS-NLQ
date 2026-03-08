@@ -38,7 +38,8 @@ def _query_dcl_value(metric: str, period: str) -> Optional[Any]:
     from src.nlq.services.dcl_semantic_client import get_semantic_client
     dcl_client = get_semantic_client()
 
-    result = dcl_client.query(metric=metric, time_range={"period": period})
+    from src.nlq.config import get_tenant_id
+    result = dcl_client.query(metric=metric, time_range={"period": period}, tenant_id=get_tenant_id())
     if result.get("error"):
         return None
     data = result.get("data", [])

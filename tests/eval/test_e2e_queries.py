@@ -91,9 +91,11 @@ class TestEndToEndQueries:
                 continue
 
             # Step 2: Execute the query
+            from src.nlq.config import get_tenant_id
             result = dcl_client.query(
                 metric=metric_result.id,
-                time_range={"period": "2025", "granularity": "annual"}
+                time_range={"period": "2025", "granularity": "annual"},
+                tenant_id=get_tenant_id(),
             )
 
             # Step 3: Validate result
@@ -132,10 +134,12 @@ class TestEndToEndQueries:
         failures = []
 
         for nl_query, metric_id, dimensions in dimensional_cases:
+            from src.nlq.config import get_tenant_id
             result = dcl_client.query(
                 metric=metric_id,
                 dimensions=dimensions,
-                time_range={"period": "2025", "granularity": "annual"}
+                time_range={"period": "2025", "granularity": "annual"},
+                tenant_id=get_tenant_id(),
             )
 
             if "error" in result:
@@ -187,9 +191,11 @@ class TestE2EQueryVariations:
             assert result.id == "revenue", f"'{term}' should resolve to 'revenue'"
 
             # Also verify we can query it
+            from src.nlq.config import get_tenant_id
             query_result = dcl_client.query(
                 metric="revenue",
-                time_range={"period": "2025"}
+                time_range={"period": "2025"},
+                tenant_id=get_tenant_id(),
             )
             assert "error" not in query_result, f"Query for '{term}' failed"
 

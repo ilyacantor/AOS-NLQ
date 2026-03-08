@@ -87,11 +87,13 @@ class TestQueryExecution:
         """
         failures = []
 
+        from src.nlq.config import get_tenant_id
         for metric, dimensions, min_records, persona in QUERY_EXECUTION_CASES:
             result = dcl_client.query(
                 metric=metric,
                 dimensions=dimensions,
-                time_range={"period": "2025", "granularity": "annual"}
+                time_range={"period": "2025", "granularity": "annual"},
+                tenant_id=get_tenant_id(),
             )
 
             query_desc = f"{metric}" + (f" by {dimensions}" if dimensions else "")
@@ -128,9 +130,11 @@ class TestQueryExecution:
 
     def test_response_has_required_structure(self, dcl_client):
         """Query responses must have expected structure."""
+        from src.nlq.config import get_tenant_id
         result = dcl_client.query(
             metric="revenue",
-            time_range={"period": "2025"}
+            time_range={"period": "2025"},
+            tenant_id=get_tenant_id(),
         )
 
         assert "error" not in result, f"Query failed: {result.get('error')}"
@@ -142,10 +146,12 @@ class TestQueryExecution:
 
     def test_dimensional_query_returns_breakdown(self, dcl_client):
         """Queries with dimensions should return dimensional breakdown."""
+        from src.nlq.config import get_tenant_id
         result = dcl_client.query(
             metric="revenue",
             dimensions=["segment"],
-            time_range={"period": "2025"}
+            time_range={"period": "2025"},
+            tenant_id=get_tenant_id(),
         )
 
         assert "error" not in result, f"Query failed: {result.get('error')}"
@@ -194,11 +200,13 @@ class TestQueryByPersona:
         """Run all tests for a persona."""
         failures = []
 
+        from src.nlq.config import get_tenant_id
         for metric, dimensions, min_records, _ in cases:
             result = dcl_client.query(
                 metric=metric,
                 dimensions=dimensions,
-                time_range={"period": "2025", "granularity": "annual"}
+                time_range={"period": "2025", "granularity": "annual"},
+                tenant_id=get_tenant_id(),
             )
 
             query_desc = f"{metric}" + (f" by {dimensions}" if dimensions else "")

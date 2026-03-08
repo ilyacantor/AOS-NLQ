@@ -49,6 +49,7 @@ from src.nlq.services.llm_call_counter import get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
 from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
 from src.nlq.services.dcl_enrichment import enrich_response as dcl_enrich_response
+from src.nlq.config import get_tenant_id
 from src.nlq.services.dcl_semantic_client import set_force_local, set_data_mode, force_local_data, diag, diag_init, diag_collect
 from src.nlq.services.insufficient_data_tracker import get_insufficient_data_tracker, CONFIDENCE_THRESHOLD
 from src.nlq.core.dates import current_year, current_quarter, prior_year
@@ -420,13 +421,15 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None) -> Opt
         try:
             result = dcl_client.query(
                 metric=metric,
-                time_range={"period": period, "granularity": "quarterly"}
+                time_range={"period": period, "granularity": "quarterly"},
+                tenant_id=get_tenant_id(),
             )
             if result.get("error") or not result.get("data"):
                 # Retry with annual grain as fallback
                 result = dcl_client.query(
                     metric=metric,
-                    time_range={"period": current_year(), "granularity": "annual"}
+                    time_range={"period": current_year(), "granularity": "annual"},
+                    tenant_id=get_tenant_id(),
                 )
             if result.get("error"):
                 return None
@@ -867,7 +870,7 @@ def _try_comparison_query(question: str) -> Optional[NLQResponse]:
     def _dcl_val(metric: str, period: str) -> Optional[float]:
         """Query a single metric value from DCL for a specific period."""
         client = get_semantic_client()
-        result = client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"})
+        result = client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, tenant_id=get_tenant_id())
         if result.get("error") or not result.get("data"):
             return None
         data = result.get("data", [])
@@ -1511,7 +1514,8 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None) -> Op
 
     result = dcl_client.query(
         metric=metric,
-        time_range={"period": requested_period, "granularity": "quarterly"}
+        time_range={"period": requested_period, "granularity": "quarterly"},
+        tenant_id=get_tenant_id(),
     )
 
     # Extract value from DCL response
@@ -1625,21 +1629,62 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None) -> Op
 # P&L / INCOME STATEMENT COMPOSITE HANDLER
 # =============================================================================
 
-def _try_pl_statement_query(question: str) -> Optional[NLQResponse]:
+def _has_explicit_period(question: str) -> bool:
+    """Return True if the question contains an explicit year, quarter, or bare Q reference."""
+    q = question.lower()
+    if re.search(r'q[1-4]', q):
+        return True
+    if re.search(r'20(2[4-6])', q):
+        return True
+    return False
+
+
+def _try_pl_statement_query(question: str, session_id: Optional[str] = None) -> Optional[NLQResponse]:
     """
     Detect P&L / income statement queries and fan out DCL queries for all line items.
 
-    Returns an NLQResponse with related_metrics containing each P&L line item,
+    Returns an NLQResponse with financial_statement_data for structured rendering,
     or None if the question isn't a P&L query or not enough data resolves.
     """
-    from src.nlq.core.composite_query import is_pl_statement_query, PLStatementHandler
+    from src.nlq.core.composite_query import is_pl_statement_query, PLStatementHandler, determine_pl_periods
 
     if not is_pl_statement_query(question):
         return None
 
-    period = _extract_period_from_dashboard_query(question)
-    handler = PLStatementHandler(period=period, query_fn=_build_simple_metric_result)
-    return handler.execute()
+    if _has_explicit_period(question):
+        period_spec = _extract_period_from_dashboard_query(question)
+    else:
+        period_spec = None  # signals "show all periods"
+
+    periods = determine_pl_periods(period_spec)
+    handler = PLStatementHandler(periods=periods, query_fn=_build_simple_metric_result)
+    result = handler.execute()
+
+    if result and result.financial_statement_data and session_id:
+        from src.nlq.api.session import get_dashboard_session_store
+        store = get_dashboard_session_store()
+        store.set_financial_statement(session_id, result.financial_statement_data.model_dump())
+
+    return result
+
+
+def _try_bridge_query(question: str, session_id: Optional[str] = None) -> Optional[NLQResponse]:
+    """Detect revenue bridge/waterfall queries and build the variance decomposition."""
+    from src.nlq.core.bridge_query import is_bridge_query, BridgeHandler
+
+    bridge_type = is_bridge_query(question)
+    if bridge_type is None:
+        return None
+
+    handler = BridgeHandler(query_fn=_build_simple_metric_result)
+    result = handler.execute()
+
+    if result and result.bridge_chart_data and session_id:
+        from src.nlq.api.session import get_dashboard_session_store
+        store = get_dashboard_session_store()
+        store.set_bridge_chart(session_id, result.bridge_chart_data.model_dump())
+
+    return result
 
 
 def _try_multi_metric_query(question: str) -> Optional[NLQResponse]:
@@ -1686,7 +1731,7 @@ def _try_multi_metric_query(question: str) -> Optional[NLQResponse]:
     primary_value = None
 
     for term, metric in resolved:
-        result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"})
+        result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, tenant_id=get_tenant_id())
         if result.get("error") or not result.get("data"):
             continue
         data = result.get("data", [])
@@ -1952,7 +1997,8 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
     result = dcl_client.query(
         metric=metric,
         dimensions=[dimension],
-        time_range={"period": current_period}
+        time_range={"period": current_period},
+        tenant_id=get_tenant_id(),
     )
 
     # If flat query failed, try graph resolution (cross-system join path)
@@ -2465,14 +2511,14 @@ def _handle_ambiguous_query_text(
         is_annual = bool(re.match(r'^20\d{2}$', str(period)))
         if is_annual:
             # For annual periods, query the current quarter directly
-            result = dcl_client.query(metric=metric, time_range={"period": current_quarter(), "granularity": "quarterly"})
+            result = dcl_client.query(metric=metric, time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id())
             if result.get("error") or not result.get("data"):
                 # Fallback to yearly
-                result = dcl_client.query(metric=metric, time_range={"period": period})
+                result = dcl_client.query(metric=metric, time_range={"period": period}, tenant_id=get_tenant_id())
         else:
-            result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"})
+            result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, tenant_id=get_tenant_id())
             if result.get("error") or not result.get("data"):
-                result = dcl_client.query(metric=metric, time_range={"period": period})
+                result = dcl_client.query(metric=metric, time_range={"period": period}, tenant_id=get_tenant_id())
         if result.get("error"):
             return None
         data = result.get("data", [])
@@ -3028,7 +3074,7 @@ def _handle_ambiguous_query_text(
 
             def _get_top_deals(year: str):
                 """Get top deals from DCL."""
-                result = dcl_client.query(metric="top_deals", time_range={"period": year})
+                result = dcl_client.query(metric="top_deals", time_range={"period": year}, tenant_id=get_tenant_id())
                 return result.get("data", [])
 
             # Check if specific year is requested
@@ -3535,7 +3581,7 @@ async def query(request: NLQRequest) -> NLQResponse:
             _cost_parts = []
             _cost_total = 0
             for _cm_key, _cm_name in _cost_metrics:
-                _cr = _cost_client.query(metric=_cm_key, time_range={"period": current_quarter(), "granularity": "quarterly"})
+                _cr = _cost_client.query(metric=_cm_key, time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id())
                 if _cr.get("data") and not _cr.get("error"):
                     _cd = _cr["data"]
                     if isinstance(_cd, list) and _cd and isinstance(_cd[0], dict):
@@ -3546,7 +3592,7 @@ async def query(request: NLQRequest) -> NLQResponse:
             if _cost_parts:
                 # Sort by value descending for "biggest cost driver"
                 _cost_parts.sort(key=lambda x: x[1], reverse=True)
-                _rev_r = _cost_client.query(metric="revenue", time_range={"period": current_quarter(), "granularity": "quarterly"})
+                _rev_r = _cost_client.query(metric="revenue", time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id())
                 _rev_val = None
                 if _rev_r.get("data") and isinstance(_rev_r["data"], list) and _rev_r["data"]:
                     _rev_val = _rev_r["data"][0].get("value") if isinstance(_rev_r["data"][0], dict) else None
@@ -3587,7 +3633,7 @@ async def query(request: NLQRequest) -> NLQResponse:
             ]
             _sales_parts = []
             for _sm_key, _sm_name, _sm_unit, _sm_pre, _sm_suf in _sales_metrics:
-                _sr = _sales_client.query(metric=_sm_key, time_range={"period": current_quarter(), "granularity": "quarterly"})
+                _sr = _sales_client.query(metric=_sm_key, time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id())
                 if _sr.get("data") and not _sr.get("error"):
                     _sd = _sr["data"]
                     if isinstance(_sd, list) and _sd and isinstance(_sd[0], dict):
@@ -3731,7 +3777,7 @@ async def query(request: NLQRequest) -> NLQResponse:
             _summary_metrics = ["revenue", "gross_margin_pct", "ebitda", "net_income", "arr"]
             _summary_parts = []
             for _sm in _summary_metrics:
-                _sr = dcl_client_summary.query(metric=_sm, time_range={"period": _summary_period, "granularity": "quarterly"})
+                _sr = dcl_client_summary.query(metric=_sm, time_range={"period": _summary_period, "granularity": "quarterly"}, tenant_id=get_tenant_id())
                 if _sr.get("data") and not _sr.get("error"):
                     _data = _sr["data"]
                     if isinstance(_data, list) and _data:
@@ -3808,7 +3854,18 @@ async def query(request: NLQRequest) -> NLQResponse:
         # P&L / INCOME STATEMENT COMPOSITE QUERIES
         # Fan out multiple DCL queries for all line items in parallel.
         # =================================================================
-        pl_result = _try_pl_statement_query(request.question)
+        bridge_result = _try_bridge_query(request.question, session_id=request.session_id)
+        if bridge_result:
+            await _log_query_event(
+                request.question, "bypass",
+                message="Revenue bridge query",
+                persona="CFO",
+                execution_time_ms=_elapsed_ms(_start_time),
+                session_id=request.session_id,
+            )
+            return bridge_result
+
+        pl_result = _try_pl_statement_query(request.question, session_id=request.session_id)
         if pl_result:
             await _log_query_event(
                 request.question, "bypass",

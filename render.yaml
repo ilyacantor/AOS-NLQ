@@ -40,5 +40,5 @@ services:
         value: "0.92"
       - key: CACHE_THRESHOLD_PARTIAL
         value: "0.85"
-      - key: NLQ_DEFAULT_TENANT_ID
-        value: "00000000-0000-0000-0000-000000000001"
+      - key: AOS_TENANT_ID
+        value: ""

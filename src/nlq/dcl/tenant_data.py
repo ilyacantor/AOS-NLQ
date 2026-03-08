@@ -17,6 +17,8 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from src.nlq.config import get_tenant_id
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -28,8 +30,8 @@ _DATA_DIR = Path(__file__).parent.parent.parent.parent / "data" / "tenants"
 class TenantDataService:
     """Loads and queries tenant-specific metric data."""
 
-    def __init__(self, tenant_id: str = "aeroflow_k3oa"):
-        self._tenant_id = tenant_id
+    def __init__(self, tenant_id: str = None):
+        self._tenant_id = tenant_id or get_tenant_id()
         self._data: Optional[Dict[str, Any]] = None
         self._load()
 
@@ -37,9 +39,10 @@ class TenantDataService:
         """Load tenant data from JSON file."""
         path = _DATA_DIR / f"{self._tenant_id}.json"
         if not path.exists():
-            logger.warning(f"Tenant data file not found: {path}")
-            self._data = {}
-            return
+            raise FileNotFoundError(
+                f"Tenant data file not found: {path}. "
+                f"Ensure data/tenants/{self._tenant_id}.json exists."
+            )
         try:
             with open(path, "r") as f:
                 self._data = json.load(f)
@@ -237,9 +240,10 @@ class TenantDataService:
 _instance: Optional[TenantDataService] = None
 
 
-def get_tenant_data_service(tenant_id: str = "aeroflow_k3oa") -> TenantDataService:
+def get_tenant_data_service(tenant_id: str = None) -> TenantDataService:
     """Get the singleton TenantDataService instance."""
     global _instance
-    if _instance is None or _instance._tenant_id != tenant_id:
-        _instance = TenantDataService(tenant_id)
+    resolved = tenant_id or get_tenant_id()
+    if _instance is None or _instance._tenant_id != resolved:
+        _instance = TenantDataService(resolved)
     return _instance

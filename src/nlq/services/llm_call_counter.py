@@ -13,7 +13,7 @@ from typing import Dict, Optional
 from dataclasses import dataclass
 import threading
 
-from src.nlq.config import DEFAULT_TENANT_ID
+from src.nlq.config import get_tenant_id
 
 try:
     from postgrest.exceptions import APIError
@@ -44,7 +44,7 @@ class LLMCallCounter:
     Thread-safe for concurrent access.
     """
 
-    def __init__(self, tenant_id: str = DEFAULT_TENANT_ID, persist: bool = True):
+    def __init__(self, tenant_id: str = None, persist: bool = True):
         """
         Initialize the LLM call counter.
         
@@ -56,7 +56,7 @@ class LLMCallCounter:
         self._global_count: int = 0
         self._lock = threading.Lock()
         self._start_time = datetime.utcnow()
-        self._tenant_id = tenant_id
+        self._tenant_id = tenant_id or get_tenant_id()
         self._persist = persist
         self._persistence = None
         
@@ -360,7 +360,7 @@ def get_call_counter() -> LLMCallCounter:
     return _counter_instance
 
 
-def init_call_counter(tenant_id: str = DEFAULT_TENANT_ID, persist: bool = True) -> LLMCallCounter:
+def init_call_counter(tenant_id: str = None, persist: bool = True) -> LLMCallCounter:
     """
     Initialize the call counter with specific configuration.
     

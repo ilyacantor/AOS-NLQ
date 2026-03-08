@@ -29,6 +29,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from src.nlq.config import get_tenant_id
 from src.nlq.core.dates import current_quarter, current_year
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -845,12 +846,33 @@ class DCLSemanticClient:
     def has_live_ingest_data(self) -> bool:
         """Check whether DCL has live ingested data available.
 
-        Uses the cached catalog's ingest_summary. Callers can use this to
-        decide whether to offer the 'Live' data mode toggle or to inform the
-        user that only demo data is available.
+        Does a lightweight probe query for 'revenue' with data_mode='live'.
+        Returns True only if actual data rows come back — not just metadata.
+        The ingest_summary.available flag is insufficient because it reflects
+        metadata presence (pipe blueprints, source systems), not actual data.
         """
-        catalog = self.get_catalog()
-        return catalog.ingest_summary is not None and catalog.ingest_summary.available
+        if not self.dcl_url:
+            return False
+        try:
+            result = self.query(
+                metric="revenue",
+                time_range={"period": "2025", "granularity": "annual"},
+                data_mode="live",
+            )
+            data = result.get("data", [])
+            if isinstance(data, list) and len(data) > 0:
+                # Check that at least one row has a non-null value
+                for row in data:
+                    if isinstance(row, dict) and row.get("value") is not None:
+                        return True
+                    elif isinstance(row, (int, float)):
+                        return True
+            elif isinstance(data, (int, float)):
+                return True
+            return False
+        except (RuntimeError, KeyError, TypeError, ValueError, OSError, Exception) as e:
+            logger.debug("Live data probe failed: %s", e)
+            return False
 
     def get_ingest_summary(self) -> Optional[IngestSummary]:
         """Return the ingest summary from the cached catalog, or None."""
@@ -1269,6 +1291,7 @@ class DCLSemanticClient:
         limit: int = None,
         force_local: bool = False,
         data_mode: str = None,
+        tenant_id: str = None,
     ) -> Dict[str, Any]:
         """
         Execute a data query against DCL.
@@ -1356,6 +1379,7 @@ class DCLSemanticClient:
                 "filters": filters or {},
                 "time_range": dcl_time_range,
                 "grain": dcl_grain,
+                "tenant_id": tenant_id,
             }
             if data_mode:
                 payload["data_mode"] = data_mode

@@ -129,12 +129,14 @@ class DashboardDataResolver:
         grain: str = None,
     ) -> Dict[str, Any]:
         """Execute query against DCL and handle errors."""
+        from src.nlq.config import get_tenant_id
         result = self.dcl_client.query(
             metric=metric,
             dimensions=dimensions,
             filters=filters,
             time_range=time_range,
             grain=grain,
+            tenant_id=get_tenant_id(),
         )
 
         if result.get("status") == "error" or result.get("error"):

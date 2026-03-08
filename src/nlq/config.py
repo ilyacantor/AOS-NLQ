@@ -4,31 +4,67 @@ Configuration management for AOS-NLQ.
 Handles environment variables, settings, and configuration loading.
 Uses pydantic-settings for validation and type safety.
 
-IMPORTANT: Module-level constants defined here (like DEFAULT_TENANT_ID)
-are import-safe — they use os.environ directly, not pydantic Settings,
-so they work even before the full app is configured. This allows service
-modules to import them at the top level for dataclass defaults.
+Tenant ID resolution: use get_tenant_id() — resolves from AOS_TENANT_ID
+env var, then from the most recent data/tenants/*.json file. Never falls
+back silently; raises RuntimeError if no tenant can be determined.
 """
 
 import os
 from datetime import date
 from functools import lru_cache
+from pathlib import Path
 from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
 # ---------------------------------------------------------------------------
-# Import-safe constants (no pydantic dependency — safe for dataclass defaults)
+# Tenant ID resolution (replaces the old DEFAULT_TENANT_ID constant)
 # ---------------------------------------------------------------------------
 
-# Single source of truth for the default tenant ID.
-# Configurable via NLQ_DEFAULT_TENANT_ID env var. Previously hardcoded
-# in 4 separate files; now centralized here.
-DEFAULT_TENANT_ID: str = os.environ.get(
-    "NLQ_DEFAULT_TENANT_ID",
-    "00000000-0000-0000-0000-000000000001",
-)
+_tenant_id_cache: Optional[str] = None
+
+
+def get_tenant_id() -> str:
+    """Resolve the active tenant ID.
+
+    Resolution order:
+      1. AOS_TENANT_ID environment variable
+      2. Most recently modified file in data/tenants/*.json (stem = tenant_id)
+      3. RuntimeError — no silent fallback
+
+    The result is cached after first resolution. Call reset_tenant_cache()
+    to clear (useful in tests).
+    """
+    global _tenant_id_cache
+    if _tenant_id_cache is not None:
+        return _tenant_id_cache
+
+    # 1. Environment variable
+    env_tid = os.environ.get("AOS_TENANT_ID")
+    if env_tid:
+        _tenant_id_cache = env_tid
+        return _tenant_id_cache
+
+    # 2. Most recent tenant JSON file
+    tenants_dir = Path(__file__).resolve().parent.parent.parent / "data" / "tenants"
+    if tenants_dir.is_dir():
+        tenant_files = sorted(tenants_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if tenant_files:
+            _tenant_id_cache = tenant_files[0].stem
+            return _tenant_id_cache
+
+    raise RuntimeError(
+        "Cannot determine tenant_id: AOS_TENANT_ID env var is not set and "
+        f"no tenant JSON files found in {tenants_dir}. "
+        "Set AOS_TENANT_ID or ensure data/tenants/<tenant_id>.json exists."
+    )
+
+
+def reset_tenant_cache() -> None:
+    """Clear the cached tenant ID. For testing only."""
+    global _tenant_id_cache
+    _tenant_id_cache = None
 
 
 class Settings(BaseSettings):
@@ -61,15 +97,6 @@ class Settings(BaseSettings):
     api_port: int = Field(
         default=8000,
         description="API port to listen on"
-    )
-
-    # Multi-tenancy
-    default_tenant_id: str = Field(
-        default="00000000-0000-0000-0000-000000000001",
-        description=(
-            "Default tenant UUID for single-tenant deployments. "
-            "Set via NLQ_DEFAULT_TENANT_ID env var to override."
-        ),
     )
 
     # Paths

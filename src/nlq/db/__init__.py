@@ -11,8 +11,8 @@ from .supabase_persistence import (
     LearningLogRecord,
     get_persistence_service,
     init_persistence_service,
-    DEFAULT_TENANT_ID,
 )
+from src.nlq.config import get_tenant_id
 
 __all__ = [
     "SupabasePersistenceService",
@@ -21,5 +21,5 @@ __all__ = [
     "LearningLogRecord",
     "get_persistence_service",
     "init_persistence_service",
-    "DEFAULT_TENANT_ID",
+    "get_tenant_id",
 ]
