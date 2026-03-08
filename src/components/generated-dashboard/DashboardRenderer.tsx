@@ -300,6 +300,8 @@ export function DashboardRenderer({
       setLayoutMap({}); // Clear custom positions when new schema is loaded
       setError(null);
       defaultSchemaRef.current = initialSchema;
+      // Auto-arrange after schema is set (runs on next render via setTimeout)
+      setTimeout(() => handleAutoArrange(), 0);
     }
   }, [initialSchema]);
 
