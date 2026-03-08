@@ -336,6 +336,50 @@ class RelatedMetric(BaseModel):
     domain: Optional[str] = Field(default=None, description="Domain: finance, growth, ops, product, people")
 
 
+class BridgeChartBar(BaseModel):
+    """Single bar in a waterfall/bridge chart."""
+    label: str = Field(..., description="Bar label (e.g., 'FY 2024 Revenue')")
+    value: Optional[float] = Field(default=None, description="Bar value (signed delta for drivers)")
+    type: str = Field(..., description="'total', 'increase', or 'decrease'")
+    running_total: Optional[float] = Field(default=None, description="Cumulative total at this point")
+
+
+class BridgeChartData(BaseModel):
+    """Structured bridge/waterfall chart data for rendering."""
+    bridge_type: str = Field(default="revenue", description="Type of bridge")
+    title: str = Field(..., description="Chart title")
+    subtitle: str = Field(default="All amounts in $M", description="Chart subtitle")
+    period_start: str = Field(..., description="Start period label")
+    period_end: str = Field(..., description="End period label")
+    start_value: Optional[float] = Field(default=None, description="Start total value")
+    end_value: Optional[float] = Field(default=None, description="End total value")
+    unit: str = "usd_millions"
+    format: str = "currency"
+    bars: List[BridgeChartBar] = Field(default_factory=list)
+    data_source: Optional[str] = None
+    downloadable: bool = True
+
+
+class FinancialStatementLineItem(BaseModel):
+    """Single line item in a financial statement."""
+    label: str = Field(..., description="Display label (e.g., 'Revenue', 'Cost of Goods Sold')")
+    key: str = Field(..., description="Canonical metric key (e.g., 'revenue', 'cogs')")
+    indent: int = Field(default=0, description="Indentation level: 0=top-level, 1=sub-item")
+    format: str = Field(default="currency", description="Display format: 'currency' or 'percent'")
+    is_subtotal: bool = Field(default=False, description="True for subtotal rows (bold, border)")
+    values: Dict[str, Optional[float]] = Field(default_factory=dict, description="Period -> value mapping")
+
+
+class FinancialStatementData(BaseModel):
+    """Structured financial statement for rendering."""
+    title: str = Field(default="Income Statement", description="Statement title")
+    entity: str = Field(default="Meridian Partners", description="Entity name")
+    periods: List[str] = Field(default_factory=list, description="Column headers in display order")
+    line_items: List[FinancialStatementLineItem] = Field(default_factory=list)
+    currency: str = "USD"
+    unit: str = "millions"
+
+
 class NLQResponse(BaseModel):
     """Output model for natural language query responses."""
 
@@ -425,6 +469,18 @@ class NLQResponse(BaseModel):
     clarification_prompt: Optional[str] = Field(
         default=None,
         description="Question to ask the user for clarification"
+    )
+
+    # Financial statement response
+    financial_statement_data: Optional[FinancialStatementData] = Field(
+        default=None,
+        description="Structured financial statement data for rendering"
+    )
+
+    # Bridge/waterfall chart response
+    bridge_chart_data: Optional[BridgeChartData] = Field(
+        default=None,
+        description="Structured bridge/waterfall chart data for rendering"
     )
 
     # Dashboard response (for visualization queries)

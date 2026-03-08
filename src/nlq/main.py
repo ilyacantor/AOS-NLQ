@@ -23,6 +23,7 @@ from src.nlq.api.rag_routes import router as rag_router
 from src.nlq.api.dashboard_routes import router as dashboard_router
 from src.nlq.api.health import router as health_router
 from src.nlq.api.eval import router as eval_router
+from src.nlq.api.export_routes import router as export_router
 from src.nlq.dcl.routes import router as dcl_router
 from src.nlq.services.query_cache_service import init_cache_service_from_env, get_cache_service
 from src.nlq.services.llm_call_counter import init_call_counter, get_call_counter
@@ -69,6 +70,7 @@ app.include_router(health_router, prefix="/api/v1")
 app.include_router(eval_router, prefix="/api/v1")
 app.include_router(rag_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
+app.include_router(export_router, prefix="/api/v1")
 
 # Include DCL routes (Data Connectivity Layer - entity resolution, conflicts, provenance)
 app.include_router(dcl_router)

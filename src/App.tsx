@@ -21,6 +21,9 @@ const UserGuide = React.lazy(() =>
 const FinancialStatementView = React.lazy(() =>
   import('./components/financial-statement/FinancialStatementView').then(m => ({ default: m.FinancialStatementView }))
 )
+const BridgeChart = React.lazy(() =>
+  import('./components/bridge-chart/BridgeChart').then(m => ({ default: m.BridgeChart }))
+)
 
 async function fetchWithRetry(
   url: string,
@@ -121,6 +124,8 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [dataMode, setDataMode] = useState<'live' | 'demo'>('live')
+  const [liveDataAvailable, setLiveDataAvailable] = useState<boolean>(false)
+  const [dclWaitSeconds, setDclWaitSeconds] = useState<number>(0)
 
   // Backend connectivity state
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'error'>('checking')
@@ -152,6 +157,7 @@ function App() {
 
   const [hasLoadedDefaultDashboard, setHasLoadedDefaultDashboard] = useState(false)
   const [financialStatementData, setFinancialStatementData] = useState<any>(null)
+  const [bridgeChartData, setBridgeChartData] = useState<any>(null)
   const sessionId = useSessionId()
 
   const queryRef = useRef(query)
@@ -199,18 +205,19 @@ function App() {
           const data = await res.json()
           setBackendStatus('connected')
           setClaudeAvailable(data.claude_available ?? null)
+          setLiveDataAvailable(data.live_data_available ?? false)
           if (!data.claude_available) {
-            setBackendMessage('ANTHROPIC_API_KEY not set — AI queries will fail. Set it in Replit Secrets.')
+            setBackendMessage('ANTHROPIC_API_KEY not set — AI queries will fail.')
           } else {
             setBackendMessage(null)
           }
         } else {
           setBackendStatus('error')
-          setBackendMessage(`Backend returned ${res.status}. Check Replit console for errors.`)
+          setBackendMessage(`Backend returned ${res.status}. Check server logs for errors.`)
         }
       } catch {
         setBackendStatus('error')
-        setBackendMessage('Backend unreachable. Make sure "Start Backend" workflow is running in Replit.')
+        setBackendMessage('Backend unreachable. Make sure NLQ backend is running (port 8005).')
       }
     }
     checkHealth()
@@ -218,6 +225,16 @@ function App() {
     const interval = setInterval(checkHealth, 30000)
     return () => clearInterval(interval)
   }, [])
+
+  // DCL wait counter — ticks every second while live data is unavailable
+  useEffect(() => {
+    if (dataMode !== 'live' || liveDataAvailable) {
+      setDclWaitSeconds(0)
+      return
+    }
+    const timer = setInterval(() => setDclWaitSeconds(s => s + 1), 1000)
+    return () => clearInterval(timer)
+  }, [dataMode, liveDataAvailable])
 
   // Handle persona selection - submit persona dashboard query through unified endpoint
   const handlePersonaSelect = useCallback((persona: Persona) => {
@@ -235,6 +252,7 @@ function App() {
 
     setIsLoading(true)
     setFinancialStatementData(null)
+    setBridgeChartData(null)
     setQuery('')
     setGalaxyResponse(null)
     const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
@@ -328,6 +346,10 @@ function App() {
       // - Non-dashboard response → switch to galaxy view (so result is visible)
       if (data.response_type === 'financial_statement' && data.financial_statement_data) {
         setFinancialStatementData(data.financial_statement_data)
+        setViewMode('galaxy')
+        setGalaxyResponse(adapted)
+      } else if (data.response_type === 'bridge_chart' && data.bridge_chart_data) {
+        setBridgeChartData(data.bridge_chart_data)
         setViewMode('galaxy')
         setGalaxyResponse(adapted)
       } else if (data.response_type === 'dashboard' && data.dashboard) {
@@ -732,12 +754,21 @@ function App() {
             {/* Galaxy View — chatbox centered, visual appears above when results load */}
             {viewMode === 'galaxy' && (
               <div className="h-full flex flex-col overflow-hidden">
-                {/* Financial statement or Galaxy visualization — takes available space above chatbox */}
+                {/* Financial statement, Bridge chart, or Galaxy visualization */}
                 {financialStatementData ? (
                   <div id="financial-statement-visual" className="flex-1 overflow-auto min-h-0">
                     <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
                     <FinancialStatementView
                       data={financialStatementData}
+                      sessionId={sessionId}
+                    />
+                    </Suspense>
+                  </div>
+                ) : bridgeChartData ? (
+                  <div id="bridge-chart-visual" className="flex-1 overflow-auto min-h-0">
+                    <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
+                    <BridgeChart
+                      data={bridgeChartData}
                       sessionId={sessionId}
                     />
                     </Suspense>
@@ -772,6 +803,24 @@ function App() {
 
                 {/* Chatbox — centered in the page, below the visual */}
                 <div className={`flex flex-col items-center px-6 ${hasGalaxyResponse ? 'pt-3 pb-3 border-t border-slate-800/50' : 'pb-4'}`}>
+                  {/* DCL loading banner — shown when in live mode but no ingested data yet */}
+                  {dataMode === 'live' && !liveDataAvailable && (
+                    <div className="w-full max-w-2xl mb-3 px-4 py-2.5 bg-amber-900/30 border border-amber-600/40 rounded-lg flex items-center gap-3">
+                      <svg className="w-4 h-4 animate-spin text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-amber-200">
+                          Waiting for DCL live data pipeline
+                          <span className="text-amber-400/70 font-mono ml-2 text-xs">{dclWaitSeconds}s</span>
+                        </p>
+                        <p className="text-xs text-amber-200/50 mt-0.5">
+                          Queries will return empty results until ingested data is available. Switch to Demo to use sample data.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <div className="w-full max-w-2xl">
                     <div className="relative">
                       <input

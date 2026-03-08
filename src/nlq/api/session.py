@@ -94,6 +94,44 @@ class DashboardSessionStore:
         with self._lock:
             self._sessions.pop(session_id, None)
 
+    def set_financial_statement(self, session_id: str, data: dict):
+        """Store financial statement data for Excel export."""
+        with self._lock:
+            if session_id not in self._sessions:
+                self._sessions[session_id] = {
+                    "created_at": time.time(),
+                    "last_accessed": time.time(),
+                }
+            self._sessions[session_id]["_financial_statement"] = data
+            self._sessions[session_id]["last_accessed"] = time.time()
+
+    def get_financial_statement(self, session_id: str) -> Optional[dict]:
+        """Retrieve stored financial statement data for Excel export."""
+        session_data = self._sessions.get(session_id)
+        if session_data:
+            session_data["last_accessed"] = time.time()
+            return session_data.get("_financial_statement")
+        return None
+
+    def set_bridge_chart(self, session_id: str, data: dict):
+        """Store bridge chart data for Excel export."""
+        with self._lock:
+            if session_id not in self._sessions:
+                self._sessions[session_id] = {
+                    "created_at": time.time(),
+                    "last_accessed": time.time(),
+                }
+            self._sessions[session_id]["_bridge_chart"] = data
+            self._sessions[session_id]["last_accessed"] = time.time()
+
+    def get_bridge_chart(self, session_id: str) -> Optional[dict]:
+        """Retrieve stored bridge chart data for Excel export."""
+        session_data = self._sessions.get(session_id)
+        if session_data:
+            session_data["last_accessed"] = time.time()
+            return session_data.get("_bridge_chart")
+        return None
+
     def stats(self) -> dict:
         """Get session storage statistics for monitoring."""
         return {

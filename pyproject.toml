@@ -19,6 +19,7 @@ dependencies = [
     "supabase>=2.27.2",
     "tarsafe>=0.0.5",
     "requests>=2.32.5",
+    "openpyxl>=3.1.0",
 ]
 
 [project.optional-dependencies]
