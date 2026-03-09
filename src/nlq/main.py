@@ -227,13 +227,9 @@ async def shutdown_event():
 
 # Serve static React build in production
 DIST_DIR = Path(__file__).parent.parent.parent / "dist"
-logger.info(f"DIST_DIR resolved to: {DIST_DIR.resolve()}, exists={DIST_DIR.exists()}")
 if DIST_DIR.exists():
-    logger.info(f"DIST_DIR contents: {list(DIST_DIR.iterdir())[:10]}")
     app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="static")
 else:
-    logger.warning(f"DIST_DIR does not exist at {DIST_DIR.resolve()} — serving dev JSON fallback")
-
     @app.get("/")
     async def root():
         """Root endpoint with API info (dev mode)."""
@@ -242,8 +238,5 @@ else:
             "version": "0.1.0",
             "description": "Natural Language Query engine for enterprise data",
             "docs": "/docs",
-            "mode": "development",
-            "dist_dir": str(DIST_DIR.resolve()),
-            "dist_exists": DIST_DIR.exists(),
-            "__file__": str(Path(__file__).resolve()),
+            "mode": "development"
         }
