@@ -402,6 +402,7 @@ function App() {
   //   { action: 'navigateTo', tab: 'galaxy' | 'dashboard' | 'reports' | 'guide' }
   //   { action: 'setPersona', persona: 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO' }
   //   { action: 'submitQuery', query: '...' }
+  //   { action: 'reportNavigate', entity?: 'meridian'|'cascadia'|'combined', tab?: string }
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const data = event.data
@@ -431,6 +432,15 @@ function App() {
             setViewMode('galaxy')
             submitQuery(data.query)
           }
+          break
+        }
+        case 'reportNavigate': {
+          // Switch to Reports view and dispatch internal navigation event
+          // so ReportPortal can update entity/tab state
+          setViewMode('reports')
+          window.dispatchEvent(new CustomEvent('aos-report-navigate', {
+            detail: { entity: data.entity, tab: data.tab },
+          }))
           break
         }
         default:

@@ -2728,6 +2728,25 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
     }
   }, [variant]);
 
+  // ── Parent iframe navigation via custom events ────────────────────
+  // Dispatched by App.tsx postMessage handler when it receives 'reportNavigate'
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (!detail) return
+      console.log('[ReportPortal] aos-report-navigate:', detail)
+      if (detail.entity) {
+        handleEntityChange(detail.entity)
+      }
+      if (detail.tab) {
+        // Small delay so entity change settles first (tab list depends on entity)
+        setTimeout(() => handleTabChange(detail.tab), 50)
+      }
+    }
+    window.addEventListener('aos-report-navigate', handler)
+    return () => window.removeEventListener('aos-report-navigate', handler)
+  }, [handleEntityChange, handleTabChange])
+
   // Drill-through state (inline under FS table)
   const [drillLine, setDrillLine] = useState<{ id: string; name: string } | null>(null);
 
