@@ -225,8 +225,14 @@ async def shutdown_event():
     """Cleanup on shutdown."""
     logger.info("Shutting down AOS-NLQ server...")
 
-# Serve static React build in production
+# Serve static React build in production.
+# Primary: project-root/dist (local dev, normal builds).
+# Fallback: src/nlq/_dist (Render deploy — build.sh copies dist/ here
+# because Render's Python runtime strips Node artifacts between phases).
 DIST_DIR = Path(__file__).parent.parent.parent / "dist"
+if not DIST_DIR.exists():
+    DIST_DIR = Path(__file__).parent / "_dist"
+
 if DIST_DIR.exists():
     app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="static")
 else:
