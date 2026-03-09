@@ -108,11 +108,16 @@ async def startup_event():
 
 
 async def _deferred_init():
-    """Heavy service initialization that runs after server is already accepting requests."""
-    import asyncio
-    try:
-        loop = asyncio.get_event_loop()
+    """Heavy service initialization that runs after server is already accepting requests.
 
+    Each init step is isolated so one failure does not cascade to subsequent steps.
+    """
+    import asyncio
+    loop = asyncio.get_event_loop()
+    failures = []
+
+    # Step 1: Persistence + session restore
+    try:
         persistence = await loop.run_in_executor(None, init_persistence_service)
         if persistence and persistence.is_available:
             logger.info("Supabase persistence service initialized")
@@ -121,10 +126,22 @@ async def _deferred_init():
             counter.load_active_sessions()
         else:
             logger.warning("Persistence service not available - sessions will not persist")
+    except Exception as e:
+        failures.append("persistence")
+        logger.error(
+            f"Persistence/session init failed: {type(e).__name__}: {e} — "
+            f"cache, pattern seeding, and other services will still attempt to initialize"
+        )
 
+    # Step 2: Cache service
+    try:
         await loop.run_in_executor(None, init_cache_service_from_env)
+    except Exception as e:
+        failures.append("cache")
+        logger.error(f"Cache service init failed: {type(e).__name__}: {e}")
 
-        # Layer 4: Seed the query pattern cache from curated corpus
+    # Step 3: Seed query pattern cache
+    try:
         cache = get_cache_service()
         if cache and cache.is_available:
             from src.nlq.knowledge.pattern_seeder import QueryPatternSeeder
@@ -132,27 +149,23 @@ async def _deferred_init():
             seeder = QueryPatternSeeder(cache, str(seed_path))
             seeded = await loop.run_in_executor(None, seeder.seed_if_empty)
             logger.info(f"Query pattern cache seeded: {seeded} patterns")
+    except Exception as e:
+        failures.append("pattern_seeder")
+        logger.error(f"Pattern seeder failed: {type(e).__name__}: {e}")
 
+    # Step 4: Learning log cleanup
+    try:
         learning_log = get_learning_log()
-
-        # Layer 4b: 90-day retention cleanup — best-effort, non-blocking
         if learning_log.is_available:
-            try:
-                deleted = await learning_log.cleanup_old_entries(retention_days=90)
-                if deleted:
-                    logger.info(f"Learning log cleanup: ~{deleted} old entries removed")
-            except Exception as e:
-                logger.warning(f"Learning log cleanup failed (non-fatal): {e}")
+            deleted = await learning_log.cleanup_old_entries(retention_days=90)
+            if deleted:
+                logger.info(f"Learning log cleanup: ~{deleted} old entries removed")
+    except Exception as e:
+        failures.append("learning_log")
+        logger.warning(f"Learning log cleanup failed: {type(e).__name__}: {e}")
 
-        # Layer 5: Pre-warm DCL catalog in background so first user request
-        # doesn't block on a cold-starting DCL (Render free tier cold starts
-        # take 15-30s).
-        #
-        # Strategy: poll DCL health cheaply (GET /api/health, <1s) every 3s.
-        # Only attempt the expensive catalog fetch (GET /api/dcl/semantic-export,
-        # 9s with retries) once DCL reports phase=ready.  This avoids wasting
-        # 9s × N failed fetch attempts while DCL is still warming, which
-        # previously compounded into 60-90s delays and tripped the circuit breaker.
+    # Step 5: DCL pre-warm
+    try:
         client = get_semantic_client()
         if client.dcl_url:
             import time as _time
@@ -167,7 +180,6 @@ async def _deferred_init():
                 connected = health.get("connected", False)
 
                 if connected and phase in ("ready", "degraded"):
-                    # DCL is ready — attempt the catalog fetch
                     try:
                         logger.info(f"DCL pre-warm: phase={phase}, fetching catalog...")
                         catalog = await loop.run_in_executor(
@@ -184,7 +196,6 @@ async def _deferred_init():
                             f"DCL pre-warm fetch failed despite phase={phase}: "
                             f"{type(e).__name__}: {e}"
                         )
-                        # Don't retry immediately — wait and re-check health
                 else:
                     logger.info(
                         f"DCL pre-warm poll {_prewarm_attempt}: "
@@ -199,10 +210,14 @@ async def _deferred_init():
                 )
         else:
             logger.info("DCL pre-warm skipped (DCL_API_URL not configured)")
-
-        logger.info("All background services initialized")
     except Exception as e:
-        logger.error(f"Background service initialization error: {e}")
+        failures.append("dcl_prewarm")
+        logger.error(f"DCL pre-warm failed: {type(e).__name__}: {e}")
+
+    if failures:
+        logger.warning(f"Background init completed with failures: {failures}")
+    else:
+        logger.info("All background services initialized")
 
 
 @app.on_event("shutdown")

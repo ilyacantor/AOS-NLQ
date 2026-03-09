@@ -5,7 +5,7 @@ services:
     plan: free
     region: oregon
     branch: dev
-    buildCommand: pip install -r requirements.txt && npm install && npm run build && ls -la dist/
+    buildCommand: pip install -r requirements.txt && npm install && npm run build
     startCommand: uvicorn src.nlq.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
@@ -43,4 +43,4 @@ services:
       - key: CACHE_THRESHOLD_PARTIAL
         value: "0.85"
       - key: AOS_TENANT_ID
-        value: ""
+        value: "00000000-0000-0000-0000-000000000001"

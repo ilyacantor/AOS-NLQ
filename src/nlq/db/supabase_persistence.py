@@ -317,30 +317,42 @@ class SupabasePersistenceService:
     ) -> List[SessionRecord]:
         """
         Get recently active sessions.
-        
+
         Args:
             tenant_id: Tenant UUID (None for all tenants - service role only)
             since_hours: Only sessions active within this many hours
             limit: Maximum sessions to return
-            
+
         Returns:
             List of SessionRecords
         """
         if not self.is_available:
             return []
-        
+
+        # Validate tenant_id is a valid UUID before sending to Postgres
+        if tenant_id:
+            try:
+                UUID(tenant_id)
+            except (ValueError, AttributeError):
+                raise ValueError(
+                    f"tenant_id '{tenant_id}' is not a valid UUID. "
+                    f"rag_sessions.tenant_id is a UUID column. "
+                    f"Set AOS_TENANT_ID env var to a valid UUID "
+                    f"(e.g. '00000000-0000-0000-0000-000000000001')."
+                )
+
         try:
             cutoff = (datetime.utcnow() - timedelta(hours=since_hours)).isoformat()
-            
+
             query = self._client.table("rag_sessions").select("*").gte(
                 "last_call_at", cutoff
             ).order(
                 "last_call_at", desc=True
             ).limit(limit)
-            
+
             if tenant_id:
                 query = query.eq("tenant_id", tenant_id)
-            
+
             result = query.execute()
             
             return [
