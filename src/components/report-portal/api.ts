@@ -13,6 +13,9 @@ import type {
   ReportVariant,
   FinancialStatementData,
   FinancialStatementLineItem,
+  EntitySelection,
+  CombiningStatementData,
+  OverlapData,
 } from './types'
 
 const NLQ_BASE = '/api/v1'
@@ -106,13 +109,21 @@ export async function fetchReport(
   variant: ReportVariant,
   quarter?: string,
   segment?: string | null,
+  entity?: EntitySelection,
 ): Promise<{ reportData: ReportData; rawFSData: FinancialStatementData }> {
   const query = variantToQuery(statement, variant, quarter, segment)
+
+  const body: Record<string, unknown> = { question: query, persona: 'CFO' }
+  if (entity === 'combined') {
+    body.consolidate = true
+  } else if (entity) {
+    body.entity_id = entity
+  }
 
   const res = await fetch(`${NLQ_BASE}/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question: query, persona: 'CFO' }),
+    body: JSON.stringify(body),
   })
 
   if (!res.ok) {
@@ -174,4 +185,74 @@ export async function fetchReconciliation(): Promise<ReconReport> {
   }
 
   return res.json()
+}
+
+// ── Combining Statement ───────────────────────────────────────────────────
+
+export async function fetchCombiningStatement(
+  period: string,
+): Promise<CombiningStatementData> {
+  const params = new URLSearchParams({ period })
+
+  const res = await fetch(`/api/reports/combining-is?${params}`)
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Unknown error')
+    throw new Error(
+      `Combining statement query failed (HTTP ${res.status}) for period=${period}: ${errText.slice(0, 500)}`
+    )
+  }
+
+  return res.json()
+}
+
+// ── Entity Overlap ────────────────────────────────────────────────────────
+
+export async function fetchOverlapData(): Promise<OverlapData> {
+  const res = await fetch('/api/reports/entity-overlap')
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Unknown error')
+    throw new Error(
+      `Entity overlap query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`
+    )
+  }
+
+  const raw = await res.json()
+
+  // Transform DCL response shape into the OverlapData type expected by the portal.
+  // DCL returns { customer_overlap, vendor_overlap, people_overlap } with
+  // detailed match arrays; we aggregate into the summary shape the UI needs.
+
+  const co = raw.customer_overlap || {}
+  const customerMatches = co.matches || []
+  let exact = 0, fuzzy = 0, manual = 0
+  for (const m of customerMatches) {
+    if (m.match_type === 'exact') exact++
+    else if (m.match_type === 'fuzzy') fuzzy++
+    else manual++ // 'hard' and any other types map to manual
+  }
+
+  const vo = raw.vendor_overlap || {}
+
+  const po = raw.people_overlap || {}
+  const functions = po.functions || []
+
+  return {
+    customers: {
+      count: co.total_overlapping ?? 0,
+      pct_of_combined: co.overlap_pct_of_combined ?? 0,
+      match_types: { exact, fuzzy, manual },
+    },
+    vendors: {
+      count: vo.total_overlapping ?? 0,
+      pct_of_combined: vo.overlap_pct_of_combined ?? 0,
+    },
+    people: functions.map((f: { function: string; meridian_headcount: number; cascadia_headcount: number; combined_headcount: number }) => ({
+      function: f.function,
+      meridian: f.meridian_headcount,
+      cascadia: f.cascadia_headcount,
+      overlap: f.combined_headcount,
+    })),
+  }
 }

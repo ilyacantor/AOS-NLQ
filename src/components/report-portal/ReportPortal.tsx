@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { fetchReport, fetchDrillThrough, fetchReconciliation } from "./api";
-import type { ReportData, ReconReport, ReconCheck, DrillThroughItem, ReportVariant } from "./types";
+import { fetchReport, fetchDrillThrough, fetchReconciliation, fetchCombiningStatement, fetchOverlapData } from "./api";
+import type { ReportData, ReconReport, ReconCheck, DrillThroughItem, ReportVariant, EntitySelection, CombiningStatementData, OverlapData } from "./types";
 
 // ============================================================
 // FORMATTING
@@ -506,6 +506,209 @@ function ReconView() {
 }
 
 // ============================================================
+// ENTITY SELECTOR
+// ============================================================
+
+function EntitySelector({ selected, onChange }: { selected: EntitySelection; onChange: (e: EntitySelection) => void }) {
+  const entities: { id: EntitySelection; label: string }[] = [
+    { id: "meridian", label: "Meridian" },
+    { id: "cascadia", label: "Cascadia" },
+    { id: "combined", label: "Combined" },
+  ];
+  return (
+    <div style={{ display: "flex", gap: 4, padding: "12px 32px 0", background: COLORS.headerBg }}>
+      {entities.map((e) => (
+        <button key={e.id} onClick={() => onChange(e.id)} style={{
+          padding: "7px 18px", fontSize: 12, fontWeight: selected === e.id ? 600 : 400,
+          fontFamily: "'IBM Plex Sans',sans-serif", letterSpacing: "0.03em", cursor: "pointer",
+          transition: "all 0.15s", borderRadius: "6px 6px 0 0",
+          background: selected === e.id ? COLORS.surface : "transparent",
+          color: selected === e.id ? COLORS.text : COLORS.textMuted,
+          border: selected === e.id
+            ? `1px solid ${COLORS.borderLight}`
+            : `1px solid transparent`,
+          borderBottom: selected === e.id
+            ? `1px solid ${COLORS.surface}`
+            : `1px solid transparent`,
+        }}>
+          {e.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================
+// COMBINING STATEMENT (four-column layout)
+// ============================================================
+
+function fmtCombining(n: number | null | undefined): string {
+  if (n === null || n === undefined) return "";
+  const abs = Math.abs(n);
+  const s = abs.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return n < 0 ? `(${s})` : s;
+}
+
+function CombiningStatement({ data, loading, error, onRetry }: {
+  data: CombiningStatementData | null;
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+}) {
+  if (loading) return <LoadingState message="Loading combining statement..." />;
+  if (error) return <ErrorState error={error} onRetry={onRetry} />;
+  if (!data) return null;
+
+  const thStyle: React.CSSProperties = {
+    textAlign: "right", padding: "10px 16px", color: COLORS.textMuted, fontWeight: 500,
+    fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase",
+    fontFamily: "'JetBrains Mono',monospace",
+  };
+
+  return (
+    <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
+      <div style={{ padding: "12px 20px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Combining Income Statement</span>
+        <span style={{ fontSize: 12, color: COLORS.textMuted }}>{data.period}</span>
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'IBM Plex Mono','JetBrains Mono',monospace", fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: `2px solid ${COLORS.accent}` }}>
+              <th style={{ ...thStyle, textAlign: "left", width: "30%" }}>Line Item</th>
+              <th style={thStyle}>Meridian</th>
+              <th style={thStyle}>Cascadia</th>
+              <th style={{ ...thStyle, background: "rgba(255,235,59,0.06)" }}>Adjustments</th>
+              <th style={thStyle}>Combined</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.line_items.map((item, i) => {
+              const isTotal = item.line_item.startsWith("Total");
+              const isBold = isTotal || item.line_item.includes("Net Income") || item.line_item.includes("EBITDA");
+              const numStyle = (val: number, isAdj = false): React.CSSProperties => ({
+                textAlign: "right", padding: "8px 16px",
+                fontWeight: isBold ? 600 : 400,
+                color: val < 0 ? COLORS.red : COLORS.text,
+                background: isAdj ? "rgba(255,235,59,0.04)" : "transparent",
+              });
+              return (
+                <tr key={i} style={{
+                  borderTop: isTotal ? `1px solid ${COLORS.borderLight}` : "none",
+                  borderBottom: `1px solid ${COLORS.border}22`,
+                  background: isBold ? COLORS.totalBg : "transparent",
+                }}>
+                  <td style={{
+                    padding: "8px 16px", fontFamily: "'IBM Plex Sans',sans-serif",
+                    fontWeight: isBold ? 600 : 400, color: COLORS.text,
+                  }}>
+                    {item.line_item}
+                  </td>
+                  <td style={numStyle(item.meridian)}>{fmtCombining(item.meridian)}</td>
+                  <td style={numStyle(item.cascadia)}>{fmtCombining(item.cascadia)}</td>
+                  <td style={numStyle(item.adjustments, true)}>{fmtCombining(item.adjustments)}</td>
+                  <td style={numStyle(item.combined)}>{fmtCombining(item.combined)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// OVERLAP REPORT
+// ============================================================
+
+function OverlapReport({ data, loading, error, onRetry }: {
+  data: OverlapData | null;
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+}) {
+  if (loading) return <LoadingState message="Loading entity overlap data..." />;
+  if (error) return <ErrorState error={error} onRetry={onRetry} />;
+  if (!data) return null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Customer Overlap */}
+      <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
+        <div style={{ padding: "12px 20px", borderBottom: `1px solid ${COLORS.border}` }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Customer Overlap</span>
+        </div>
+        <div style={{ padding: "20px", display: "flex", gap: 24 }}>
+          <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "16px 24px", flex: 1, textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 700, color: COLORS.accent, fontFamily: "'IBM Plex Mono',monospace" }}>{data.customers.count}</div>
+            <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 4 }}>Overlapping Customers</div>
+          </div>
+          <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "16px 24px", flex: 1, textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 700, color: COLORS.textDim, fontFamily: "'IBM Plex Mono',monospace" }}>{data.customers.pct_of_combined.toFixed(1)}%</div>
+            <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 4 }}>% of Combined</div>
+          </div>
+          <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "16px 24px", flex: 2 }}>
+            <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 8 }}>Match Type Breakdown</div>
+            <div style={{ display: "flex", gap: 16, fontSize: 13, color: COLORS.textDim, fontFamily: "'IBM Plex Mono',monospace" }}>
+              <span>Exact: {data.customers.match_types.exact}</span>
+              <span>Fuzzy: {data.customers.match_types.fuzzy}</span>
+              <span>Manual: {data.customers.match_types.manual}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Vendor Overlap */}
+      <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
+        <div style={{ padding: "12px 20px", borderBottom: `1px solid ${COLORS.border}` }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Vendor Overlap</span>
+        </div>
+        <div style={{ padding: "20px", display: "flex", gap: 24 }}>
+          <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "16px 24px", flex: 1, textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 700, color: COLORS.accent, fontFamily: "'IBM Plex Mono',monospace" }}>{data.vendors.count}</div>
+            <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 4 }}>Overlapping Vendors</div>
+          </div>
+          <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "16px 24px", flex: 1, textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 700, color: COLORS.textDim, fontFamily: "'IBM Plex Mono',monospace" }}>{data.vendors.pct_of_combined.toFixed(1)}%</div>
+            <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 4 }}>% of Combined</div>
+          </div>
+        </div>
+      </div>
+
+      {/* People Overlap */}
+      <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
+        <div style={{ padding: "12px 20px", borderBottom: `1px solid ${COLORS.border}` }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>People Overlap by Function</span>
+        </div>
+        <div style={{ padding: "12px 20px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'IBM Plex Mono','JetBrains Mono',monospace", fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: `2px solid ${COLORS.accent}` }}>
+                <th style={{ textAlign: "left", padding: "8px 12px", color: COLORS.textMuted, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase" }}>Function</th>
+                <th style={{ textAlign: "right", padding: "8px 12px", color: COLORS.textMuted, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase" }}>Meridian</th>
+                <th style={{ textAlign: "right", padding: "8px 12px", color: COLORS.textMuted, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase" }}>Cascadia</th>
+                <th style={{ textAlign: "right", padding: "8px 12px", color: COLORS.textMuted, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase" }}>Combined</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.people.map((p, i) => (
+                <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
+                  <td style={{ padding: "8px 12px", color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>{p.function}</td>
+                  <td style={{ textAlign: "right", padding: "8px 12px", color: COLORS.text }}>{p.meridian.toLocaleString()}</td>
+                  <td style={{ textAlign: "right", padding: "8px 12px", color: COLORS.text }}>{p.cascadia.toLocaleString()}</td>
+                  <td style={{ textAlign: "right", padding: "8px 12px", color: COLORS.text }}>{p.overlap.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // Loading spinner (themed)
 // ============================================================
 function LoadingState({ message = "Loading..." }: { message?: string }) {
@@ -531,6 +734,7 @@ function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) 
 // MAIN COMPONENT
 // ============================================================
 export function ReportPortal({ onClose }: { onClose: () => void }) {
+  const [entity, setEntity] = useState<EntitySelection>("meridian");
   const [tab, setTab] = useState("pl");
   const [variant, setVariant] = useState("act_vs_py");
   const [quarter, setQuarter] = useState("2025-Q3");
@@ -542,10 +746,28 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Combining statement data states
+  const [combiningData, setCombiningData] = useState<CombiningStatementData | null>(null);
+  const [combiningLoading, setCombiningLoading] = useState(false);
+  const [combiningError, setCombiningError] = useState<string | null>(null);
+
+  // Overlap report data states
+  const [overlapData, setOverlapData] = useState<OverlapData | null>(null);
+  const [overlapLoading, setOverlapLoading] = useState(false);
+  const [overlapError, setOverlapError] = useState<string | null>(null);
+
   const actQuarters = useMemo(() => QUARTERS.filter(isActual), []);
   const cfQuarters = useMemo(() => QUARTERS.filter((q) => !isActual(q) && q.startsWith(String(wallClockDate().getFullYear()))), []);
   const lastFullYear = wallClockDate().getFullYear() - 1;
   const pyYear = lastFullYear - 1;
+
+  const handleEntityChange = useCallback((e: EntitySelection) => {
+    setEntity(e);
+    // Reset to a valid tab when switching entity mode
+    if (e !== "combined" && (tab === "combining" || tab === "overlap")) {
+      setTab("pl");
+    }
+  }, [tab]);
 
   const handleTabChange = useCallback((t: string) => {
     setTab(t);
@@ -554,13 +776,23 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
     }
   }, [variant]);
 
-  const statementTabs = [
-    { id: "pl", label: "Income Statement" },
-    { id: "bs", label: "Balance Sheet" },
-    { id: "cf", label: "Cash Flow" },
-    { id: "drill", label: "Revenue Drill-Through" },
-    { id: "recon", label: "Reconciliation" },
-  ];
+  const statementTabs = useMemo(() => {
+    const base = [
+      { id: "pl", label: "Income Statement" },
+      { id: "bs", label: "Balance Sheet" },
+      { id: "cf", label: "Cash Flow" },
+      { id: "drill", label: "Revenue Drill-Through" },
+      { id: "recon", label: "Reconciliation" },
+    ];
+    if (entity === "combined") {
+      return [
+        ...base,
+        { id: "combining", label: "Combining" },
+        { id: "overlap", label: "Overlap" },
+      ];
+    }
+    return base;
+  }, [entity]);
 
   const variantOptions = tab === "bs" ? [
     { value: "act_vs_py", label: `FY${lastFullYear} Act vs FY${pyYear}` },
@@ -601,7 +833,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
     const apiVariant = mapVariant(variant);
 
     try {
-      const result = await fetchReport(statement, apiVariant, effectiveQuarter, seg);
+      const result = await fetchReport(statement, apiVariant, effectiveQuarter, seg, entity);
       setCurrentData(result.reportData);
 
       // Also fetch PY data if showing variance (not quarterly-only view)
@@ -623,7 +855,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
         }
 
         try {
-          const pyResult = await fetchReport(statement, apiVariant, pyQuarter, seg);
+          const pyResult = await fetchReport(statement, apiVariant, pyQuarter, seg, entity);
           setPyData(pyResult.reportData);
         } catch {
           // PY data is supplementary — don't block the main view
@@ -639,13 +871,57 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
     } finally {
       setLoading(false);
     }
-  }, [tab, variant, effectiveQuarter, seg, isStatementTab, pyYear, lastFullYear, quarter, cfQuarters]);
+  }, [tab, variant, effectiveQuarter, seg, isStatementTab, pyYear, lastFullYear, quarter, cfQuarters, entity]);
 
   useEffect(() => {
     if (isStatementTab) {
       loadReport();
     }
   }, [loadReport, isStatementTab]);
+
+  // Load combining statement data when the combining tab is active
+  const loadCombining = useCallback(async () => {
+    if (tab !== "combining" || entity !== "combined") return;
+    setCombiningLoading(true);
+    setCombiningError(null);
+    try {
+      const result = await fetchCombiningStatement(effectiveQuarter);
+      setCombiningData(result);
+    } catch (err) {
+      setCombiningError(err instanceof Error ? err.message : String(err));
+      setCombiningData(null);
+    } finally {
+      setCombiningLoading(false);
+    }
+  }, [tab, entity, effectiveQuarter]);
+
+  useEffect(() => {
+    if (tab === "combining" && entity === "combined") {
+      loadCombining();
+    }
+  }, [loadCombining, tab, entity]);
+
+  // Load overlap data when the overlap tab is active
+  const loadOverlap = useCallback(async () => {
+    if (tab !== "overlap" || entity !== "combined") return;
+    setOverlapLoading(true);
+    setOverlapError(null);
+    try {
+      const result = await fetchOverlapData();
+      setOverlapData(result);
+    } catch (err) {
+      setOverlapError(err instanceof Error ? err.message : String(err));
+      setOverlapData(null);
+    } finally {
+      setOverlapLoading(false);
+    }
+  }, [tab, entity]);
+
+  useEffect(() => {
+    if (tab === "overlap" && entity === "combined") {
+      loadOverlap();
+    }
+  }, [loadOverlap, tab, entity]);
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: COLORS.bg, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif", padding: 0, overflow: "hidden" }}>
@@ -661,13 +937,16 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <span style={{ fontSize: 12, color: COLORS.textMuted }}>
-            Meridian Partners {"\u2022"} Single Entity {"\u2022"} {wallClockDate().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            {entity === "meridian" ? "Meridian Partners" : entity === "cascadia" ? "Cascadia Group" : "Combined View"} {"\u2022"} {entity === "combined" ? "Multi-Entity" : "Single Entity"} {"\u2022"} {wallClockDate().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
           </span>
           <button onClick={onClose} style={{ background: "transparent", border: `1px solid ${COLORS.border}`, color: COLORS.textMuted, cursor: "pointer", padding: "4px 12px", borderRadius: 4, fontSize: 12 }}>
             Close
           </button>
         </div>
       </div>
+
+      {/* Entity Selector — above tab bar */}
+      <EntitySelector selected={entity} onChange={handleEntityChange} />
 
       <div style={{ flex: 1, overflow: "auto", padding: "24px 32px" }}>
         <TabBar tabs={statementTabs} active={tab} onChange={handleTabChange} />
@@ -708,6 +987,12 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
 
         {tab === "drill" && <DrillThrough onClose={() => setTab("pl")} />}
         {tab === "recon" && <ReconView />}
+        {tab === "combining" && entity === "combined" && (
+          <CombiningStatement data={combiningData} loading={combiningLoading} error={combiningError} onRetry={loadCombining} />
+        )}
+        {tab === "overlap" && entity === "combined" && (
+          <OverlapReport data={overlapData} loading={overlapLoading} error={overlapError} onRetry={loadOverlap} />
+        )}
       </div>
     </div>
   );

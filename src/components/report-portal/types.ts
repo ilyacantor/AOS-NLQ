@@ -84,3 +84,48 @@ export interface FinancialStatementData {
   currency: string
   unit: string
 }
+
+// ── Entity Selection ────────────────────────────────────────────────────────
+
+export type EntitySelection = 'meridian' | 'cascadia' | 'combined'
+
+// ── Combining Statement ─────────────────────────────────────────────────────
+
+export interface CombiningLineItem {
+  line_item: string
+  meridian: number
+  cascadia: number
+  adjustments: number
+  combined: number
+}
+
+export interface CombiningStatementData {
+  period: string
+  line_items: CombiningLineItem[]
+}
+
+// ── Overlap Report ──────────────────────────────────────────────────────────
+
+export interface OverlapCustomer {
+  count: number
+  pct_of_combined: number
+  match_types: { exact: number; fuzzy: number; manual: number }
+}
+
+export interface OverlapVendor {
+  count: number
+  pct_of_combined: number
+}
+
+export interface OverlapPerson {
+  function: string
+  meridian: number
+  cascadia: number
+  overlap: number
+}
+
+export interface OverlapData {
+  customers: OverlapCustomer
+  vendors: OverlapVendor
+  people: OverlapPerson[]
+}
