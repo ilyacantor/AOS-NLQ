@@ -117,7 +117,7 @@ class SupabasePersistenceService:
             self.supabase_url = supabase_url or ""
             logger.warning(f"No valid https:// Supabase URL found")
         self.supabase_key = supabase_key or os.getenv("SUPABASE_KEY", "")
-        self.default_tenant_id = default_tenant_id or get_tenant_id()
+        self.default_tenant_id = default_tenant_id or get_tenant_id()  # may be None
         
         self._client = None
         self._initialized = False
@@ -125,6 +125,20 @@ class SupabasePersistenceService:
         if self.supabase_url and self.supabase_key:
             self._init_client()
     
+    def _resolve_tenant_id(self, tenant_id: Optional[str] = None) -> Optional[str]:
+        """Resolve tenant_id, returning None if unavailable.
+
+        Consumers must check for None and skip the query — passing None
+        to a UUID column in Postgres will crash with 22P02.
+        """
+        resolved = tenant_id or self.default_tenant_id
+        if resolved is None:
+            logger.warning(
+                "tenant_id is None — skipping tenant-filtered query. "
+                "Set AOS_TENANT_ID to a valid UUID."
+            )
+        return resolved
+
     def _init_client(self):
         """Initialize Supabase client."""
         try:
@@ -178,9 +192,11 @@ class SupabasePersistenceService:
         """
         if not self.is_available:
             return None
-        
-        tenant_id = tenant_id or self.default_tenant_id
-        
+
+        tenant_id = self._resolve_tenant_id(tenant_id)
+        if tenant_id is None:
+            return None
+
         try:
             result = self._client.table("rag_sessions").select("*").eq(
                 "tenant_id", tenant_id
@@ -220,9 +236,13 @@ class SupabasePersistenceService:
         if not self.is_available:
             return False
         
+        resolved_tid = self._resolve_tenant_id(session.tenant_id)
+        if resolved_tid is None:
+            return False
+
         try:
             data = {
-                "tenant_id": session.tenant_id or self.default_tenant_id,
+                "tenant_id": resolved_tid,
                 "session_id": session.session_id,
                 "call_count": session.call_count,
                 "queries_cached": session.queries_cached,
@@ -272,10 +292,12 @@ class SupabasePersistenceService:
         """
         if not self.is_available:
             return None
-        
-        tenant_id = tenant_id or self.default_tenant_id
+
+        tenant_id = self._resolve_tenant_id(tenant_id)
+        if tenant_id is None:
+            return None
         now = datetime.utcnow()
-        
+
         try:
             existing = self.get_session(session_id, tenant_id)
             
@@ -329,18 +351,6 @@ class SupabasePersistenceService:
         if not self.is_available:
             return []
 
-        # Validate tenant_id is a valid UUID before sending to Postgres
-        if tenant_id:
-            try:
-                UUID(tenant_id)
-            except (ValueError, AttributeError):
-                raise ValueError(
-                    f"tenant_id '{tenant_id}' is not a valid UUID. "
-                    f"rag_sessions.tenant_id is a UUID column. "
-                    f"Set AOS_TENANT_ID env var to a valid UUID "
-                    f"(e.g. '00000000-0000-0000-0000-000000000001')."
-                )
-
         try:
             cutoff = (datetime.utcnow() - timedelta(hours=since_hours)).isoformat()
 
@@ -351,6 +361,9 @@ class SupabasePersistenceService:
             ).limit(limit)
 
             if tenant_id:
+                tenant_id = self._resolve_tenant_id(tenant_id)
+                if tenant_id is None:
+                    return []
                 query = query.eq("tenant_id", tenant_id)
 
             result = query.execute()
@@ -435,10 +448,12 @@ class SupabasePersistenceService:
         """
         if not self.is_available:
             return None
-        
-        tenant_id = tenant_id or self.default_tenant_id
+
+        tenant_id = self._resolve_tenant_id(tenant_id)
+        if tenant_id is None:
+            return None
         query_hash = self._hash_query(query)
-        
+
         try:
             query_builder = self._client.table("rag_cache_entries").select("*").eq(
                 "tenant_id", tenant_id
@@ -485,9 +500,13 @@ class SupabasePersistenceService:
         if not self.is_available:
             return False
         
+        resolved_tid = self._resolve_tenant_id(entry.tenant_id)
+        if resolved_tid is None:
+            return False
+
         try:
             data = {
-                "tenant_id": entry.tenant_id or self.default_tenant_id,
+                "tenant_id": resolved_tid,
                 "query_hash": entry.query_hash,
                 "original_query": entry.original_query,
                 "normalized_query": entry.normalized_query,
@@ -530,10 +549,12 @@ class SupabasePersistenceService:
         """
         if not self.is_available:
             return False
-        
-        tenant_id = tenant_id or self.default_tenant_id
+
+        tenant_id = self._resolve_tenant_id(tenant_id)
+        if tenant_id is None:
+            return False
         query_hash = self._hash_query(query)
-        
+
         try:
             existing = self.get_cache_entry(query, tenant_id)
             if existing:
@@ -562,9 +583,13 @@ class SupabasePersistenceService:
         if not self.is_available:
             return False
         
+        resolved_tid = self._resolve_tenant_id(record.tenant_id)
+        if resolved_tid is None:
+            return False
+
         try:
             data = {
-                "tenant_id": record.tenant_id or self.default_tenant_id,
+                "tenant_id": resolved_tid,
                 "session_id": record.session_id,
                 "query": record.query[:500],
                 "normalized_query": record.normalized_query[:500] if record.normalized_query else None,
@@ -616,6 +641,9 @@ class SupabasePersistenceService:
             ).limit(limit)
             
             if tenant_id:
+                tenant_id = self._resolve_tenant_id(tenant_id)
+                if tenant_id is None:
+                    return []
                 query = query.eq("tenant_id", tenant_id)
             if session_id:
                 query = query.eq("session_id", session_id)
@@ -682,18 +710,20 @@ class SupabasePersistenceService:
         """
         if not self.is_available:
             return {"available": False, "error": "Persistence not configured"}
-        
-        tenant_id = tenant_id or self.default_tenant_id
-        
+
+        tenant_id = self._resolve_tenant_id(tenant_id)
+        if tenant_id is None:
+            return {"available": True, "tenant_id": None, "error": "No valid tenant_id configured"}
+
         try:
             sessions = self._client.table("rag_sessions").select(
                 "id", count="exact"
             ).eq("tenant_id", tenant_id).execute()
-            
+
             cache = self._client.table("rag_cache_entries").select(
                 "id", count="exact"
             ).eq("tenant_id", tenant_id).execute()
-            
+
             logs = self._client.table("rag_learning_log").select(
                 "id", count="exact"
             ).eq("tenant_id", tenant_id).execute()

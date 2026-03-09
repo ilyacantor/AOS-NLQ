@@ -167,9 +167,13 @@ class RAGLearningLog:
         # Try to persist to Supabase
         if self.is_available:
             try:
+                resolved_tid = entry.tenant_id or get_tenant_id()
+                if resolved_tid is None:
+                    logger.warning("Skipping Supabase log_entry — no valid tenant_id")
+                    return True  # memory buffer still has it
                 data = {
                     "id": entry.id,
-                    "tenant_id": entry.tenant_id or get_tenant_id(),
+                    "tenant_id": resolved_tid,
                     "session_id": entry.session_id,
                     "query": entry.query[:500],  # Limit query length
                     "normalized_query": (entry.normalized_query or _normalize_query(entry.query))[:500],
