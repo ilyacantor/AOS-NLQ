@@ -295,6 +295,24 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "required": ["engine"],
         },
     },
+    {
+        "name": "configure_scope",
+        "description": "Set the DD scope — toggle deliverables on/off and confirm the configuration. Present as a checklist for the deal person to confirm.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "deliverable_selections": {
+                    "type": "object",
+                    "description": "Map of deliverable_id → boolean (selected or not). IDs: crm_integration, cross_sell, customer_migration, portfolio_rationalization, tech_integration, ebitda_bridge.",
+                },
+                "confirmed": {
+                    "type": "boolean",
+                    "description": "Whether the deal person has confirmed the scope.",
+                },
+            },
+            "required": ["confirmed"],
+        },
+    },
 ]
 
 
@@ -520,14 +538,64 @@ def process_query_engine(
     query: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
-    Process query_engine. Calls the appropriate engine endpoint.
-    In demo mode, returns from seed data.
+    Process query_engine. Returns demo data from seed_data.
+    In production, this would call actual engine endpoints.
     """
-    # This will be wired to actual engine calls in the conversation service
+    from src.nlq.maestra.seed_data import (
+        get_cofa_mapping_data,
+        get_cross_sell_data,
+        get_ebitda_bridge_data,
+        get_entity_overlap_data,
+        get_qoe_data,
+    )
+
+    engine_data = {
+        "cross_sell": get_cross_sell_data,
+        "ebitda_bridge": get_ebitda_bridge_data,
+        "qoe": get_qoe_data,
+        "entity_resolution": get_entity_overlap_data,
+        "cofa_mapping": get_cofa_mapping_data,
+    }
+
+    loader = engine_data.get(engine)
+    if loader:
+        return loader()
+
     return {
         "success": True,
         "engine": engine,
-        "note": "Engine query dispatched — results will be included in context.",
+        "note": f"Unknown engine: {engine}",
+    }
+
+
+def process_configure_scope(
+    deliverable_selections: dict[str, bool] | None = None,
+    confirmed: bool = False,
+) -> dict[str, Any]:
+    """
+    Process configure_scope. Records DD scope selections.
+    Returns the confirmed scope configuration.
+    """
+    from src.nlq.maestra.types import DDScope
+
+    scope = DDScope()
+
+    if deliverable_selections:
+        for d in scope.deliverables:
+            if d.id in deliverable_selections:
+                d.selected = deliverable_selections[d.id]
+
+    scope.confirmed = confirmed
+
+    selected_names = [d.name for d in scope.deliverables if d.selected]
+
+    return {
+        "success": True,
+        "confirmed": confirmed,
+        "selected_deliverables": selected_names,
+        "reconciliation_objects": scope.reconciliation_objects,
+        "synergy_targets": scope.synergy_targets,
+        "scope": scope.model_dump(),
     }
 
 

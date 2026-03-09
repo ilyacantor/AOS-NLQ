@@ -54,6 +54,13 @@ class SectionId(str, Enum):
     S5 = "5"
     S6 = "6"   # Convergence: Reconciliation Object Scoping
     S7 = "7"   # Convergence: Cross-Entity Conflict Review
+    # Pre-Deal sections
+    PDC = "PDC"   # Deal Context
+    PDA = "PDA"   # Acquirer Profile
+    PDT = "PDT"   # Target Profile
+    PDS = "PDS"   # DD Scope Configuration
+    PDR = "PDR"   # Run Analysis (automatic)
+    PDF = "PDF"   # Findings Presentation
 
 
 class SectionStatus(str, Enum):
@@ -73,9 +80,19 @@ class SessionStatus(str, Enum):
 
 
 class EngagementPhase(str, Enum):
+    PREWORK_RUNNING = "prework_running"
+    PREWORK_COMPLETE = "prework_complete"
     SCOPING = "scoping"
+    ANALYSIS_RUNNING = "analysis_running"
+    ANALYSIS_COMPLETE = "analysis_complete"
+    FINDINGS = "findings"
     EXECUTION = "execution"
     ONGOING = "ongoing_management"
+
+
+class EngagementMode(str, Enum):
+    PRE_DEAL = "pre_deal"
+    CLASSIC = "classic"
 
 
 class DemoPhase(str, Enum):
@@ -295,6 +312,67 @@ class MaestraMessage(BaseModel):
 # ENGAGEMENT (top-level container for M&A deal)
 # =============================================================================
 
+class DDDeliverable(BaseModel):
+    """A due diligence deliverable that can be toggled on/off."""
+    id: str
+    name: str
+    description: str
+    selected: bool = True
+
+
+class DDScope(BaseModel):
+    """DD scope configuration — deliverables + synergy targets."""
+    deliverables: list[DDDeliverable] = Field(default_factory=lambda: [
+        DDDeliverable(id="crm_integration", name="CRM Integration Analysis",
+                      description="Territory overlap, shared prospects, coverage gaps"),
+        DDDeliverable(id="cross_sell", name="Cross-Sell Pipeline",
+                      description="Named accounts, propensity scores, estimated ACV"),
+        DDDeliverable(id="customer_migration", name="Customer Migration Planning",
+                      description="Concentration risk, at-risk accounts, retention priorities"),
+        DDDeliverable(id="portfolio_rationalization", name="Portfolio Rationalization",
+                      description="Combined offering mapping", selected=False),
+        DDDeliverable(id="tech_integration", name="Technology Integration Roadmap",
+                      description="Systems inventory, SOR conflicts, migration specs"),
+        DDDeliverable(id="ebitda_bridge", name="EBITDA Bridge + What-If",
+                      description="Full bridge with sensitivity levers"),
+    ])
+    reconciliation_objects: list[str] = Field(default_factory=lambda: [
+        "Financial Statements", "Customers", "Vendors", "People", "IT Landscape",
+    ])
+    synergy_targets: dict[str, Any] = Field(default_factory=lambda: {
+        "revenue_synergy": 215_000_000,
+        "cost_synergy": 180_000_000,
+        "integration_budget": 100_000_000,
+    })
+    confirmed: bool = False
+
+
+class DealContext(BaseModel):
+    """Deal-level context captured during Section 1."""
+    deal_type: str = "acquisition"
+    deal_stage: str = ""
+    timeline: str = ""
+    key_concerns: list[str] = Field(default_factory=list)
+    synergy_targets: dict[str, Any] = Field(default_factory=dict)
+    confirmed: bool = False
+
+
+class PreDealContext(BaseModel):
+    """
+    Everything Maestra knows after prework — loaded before first message.
+    Stored on the engagement, not on individual sessions.
+    """
+    acquirer_intel: IntelBrief = Field(default_factory=IntelBrief)
+    target_intel: IntelBrief = Field(default_factory=IntelBrief)
+    acquirer_systems: list[dict[str, str]] = Field(default_factory=list)
+    target_systems: list[dict[str, str]] = Field(default_factory=list)
+    system_connections: list[dict[str, str]] = Field(default_factory=list)
+    deal_context: DealContext = Field(default_factory=DealContext)
+    dd_scope: DDScope = Field(default_factory=DDScope)
+    analysis_results: dict[str, Any] = Field(default_factory=dict)
+    prework_complete: bool = False
+
+
 class MaestraEngagement(BaseModel):
     """
     Top-level engagement — one per deal.
@@ -303,6 +381,7 @@ class MaestraEngagement(BaseModel):
     """
     engagement_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     deal_name: str = ""
+    mode: EngagementMode = EngagementMode.PRE_DEAL
     phase: EngagementPhase = EngagementPhase.SCOPING
     entities: list[dict[str, str]] = Field(default_factory=list)  # [{id, name}]
     objects_in_scope: list[str] = Field(default_factory=lambda: [
@@ -311,6 +390,7 @@ class MaestraEngagement(BaseModel):
     session_ids: list[str] = Field(default_factory=list)  # per-entity session IDs
     stakeholder_map: dict[str, str] = Field(default_factory=dict)
     timeline: dict[str, str] = Field(default_factory=dict)
+    pre_deal_context: PreDealContext | None = None
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 

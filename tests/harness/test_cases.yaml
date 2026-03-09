@@ -1026,3 +1026,122 @@
     - {field: response, operator: contains, expected: "sustainability"}
     - {field: navigation.tab, operator: equals, expected: "qoe"}
   tags: [maestra, qoe, navigation]
+
+
+# ── Group 19: Pre-Deal Experience ────────────────────────────────────────────
+
+- id: PD_001
+  group: PRE_DEAL
+  name: "Engagement creation triggers prework"
+  type: api_call
+  endpoint: "/api/reports/maestra/engage"
+  method: POST
+  body: {mode: "pre_deal", demo_mode: true}
+  assertions:
+    - {field: engagement_id, operator: not_null}
+    - {field: phase, operator: equals, expected: "prework_complete"}
+    - {field: prework_complete, operator: equals, expected: true}
+    - {field: mode, operator: equals, expected: "pre_deal"}
+    - {field: session_ids, operator: not_null}
+  tags: [pre_deal, prework]
+
+- id: PD_002
+  group: PRE_DEAL
+  name: "Maestra knows both entities after prework"
+  type: maestra_message
+  mode: "pre_deal"
+  message: "What do you know about the two companies?"
+  assertions:
+    - {field: response, operator: not_null}
+    - {field: response, operator: contains, expected: "Meridian"}
+    - {field: response, operator: contains, expected: "Cascadia"}
+  tags: [pre_deal, prework, entities]
+
+- id: PD_003
+  group: PRE_DEAL
+  name: "Maestra presents acquirer profile with discovered data"
+  type: maestra_message
+  mode: "pre_deal"
+  message: "Tell me about Meridian"
+  assertions:
+    - {field: response, operator: not_null}
+    - {field: response, operator: contains, expected: "division"}
+    - {field: response, operator: contains, expected: "system"}
+  tags: [pre_deal, acquirer]
+
+- id: PD_004
+  group: PRE_DEAL
+  name: "Maestra scoping interview advances through sections"
+  type: state_machine_check
+  mode: "pre_deal"
+  assertion: sections_advance
+  sections: ["PDC", "PDA", "PDT", "PDS", "PDR", "PDF"]
+  tags: [pre_deal, state_machine]
+
+- id: PD_005
+  group: PRE_DEAL
+  name: "DD scope configuration captures selections"
+  type: api_call
+  endpoint: "/api/reports/maestra/{engagement_id}/status"
+  method: GET
+  precondition: "scope_confirmed"
+  assertions:
+    - {field: phase, operator: not_null}
+  tags: [pre_deal, scope]
+
+- id: PD_006
+  group: PRE_DEAL
+  name: "Analysis runs after scope confirmation"
+  type: state_machine_check
+  mode: "pre_deal"
+  assertion: section_reached
+  target_section: "PDR"
+  tags: [pre_deal, analysis]
+
+- id: PD_007
+  group: PRE_DEAL
+  name: "Findings presentation includes cross-sell with specific numbers"
+  type: maestra_message
+  mode: "pre_deal"
+  section: "PDF"
+  message: "Walk me through what you found"
+  assertions:
+    - {field: response, operator: not_null}
+    - {field: response, operator: contains, expected: "cross-sell"}
+    - {field: response, operator: contains, expected: "pipeline"}
+    - {field: actions_taken, operator: not_null}
+  tags: [pre_deal, findings]
+
+- id: PD_008
+  group: PRE_DEAL
+  name: "Maestra never uses internal terminology"
+  type: vocabulary_check
+  mode: "pre_deal"
+  scope: "all_messages_in_session"
+  assertion: does_not_contain
+  banned_terms: ["COFA", "ontology", "semantic layer", "entity resolution", "contour map", "DCL", "NLQ", "Farm", "AOD", "AAM"]
+  tags: [pre_deal, vocabulary]
+
+- id: PD_009
+  group: PRE_DEAL
+  name: "Portal shows engagement context after creation"
+  type: api_call
+  endpoint: "/api/reports/maestra/{engagement_id}/status"
+  method: GET
+  assertions:
+    - {field: deal_name, operator: not_null}
+    - {field: phase, operator: not_null}
+    - {field: entity_completeness, operator: not_null}
+  tags: [pre_deal, portal]
+
+- id: PD_010
+  group: PRE_DEAL
+  name: "Maestra navigates portal during findings presentation"
+  type: maestra_message
+  mode: "pre_deal"
+  section: "PDF"
+  message: "Show me the cross-sell details"
+  assertions:
+    - {field: response, operator: not_null}
+    - {field: navigation.tab, operator: equals, expected: "cross_sell"}
+  tags: [pre_deal, findings, navigation]

@@ -27,11 +27,13 @@ from src.nlq.maestra.types import (
     ContourMap,
     ConversationState,
     DemoPhase,
+    EngagementMode,
     EngagementPhase,
     IntelBrief,
     MaestraEngagement,
     MaestraMessage,
     MaestraSession,
+    PreDealContext,
     SectionId,
     SectionStatus,
     SessionStatus,
@@ -47,6 +49,7 @@ from src.nlq.maestra.prompts import compose_system_prompt
 from src.nlq.maestra.tools import (
     TOOL_DEFINITIONS,
     process_advance_section,
+    process_configure_scope,
     process_navigate_portal,
     process_park_item,
     process_query_engine,
@@ -93,11 +96,13 @@ class ConversationService:
         deal_name: str = "Meridian-Cascadia Integration",
         entities: list[dict[str, str]] | None = None,
         demo_mode: bool = True,
+        mode: str = "pre_deal",
     ) -> dict[str, Any]:
         """
-        Create a new engagement and per-entity scoping sessions.
+        Create a new engagement with prework pipeline.
 
-        For Convergence demo: creates 2 sessions (Meridian + Cascadia).
+        In pre_deal mode: runs prework, creates a single unified session.
+        In classic mode: creates per-entity sessions with demo phases.
         """
         if entities is None:
             entities = [
@@ -107,11 +112,127 @@ class ConversationService:
 
         engagement_id = str(uuid.uuid4())
         now = datetime.utcnow().isoformat()
+        eng_mode = EngagementMode(mode)
 
-        # Save engagement FIRST (sessions have FK reference to it)
+        if eng_mode == EngagementMode.PRE_DEAL:
+            return self._create_pre_deal_engagement(
+                engagement_id, deal_name, entities, demo_mode, now,
+            )
+        else:
+            return self._create_classic_engagement(
+                engagement_id, deal_name, entities, demo_mode, now,
+            )
+
+    def _create_pre_deal_engagement(
+        self,
+        engagement_id: str,
+        deal_name: str,
+        entities: list[dict[str, str]],
+        demo_mode: bool,
+        now: str,
+    ) -> dict[str, Any]:
+        """Create a pre-deal engagement with prework pipeline."""
+        # Run prework — load seed data for both entities
+        pre_deal_context = self._run_prework(entities, demo_mode)
+
+        phase = EngagementPhase.PREWORK_COMPLETE
+
         engagement = MaestraEngagement(
             engagement_id=engagement_id,
             deal_name=deal_name,
+            mode=EngagementMode.PRE_DEAL,
+            phase=phase,
+            entities=entities,
+            pre_deal_context=pre_deal_context,
+            created_at=now,
+            updated_at=now,
+        )
+
+        # Save engagement
+        self._persistence.save_engagement({
+            "engagement_id": engagement_id,
+            "deal_name": deal_name,
+            "mode": EngagementMode.PRE_DEAL.value,
+            "phase": phase.value,
+            "entities": entities,
+            "objects_in_scope": engagement.objects_in_scope,
+            "session_ids": [],
+            "stakeholder_map": engagement.stakeholder_map,
+            "timeline": engagement.timeline,
+            "pre_deal_context": pre_deal_context.model_dump(),
+            "created_at": now,
+            "updated_at": now,
+        })
+
+        # Create single unified session for pre-deal interview
+        pd_section_statuses = {
+            "PDC": SectionStatus.NOT_STARTED.value,
+            "PDA": SectionStatus.NOT_STARTED.value,
+            "PDT": SectionStatus.NOT_STARTED.value,
+            "PDS": SectionStatus.NOT_STARTED.value,
+            "PDR": SectionStatus.NOT_STARTED.value,
+            "PDF": SectionStatus.NOT_STARTED.value,
+        }
+
+        session_id = str(uuid.uuid4())
+        self._persistence.save_session({
+            "session_id": session_id,
+            "engagement_id": engagement_id,
+            "entity_id": "combined",
+            "status": SessionStatus.READY.value,
+            "current_section": SectionId.PDC.value,
+            "section_statuses": pd_section_statuses,
+            "contour_map": ContourMap().model_dump(),
+            "intel_brief": None,
+            "demo_phase": None,
+            "customer_name": deal_name,
+            "stakeholder_name": "Deal Team" if not demo_mode else "Jordan Chen",
+            "stakeholder_role": "Deal Lead" if not demo_mode else "VP of Data",
+            "created_at": now,
+            "updated_at": now,
+        })
+
+        # Update engagement with session ID
+        self._persistence.save_engagement({
+            "engagement_id": engagement_id,
+            "deal_name": deal_name,
+            "mode": EngagementMode.PRE_DEAL.value,
+            "phase": phase.value,
+            "entities": entities,
+            "objects_in_scope": engagement.objects_in_scope,
+            "session_ids": [session_id],
+            "stakeholder_map": engagement.stakeholder_map,
+            "timeline": engagement.timeline,
+            "pre_deal_context": pre_deal_context.model_dump(),
+            "created_at": now,
+            "updated_at": now,
+        })
+
+        return {
+            "engagement_id": engagement_id,
+            "deal_name": deal_name,
+            "mode": EngagementMode.PRE_DEAL.value,
+            "phase": phase.value,
+            "workstreams": len(engagement.objects_in_scope),
+            "risks": 0,
+            "session_ids": [session_id],
+            "entities": entities,
+            "prework_complete": True,
+        }
+
+    def _create_classic_engagement(
+        self,
+        engagement_id: str,
+        deal_name: str,
+        entities: list[dict[str, str]],
+        demo_mode: bool,
+        now: str,
+    ) -> dict[str, Any]:
+        """Create a classic per-entity engagement."""
+        engagement = MaestraEngagement(
+            engagement_id=engagement_id,
+            deal_name=deal_name,
+            mode=EngagementMode.CLASSIC,
             entities=entities,
             created_at=now,
             updated_at=now,
@@ -120,6 +241,7 @@ class ConversationService:
         self._persistence.save_engagement({
             "engagement_id": engagement_id,
             "deal_name": deal_name,
+            "mode": EngagementMode.CLASSIC.value,
             "phase": engagement.phase.value,
             "entities": entities,
             "objects_in_scope": engagement.objects_in_scope,
@@ -130,7 +252,6 @@ class ConversationService:
             "updated_at": now,
         })
 
-        # Now create per-entity sessions
         session_ids = []
         for entity in entities:
             session = MaestraSession(
@@ -161,11 +282,11 @@ class ConversationService:
                 "updated_at": session.updated_at,
             })
 
-        # Update engagement with session IDs
         engagement.session_ids = session_ids
         self._persistence.save_engagement({
             "engagement_id": engagement_id,
             "deal_name": deal_name,
+            "mode": EngagementMode.CLASSIC.value,
             "phase": engagement.phase.value,
             "entities": entities,
             "objects_in_scope": engagement.objects_in_scope,
@@ -179,12 +300,49 @@ class ConversationService:
         return {
             "engagement_id": engagement_id,
             "deal_name": deal_name,
+            "mode": EngagementMode.CLASSIC.value,
             "phase": engagement.phase.value,
             "workstreams": len(engagement.objects_in_scope),
             "risks": 0,
             "session_ids": session_ids,
             "entities": entities,
         }
+
+    def _run_prework(
+        self,
+        entities: list[dict[str, str]],
+        demo_mode: bool,
+    ) -> PreDealContext:
+        """
+        Run prework pipeline — load all available data into engagement context.
+
+        In demo mode: loads seed data for Meridian and Cascadia.
+        In production: would ingest public filings, parse term sheet, run AOD/AAM.
+        """
+        from src.nlq.maestra.seed_data import get_cascadia_intel, get_meridian_intel
+
+        ctx = PreDealContext()
+
+        # Load entity intel briefs
+        ctx.acquirer_intel = get_meridian_intel()
+        ctx.target_intel = get_cascadia_intel()
+
+        # Load system data
+        systems_data = self._lookup_system_data("systems")
+        all_systems = systems_data.get("systems", [])
+        ctx.acquirer_systems = [s for s in all_systems if s.get("entity") == "Meridian"]
+        ctx.target_systems = [s for s in all_systems if s.get("entity") == "Cascadia"]
+
+        # Load connections
+        connections_data = self._lookup_system_data("connections")
+        ctx.system_connections = connections_data.get("connections", [])
+
+        ctx.prework_complete = True
+
+        logger.info("Prework complete: loaded intel briefs, %d systems, %d connections",
+                     len(all_systems), len(ctx.system_connections))
+
+        return ctx
 
     # =========================================================================
     # PUBLIC: SEND MESSAGE
@@ -222,6 +380,16 @@ class ConversationService:
         intel_brief_data = session.get("intel_brief")
         intel_brief = IntelBrief(**intel_brief_data) if intel_brief_data else None
 
+        # Load pre-deal context if in pre-deal mode
+        pre_deal_context = None
+        is_pre_deal = current_section.value.startswith("PD")
+        if is_pre_deal:
+            eng = self._persistence.get_engagement(engagement_id)
+            if eng:
+                pdc_data = eng.get("pre_deal_context")
+                if pdc_data:
+                    pre_deal_context = PreDealContext(**pdc_data)
+
         # Save stakeholder message
         sid = session["session_id"]
         self._persistence.save_message({
@@ -247,6 +415,7 @@ class ConversationService:
             intel_brief=intel_brief,
             demo_phase=demo_phase,
             interview_section=current_section if demo_phase == DemoPhase.PHASE_4_ONBOARDING else None,
+            pre_deal_context=pre_deal_context,
         )
 
         # Call Claude with tools
@@ -266,9 +435,13 @@ class ConversationService:
             section_statuses = new_state.section_statuses
             session_status = new_state.status.value
 
-            # Advance demo phase if in demo mode
+            # Advance demo phase if in classic demo mode
             if demo_phase and state_action.type == ActionType.ADVANCE:
                 demo_phase = _next_demo_phase(demo_phase)
+
+            # Update engagement phase for pre-deal mode
+            if is_pre_deal and state_action.type == ActionType.ADVANCE:
+                self._update_engagement_phase(engagement_id, current_section, pre_deal_context)
         else:
             session_status = "IN_PROGRESS"
 
@@ -322,7 +495,7 @@ class ConversationService:
             "rich_content": display_content,
             "actions_taken": actions_taken,
             "suggestions": suggestions,
-            "phase": demo_phase.value if demo_phase else session_status,
+            "phase": self._get_phase_label(engagement_id, demo_phase, session_status, is_pre_deal),
             "section": current_section.value,
             "completeness": completeness,
             "navigation": navigation,
@@ -602,6 +775,13 @@ class ConversationService:
                 )
                 action = f"Queried {tool_input.get('engine')} engine"
 
+            elif tool_name == "configure_scope":
+                result = process_configure_scope(
+                    tool_input.get("deliverable_selections"),
+                    tool_input.get("confirmed", False),
+                )
+                action = f"Configured DD scope (confirmed={tool_input.get('confirmed', False)})"
+
             else:
                 result = {"error": f"Unknown tool: {tool_name}"}
 
@@ -713,6 +893,47 @@ class ConversationService:
 
         return {"success": True, "query_type": query_type, "data": "No data available."}
 
+    def _update_engagement_phase(
+        self,
+        engagement_id: str,
+        current_section: SectionId,
+        pre_deal_context: PreDealContext | None,
+    ) -> None:
+        """Update engagement phase based on pre-deal section transitions."""
+        phase_map = {
+            SectionId.PDC: EngagementPhase.SCOPING,
+            SectionId.PDA: EngagementPhase.SCOPING,
+            SectionId.PDT: EngagementPhase.SCOPING,
+            SectionId.PDS: EngagementPhase.SCOPING,
+            SectionId.PDR: EngagementPhase.ANALYSIS_RUNNING,
+            SectionId.PDF: EngagementPhase.FINDINGS,
+        }
+        new_phase = phase_map.get(current_section)
+        if not new_phase:
+            return
+
+        eng = self._persistence.get_engagement(engagement_id)
+        if eng:
+            eng["phase"] = new_phase.value
+            eng["updated_at"] = datetime.utcnow().isoformat()
+            self._persistence.save_engagement(eng)
+
+    def _get_phase_label(
+        self,
+        engagement_id: str,
+        demo_phase: DemoPhase | None,
+        session_status: str,
+        is_pre_deal: bool,
+    ) -> str:
+        """Get the phase label for the response."""
+        if demo_phase:
+            return demo_phase.value
+        if is_pre_deal:
+            eng = self._persistence.get_engagement(engagement_id)
+            if eng:
+                return eng.get("phase", session_status)
+        return session_status
+
     def _build_suggestions(
         self,
         current_section: SectionId,
@@ -735,6 +956,19 @@ class ConversationService:
                 DemoPhase.PHASE_9_NEXT_STEPS: ["What's the timeline?", "How does ongoing monitoring work?"],
             }
             return phase_suggestions.get(demo_phase, [])
+
+        # Pre-deal suggestions
+        pd_suggestions = {
+            SectionId.PDC: ["That's correct", "Close date is Q2", "Main concern is system integration"],
+            SectionId.PDA: ["That looks right", "We also have a subsidiary in London", "Move on"],
+            SectionId.PDT: ["We have limited access to their data", "That matches what we know"],
+            SectionId.PDS: ["Run it all", "Skip portfolio rationalization", "Looks good, confirm"],
+            SectionId.PDR: [],  # automatic
+            SectionId.PDF: ["Show me the cross-sell details", "Walk me through the bridge", "What about vendor overlap?"],
+        }
+
+        if current_section in pd_suggestions:
+            return pd_suggestions[current_section]
 
         section_suggestions = {
             SectionId.S1: ["Here's how we're organized", "We have three main divisions"],

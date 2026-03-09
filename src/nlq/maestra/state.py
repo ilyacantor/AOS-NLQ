@@ -25,8 +25,14 @@ logger = logging.getLogger(__name__)
 # Section ordering: 0A/0B are automated, 1-5 are interview, 6-7 are Convergence
 SECTION_ORDER: list[str] = ["0A", "0B", "1", "2", "3", "4", "5", "6", "7"]
 
+# Pre-deal section ordering
+PRE_DEAL_SECTION_ORDER: list[str] = ["PDC", "PDA", "PDT", "PDS", "PDR", "PDF"]
+
 # Only interview sections count toward completion percentage
 INTERVIEW_SECTIONS: list[str] = ["1", "2", "3", "4", "5"]
+
+# Pre-deal interview sections (PDR is automatic, PDF is presentation)
+PRE_DEAL_INTERVIEW_SECTIONS: list[str] = ["PDC", "PDA", "PDT", "PDS"]
 
 
 class ActionType(str, Enum):
@@ -109,12 +115,18 @@ def reduce_state(state: ConversationState, action: StateAction) -> ConversationS
 
 
 def calculate_completion_pct(section_statuses: dict[str, str]) -> int:
-    """Calculate interview completion as percentage (sections 1-5 only)."""
+    """Calculate interview completion as percentage."""
+    # Detect pre-deal mode by checking for PDC section
+    if "PDC" in section_statuses:
+        sections = PRE_DEAL_INTERVIEW_SECTIONS
+    else:
+        sections = INTERVIEW_SECTIONS
+
     completed = sum(
-        1 for s in INTERVIEW_SECTIONS
+        1 for s in sections
         if section_statuses.get(s) == SectionStatus.COMPLETE.value
     )
-    return round((completed / len(INTERVIEW_SECTIONS)) * 100)
+    return round((completed / len(sections)) * 100) if sections else 0
 
 
 def _find_next_section(
@@ -122,13 +134,16 @@ def _find_next_section(
     current: str,
 ) -> str | None:
     """Find next NOT_STARTED or IN_PROGRESS section after current."""
+    # Determine which section order to use
+    order = PRE_DEAL_SECTION_ORDER if current in PRE_DEAL_SECTION_ORDER else SECTION_ORDER
+
     try:
-        idx = SECTION_ORDER.index(current)
+        idx = order.index(current)
     except ValueError:
         return None
 
-    for i in range(idx + 1, len(SECTION_ORDER)):
-        section = SECTION_ORDER[i]
+    for i in range(idx + 1, len(order)):
+        section = order[i]
         status = section_statuses.get(section)
         if status in (SectionStatus.NOT_STARTED.value, SectionStatus.IN_PROGRESS.value):
             return section

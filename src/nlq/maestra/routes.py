@@ -35,6 +35,7 @@ class EngageRequest(BaseModel):
     deal_name: str = "Meridian-Cascadia Integration"
     entities: list[dict[str, str]] | None = None
     demo_mode: bool = True
+    mode: str = "pre_deal"  # "pre_deal" or "classic"
 
 
 class MessageRequest(BaseModel):
@@ -55,6 +56,7 @@ async def create_engagement(req: EngageRequest = EngageRequest()):
             deal_name=req.deal_name,
             entities=req.entities,
             demo_mode=req.demo_mode,
+            mode=req.mode,
         )
         return result
     except ValueError as e:

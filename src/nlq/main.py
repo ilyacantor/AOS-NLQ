@@ -100,6 +100,18 @@ async def startup_event():
     import asyncio
     logger.info("Starting AOS-NLQ server...")
 
+    # Log external service URLs so missing vars are immediately visible in deploy logs
+    _farm_url = os.environ.get("FARM_URL")
+    _dcl_url = os.environ.get("DCL_API_URL")
+    if _farm_url:
+        logger.info(f"FARM_URL = {_farm_url}")
+    else:
+        logger.error("FARM_URL is NOT SET — reconciliation endpoints will fail")
+    if _dcl_url:
+        logger.info(f"DCL_API_URL = {_dcl_url}")
+    else:
+        logger.error("DCL_API_URL is NOT SET — DCL queries will fail")
+
     init_call_counter(persist=False)
 
     asyncio.create_task(_deferred_init())
