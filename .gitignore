@@ -44,6 +44,7 @@ node_modules/
 npm-debug.log
 
 # Build
+dist/
 *.log
 
 # Local config (keep .env.example)
