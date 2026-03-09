@@ -1,17 +1,12 @@
 services:
   - type: web
     name: aos-nlq
-    runtime: python
+    runtime: docker
     plan: free
     region: oregon
     branch: dev
-    buildCommand: bash build.sh
-    startCommand: uvicorn src.nlq.main:app --host 0.0.0.0 --port $PORT
+    dockerfilePath: ./Dockerfile
     envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.11"
-      - key: NODE_VERSION
-        value: "20"
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: DCL_API_URL

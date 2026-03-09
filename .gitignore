@@ -45,7 +45,6 @@ npm-debug.log
 
 # Build
 dist/
-src/nlq/_dist/
 *.log
 
 # Local config (keep .env.example)
