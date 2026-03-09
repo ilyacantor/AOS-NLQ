@@ -4545,7 +4545,14 @@ async def reconciliation():
         _extract_expected_value,
     )
 
-    dcl_url = os.environ.get("DCL_URL", "http://localhost:8004")
+    dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+    if not dcl_url:
+        raise HTTPException(
+            status_code=503,
+            detail="DCL_API_URL environment variable is not set. "
+                   "Reconciliation requires a live DCL backend. "
+                   "Set DCL_API_URL to the DCL service URL (e.g. https://aos-dclv2.onrender.com).",
+        )
 
     # Use a shared httpx client for connection pooling across all queries
     client = httpx.Client(timeout=30, limits=httpx.Limits(max_connections=64, max_keepalive_connections=32))
@@ -4588,13 +4595,13 @@ async def reconciliation():
     gt = engine._get_ground_truth()
     if gt is None:
         client.close()
-        farm_url = os.environ.get("FARM_URL", "http://localhost:8003")
+        farm_url = os.environ.get("FARM_URL", "")
         raise HTTPException(
             status_code=502,
             detail=(
                 f"Reconciliation aborted: could not load ground truth from "
-                f"Farm API at {farm_url} or local fallback. "
-                f"Ensure Farm is running and /api/ground-truth is reachable."
+                f"Farm API at {farm_url or '(FARM_URL not set)'} or local fallback. "
+                f"Ensure FARM_URL is set and Farm's /api/ground-truth is reachable."
             ),
         )
 
@@ -4763,7 +4770,14 @@ async def drill_through(
     """
     import httpx
 
-    dcl_url = os.environ.get("DCL_URL", "http://localhost:8004")
+    dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+    if not dcl_url:
+        raise HTTPException(
+            status_code=503,
+            detail="DCL_API_URL environment variable is not set. "
+                   "Drill-through requires a live DCL backend. "
+                   "Set DCL_API_URL to the DCL service URL (e.g. https://aos-dclv2.onrender.com).",
+        )
     params = {"level": level}
     if parent:
         params["parent"] = parent

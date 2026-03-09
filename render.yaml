@@ -38,5 +38,7 @@ services:
         value: "0.92"
       - key: CACHE_THRESHOLD_PARTIAL
         value: "0.85"
+      - key: FARM_URL
+        value: "https://farmv2.onrender.com"
       - key: AOS_TENANT_ID
         value: "00000000-0000-0000-0000-000000000001"

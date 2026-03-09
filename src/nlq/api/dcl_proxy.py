@@ -20,15 +20,24 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["DCL Proxy"])
 
-DCL_BASE_URL = (
-    os.environ.get("DCL_API_URL", "").rstrip("/")
-    or "http://localhost:8004"
-)
+DCL_BASE_URL = os.environ.get("DCL_API_URL", "").rstrip("/")
+if not DCL_BASE_URL:
+    logger.error(
+        "DCL_API_URL environment variable is not set. "
+        "DCL report proxy will fail on all requests. "
+        "Set DCL_API_URL to the DCL service URL (e.g. https://aos-dclv2.onrender.com)."
+    )
 
 
 @router.get("/api/reports/{path:path}")
 async def proxy_dcl_report_get(path: str, request: Request):
     """Forward GET /api/reports/* to DCL backend."""
+    if not DCL_BASE_URL:
+        raise HTTPException(
+            status_code=503,
+            detail="DCL_API_URL environment variable is not set. "
+                   "Cannot proxy report requests to DCL.",
+        )
     dcl_url = f"{DCL_BASE_URL}/api/reports/{path}"
     if request.query_params:
         dcl_url += f"?{request.query_params}"
@@ -62,6 +71,12 @@ async def proxy_dcl_report_get(path: str, request: Request):
 @router.post("/api/reports/{path:path}")
 async def proxy_dcl_report_post(path: str, request: Request):
     """Forward POST /api/reports/* to DCL backend (what-if, maestra)."""
+    if not DCL_BASE_URL:
+        raise HTTPException(
+            status_code=503,
+            detail="DCL_API_URL environment variable is not set. "
+                   "Cannot proxy report requests to DCL.",
+        )
     dcl_url = f"{DCL_BASE_URL}/api/reports/{path}"
 
     body = await request.body()

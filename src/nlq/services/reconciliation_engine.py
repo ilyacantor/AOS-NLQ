@@ -133,7 +133,13 @@ class ReconciliationEngine:
     ):
         self.query_fn = query_fn
         self._ground_truth = ground_truth
-        self._farm_url = farm_url or os.environ.get("FARM_URL", "http://localhost:8003")
+        self._farm_url = farm_url or os.environ.get("FARM_URL", "")
+        if not self._farm_url:
+            logger.warning(
+                "FARM_URL environment variable is not set. "
+                "Ground truth loading from Farm API will fail. "
+                "Set FARM_URL to the Farm service URL (e.g. https://farmv2.onrender.com)."
+            )
         self.tolerance_pct = tolerance_pct
 
     # ── Public API ────────────────────────────────────────────────────────────
