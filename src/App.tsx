@@ -396,6 +396,52 @@ function App() {
     setHistoryVersion(v => v + 1)
   }, [sessionId, selectedPersona])
 
+  // ── Parent iframe communication ────────────────────────────────────
+  // Listens for postMessage commands from the AOS platform shell.
+  // Supported actions:
+  //   { action: 'navigateTo', tab: 'galaxy' | 'dashboard' | 'reports' | 'guide' }
+  //   { action: 'setPersona', persona: 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO' }
+  //   { action: 'submitQuery', query: '...' }
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const data = event.data
+      if (!data || typeof data !== 'object' || !data.action) return
+
+      console.log('[NLQ] postMessage received:', data)
+
+      switch (data.action) {
+        case 'navigateTo': {
+          const validTabs: ViewMode[] = ['galaxy', 'dashboard', 'guide', 'reports']
+          if (validTabs.includes(data.tab)) {
+            setViewMode(data.tab as ViewMode)
+          } else {
+            console.warn(`[NLQ] Unknown tab: ${data.tab}`)
+          }
+          break
+        }
+        case 'setPersona': {
+          const validPersonas: Persona[] = ['CFO', 'CRO', 'COO', 'CTO', 'CHRO']
+          if (validPersonas.includes(data.persona)) {
+            setSelectedPersona(data.persona as Persona)
+          }
+          break
+        }
+        case 'submitQuery': {
+          if (typeof data.query === 'string' && data.query.trim()) {
+            setViewMode('galaxy')
+            submitQuery(data.query)
+          }
+          break
+        }
+        default:
+          console.log(`[NLQ] Unknown action: ${data.action}`)
+      }
+    }
+
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [submitQuery])
+
   // Handle persona selection - submit persona dashboard query through unified endpoint
   const handlePersonaSelect = useCallback((persona: Persona) => {
     setSelectedPersona(persona)
