@@ -2369,13 +2369,107 @@ function DashboardsTab() {
 // MAESTRA TAB
 // ============================================================
 
+// ── Rich Content Renderers ──────────────────────────────────────────────
+function InlineTable({ title, headers, rows }: { title?: string; headers?: string[]; rows?: string[][] }) {
+  if (!headers || !rows) return null;
+  return (
+    <div style={{ margin: "8px 0", borderRadius: 6, overflow: "hidden", border: `1px solid ${COLORS.border}` }}>
+      {title && <div style={{ padding: "6px 10px", fontSize: 11, fontWeight: 600, color: COLORS.accent, background: COLORS.headerBg, borderBottom: `1px solid ${COLORS.border}`, fontFamily: "'JetBrains Mono',monospace" }}>{title}</div>}
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+        <thead>
+          <tr>{headers.map((h, i) => <th key={i} style={{ padding: "6px 10px", textAlign: "left", color: COLORS.textMuted, borderBottom: `1px solid ${COLORS.border}`, fontWeight: 600, background: COLORS.headerBg }}>{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {rows.map((row, ri) => (
+            <tr key={ri} style={{ background: ri % 2 === 0 ? "transparent" : COLORS.totalBg }}>
+              {row.map((cell, ci) => <td key={ci} style={{ padding: "5px 10px", color: COLORS.text, borderBottom: `1px solid ${COLORS.border}22` }}>{cell}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function HierarchyNodeView({ node, depth = 0 }: { node: { name: string; children?: any[] }; depth?: number }) {
+  const [expanded, setExpanded] = useState(depth < 2);
+  const hasChildren = node.children && node.children.length > 0;
+  return (
+    <div style={{ marginLeft: depth * 16 }}>
+      <div
+        onClick={() => hasChildren && setExpanded(!expanded)}
+        style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 0", cursor: hasChildren ? "pointer" : "default", fontSize: 12, color: COLORS.text }}
+      >
+        <span style={{ width: 14, textAlign: "center", color: COLORS.textDim, fontSize: 10 }}>{hasChildren ? (expanded ? "\u25BC" : "\u25B6") : "\u2022"}</span>
+        <span>{node.name}</span>
+      </div>
+      {expanded && hasChildren && node.children!.map((child: any, i: number) => (
+        <HierarchyNodeView key={i} node={child} depth={depth + 1} />
+      ))}
+    </div>
+  );
+}
+
+function InlineHierarchy({ title, root }: { title?: string; root?: { name: string; children?: any[] } }) {
+  if (!root) return null;
+  return (
+    <div style={{ margin: "8px 0", padding: "8px 12px", borderRadius: 6, border: `1px solid ${COLORS.border}`, background: COLORS.bg }}>
+      {title && <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, marginBottom: 6, fontFamily: "'JetBrains Mono',monospace" }}>{title}</div>}
+      <HierarchyNodeView node={root} />
+    </div>
+  );
+}
+
+function InlineComparison({ dimension, systems }: { dimension?: string; systems?: { system: string; value: string; is_match?: boolean }[] }) {
+  if (!systems) return null;
+  return (
+    <div style={{ margin: "8px 0", borderRadius: 6, overflow: "hidden", border: `1px solid ${COLORS.border}` }}>
+      {dimension && <div style={{ padding: "6px 10px", fontSize: 11, fontWeight: 600, color: COLORS.accent, background: COLORS.headerBg, borderBottom: `1px solid ${COLORS.border}`, fontFamily: "'JetBrains Mono',monospace" }}>Comparison: {dimension}</div>}
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${systems.length}, 1fr)`, gap: 0 }}>
+        {systems.map((s, i) => (
+          <div key={i} style={{
+            padding: "8px 12px", textAlign: "center",
+            borderRight: i < systems.length - 1 ? `1px solid ${COLORS.border}` : "none",
+            background: s.is_match === false ? COLORS.redBg : s.is_match === true ? COLORS.greenBg : "transparent",
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.textMuted, marginBottom: 4 }}>{s.system}</div>
+            <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 600 }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RichContentRenderer({ content }: { content: any }) {
+  if (!content || !content.type) return null;
+  switch (content.type) {
+    case "table": return <InlineTable title={content.title} headers={content.headers} rows={content.rows} />;
+    case "hierarchy": return <InlineHierarchy title={content.title} root={content.root} />;
+    case "comparison": return <InlineComparison dimension={content.dimension} systems={content.systems} />;
+    default: return null;
+  }
+}
+
+// ── Maestra Tab ────────────────────────────────────────────────────────────
+type ChatMsg = { role: "user" | "maestra"; text: string; richContent?: any[]; nav?: string; completeness?: number };
+
 function MaestraTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const [engagementId, setEngagementId] = useState<string | null>(null);
   const [status, setStatus] = useState<MaestraStatus | null>(null);
-  const [messages, setMessages] = useState<{ role: "user" | "maestra"; text: string; nav?: string }[]>([]);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [completeness, setCompleteness] = useState(0);
+  const chatEndRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = useCallback(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  useEffect(() => { scrollToBottom(); }, [messages, loading]);
 
   const startEngagement = useCallback(async () => {
     setLoading(true);
@@ -2383,7 +2477,8 @@ function MaestraTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
     try {
       const eng = await createMaestraEngagement();
       setEngagementId(eng.engagement_id);
-      setMessages([{ role: "maestra", text: `Engagement created: ${eng.deal_name}. Phase: ${eng.phase}. ${eng.workstreams} workstreams, ${eng.risks} risks identified. How can I help?` }]);
+      setMessages([{ role: "maestra", text: `Engagement created: ${eng.deal_name}. Phase: ${eng.phase}. ${eng.workstreams} workstreams active. How can I help?` }]);
+      setSuggestions(["Tell me about the deal", "Show me the discovered systems", "Walk me through the org structure"]);
       const st = await fetchMaestraStatus(eng.engagement_id);
       setStatus(st);
     } catch (err) {
@@ -2393,17 +2488,32 @@ function MaestraTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
     }
   }, []);
 
-  const sendMessage = useCallback(async () => {
-    if (!engagementId || !input.trim()) return;
-    const msg = input.trim();
+  const sendMessage = useCallback(async (overrideMsg?: string) => {
+    const msg = (overrideMsg || input).trim();
+    if (!engagementId || !msg) return;
     setInput("");
+    setSuggestions([]);
     setMessages((prev) => [...prev, { role: "user", text: msg }]);
     setLoading(true);
     try {
       const resp = await sendMaestraMessage(engagementId, msg);
-      setMessages((prev) => [...prev, { role: "maestra", text: resp.response }]);
+      const newMsg: ChatMsg = {
+        role: "maestra",
+        text: resp.response,
+        richContent: resp.rich_content,
+        completeness: resp.completeness,
+      };
+      setMessages((prev) => [...prev, newMsg]);
+
+      if (resp.completeness !== undefined) setCompleteness(resp.completeness);
+      if (resp.suggestions) setSuggestions(resp.suggestions);
+
       if (resp.navigation && onNavigate) {
-        setMessages((prev) => [...prev, { role: "maestra", text: `📎 View in portal → ${resp.navigation!.tab.toUpperCase()} tab`, nav: resp.navigation!.tab }]);
+        setMessages((prev) => [...prev, {
+          role: "maestra",
+          text: `View in portal: ${resp.navigation!.tab.toUpperCase()} tab`,
+          nav: resp.navigation!.tab,
+        }]);
       }
       const st = await fetchMaestraStatus(engagementId);
       setStatus(st);
@@ -2412,7 +2522,7 @@ function MaestraTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
     } finally {
       setLoading(false);
     }
-  }, [engagementId, input]);
+  }, [engagementId, input, onNavigate]);
 
   if (!engagementId) {
     return (
@@ -2433,8 +2543,15 @@ function MaestraTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
     <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, height: "65vh" }}>
       {/* Chat */}
       <div style={{ display: "flex", flexDirection: "column", background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-        <div style={{ padding: "10px 16px", borderBottom: `1px solid ${COLORS.border}`, fontSize: 12, fontWeight: 600, color: COLORS.accent, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "'JetBrains Mono',monospace" }}>
-          Maestra Chat — {status?.phase || "..."}
+        <div style={{ padding: "10px 16px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "'JetBrains Mono',monospace" }}>
+            Maestra Chat — {status?.phase || "..."}
+          </span>
+          {completeness > 0 && (
+            <span style={{ fontSize: 11, color: COLORS.textMuted, fontFamily: "'JetBrains Mono',monospace" }}>
+              Contour: <span style={{ color: completeness >= 70 ? COLORS.green : completeness >= 40 ? COLORS.accent : COLORS.textDim, fontWeight: 600 }}>{completeness}%</span>
+            </span>
+          )}
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
           {messages.map((m, i) => (
@@ -2447,17 +2564,46 @@ function MaestraTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
                   fontFamily: "'IBM Plex Sans',sans-serif",
                 }}>{m.text}</button>
               ) : (
-                <div style={{
-                  display: "inline-block", maxWidth: "80%", padding: "8px 14px", borderRadius: 8,
-                  background: m.role === "user" ? "rgba(199,120,64,0.12)" : COLORS.bg,
-                  color: COLORS.text, fontSize: 13, fontFamily: "'IBM Plex Sans',sans-serif", lineHeight: 1.5,
-                  textAlign: "left", whiteSpace: "pre-wrap",
-                }}>{m.text}</div>
+                <>
+                  <div style={{
+                    display: "inline-block", maxWidth: "85%", padding: "8px 14px", borderRadius: 8,
+                    background: m.role === "user" ? "rgba(199,120,64,0.12)" : COLORS.bg,
+                    color: COLORS.text, fontSize: 13, fontFamily: "'IBM Plex Sans',sans-serif", lineHeight: 1.5,
+                    textAlign: "left", whiteSpace: "pre-wrap",
+                  }}>{m.text}</div>
+                  {m.richContent && m.richContent.length > 0 && (
+                    <div style={{ maxWidth: "85%", display: "inline-block", width: "100%" }}>
+                      {m.richContent.map((rc: any, j: number) => <RichContentRenderer key={j} content={rc} />)}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ))}
-          {loading && <div style={{ fontSize: 12, color: COLORS.textDim, fontStyle: "italic" }}>Maestra is thinking...</div>}
+          {loading && (
+            <div style={{ fontSize: 12, color: COLORS.textDim, fontStyle: "italic", display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ display: "inline-flex", gap: 3 }}>
+                {[0, 1, 2].map(d => <span key={d} style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.accent, animation: `bounce 1.4s ${d * 0.16}s infinite ease-in-out both` }} />)}
+              </span>
+              Maestra is thinking...
+            </div>
+          )}
+          <div ref={chatEndRef} />
         </div>
+
+        {/* Suggestions */}
+        {suggestions.length > 0 && !loading && (
+          <div style={{ padding: "6px 12px", borderTop: `1px solid ${COLORS.border}22`, display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {suggestions.map((s, i) => (
+              <button key={i} onClick={() => sendMessage(s)} style={{
+                padding: "4px 10px", fontSize: 11, borderRadius: 12, cursor: "pointer",
+                background: COLORS.bg, color: COLORS.textMuted, border: `1px solid ${COLORS.border}`,
+                fontFamily: "'IBM Plex Sans',sans-serif",
+              }}>{s}</button>
+            ))}
+          </div>
+        )}
+
         <div style={{ padding: "10px 12px", borderTop: `1px solid ${COLORS.border}`, display: "flex", gap: 8 }}>
           <input
             value={input}
@@ -2470,7 +2616,7 @@ function MaestraTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
               fontFamily: "'IBM Plex Sans',sans-serif",
             }}
           />
-          <button onClick={sendMessage} disabled={loading || !input.trim()} style={{
+          <button onClick={() => sendMessage()} disabled={loading || !input.trim()} style={{
             padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer",
             background: COLORS.accent, color: "#fff", border: "none", borderRadius: 6,
             opacity: loading || !input.trim() ? 0.5 : 1,
@@ -2496,15 +2642,33 @@ function MaestraTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
               <span style={{ color: COLORS.textDim }}>Synergy Realized:</span> <span style={{ color: COLORS.text, fontWeight: 600 }}>{status.synergy_realization_pct}%</span>
             </div>
 
-            <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.accent, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>Workstreams</div>
+            {/* Contour Completeness */}
+            {status.entity_completeness && Object.keys(status.entity_completeness).length > 0 && (
+              <>
+                <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.accent, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>Contour Maps</div>
+                {Object.entries(status.entity_completeness).map(([entity, score]) => (
+                  <div key={entity} style={{ marginBottom: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.text }}>
+                      <span style={{ textTransform: "capitalize" }}>{entity}</span>
+                      <span style={{ fontWeight: 600, color: (score as number) >= 70 ? COLORS.green : (score as number) >= 40 ? COLORS.accent : COLORS.textDim }}>{score}%</span>
+                    </div>
+                    <div style={{ height: 3, background: COLORS.bg, borderRadius: 2, marginTop: 3 }}>
+                      <div style={{ height: 3, borderRadius: 2, width: `${score}%`, background: (score as number) >= 70 ? COLORS.green : COLORS.accent }} />
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.accent, marginBottom: 8, marginTop: 12, textTransform: "uppercase", letterSpacing: "0.06em" }}>Workstreams</div>
             {status.workstream_summary.map((ws) => (
               <div key={ws.name} style={{ marginBottom: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>
                   <span>{ws.name}</span>
-                  <span style={{ fontWeight: 600, color: ws.status === "complete" ? COLORS.green : ws.status === "in_progress" ? COLORS.accent : COLORS.textDim }}>{ws.progress_pct}%</span>
+                  <span style={{ fontWeight: 600, color: ws.status === "complete" || ws.status === "COMPLETE" ? COLORS.green : ws.status === "in_progress" || ws.status === "IN_PROGRESS" ? COLORS.accent : COLORS.textDim }}>{ws.progress_pct}%</span>
                 </div>
                 <div style={{ height: 3, background: COLORS.bg, borderRadius: 2, marginTop: 3 }}>
-                  <div style={{ height: 3, borderRadius: 2, width: `${ws.progress_pct}%`, background: ws.status === "complete" ? COLORS.green : COLORS.accent }} />
+                  <div style={{ height: 3, borderRadius: 2, width: `${ws.progress_pct}%`, background: ws.status === "complete" || ws.status === "COMPLETE" ? COLORS.green : COLORS.accent }} />
                 </div>
               </div>
             ))}

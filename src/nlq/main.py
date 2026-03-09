@@ -26,6 +26,7 @@ from src.nlq.api.eval import router as eval_router
 from src.nlq.api.export_routes import router as export_router
 from src.nlq.dcl.routes import router as dcl_router
 from src.nlq.api.dcl_proxy import router as dcl_proxy_router
+from src.nlq.maestra.routes import router as maestra_router
 from src.nlq.services.query_cache_service import init_cache_service_from_env, get_cache_service
 from src.nlq.services.llm_call_counter import init_call_counter, get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log
@@ -76,8 +77,13 @@ app.include_router(export_router, prefix="/api/v1")
 # Include DCL routes (Data Connectivity Layer - entity resolution, conflicts, provenance)
 app.include_router(dcl_router)
 
+# Maestra routes — native NLQ endpoints for engagement lifecycle.
+# Mounted BEFORE the DCL proxy so /api/reports/maestra/* is handled here.
+app.include_router(maestra_router)
+
 # DCL report proxy — forwards /api/reports/* to DCL backend for combining
 # statements and entity overlap data (portal uses these endpoints).
+# Note: Maestra requests are handled by maestra_router above, not proxied.
 app.include_router(dcl_proxy_router)
 
 # Note: RAG cache service singleton is managed in query_cache_service.py

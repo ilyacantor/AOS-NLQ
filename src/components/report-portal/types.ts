@@ -393,13 +393,39 @@ export interface MaestraEngagement {
   deal_name: string
   workstreams: number
   risks: number
+  session_ids: string[]
+  entities: { id: string; name: string }[]
+}
+
+export interface MaestraRichContent {
+  type: 'table' | 'hierarchy' | 'comparison' | 'navigation'
+  title?: string
+  // table
+  headers?: string[]
+  rows?: string[][]
+  // hierarchy
+  root?: { name: string; children?: MaestraHierarchyNode[] }
+  // comparison
+  dimension?: string
+  systems?: { system: string; value: string; is_match?: boolean }[]
+  // navigation
+  tab?: string
+  entity?: string
+}
+
+export interface MaestraHierarchyNode {
+  name: string
+  children?: MaestraHierarchyNode[]
 }
 
 export interface MaestraMessage {
   response: string
+  rich_content?: MaestraRichContent[]
   actions_taken: string[]
   suggestions: string[]
   phase: string
+  section?: string
+  completeness?: number
   navigation?: { tab: string; sub_view?: string }
 }
 
@@ -412,4 +438,5 @@ export interface MaestraStatus {
   synergy_realization_pct: number
   days_since_start: number
   next_milestones: { workstream: string; milestone: string; target_date: string }[]
+  entity_completeness?: Record<string, number>
 }
