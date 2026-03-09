@@ -226,10 +226,27 @@ async def shutdown_event():
     logger.info("Shutting down AOS-NLQ server...")
 
 # Serve static React build in production
+# Primary: project-root/dist (local dev, Docker builds)
+# Fallback: src/nlq/_dist (Render Python runtime — build.sh copies dist/ here
+#           because Render strips Node artifacts between build and runtime phases)
 DIST_DIR = Path(__file__).parent.parent.parent / "dist"
-if DIST_DIR.exists():
-    app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="static")
+_DIST_FALLBACK = Path(__file__).parent / "_dist"
+
+_static_dir = None
+if DIST_DIR.exists() and (DIST_DIR / "index.html").exists():
+    _static_dir = DIST_DIR
+elif _DIST_FALLBACK.exists() and (_DIST_FALLBACK / "index.html").exists():
+    _static_dir = _DIST_FALLBACK
+    logger.info(f"Using _dist fallback for static files: {_DIST_FALLBACK}")
+
+if _static_dir:
+    app.mount("/", StaticFiles(directory=_static_dir, html=True), name="static")
 else:
+    logger.warning(
+        f"No static frontend found. Checked: {DIST_DIR}, {_DIST_FALLBACK}. "
+        f"Run 'npm run build' or check build.sh output."
+    )
+
     @app.get("/")
     async def root():
         """Root endpoint with API info (dev mode)."""
