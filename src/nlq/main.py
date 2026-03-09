@@ -24,7 +24,6 @@ from src.nlq.api.dashboard_routes import router as dashboard_router
 from src.nlq.api.health import router as health_router
 from src.nlq.api.eval import router as eval_router
 from src.nlq.api.export_routes import router as export_router
-from src.nlq.dcl.routes import router as dcl_router
 from src.nlq.api.dcl_proxy import router as dcl_proxy_router
 from src.nlq.maestra.routes import router as maestra_router
 from src.nlq.services.query_cache_service import init_cache_service_from_env, get_cache_service
@@ -74,9 +73,6 @@ app.include_router(rag_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")
 
-# Include DCL routes (Data Connectivity Layer - entity resolution, conflicts, provenance)
-app.include_router(dcl_router)
-
 # Maestra routes — native NLQ endpoints for engagement lifecycle.
 # Mounted BEFORE the DCL proxy so /api/reports/maestra/* is handled here.
 app.include_router(maestra_router)
@@ -110,7 +106,20 @@ async def startup_event():
     if _dcl_url:
         logger.info(f"DCL_API_URL = {_dcl_url}")
     else:
-        logger.error("DCL_API_URL is NOT SET — DCL queries will fail")
+        _allow_no_dcl = os.environ.get("NLQ_ALLOW_NO_DCL")
+        if _allow_no_dcl:
+            logger.warning(
+                "DCL_API_URL is NOT SET — NLQ_ALLOW_NO_DCL is set, starting in degraded mode. "
+                "Only demo-mode queries with local data will work. "
+                "Set DCL_API_URL to enable real data queries."
+            )
+        else:
+            raise RuntimeError(
+                "FATAL: DCL_API_URL environment variable is not set. "
+                "NLQ requires a DCL endpoint to serve queries. "
+                "Set DCL_API_URL to the DCL service URL (e.g. http://localhost:8004). "
+                "For demo-only mode with local data, set NLQ_ALLOW_NO_DCL=1."
+            )
 
     init_call_counter(persist=False)
 

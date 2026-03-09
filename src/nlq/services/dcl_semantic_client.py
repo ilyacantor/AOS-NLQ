@@ -147,7 +147,7 @@ class DCLSemanticClient:
 
     Mode selection:
     - If DCL_API_URL is set: Fetches from DCL's /api/dcl/semantic-export endpoint
-    - If DCL_API_URL is not set: Uses local fact_base.json (local dev mode)
+    - If DCL_API_URL is not set: Requires NLQ_ALLOW_NO_DCL=1 env var; only demo mode queries work
     """
 
     # Circuit breaker tuning — soft enough for Render cold starts
@@ -180,7 +180,17 @@ class DCLSemanticClient:
         if self.dcl_url:
             logger.info(f"DCL semantic client initialized - DCL mode (endpoint: {self.dcl_url})")
         else:
-            logger.info("DCL semantic client initialized - LOCAL DEV mode (using fact_base.json)")
+            _allow_no_dcl = os.environ.get("NLQ_ALLOW_NO_DCL")
+            if _allow_no_dcl:
+                logger.warning(
+                    "DCL semantic client initialized - NO DCL (NLQ_ALLOW_NO_DCL set). "
+                    "Only explicit demo-mode queries will use local fact_base.json."
+                )
+            else:
+                raise RuntimeError(
+                    "DCL_API_URL is not set and NLQ_ALLOW_NO_DCL is not set. "
+                    "NLQ requires a DCL endpoint. Set DCL_API_URL or NLQ_ALLOW_NO_DCL=1."
+                )
 
     # =========================================================================
     # CIRCUIT BREAKER — protects against repeated DCL failures
@@ -252,18 +262,17 @@ class DCLSemanticClient:
         data_mode = _data_mode_ctx.get()
         diag(f"[NLQ-DIAG] get_catalog called: force_local={force_local}, ctx_force={ctx_force}, dcl_url={self.dcl_url}, data_mode={data_mode}")
 
-        # LIVE MODE guard: only block when DCL IS configured but caller
-        # forces local — that's the silent fallback we must prevent.
-        if data_mode == "live" and self.dcl_url and (force_local or ctx_force):
-            raise RuntimeError(
-                "LIVE MODE FAILURE: force_local requested but data_mode='live' and DCL is configured. "
-                "Cannot use fact_base.json catalog in live mode when DCL is available."
-            )
-
+        # Only explicit demo mode can use local data
         if force_local or ctx_force:
-            catalog = self._build_local_catalog()
-            diag(f"[NLQ-DIAG] get_catalog -> LOCAL ({len(catalog.metrics)} metrics)")
-            return catalog
+            if data_mode == "demo":
+                catalog = self._build_local_catalog()
+                diag(f"[NLQ-DIAG] get_catalog -> LOCAL (demo mode, {len(catalog.metrics)} metrics)")
+                return catalog
+            else:
+                raise RuntimeError(
+                    f"force_local is set but data_mode={data_mode!r} (not 'demo'). "
+                    f"Only explicit demo mode can use local fact_base.json data."
+                )
 
         current_time = time.time()
 
@@ -289,57 +298,45 @@ class DCLSemanticClient:
             except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
                 diag(f"[NLQ-DIAG] DCL catalog fetch FAILED: {type(e).__name__}: {e}")
 
-                # Live mode: always fail loud
-                if data_mode == "live":
+                # Demo mode: fallback to local fact_base is acceptable
+                if data_mode == "demo":
+                    logger.warning(
+                        f"DCL catalog fetch failed: {e} — using local fact_base.json (demo mode)"
+                    )
+                else:
+                    # All non-demo modes (live, ingest, default) must fail loud
                     raise RuntimeError(
-                        f"LIVE MODE FAILURE: DCL catalog fetch failed: {e}. "
-                        f"Cannot fall back to fact_base.json in live mode. "
-                        f"Check DCL_API_URL or DCL service health."
+                        f"DCL FAILURE: catalog fetch failed: {e}. "
+                        f"data_mode={data_mode or 'default'}, dcl_url={self.dcl_url}. "
+                        f"Cannot serve queries without DCL. Check DCL service health."
                     )
 
-                # Ingest mode: fail loud — serving demo data when real data
-                # exists in DCL would show wrong numbers silently
-                if data_mode and data_mode.lower() == "ingest":
-                    raise RuntimeError(
-                        f"INGEST MODE FAILURE: DCL catalog fetch failed: {e}. "
-                        f"Cannot serve queries with stale demo data when real "
-                        f"ingested data exists in DCL. "
-                        f"Check DCL service health at {self.dcl_url}/api/health"
-                    )
-
-                # Demo mode: fallback acceptable (same demo data either way)
-                logger.warning(
-                    f"DCL catalog fetch failed: {e} — falling back to local fact_base.json. "
-                    f"Data may be stale. Check DCL_API_URL or DCL service health."
-                )
-
-        # No DCL URL configured — local fact_base is the only data source.
-        # This is NOT a silent fallback: DCL was never configured, so local
-        # data is the correct and only source. Log clearly and proceed.
+        # No DCL URL configured — only allowed with NLQ_ALLOW_NO_DCL escape hatch
+        # (startup validation should have caught this, but be defensive)
         if not self.dcl_url:
-            if data_mode in ("live", "ingest"):
-                logger.info(
-                    "DCL_API_URL not configured — serving %s-mode queries from local tenant data. "
-                    "Set DCL_API_URL to enable live DCL queries.", data_mode
+            if data_mode and data_mode != "demo":
+                raise RuntimeError(
+                    f"DCL_API_URL not configured — cannot serve {data_mode}-mode queries "
+                    f"without DCL. Set DCL_API_URL or use data_mode='demo'."
                 )
-
-        # Local dev mode or DCL fallback
-        catalog = self._build_local_catalog()
-        self._catalog = catalog
-
-        if self.dcl_url:
-            # DCL was configured but unavailable — short cache (30s, not 5min)
-            # so we retry quickly
-            self._cache_time = current_time - CACHE_TTL_SECONDS + 30
-            self._catalog_source = "local_fallback"
-            logger.warning(
-                f"Using local_fallback catalog ({len(catalog.metrics)} metrics). "
-                f"DCL was configured but unavailable. Retrying in 30s."
-            )
-        else:
+            # Only demo mode reaches here without DCL
+            catalog = self._build_local_catalog()
+            self._catalog = catalog
             self._cache_time = current_time
             self._catalog_source = "local"
-            logger.debug(f"Using local catalog ({len(catalog.metrics)} metrics)")
+            logger.debug(f"Using local catalog for demo mode ({len(catalog.metrics)} metrics)")
+            return catalog
+
+        # DCL was configured but fetch failed and data_mode is "demo" — use local fallback
+        catalog = self._build_local_catalog()
+        self._catalog = catalog
+        # Short cache (30s, not 5min) so we retry quickly
+        self._cache_time = current_time - CACHE_TTL_SECONDS + 30
+        self._catalog_source = "local_fallback"
+        logger.warning(
+            f"Using local_fallback catalog ({len(catalog.metrics)} metrics). "
+            f"DCL was configured but unavailable. Retrying in 30s."
+        )
 
         return catalog
 
@@ -680,15 +677,15 @@ class DCLSemanticClient:
 
         data_mode = _data_mode_ctx.get()
 
-        # LIVE MODE guard: only block when DCL IS configured but force_local is set
-        if data_mode == "live" and self.dcl_url and _force_local_ctx.get():
-            raise RuntimeError(
-                "LIVE MODE FAILURE: force_local set but data_mode='live' and DCL is configured. "
-                "Cannot resolve metrics from fact_base.json in live mode when DCL is available."
-            )
-
+        # Only explicit demo mode can use local-only metric resolution
         if _force_local_ctx.get():
-            return self._resolve_metric_locally(user_term)
+            if data_mode == "demo":
+                return self._resolve_metric_locally(user_term)
+            else:
+                raise RuntimeError(
+                    f"force_local is set but data_mode={data_mode!r} (not 'demo'). "
+                    f"Only explicit demo mode can resolve metrics from local data."
+                )
 
         # Try local exact match first — canonical IDs and registered aliases.
         # This prevents DCL's fuzzy resolver from mis-mapping e.g. "revenue" → "arr".
@@ -799,7 +796,10 @@ class DCLSemanticClient:
             ('metric' | 'entity'), ``name``, and ``score``.
             Returns empty list if DCL is unavailable or returns no results.
         """
-        if not self.dcl_url or _force_local_ctx.get():
+        data_mode = _data_mode_ctx.get()
+        if _force_local_ctx.get() or not self.dcl_url:
+            # search() returns [] when DCL unavailable — this is not a data fallback,
+            # it's a search endpoint. No local data is substituted.
             return []
 
         try:
@@ -926,7 +926,7 @@ class DCLSemanticClient:
             Dict with keys: sources (list), tenants (list), total_rows (int),
             pipe_count (int), available (bool), runs (list of raw run dicts).
         """
-        # Try the live endpoint first
+        # Try the live endpoint first (ingest runs only come from DCL)
         if self.dcl_url and not _force_local_ctx.get():
             try:
                 response = self._http_client.get(
@@ -1319,26 +1319,32 @@ class DCLSemanticClient:
             data_mode = _data_mode_ctx.get()
         diag(f"[NLQ-DIAG] query() called: metric={metric}, force_local={force_local}, ctx_force={ctx_force}, dcl_url={bool(self.dcl_url)}, data_mode={data_mode}")
 
-        # LIVE MODE guard: only block when DCL IS configured but caller
-        # forces local — that's the real "silent fallback" scenario.
-        # When DCL isn't configured at all, local data is the only source.
-        if data_mode == "live" and self.dcl_url and (force_local or ctx_force):
-            raise RuntimeError(
-                "LIVE MODE FAILURE: force_local=True but data_mode='live' and DCL is configured. "
-                "Cannot serve demo data in live mode when DCL is available. Check request configuration."
-            )
-
-        if force_local or ctx_force or not self.dcl_url:
-            # Determine reason for fallback
-            if force_local or ctx_force:
-                reason = "Demo mode selected"
+        # Only explicit demo mode can use local fallback
+        if force_local or ctx_force:
+            if data_mode == "demo":
+                diag(f"[NLQ-DIAG] query() -> LOCAL FALLBACK (demo mode)")
+                result = self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
+                result["data_source"] = "demo"
+                result["data_source_reason"] = "Demo mode selected"
+                return result
             else:
-                reason = "DCL not configured (DCL_API_URL not set) — using local tenant data"
-            diag(f"[NLQ-DIAG] query() -> LOCAL FALLBACK ({reason})")
-            result = self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
-            result["data_source"] = "demo"
-            result["data_source_reason"] = reason
-            return result
+                raise RuntimeError(
+                    f"force_local is set but data_mode={data_mode!r} (not 'demo'). "
+                    f"Only explicit demo mode can use local fact_base.json data."
+                )
+
+        if not self.dcl_url:
+            if data_mode == "demo":
+                diag(f"[NLQ-DIAG] query() -> LOCAL FALLBACK (no DCL, demo mode)")
+                result = self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
+                result["data_source"] = "demo"
+                result["data_source_reason"] = "DCL not configured — using local data (demo mode)"
+                return result
+            else:
+                raise RuntimeError(
+                    f"DCL_API_URL not configured — cannot serve {data_mode or 'default'}-mode queries "
+                    f"without DCL. Set DCL_API_URL or use data_mode='demo'."
+                )
 
         try:
             # Transform time_range from NLQ format to DCL format
@@ -1569,15 +1575,15 @@ class DCLSemanticClient:
         """
         data_mode = _data_mode_ctx.get()
 
-        # LIVE MODE: Never fall back to local ranking data
-        if data_mode == "live" and (_force_local_ctx.get() or not self.dcl_url):
-            raise RuntimeError(
-                "LIVE MODE FAILURE: Cannot serve ranking query from fact_base.json. "
-                "DCL must be available for live ranking queries."
-            )
-
+        # Only explicit demo mode can use local ranking data
         if _force_local_ctx.get() or not self.dcl_url:
-            return self._query_ranking_local(metric, dimension, order_by, limit, time_range)
+            if data_mode == "demo":
+                return self._query_ranking_local(metric, dimension, order_by, limit, time_range)
+            else:
+                raise RuntimeError(
+                    f"Cannot serve ranking query from local data — data_mode={data_mode or 'default'}. "
+                    f"DCL must be available for non-demo ranking queries."
+                )
 
         # DCL mode - use the general query with ranking parameters
         return self.query(

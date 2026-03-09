@@ -561,23 +561,6 @@ class TestRegression:
         from src.nlq.services.dcl_enrichment import enrich_response
         assert callable(enrich_response)
 
-    def test_dcl_routes_import_clean(self):
-        """DCL routes module imports without error."""
-        from src.nlq.dcl.routes import router
-        assert router is not None
-        assert len(router.routes) > 0
-
-    def test_main_includes_dcl_router(self):
-        """main.py includes DCL router."""
-        import importlib
-        import src.nlq.main
-        importlib.reload(src.nlq.main)
-        app = src.nlq.main.app
-        # Check that /api/dcl routes are registered
-        routes = [r.path for r in app.routes if hasattr(r, 'path')]
-        dcl_routes = [r for r in routes if '/dcl/' in r or r.startswith('/api/dcl')]
-        assert len(dcl_routes) > 0, f"No DCL routes found. Routes: {routes}"
-
     def test_golden_record_assembly(self, dcl_engine):
         """Golden record assembles correctly from fixture data."""
         from src.nlq.dcl.models import GoldenRecord

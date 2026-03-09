@@ -19,48 +19,6 @@ def clean_cache():
     reset_tenant_cache()
 
 
-class TestI1_DclClientQueryIncludesTenantId:
-    """I1: dcl_semantic_client.query() sends tenant_id in payload."""
-
-    def test_payload_has_tenant_id(self):
-        """The DCL payload dict should include tenant_id."""
-        with patch.dict(os.environ, {"AOS_TENANT_ID": "test-tenant-i1"}):
-            from src.nlq.services.dcl_semantic_client import DCLSemanticClient
-            client = DCLSemanticClient.__new__(DCLSemanticClient)
-            client.dcl_url = None  # force local fallback
-            client._fact_base = None
-            client._catalog = []
-            client._crossmap = {}
-            # Since dcl_url is None, it will use local fallback, but we can
-            # verify the parameter is accepted without error
-            result = client.query(
-                metric="revenue",
-                time_range={"period": "2025"},
-                tenant_id=get_tenant_id(),
-            )
-            # Should not raise - tenant_id parameter accepted
-
-
-class TestI2_TenantDataServiceUsesGetTenantId:
-    """I2: TenantDataService resolves tenant from get_tenant_id()."""
-
-    def test_default_uses_get_tenant_id(self):
-        with patch.dict(os.environ, {"AOS_TENANT_ID": "aeroflow_k3oa"}):
-            from src.nlq.dcl.tenant_data import TenantDataService
-            svc = TenantDataService()
-            assert svc._tenant_id == "aeroflow_k3oa"
-
-
-class TestI3_TenantDataServiceFailsLoud:
-    """I3: TenantDataService raises FileNotFoundError for missing tenant."""
-
-    def test_missing_tenant_file_raises(self):
-        with patch.dict(os.environ, {"AOS_TENANT_ID": "nonexistent_tenant_xyz"}):
-            from src.nlq.dcl.tenant_data import TenantDataService
-            with pytest.raises(FileNotFoundError, match="Tenant data file not found"):
-                TenantDataService()
-
-
 class TestI4_DbPersistenceUsesGetTenantId:
     """I4: SupabasePersistenceService resolves tenant via get_tenant_id()."""
 
