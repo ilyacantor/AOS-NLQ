@@ -1290,6 +1290,7 @@ class DCLSemanticClient:
         force_local: bool = False,
         data_mode: str = None,
         tenant_id: str = None,
+        entity_id: str = None,
     ) -> Dict[str, Any]:
         """
         Execute a data query against DCL.
@@ -1375,7 +1376,13 @@ class DCLSemanticClient:
                 "grain": dcl_grain,
                 "tenant_id": tenant_id,
             }
-            if data_mode:
+            if entity_id:
+                payload["entity_id"] = entity_id
+            # Only forward data_mode to DCL when it's "demo" — this tells DCL
+            # to use local fact_base.  NLQ's "live" mode means "use DCL" (not
+            # local fallback), but DCL's "live" mode means "ingest buffer only".
+            # Sending "live" to DCL would bypass DCL's entity-scoped fact_bases.
+            if data_mode and data_mode != "live":
                 payload["data_mode"] = data_mode
             if order_by:
                 payload["order_by"] = order_by

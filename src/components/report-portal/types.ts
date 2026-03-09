@@ -20,6 +20,7 @@ export interface ReportData {
     quarter: string
     segment: string | null
     periodType: 'actual' | 'forecast'
+    unit?: string
   }
 }
 
@@ -106,26 +107,309 @@ export interface CombiningStatementData {
 
 // ── Overlap Report ──────────────────────────────────────────────────────────
 
-export interface OverlapCustomer {
-  count: number
-  pct_of_combined: number
-  match_types: { exact: number; fuzzy: number; manual: number }
+export interface CustomerMatch {
+  meridian_name: string
+  cascadia_name: string
+  canonical_name: string
+  match_type: string
+  confidence: number
+  meridian_revenue_M: number
+  cascadia_revenue_M: number
+  combined_revenue_M: number
+  combined_pct_of_total: number
+  concentration_flag: boolean
+  industry: string
+  notes: string
+  engagement_detail: { entity: string; service_types: string[]; [key: string]: unknown }[]
 }
 
-export interface OverlapVendor {
-  count: number
-  pct_of_combined: number
+export interface VendorMatch {
+  meridian_name: string
+  cascadia_name: string
+  canonical_name: string
+  match_type: string
+  category: string
+  meridian_spend_M: number
+  cascadia_spend_M: number
+  combined_spend_M: number
+  consolidation_opportunity: boolean
+  consolidation_detail: unknown
 }
 
-export interface OverlapPerson {
+export interface PeopleRoleDetail {
+  title: string
+  meridian_count: number
+  cascadia_count: number
+  combined_count: number
+  consolidation_action: string
+}
+
+export interface PeopleFunction {
   function: string
-  meridian: number
-  cascadia: number
-  overlap: number
+  meridian_headcount: number
+  cascadia_headcount: number
+  combined_headcount: number
+  role_overlap_examples: string[]
+  definitional_note: string
+  role_detail: PeopleRoleDetail[]
 }
 
 export interface OverlapData {
-  customers: OverlapCustomer
-  vendors: OverlapVendor
-  people: OverlapPerson[]
+  customer_overlap: {
+    total_overlapping: number
+    overlap_pct_of_combined: number
+    overlap_pct_of_meridian: number
+    overlap_pct_of_cascadia: number
+    matches: CustomerMatch[]
+    concentration_threshold_crossings: unknown[]
+  }
+  vendor_overlap: {
+    total_overlapping: number
+    overlap_pct_of_combined: number
+    overlap_pct_of_meridian: number
+    overlap_pct_of_cascadia: number
+    matches: VendorMatch[]
+  }
+  people_overlap: {
+    functions: PeopleFunction[]
+    total_meridian_corporate: number
+    total_cascadia_corporate: number
+    total_combined_corporate: number
+  }
+}
+
+// ── Cross-Sell Pipeline ────────────────────────────────────────────────────
+
+export interface CrossSellCandidate {
+  customer_id: string
+  customer_name: string
+  entity_id: string
+  recommended_service: string
+  propensity_score: number
+  estimated_acv: number
+  industry_match: number
+  size_match: number
+  behavioral_score: number
+  engagement_fit: number
+  relationship_strength: number
+  rationale: string
+  comparable_customers: string[]
+  buyer_persona: string
+  customer_engagement_M: number
+  years_as_client: number
+  industry: string
+  segment: string
+}
+
+export interface CrossSellSummary {
+  m_to_c_candidates: number
+  m_to_c_total_acv: number
+  m_to_c_high_conf_count: number
+  m_to_c_high_conf_acv: number
+  c_to_m_candidates: number
+  c_to_m_total_acv: number
+  c_to_m_high_conf_count: number
+  c_to_m_high_conf_acv: number
+  total_candidates: number
+  total_pipeline_acv: number
+  total_high_conf_acv: number
+}
+
+export interface CrossSellData {
+  m_to_c: CrossSellCandidate[]
+  c_to_m: CrossSellCandidate[]
+  summary: CrossSellSummary
+}
+
+// ── EBITDA Bridge ──────────────────────────────────────────────────────────
+
+export interface BridgeAdjustment {
+  name: string
+  category: string
+  entity: string
+  confidence: string
+  amount: number
+  amount_low: number
+  amount_high: number
+  lever: string | null
+  support_reference: string
+  rationale: string
+}
+
+export interface EBITDABridgeData {
+  reported_ebitda: { meridian: number; cascadia: number; combined_reported: number }
+  entity_adjustments: BridgeAdjustment[]
+  entity_adjusted_ebitda: { meridian: number; cascadia: number; combined: number }
+  combination_synergies: BridgeAdjustment[]
+  pro_forma_ebitda: {
+    year_1: { low: number; high: number; current: number }
+    steady_state: { low: number; high: number; current: number }
+  }
+  ev_impact: {
+    multiple: number
+    year_1_ev: { low: number; high: number; current: number }
+    steady_state_ev: { low: number; high: number; current: number }
+  }
+}
+
+// ── What-If ────────────────────────────────────────────────────────────────
+
+export interface LeverDefinition {
+  name: string
+  label: string
+  min: number
+  max: number
+  default: number
+  unit: string
+  impact_per_point_M: number | null
+}
+
+export interface WhatIfResult {
+  levers: Record<string, number>
+  lever_definitions: LeverDefinition[]
+  reported_ebitda: number
+  entity_adjusted_ebitda: number
+  adjustments: BridgeAdjustment[]
+  synergies: BridgeAdjustment[]
+  pro_forma_ebitda: { year_1: number; steady_state: number }
+  ev_impact: { year_1: number; steady_state: number }
+  presets: Record<string, Record<string, number>>
+}
+
+// ── Dashboards ─────────────────────────────────────────────────────────────
+
+export type DashboardPersona = 'cfo' | 'cro' | 'coo' | 'cto' | 'chro'
+
+export interface DashboardData {
+  persona: string
+  title: string
+  kpis: Record<string, number>
+  [key: string]: unknown
+}
+
+// ── Quality of Earnings ──────────────────────────────────────────────────
+
+export interface QofEAdjustmentRow {
+  name: string
+  category: string
+  entity: string
+  confidence: string
+  current_amount: number
+  diligence_amount: number | null
+  prior_amount: number | null
+  amount_low: number
+  amount_high: number
+  lever: string | null
+  support_reference: string
+  rationale: string
+  status: 'active' | 'resolved' | 'new' | 'changed'
+  lifecycle_stage: string
+  trend: 'improving' | 'stable' | 'worsening'
+}
+
+export interface QofESustainabilityScore {
+  overall: number
+  components: { name: string; score: number; weight: number; max_points: number }[]
+  grade: string
+}
+
+export interface QofEData {
+  period: string
+  is_initial_diligence: boolean
+  ebitda_bridge: QofEAdjustmentRow[]
+  adjustment_lifecycle: {
+    lifecycle_stages: Record<string, { count: number; items: string[] }>
+    status_counts: Record<string, number>
+    total_adjustments: number
+  }
+  revenue_quality: {
+    customer_concentration: {
+      hhi: number
+      top_10_pct: number
+      top_20_pct: number
+      top_50_pct: number
+      threshold_alerts: { customer: string; pct: number; threshold: string }[]
+      total_customers: number
+    }
+    contract_quality: {
+      msa_pct: number
+      sow_pct: number
+      t_and_m_pct: number
+      avg_tenure_years: number
+    }
+    revenue_mix: {
+      recurring_pct: number
+      non_recurring_pct: number
+      advisory_consulting_M: number
+      managed_services_M: number
+      per_fte_M: number
+      per_transaction_M: number
+    }
+    cohort_retention: { years_as_client: number; total_revenue_M: number }[]
+    cross_sell_penetration: {
+      total_candidates: number
+      total_pipeline_acv_M: number
+      converted_count: number
+      converted_acv_M: number
+      conversion_rate_pct: number
+    }
+  }
+  sustainability_score: QofESustainabilityScore
+  working_capital: {
+    dso_trend: { period: string; value: number }[]
+    dpo_trend: { period: string; value: number }[]
+    bench_cost_trend: { period: string; value: number }[]
+    working_capital_pct_trend: { period: string; value: number }[]
+    margin_trend: { period: string; gross_margin_pct: number; ebitda_margin_pct: number }[]
+  }
+  new_items: {
+    type: string
+    description: string
+    amount: number
+    category: string
+    classification_suggestion: string
+    recommended_action: string
+  }[]
+  summary: {
+    reported_ebitda: number
+    entity_adjusted_ebitda: number
+    pro_forma_year_1: number
+    pro_forma_steady_state: number
+    total_adjustments: number
+    active_adjustments: number
+    resolved_adjustments: number
+    new_adjustments: number
+    changed_adjustments: number
+    sustainability_score: number
+    sustainability_grade: string
+  }
+}
+
+// ── Maestra ────────────────────────────────────────────────────────────────
+
+export interface MaestraEngagement {
+  engagement_id: string
+  phase: string
+  deal_name: string
+  workstreams: number
+  risks: number
+}
+
+export interface MaestraMessage {
+  response: string
+  actions_taken: string[]
+  suggestions: string[]
+  phase: string
+  navigation?: { tab: string; sub_view?: string }
+}
+
+export interface MaestraStatus {
+  phase: string
+  deal_name: string
+  overall_progress_pct: number
+  workstream_summary: { name: string; status: string; progress_pct: number }[]
+  open_risks: number
+  synergy_realization_pct: number
+  days_since_start: number
+  next_milestones: { workstream: string; milestone: string; target_date: string }[]
 }

@@ -10,6 +10,7 @@ Endpoints:
 All endpoints return JSON responses with consistent structure.
 """
 
+import functools
 import logging
 import os
 from datetime import date
@@ -1232,7 +1233,7 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
         )
 
 
-def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]:
+def _try_tiered_metric_query_core(question: str, entity_id: Optional[str] = None) -> Optional[SimpleMetricResult]:
     """
     Core logic for tiered metric queries - uses embedding-based lookup.
 
@@ -1351,6 +1352,14 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
                 stripped = True
                 break
 
+    # Strip entity names from the metric query so "meridian revenue" -> "revenue"
+    # and "cascadia ebitda" -> "ebitda". The entity_id is captured separately.
+    _entity_names = ["meridian", "cascadia", "combined", "consolidated"]
+    for ename in _entity_names:
+        # Handle possessives: "meridian's revenue" -> "revenue"
+        metric_query = metric_query.replace(ename + "'s ", " ").replace(ename, "")
+    metric_query = metric_query.strip()
+
     # Strip entity/filter suffixes (e.g., "revenue for North America" → "revenue")
     # This ensures the metric is correctly identified even when a filter is present.
     # The filter itself isn't applied here — that requires graph resolution.
@@ -1452,12 +1461,12 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
     # Try synonym lookup
     resolved_metric = normalize_metric(metric_query)
     if resolved_metric:
-        return _build_simple_metric_result(resolved_metric, period=_extracted_period)
+        return _build_simple_metric_result(resolved_metric, period=_extracted_period, entity_id=entity_id)
 
     # Also try the original query in case it's already a metric name
     resolved_metric = normalize_metric(q.rstrip("?").strip())
     if resolved_metric:
-        return _build_simple_metric_result(resolved_metric, period=_extracted_period)
+        return _build_simple_metric_result(resolved_metric, period=_extracted_period, entity_id=entity_id)
 
     # Step 3: Try embedding-based lookup (CHEAP - ~$0.0001)
     # Only do this if we have the embedding index available
@@ -1477,12 +1486,12 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
                 else:
                     result = loop.run_until_complete(metric_index.lookup(metric_query))
                     if result and result.is_high_confidence:
-                        return _build_simple_metric_result(result.canonical_metric, period=_extracted_period)
+                        return _build_simple_metric_result(result.canonical_metric, period=_extracted_period, entity_id=entity_id)
             except RuntimeError:
                 # No event loop, create one
                 result = asyncio.run(metric_index.lookup(metric_query))
                 if result and result.is_high_confidence:
-                    return _build_simple_metric_result(result.canonical_metric, period=_extracted_period)
+                    return _build_simple_metric_result(result.canonical_metric, period=_extracted_period, entity_id=entity_id)
     except ImportError:
         pass  # Embedding index not available, fall through
     except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
@@ -1491,7 +1500,22 @@ def _try_tiered_metric_query_core(question: str) -> Optional[SimpleMetricResult]
     return None  # No match, let normal flow handle it
 
 
-def _build_simple_metric_result(metric: str, period: Optional[str] = None) -> Optional[SimpleMetricResult]:
+def _detect_entity_id(question: str) -> Optional[str]:
+    """Detect entity mentions in the question text.
+
+    Returns the entity_id if an entity name is found, or None for default behavior.
+    """
+    q = question.lower()
+    if "meridian" in q:
+        return "meridian"
+    if "cascadia" in q:
+        return "cascadia"
+    if "combined" in q or "consolidated" in q:
+        return "combined"
+    return None
+
+
+def _build_simple_metric_result(metric: str, period: Optional[str] = None, entity_id: Optional[str] = None) -> Optional[SimpleMetricResult]:
     """
     Build a SimpleMetricResult for a resolved metric.
 
@@ -1517,6 +1541,7 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None) -> Op
         metric=metric,
         time_range={"period": requested_period, "granularity": "quarterly"},
         tenant_id=get_tenant_id(),
+        entity_id=entity_id,
     )
 
     # Extract value from DCL response
@@ -1640,7 +1665,7 @@ def _has_explicit_period(question: str) -> bool:
     return False
 
 
-def _try_report_query(question: str, session_id: Optional[str] = None) -> Optional[NLQResponse]:
+def _try_report_query(question: str, session_id: Optional[str] = None, entity_id: Optional[str] = None) -> Optional[NLQResponse]:
     """Detect Standard Reporting Package queries and generate comparison reports."""
     from src.nlq.core.report_intent import detect_report_intent
 
@@ -1648,8 +1673,15 @@ def _try_report_query(question: str, session_id: Optional[str] = None) -> Option
     if intent is None:
         return None
 
+    entity_id = entity_id or _detect_entity_id(question)
+    query_fn = (
+        functools.partial(_build_simple_metric_result, entity_id=entity_id)
+        if entity_id
+        else _build_simple_metric_result
+    )
+
     from src.nlq.services.report_generator import ReportGenerator
-    generator = ReportGenerator(query_fn=_build_simple_metric_result)
+    generator = ReportGenerator(query_fn=query_fn)
     result = generator.generate_report(
         statement_type=intent.statement_type,
         variant=intent.variant,
@@ -1664,7 +1696,7 @@ def _try_report_query(question: str, session_id: Optional[str] = None) -> Option
     return result
 
 
-def _try_pl_statement_query(question: str, session_id: Optional[str] = None) -> Optional[NLQResponse]:
+def _try_pl_statement_query(question: str, session_id: Optional[str] = None, entity_id: Optional[str] = None) -> Optional[NLQResponse]:
     """
     Detect P&L / income statement queries and fan out DCL queries for all line items.
 
@@ -1681,8 +1713,15 @@ def _try_pl_statement_query(question: str, session_id: Optional[str] = None) -> 
     else:
         period_spec = None  # signals "show all periods"
 
+    entity_id = entity_id or _detect_entity_id(question)
+    query_fn = (
+        functools.partial(_build_simple_metric_result, entity_id=entity_id)
+        if entity_id
+        else _build_simple_metric_result
+    )
+
     periods = determine_pl_periods(period_spec)
-    handler = PLStatementHandler(periods=periods, query_fn=_build_simple_metric_result)
+    handler = PLStatementHandler(periods=periods, query_fn=query_fn)
     result = handler.execute()
 
     if result and result.financial_statement_data and session_id:
@@ -1693,7 +1732,7 @@ def _try_pl_statement_query(question: str, session_id: Optional[str] = None) -> 
     return result
 
 
-def _try_bridge_query(question: str, session_id: Optional[str] = None) -> Optional[NLQResponse]:
+def _try_bridge_query(question: str, session_id: Optional[str] = None, entity_id: Optional[str] = None) -> Optional[NLQResponse]:
     """Detect revenue bridge/waterfall queries and build the variance decomposition."""
     from src.nlq.core.bridge_query import is_bridge_query, BridgeHandler
 
@@ -1701,7 +1740,14 @@ def _try_bridge_query(question: str, session_id: Optional[str] = None) -> Option
     if bridge_type is None:
         return None
 
-    handler = BridgeHandler(query_fn=_build_simple_metric_result)
+    entity_id = entity_id or _detect_entity_id(question)
+    query_fn = (
+        functools.partial(_build_simple_metric_result, entity_id=entity_id)
+        if entity_id
+        else _build_simple_metric_result
+    )
+
+    handler = BridgeHandler(query_fn=query_fn)
     result = handler.execute()
 
     if result and result.bridge_chart_data and session_id:
@@ -1752,11 +1798,12 @@ def _try_multi_metric_query(question: str) -> Optional[NLQResponse]:
 
     dcl_client = get_semantic_client()
     period = current_quarter()
+    entity_id = _detect_entity_id(question)
     parts_text = []
     primary_value = None
 
     for term, metric in resolved:
-        result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, tenant_id=get_tenant_id())
+        result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=entity_id)
         if result.get("error") or not result.get("data"):
             continue
         data = result.get("data", [])
@@ -1791,7 +1838,7 @@ def _try_multi_metric_query(question: str) -> Optional[NLQResponse]:
     )
 
 
-def _try_simple_metric_query(question: str) -> Optional[NLQResponse]:
+def _try_simple_metric_query(question: str, entity_id: Optional[str] = None) -> Optional[NLQResponse]:
     """
     Try to answer a simple metric query directly from DCL.
 
@@ -1801,7 +1848,8 @@ def _try_simple_metric_query(question: str) -> Optional[NLQResponse]:
 
     All data is fetched from DCL.
     """
-    result = _try_tiered_metric_query_core(question)
+    entity_id = entity_id or _detect_entity_id(question)
+    result = _try_tiered_metric_query_core(question, entity_id=entity_id)
     if result:
         return simple_metric_to_nlq_response(result)
 
@@ -3558,7 +3606,13 @@ async def query(request: NLQRequest) -> NLQResponse:
     """
     _start_time = time.perf_counter()
     _trace = diag_init()
-    diag(f"[NLQ-DIAG] /query endpoint: question='{request.question[:60]}', data_mode={request.data_mode}")
+    # Resolve entity_id: request body takes priority, then detect from question text
+    _request_entity_id = request.entity_id
+    if not _request_entity_id and request.consolidate:
+        _request_entity_id = "combined"
+    if not _request_entity_id:
+        _request_entity_id = _detect_entity_id(request.question)
+    diag(f"[NLQ-DIAG] /query endpoint: question='{request.question[:60]}', data_mode={request.data_mode}, entity_id={_request_entity_id}")
     set_data_mode(request.data_mode)
     if request.data_mode == "demo":
         set_force_local(True)
@@ -3715,7 +3769,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         # comparison language (e.g., "vs prior year") that triggers
         # AmbiguityType.COMPARISON in detect_ambiguity().
         # =================================================================
-        report_result = _try_report_query(request.question, session_id=request.session_id)
+        report_result = _try_report_query(request.question, session_id=request.session_id, entity_id=_request_entity_id)
         if report_result:
             await _log_query_event(
                 request.question, "bypass",
@@ -3882,7 +3936,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         # BRIDGE / WATERFALL QUERIES — must run before simple metric
         # so "why did rev increase" isn't swallowed as a single-metric query.
         # =================================================================
-        bridge_result = _try_bridge_query(request.question, session_id=request.session_id)
+        bridge_result = _try_bridge_query(request.question, session_id=request.session_id, entity_id=_request_entity_id)
         if bridge_result:
             await _log_query_event(
                 request.question, "bypass",
@@ -3896,7 +3950,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         # =================================================================
         # SIMPLE METRIC QUERIES - Handle "what is X?" queries early (no Claude needed)
         # =================================================================
-        simple_result = _try_simple_metric_query(request.question)
+        simple_result = _try_simple_metric_query(request.question, entity_id=_request_entity_id)
         if simple_result:
             await _log_query_event(
                 request.question, "bypass",
@@ -3911,7 +3965,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         # P&L / INCOME STATEMENT COMPOSITE QUERIES
         # Fan out multiple DCL queries for all line items in parallel.
         # =================================================================
-        pl_result = _try_pl_statement_query(request.question, session_id=request.session_id)
+        pl_result = _try_pl_statement_query(request.question, session_id=request.session_id, entity_id=_request_entity_id)
         if pl_result:
             await _log_query_event(
                 request.question, "bypass",
@@ -4481,24 +4535,30 @@ async def reconciliation():
     results in the portal-expected format.
 
     Compares all scalar P&L metrics for every quarter in the ground truth
-    manifest against DCL's query endpoint. Returns per-period check summaries
-    plus aggregate totals.
+    manifest against DCL's query endpoint. All metric×period queries run in
+    parallel via ThreadPoolExecutor to avoid sequential HTTP round-trips.
     """
     import httpx
-    from src.nlq.services.reconciliation_engine import ReconciliationEngine
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from src.nlq.services.reconciliation_engine import (
+        ReconciliationEngine, _GT_NON_QUARTER_KEYS, _QUARTER_META_KEYS,
+        _extract_expected_value,
+    )
 
     dcl_url = os.environ.get("DCL_URL", "http://localhost:8004")
+
+    # Use a shared httpx client for connection pooling across all queries
+    client = httpx.Client(timeout=30, limits=httpx.Limits(max_connections=64, max_keepalive_connections=32))
 
     def query_fn(metric_id: str, period: str):
         """Query DCL for a metric value. Returns object with .value attribute."""
         try:
-            r = httpx.post(
+            r = client.post(
                 f"{dcl_url}/api/dcl/query",
                 json={
                     "metric": metric_id,
                     "time_range": {"start": period, "end": period},
                 },
-                timeout=30,
             )
         except httpx.ConnectError as exc:
             raise RuntimeError(
@@ -4523,11 +4583,11 @@ async def reconciliation():
                 return result
         return None
 
+    # Load ground truth
     engine = ReconciliationEngine(query_fn=query_fn)
-
-    # Load ground truth to discover quarters (need per-period breakdown)
     gt = engine._get_ground_truth()
     if gt is None:
+        client.close()
         farm_url = os.environ.get("FARM_URL", "http://localhost:8003")
         raise HTTPException(
             status_code=502,
@@ -4538,8 +4598,6 @@ async def reconciliation():
             ),
         )
 
-    from src.nlq.services.reconciliation_engine import _GT_NON_QUARTER_KEYS
-
     gt_data = gt.get("ground_truth", gt)
     quarters = sorted([
         k for k in gt_data
@@ -4547,51 +4605,141 @@ async def reconciliation():
     ])
 
     if not quarters:
+        client.close()
         raise HTTPException(
             status_code=502,
             detail="Reconciliation aborted: ground truth contains no quarter data.",
         )
 
-    # Run reconciliation per quarter to get per-period breakdowns
-    checks = []
-    total_checks = 0
+    # Build the full list of (metric, period, expected) checks upfront,
+    # then fire ALL of them in parallel instead of sequentially.
+    all_checks = []  # (metric_id, period, expected_value)
+    for period in quarters:
+        quarter_data = gt_data.get(period, {})
+        for key, entry in quarter_data.items():
+            if key in _QUARTER_META_KEYS:
+                continue
+            expected = _extract_expected_value(entry)
+            if expected is None:
+                continue
+            all_checks.append((key, period, expected))
+
+    logger.info(
+        "Reconciliation: %d checks across %d quarters — firing in parallel",
+        len(all_checks), len(quarters),
+    )
+
+    # Fire all queries in parallel
+    results = {}  # (metric_id, period) -> (actual_value | None, error_str | None)
+    max_workers = min(64, len(all_checks))
+
+    def _fetch(metric_id: str, period: str):
+        try:
+            result = query_fn(metric_id, period)
+            if result is None:
+                return (metric_id, period, None, None)
+            return (metric_id, period, result.value, None)
+        except Exception as exc:
+            return (metric_id, period, None, str(exc))
+
+    try:
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = [
+                pool.submit(_fetch, metric_id, period)
+                for metric_id, period, _ in all_checks
+            ]
+            for future in as_completed(futures):
+                metric_id, period, value, error = future.result()
+                results[(metric_id, period)] = (value, error)
+    finally:
+        client.close()
+
+    # Aggregate results per quarter
+    tolerance_pct = 1.0
+    checks_out = []
+    total_checks_count = 0
     total_green = 0
     total_red = 0
 
     for period in quarters:
-        try:
-            qr = engine.reconcile_quarter(period)
-        except Exception as exc:
-            raise HTTPException(
-                status_code=502,
-                detail=(
-                    f"Reconciliation failed for period '{period}': "
-                    f"{type(exc).__name__}: {exc}"
-                ),
-            )
+        quarter_data = gt_data.get(period, {})
+        passed = 0
+        failed = 0
+        errors = 0
+        mismatches = []
 
-        green = qr.passed
-        red = qr.failed + qr.errors
-        total = qr.total_checks
+        for key, entry in quarter_data.items():
+            if key in _QUARTER_META_KEYS:
+                continue
+            expected = _extract_expected_value(entry)
+            if expected is None:
+                continue
 
-        checks.append({
+            actual_val, error_str = results.get((key, period), (None, None))
+
+            if error_str:
+                errors += 1
+                mismatches.append({
+                    "metric": key, "period": period,
+                    "expected": expected, "actual": None,
+                    "delta": None, "pct_delta": None,
+                    "status": "error", "error": error_str,
+                })
+                continue
+
+            if actual_val is None:
+                errors += 1
+                mismatches.append({
+                    "metric": key, "period": period,
+                    "expected": expected, "actual": None,
+                    "delta": None, "pct_delta": None,
+                    "status": "missing",
+                })
+                continue
+
+            if not isinstance(actual_val, (int, float)):
+                errors += 1
+                mismatches.append({
+                    "metric": key, "period": period,
+                    "expected": expected, "actual": actual_val,
+                    "delta": None, "pct_delta": None,
+                    "status": "error",
+                    "error": f"Non-numeric value (type={type(actual_val).__name__})",
+                })
+                continue
+
+            delta = abs(actual_val - expected)
+            pct_delta = (delta / abs(expected) * 100) if expected != 0 else (0.0 if delta == 0 else 100.0)
+
+            if pct_delta <= tolerance_pct:
+                passed += 1
+            else:
+                failed += 1
+                mismatches.append({
+                    "metric": key, "period": period,
+                    "expected": expected, "actual": actual_val,
+                    "delta": round(delta, 4), "pct_delta": round(pct_delta, 2),
+                    "status": "mismatch",
+                })
+
+        total = passed + failed + errors
+        checks_out.append({
             "statement": "Income Statement",
             "period": period,
             "total": total,
-            "green": green,
-            "red": red,
-            "mismatches": qr.mismatches,
+            "green": passed,
+            "red": failed + errors,
+            "mismatches": mismatches,
         })
-
-        total_checks += total
-        total_green += green
-        total_red += red
+        total_checks_count += total
+        total_green += passed
+        total_red += failed + errors
 
     from datetime import datetime
 
     return {
-        "checks": checks,
-        "totalChecks": total_checks,
+        "checks": checks_out,
+        "totalChecks": total_checks_count,
         "totalGreen": total_green,
         "totalRed": total_red,
         "timestamp": datetime.utcnow().isoformat() + "Z",

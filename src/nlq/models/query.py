@@ -71,6 +71,16 @@ class NLQRequest(BaseModel):
         description="Active persona (CFO/CRO/COO/CTO/CHRO). Authoritative for dashboard generation."
     )
 
+    entity_id: Optional[str] = Field(
+        default=None,
+        description="Entity filter: 'meridian', 'cascadia', or 'combined'. Sent by report portal entity selector."
+    )
+
+    consolidate: Optional[bool] = Field(
+        default=None,
+        description="If True, return combined/consolidated entity view. Equivalent to entity_id='combined'."
+    )
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {

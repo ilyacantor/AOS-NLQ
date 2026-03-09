@@ -14,6 +14,7 @@ which columns to show and what data type each column contains.
 """
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
 from typing import Callable, Dict, List, Optional
 
@@ -179,9 +180,12 @@ class ReportGenerator:
                 ),
             )
 
-        # 4. Query metrics for left and right period columns
-        left_values = self._query_periods(line_items, comparison.left_periods)
-        right_values = self._query_periods(line_items, comparison.right_periods)
+        # 4. Query metrics for left and right period columns (in parallel)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            left_future = pool.submit(self._query_periods, line_items, comparison.left_periods)
+            right_future = pool.submit(self._query_periods, line_items, comparison.right_periods)
+            left_values = left_future.result()
+            right_values = right_future.result()
 
         # 5. Validate minimum data
         if not left_values:
@@ -310,6 +314,9 @@ class ReportGenerator:
     ) -> Dict[str, Optional[float]]:
         """Query metrics across periods and aggregate.
 
+        All metric×period queries are fired in parallel via a thread pool,
+        then aggregated per metric once results arrive.
+
         For multi-period (full-year) columns:
           - Additive metrics (revenue, etc.) are summed.
           - Non-additive metrics (percentages) are averaged.
@@ -327,29 +334,46 @@ class ReportGenerator:
         if not periods:
             return {}
 
+        # Fire all metric×period queries in parallel
+        # Key: (metric_id, period_index) -> result value
+        results_map: Dict[tuple, Optional[float]] = {}
+
+        def _fetch(metric_id: str, period_idx: int, period_label: str):
+            try:
+                result = self.query_fn(metric_id, period_label)
+                if result is not None:
+                    return (metric_id, period_idx, result.value)
+            except Exception as exc:
+                logger.warning(
+                    "Report query failed for %s/%s: %s",
+                    metric_id, period_label, exc,
+                )
+            return (metric_id, period_idx, None)
+
+        with ThreadPoolExecutor(max_workers=min(32, len(line_items) * len(periods))) as pool:
+            futures = [
+                pool.submit(_fetch, metric_id, pi, period_info.label)
+                for metric_id in line_items
+                for pi, period_info in enumerate(periods)
+            ]
+            for future in as_completed(futures):
+                metric_id, period_idx, value = future.result()
+                results_map[(metric_id, period_idx)] = value
+
+        # Aggregate per metric
         aggregated: Dict[str, Optional[float]] = {}
         for metric_id in line_items:
             values_for_periods: List[float] = []
-            for period_info in periods:
-                try:
-                    result = self.query_fn(metric_id, period_info.label)
-                    if result is not None:
-                        values_for_periods.append(result.value)
-                except Exception as exc:
-                    logger.warning(
-                        "Report query failed for %s/%s: %s",
-                        metric_id, period_info.label, exc,
-                    )
+            for pi in range(len(periods)):
+                val = results_map.get((metric_id, pi))
+                if val is not None:
+                    values_for_periods.append(val)
 
             if values_for_periods:
                 if len(periods) > 1:
                     if is_additive_metric(metric_id):
                         aggregated[metric_id] = round(sum(values_for_periods), 2)
                     else:
-                        # For BS items (point-in-time), use the last period's value.
-                        # For rates/percentages, the last value is also the most
-                        # representative snapshot; averaging across quarters would
-                        # dilute the current-period signal.
                         aggregated[metric_id] = round(values_for_periods[-1], 2)
                 else:
                     aggregated[metric_id] = round(values_for_periods[0], 2)

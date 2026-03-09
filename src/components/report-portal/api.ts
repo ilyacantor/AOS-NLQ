@@ -16,6 +16,14 @@ import type {
   EntitySelection,
   CombiningStatementData,
   OverlapData,
+  CrossSellData,
+  EBITDABridgeData,
+  WhatIfResult,
+  QofEData,
+  DashboardData,
+  MaestraEngagement,
+  MaestraMessage,
+  MaestraStatus,
 } from './types'
 
 const NLQ_BASE = '/api/v1'
@@ -57,12 +65,12 @@ function variantToQuery(
 function transformFSLineItem(
   item: FinancialStatementLineItem,
   periods: string[],
+  periodIndex: number,
   index: number,
   totalItems: number,
 ): ReportLine {
-  // Use the first period's value as the primary amount
-  const primaryPeriod = periods[0]
-  const amount = item.values[primaryPeriod] ?? null
+  const period = periods[periodIndex]
+  const amount = period ? (item.values[period] ?? null) : null
 
   return {
     id: item.key || `line-${index}`,
@@ -75,7 +83,7 @@ function transformFSLineItem(
     bold: item.is_subtotal,
     isFinal: index === totalItems - 1 && item.is_subtotal,
     isPercent: item.format === 'percent',
-    drillable: item.key === 'revenue' || item.key === 'total_revenue',
+    drillable: item.format !== 'percent' && (amount !== null || item.is_subtotal),
     highlight: item.key === 'bench_cost' || item.key === 'bench_cost_total',
   }
 }
@@ -83,23 +91,25 @@ function transformFSLineItem(
 function transformToReportData(
   fsData: FinancialStatementData,
   segment: string | null,
+  periodIndex = 0,
 ): ReportData {
   const lines = fsData.line_items.map((item, i) =>
-    transformFSLineItem(item, fsData.periods, i, fsData.line_items.length)
+    transformFSLineItem(item, fsData.periods, periodIndex, i, fsData.line_items.length)
   )
 
-  // Determine period type from the title/periods
-  const hasForecast = fsData.periods.some(p =>
-    p.toLowerCase().includes('forecast') || p.toLowerCase().includes('cf')
-  )
+  const periodLabel = fsData.periods[periodIndex] || ''
+  const hasForecast = periodLabel.toLowerCase().includes('forecast') ||
+    periodLabel.toLowerCase().includes('cf') ||
+    periodLabel.toLowerCase().includes('(act+cf)')
 
   return {
     lines,
     metadata: {
       entity: fsData.entity,
-      quarter: fsData.periods[0] || '',
+      quarter: periodLabel,
       segment,
       periodType: hasForecast ? 'forecast' : 'actual',
+      unit: fsData.unit,
     },
   }
 }
@@ -110,7 +120,7 @@ export async function fetchReport(
   quarter?: string,
   segment?: string | null,
   entity?: EntitySelection,
-): Promise<{ reportData: ReportData; rawFSData: FinancialStatementData }> {
+): Promise<{ reportData: ReportData; pyReportData: ReportData | null; rawFSData: FinancialStatementData }> {
   const query = variantToQuery(statement, variant, quarter, segment)
 
   const body: Record<string, unknown> = { question: query, persona: 'CFO' }
@@ -143,8 +153,18 @@ export async function fetchReport(
   }
 
   const fsData: FinancialStatementData = data.financial_statement_data
+  const seg = segment ?? null
+
+  // Backend returns both CY and PY in a single response.
+  // periods[0] = CY (e.g. "FY 2025 Actual"), periods[1] = PY (e.g. "FY 2024 Actual")
+  // Extract PY from the same response — no need for a second API call.
+  const hasPY = fsData.periods.length >= 2 &&
+    !fsData.periods[1].toLowerCase().includes('variance')
+  const pyReportData = hasPY ? transformToReportData(fsData, seg, 1) : null
+
   return {
-    reportData: transformToReportData(fsData, segment ?? null),
+    reportData: transformToReportData(fsData, seg),
+    pyReportData,
     rawFSData: fsData,
   }
 }
@@ -218,41 +238,101 @@ export async function fetchOverlapData(): Promise<OverlapData> {
     )
   }
 
-  const raw = await res.json()
+  return res.json()
+}
 
-  // Transform DCL response shape into the OverlapData type expected by the portal.
-  // DCL returns { customer_overlap, vendor_overlap, people_overlap } with
-  // detailed match arrays; we aggregate into the summary shape the UI needs.
+// ── Cross-Sell Pipeline ──────────────────────────────────────────────────────
 
-  const co = raw.customer_overlap || {}
-  const customerMatches = co.matches || []
-  let exact = 0, fuzzy = 0, manual = 0
-  for (const m of customerMatches) {
-    if (m.match_type === 'exact') exact++
-    else if (m.match_type === 'fuzzy') fuzzy++
-    else manual++ // 'hard' and any other types map to manual
+export async function fetchCrossSell(): Promise<CrossSellData> {
+  const res = await fetch('/api/reports/cross-sell')
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Unknown error')
+    throw new Error(`Cross-sell query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
   }
+  return res.json()
+}
 
-  const vo = raw.vendor_overlap || {}
+// ── EBITDA Bridge ────────────────────────────────────────────────────────────
 
-  const po = raw.people_overlap || {}
-  const functions = po.functions || []
-
-  return {
-    customers: {
-      count: co.total_overlapping ?? 0,
-      pct_of_combined: co.overlap_pct_of_combined ?? 0,
-      match_types: { exact, fuzzy, manual },
-    },
-    vendors: {
-      count: vo.total_overlapping ?? 0,
-      pct_of_combined: vo.overlap_pct_of_combined ?? 0,
-    },
-    people: functions.map((f: { function: string; meridian_headcount: number; cascadia_headcount: number; combined_headcount: number }) => ({
-      function: f.function,
-      meridian: f.meridian_headcount,
-      cascadia: f.cascadia_headcount,
-      overlap: f.combined_headcount,
-    })),
+export async function fetchEBITDABridge(): Promise<EBITDABridgeData> {
+  const res = await fetch('/api/reports/ebitda-bridge')
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Unknown error')
+    throw new Error(`EBITDA bridge query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
   }
+  return res.json()
+}
+
+// ── What-If Engine ───────────────────────────────────────────────────────────
+
+export async function fetchWhatIf(levers?: Record<string, number>, preset?: string): Promise<WhatIfResult> {
+  const body: Record<string, unknown> = {}
+  if (preset) body.preset = preset
+  else if (levers) body.levers = levers
+
+  const res = await fetch('/api/reports/what-if', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Unknown error')
+    throw new Error(`What-if query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+  }
+  return res.json()
+}
+
+// ── Quality of Earnings ──────────────────────────────────────────────────────
+
+export async function fetchQofE(): Promise<QofEData> {
+  const res = await fetch('/api/reports/qoe')
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Unknown error')
+    throw new Error(`QofE query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+  }
+  return res.json()
+}
+
+// ── Executive Dashboard ──────────────────────────────────────────────────────
+
+export async function fetchDashboard(persona: string): Promise<DashboardData> {
+  const res = await fetch(`/api/reports/dashboard/${persona}`)
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Unknown error')
+    throw new Error(`Dashboard query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+  }
+  return res.json()
+}
+
+// ── Maestra ──────────────────────────────────────────────────────────────────
+
+export async function createMaestraEngagement(): Promise<MaestraEngagement> {
+  const res = await fetch('/api/reports/maestra/engage', { method: 'POST' })
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Unknown error')
+    throw new Error(`Maestra engage failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+  }
+  return res.json()
+}
+
+export async function sendMaestraMessage(engagementId: string, message: string): Promise<MaestraMessage> {
+  const res = await fetch(`/api/reports/maestra/${engagementId}/message`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message }),
+  })
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Unknown error')
+    throw new Error(`Maestra message failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+  }
+  return res.json()
+}
+
+export async function fetchMaestraStatus(engagementId: string): Promise<MaestraStatus> {
+  const res = await fetch(`/api/reports/maestra/${engagementId}/status`)
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Unknown error')
+    throw new Error(`Maestra status failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+  }
+  return res.json()
 }

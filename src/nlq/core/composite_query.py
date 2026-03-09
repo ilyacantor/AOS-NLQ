@@ -11,6 +11,7 @@ metric/display_name against field names (see _extract_composite_field).
 import json
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -138,16 +139,27 @@ class PLStatementHandler:
         values: Dict[str, Dict[str, Optional[float]]] = {}
         first_result: Any = None
 
-        for period in self.periods:
-            for metric in PL_LINE_ITEMS:
-                try:
-                    result = self.query_fn(metric, period)
-                    if result is not None:
-                        if first_result is None:
-                            first_result = result
-                        values.setdefault(metric, {})[period] = result.value
-                except Exception as e:
-                    logger.warning(f"P&L query failed for {metric}/{period}: {e}")
+        def _fetch(metric: str, period: str):
+            try:
+                result = self.query_fn(metric, period)
+                return (metric, period, result)
+            except Exception as e:
+                logger.warning(f"P&L query failed for {metric}/{period}: {e}")
+                return (metric, period, None)
+
+        total_queries = len(self.periods) * len(PL_LINE_ITEMS)
+        with ThreadPoolExecutor(max_workers=min(32, total_queries)) as pool:
+            futures = [
+                pool.submit(_fetch, metric, period)
+                for period in self.periods
+                for metric in PL_LINE_ITEMS
+            ]
+            for future in as_completed(futures):
+                metric, period, result = future.result()
+                if result is not None:
+                    if first_result is None:
+                        first_result = result
+                    values.setdefault(metric, {})[period] = result.value
 
         # Validate minimum required fields (at least some data for required metrics)
         resolved_required = PL_REQUIRED & set(values.keys())

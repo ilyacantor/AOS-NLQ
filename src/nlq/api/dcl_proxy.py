@@ -27,7 +27,7 @@ DCL_BASE_URL = (
 
 
 @router.get("/api/reports/{path:path}")
-async def proxy_dcl_report(path: str, request: Request):
+async def proxy_dcl_report_get(path: str, request: Request):
     """Forward GET /api/reports/* to DCL backend."""
     dcl_url = f"{DCL_BASE_URL}/api/reports/{path}"
     if request.query_params:
@@ -36,6 +36,43 @@ async def proxy_dcl_report(path: str, request: Request):
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(dcl_url)
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"DCL report proxy failed: could not connect to DCL at {dcl_url}. "
+                f"Ensure DCL backend is running on {DCL_BASE_URL}."
+            ),
+        )
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail=f"DCL report proxy timed out waiting for {dcl_url}.",
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(
+            status_code=resp.status_code,
+            detail=f"DCL returned {resp.status_code}: {resp.text[:500]}",
+        )
+
+    return JSONResponse(content=resp.json(), status_code=200)
+
+
+@router.post("/api/reports/{path:path}")
+async def proxy_dcl_report_post(path: str, request: Request):
+    """Forward POST /api/reports/* to DCL backend (what-if, maestra)."""
+    dcl_url = f"{DCL_BASE_URL}/api/reports/{path}"
+
+    body = await request.body()
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                dcl_url,
+                content=body,
+                headers={"Content-Type": "application/json"},
+            )
     except httpx.ConnectError:
         raise HTTPException(
             status_code=502,

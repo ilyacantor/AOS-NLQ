@@ -863,3 +863,166 @@
     - {field: all_match, operator: equals, expected: true}
     - {field: max_delta, operator: less_than, expected: 0.01}
   tags: [reconciliation, dimensional]
+
+
+# ── Group 17: Quality of Earnings (QofE) ────────────────────────────────────
+
+- id: QE_001
+  group: QOE
+  name: "QofE endpoint returns complete report structure"
+  type: api_call
+  endpoint: "/api/reports/qoe"
+  method: GET
+  assertions:
+    - {field: ebitda_bridge, operator: not_null}
+    - {field: adjustment_lifecycle, operator: not_null}
+    - {field: revenue_quality, operator: not_null}
+    - {field: sustainability_score, operator: not_null}
+    - {field: working_capital, operator: not_null}
+    - {field: summary, operator: not_null}
+  tags: [qoe, structure]
+
+- id: QE_002
+  group: QOE
+  name: "QofE sustainability score is 0-100 with valid grade"
+  type: api_call
+  endpoint: "/api/reports/qoe"
+  method: GET
+  assertions:
+    - {field: sustainability_score.overall, operator: in_range, expected: [0, 100]}
+    - {field: sustainability_score.grade, operator: in, expected: ["A", "B", "C", "D", "F"]}
+    - {field: sustainability_score.components, operator: not_null}
+  tags: [qoe, sustainability]
+
+- id: QE_003
+  group: QOE
+  name: "QofE sustainability components sum to correct weights"
+  type: api_call
+  endpoint: "/api/reports/qoe"
+  method: GET
+  assertions:
+    - {field: sustainability_score.components_count, operator: equals, expected: 6}
+    - {field: sustainability_score.total_weight, operator: equals, expected: 1.0}
+  tags: [qoe, sustainability, weights]
+
+- id: QE_004
+  group: QOE
+  name: "QofE bridge has adjustments with required fields"
+  type: api_call
+  endpoint: "/api/reports/qoe"
+  method: GET
+  assertions:
+    - {field: ebitda_bridge_count, operator: greater_than, expected: 0}
+    - {field: ebitda_bridge_has_status, operator: equals, expected: true}
+    - {field: ebitda_bridge_has_trend, operator: equals, expected: true}
+  tags: [qoe, bridge]
+
+- id: QE_005
+  group: QOE
+  name: "QofE revenue quality has concentration metrics"
+  type: api_call
+  endpoint: "/api/reports/qoe"
+  method: GET
+  assertions:
+    - {field: revenue_quality.customer_concentration.hhi, operator: greater_than, expected: 0}
+    - {field: revenue_quality.customer_concentration.top_10_pct, operator: in_range, expected: [0, 100]}
+    - {field: revenue_quality.customer_concentration.total_customers, operator: greater_than, expected: 0}
+  tags: [qoe, revenue_quality]
+
+- id: QE_006
+  group: QOE
+  name: "QofE working capital has trend data"
+  type: api_call
+  endpoint: "/api/reports/qoe"
+  method: GET
+  assertions:
+    - {field: working_capital.dso_trend, operator: not_null}
+    - {field: working_capital.dpo_trend, operator: not_null}
+    - {field: working_capital.margin_trend, operator: not_null}
+  tags: [qoe, working_capital]
+
+- id: QE_007
+  group: QOE
+  name: "QofE summary totals are internally consistent"
+  type: api_call
+  endpoint: "/api/reports/qoe"
+  method: GET
+  assertions:
+    - {field: summary.reported_ebitda, operator: greater_than, expected: 0}
+    - {field: summary.entity_adjusted_ebitda, operator: greater_than, expected: 0}
+    - {field: summary.pro_forma_year_1, operator: greater_than, expected: 0}
+    - {field: summary.total_adjustments, operator: greater_than, expected: 0}
+  tags: [qoe, summary]
+
+- id: QE_008
+  group: QOE
+  name: "QofE adjustment lifecycle stages are populated"
+  type: api_call
+  endpoint: "/api/reports/qoe"
+  method: GET
+  assertions:
+    - {field: adjustment_lifecycle.total_adjustments, operator: greater_than, expected: 0}
+    - {field: adjustment_lifecycle.lifecycle_stages, operator: not_null}
+    - {field: adjustment_lifecycle.status_counts, operator: not_null}
+  tags: [qoe, lifecycle]
+
+
+# ── Group 18: Maestra Engine-Backed Responses ────────────────────────────────
+
+- id: MA_001
+  group: MAESTRA
+  name: "Maestra engagement creation returns valid structure"
+  type: api_call
+  endpoint: "/api/reports/maestra/engage"
+  method: POST
+  assertions:
+    - {field: engagement_id, operator: not_null}
+    - {field: phase, operator: not_null}
+    - {field: deal_name, operator: not_null}
+    - {field: workstreams, operator: greater_than, expected: 0}
+  tags: [maestra, engagement]
+
+- id: MA_002
+  group: MAESTRA
+  name: "Maestra overview returns engine-backed data"
+  type: maestra_message
+  message: "Give me an overview of where we stand"
+  assertions:
+    - {field: response, operator: not_null}
+    - {field: response, operator: contains, expected: "EBITDA"}
+    - {field: actions_taken, operator: not_null}
+    - {field: suggestions, operator: not_null}
+  tags: [maestra, overview]
+
+- id: MA_003
+  group: MAESTRA
+  name: "Maestra bridge detail navigates to bridge tab"
+  type: maestra_message
+  message: "Walk me through the EBITDA bridge"
+  assertions:
+    - {field: response, operator: not_null}
+    - {field: response, operator: contains, expected: "bridge"}
+    - {field: navigation.tab, operator: equals, expected: "bridge"}
+  tags: [maestra, bridge, navigation]
+
+- id: MA_004
+  group: MAESTRA
+  name: "Maestra cross-sell detail returns pipeline data"
+  type: maestra_message
+  message: "What cross-sell opportunities do we have?"
+  assertions:
+    - {field: response, operator: not_null}
+    - {field: response, operator: contains, expected: "pipeline"}
+    - {field: navigation.tab, operator: equals, expected: "crossSell"}
+  tags: [maestra, cross_sell, navigation]
+
+- id: MA_005
+  group: MAESTRA
+  name: "Maestra QofE detail returns sustainability data"
+  type: maestra_message
+  message: "How is earnings quality tracking this quarter?"
+  assertions:
+    - {field: response, operator: not_null}
+    - {field: response, operator: contains, expected: "sustainability"}
+    - {field: navigation.tab, operator: equals, expected: "qoe"}
+  tags: [maestra, qoe, navigation]
