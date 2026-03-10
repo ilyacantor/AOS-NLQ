@@ -2796,7 +2796,7 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
 // MAIN COMPONENT
 // ============================================================
 export function ReportPortal({ onClose }: { onClose: () => void }) {
-  const [entity, setEntity] = useState<EntitySelection>("meridian");
+  const [entity, setEntity] = useState<EntitySelection>("combined");
   const [tab, setTab] = useState("pl");
   const [variant, setVariant] = useState("act_vs_py");
   const [quarter, setQuarter] = useState("2025-Q3");
