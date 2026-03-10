@@ -1369,7 +1369,11 @@ def _try_tiered_metric_query_core(question: str, entity_id: Optional[str] = None
     if for_match:
         captured = for_match.group(1).strip()
         # Only strip if it's an entity filter, not a period reference
-        is_period_ref = bool(_re.match(r'^(?:q[1-4]\s+)?20\d{2}$', captured, _re.IGNORECASE))
+        # Matches: "2025", "Q1 2025", "2025-Q1", "2025 Q1", "H1 2025"
+        is_period_ref = bool(_re.match(
+            r'^(?:q[1-4]\s+)?20\d{2}(?:[-\s]q[1-4])?$|^20\d{2}[-\s]?q[1-4]$|^h[12]\s+20\d{2}$',
+            captured, _re.IGNORECASE,
+        ))
         is_period_phrase = captured in ("this year", "last year", "this quarter", "last quarter")
         if not is_period_ref and not is_period_phrase:
             metric_query = metric_query[:for_match.start()].strip()
@@ -1384,35 +1388,47 @@ def _try_tiered_metric_query_core(question: str, entity_id: Optional[str] = None
     if _qtr_year:
         _extracted_period = f"{_qtr_year.group(2)}-Q{_qtr_year.group(1)}"
     else:
-        # Check for standalone year: "2025", "2024"
-        _year_match = _re_period.search(r'\b(20\d{2})\b', metric_query)
-        if _year_match:
-            _extracted_period = _year_match.group(1)
+        # Check for "2025-Q1" / "2025 Q1" pattern (ISO-style)
+        _year_qtr = _re_period.search(r'\b(20\d{2})[-\s]q([1-4])\b', metric_query, _re_period.IGNORECASE)
+        if _year_qtr:
+            _extracted_period = f"{_year_qtr.group(1)}-Q{_year_qtr.group(2)}"
         else:
-            # Check for standalone quarter: "q3", "Q1"
-            _qtr_match = _re_period.search(r'\bq([1-4])\b', metric_query, _re_period.IGNORECASE)
-            if _qtr_match:
-                _extracted_period = f"{current_year()}-Q{_qtr_match.group(1)}"
-            elif "this year" in metric_query:
-                _extracted_period = current_year()
-            elif "last year" in metric_query:
-                _extracted_period = str(int(current_year()) - 1)
-            elif "this quarter" in metric_query or "this quater" in metric_query:
-                _extracted_period = current_quarter()
-            elif "last quarter" in metric_query or "last quater" in metric_query:
-                # Simple last quarter calc
-                from src.nlq.core.dates import prior_quarter
-                _extracted_period = prior_quarter()
-            elif "last month" in metric_query:
-                # Last month: use current quarter as approximation
-                # (monthly grain not available, quarterly is closest)
-                from src.nlq.core.dates import prior_quarter
-                _extracted_period = prior_quarter()
+            # Check for standalone year: "2025", "2024"
+            _year_match = _re_period.search(r'\b(20\d{2})\b', metric_query)
+            if _year_match:
+                _extracted_period = _year_match.group(1)
+            else:
+                # Check for standalone quarter: "q3", "Q1"
+                _qtr_match = _re_period.search(r'\bq([1-4])\b', metric_query, _re_period.IGNORECASE)
+                if _qtr_match:
+                    _extracted_period = f"{current_year()}-Q{_qtr_match.group(1)}"
+                elif "this year" in metric_query:
+                    _extracted_period = current_year()
+                elif "last year" in metric_query:
+                    _extracted_period = str(int(current_year()) - 1)
+                elif "this quarter" in metric_query or "this quater" in metric_query:
+                    _extracted_period = current_quarter()
+                elif "last quarter" in metric_query or "last quater" in metric_query:
+                    # Simple last quarter calc
+                    from src.nlq.core.dates import prior_quarter
+                    _extracted_period = prior_quarter()
+                elif "last month" in metric_query:
+                    # Last month: use current quarter as approximation
+                    # (monthly grain not available, quarterly is closest)
+                    from src.nlq.core.dates import prior_quarter
+                    _extracted_period = prior_quarter()
 
     # Strip period suffixes (e.g., "revenue 2025", "margin for 2025", "arr in q3")
     # Include prepositions and common misspellings
     period_suffixes = [
         # With prepositions first (longer match wins)
+        # ISO-style YYYY-QN format with prepositions
+        " for 2024-q1", " for 2024-q2", " for 2024-q3", " for 2024-q4",
+        " for 2025-q1", " for 2025-q2", " for 2025-q3", " for 2025-q4",
+        " for 2026-q1", " for 2026-q2", " for 2026-q3", " for 2026-q4",
+        " in 2024-q1", " in 2024-q2", " in 2024-q3", " in 2024-q4",
+        " in 2025-q1", " in 2025-q2", " in 2025-q3", " in 2025-q4",
+        " in 2026-q1", " in 2026-q2", " in 2026-q3", " in 2026-q4",
         " for 2024", " for 2025", " for 2026",
         " in 2024", " in 2025", " in 2026",
         " during 2024", " during 2025", " during 2026",
@@ -1427,6 +1443,10 @@ def _try_tiered_metric_query_core(question: str, entity_id: Optional[str] = None
         " for this year", " for last year", " for this quarter", " for last quarter",
         " in this year", " in last year",
         # Without prepositions (fallback)
+        # ISO-style YYYY-QN format
+        " 2024-q1", " 2024-q2", " 2024-q3", " 2024-q4",
+        " 2025-q1", " 2025-q2", " 2025-q3", " 2025-q4",
+        " 2026-q1", " 2026-q2", " 2026-q3", " 2026-q4",
         " 2024", " 2025", " 2026",
         " this year", " last year", " this quarter", " last quarter",
         " this quater", " last quater",  # misspellings

@@ -11,7 +11,7 @@ Given a natural language question about financial data, extract:
 1. intent: One of [POINT_QUERY, COMPARISON_QUERY, TREND_QUERY, AGGREGATION_QUERY, BREAKDOWN_QUERY]
 2. metric: The financial metric being asked about (use canonical names)
 3. period_type: One of [annual, quarterly, half_year, ytd]
-4. period_reference: The primary period (e.g., "2024", "Q4 2025", "last_year")
+4. period_reference: The primary period (e.g., "2024", "Q4 2025", "2025-Q1", "last_year")
 5. is_relative: Boolean - does this use relative time references?
 6. comparison_period: (For COMPARISON_QUERY only) The second period to compare against
 7. entity: (Optional) Company or customer name mentioned in the query. Extract if the question is about a specific company/entity.
@@ -25,6 +25,7 @@ Entity extraction rules:
 - If no specific company/entity is mentioned, set entity to null
 - Do NOT hallucinate entities — only extract what is explicitly mentioned
 - "our revenue" or "total revenue" → entity=null (no specific entity)
+- CRITICAL: Period/time references are NOT entities. Strings matching YYYY-QN (e.g., "2025-Q1"), QN YYYY (e.g., "Q1 2025"), year numbers (e.g., "2024"), or "H1 2025" are period_reference values, NOT entity names. "revenue for 2025-Q1" → entity=null, period_reference="2025-Q1"
 
 Intent definitions:
 - POINT_QUERY: Single metric, single period (e.g., "What was revenue in 2024?")

@@ -144,14 +144,18 @@ class ReconciliationEngine:
 
     # ── Internal helpers ────────────────────────────────────────────────────
 
-    def _resolve_gt_data(self, gt: Dict) -> Dict:
+    def _resolve_gt_data(self, gt: Dict, entity_id: Optional[str] = None) -> Dict:
         """
         Extract the quarter-level ground truth dict from a manifest.
 
         Handles three manifest formats:
         - v2.0: top-level "ground_truth" key → return it directly
-        - v3.0 (multi-entity): "ground_truth_by_entity" → pick first entity
+        - v3.0 (multi-entity): "ground_truth_by_entity" → select by entity_id
         - Legacy: no wrapper → return gt as-is
+
+        Args:
+            entity_id: For v3.0 manifests, select this entity's ground truth.
+                       If None, falls back to first entity (backward compat).
         """
         # v2.0 single-entity path
         if "ground_truth" in gt:
@@ -163,18 +167,34 @@ class ReconciliationEngine:
             if not by_entity:
                 logger.error("ground_truth_by_entity is empty in v3.0 manifest")
                 return gt
-            entity_id = next(iter(by_entity))
+
+            if entity_id and entity_id in by_entity:
+                logger.info(
+                    f"Using ground truth for entity '{entity_id}' from v3.0 manifest"
+                )
+                return by_entity[entity_id]
+            elif entity_id:
+                available = list(by_entity.keys())
+                logger.error(
+                    f"Entity '{entity_id}' not found in v3.0 manifest. "
+                    f"Available entities: {available}"
+                )
+                return gt
+
+            # No entity_id specified — fall back to first entity
+            first_entity = next(iter(by_entity))
             logger.info(
-                f"Using ground truth for entity '{entity_id}' from v3.0 manifest"
+                f"No entity_id specified; using first entity '{first_entity}' "
+                f"from v3.0 manifest"
             )
-            return by_entity[entity_id]
+            return by_entity[first_entity]
 
         # Legacy fallback — gt is the ground truth dict itself
         return gt
 
     # ── Public API ────────────────────────────────────────────────────────────
 
-    def reconcile_quarter(self, period: str) -> ReconciliationResult:
+    def reconcile_quarter(self, period: str, entity_id: Optional[str] = None) -> ReconciliationResult:
         """
         Compare all scalar metrics for a single quarter against ground truth.
 
@@ -190,7 +210,7 @@ class ReconciliationEngine:
                 f"Farm API at {self._farm_url}, or local file fallback."
             )
 
-        gt_data = self._resolve_gt_data(gt)
+        gt_data = self._resolve_gt_data(gt, entity_id=entity_id)
         quarter_data = gt_data.get(period)
         if quarter_data is None:
             available = [
@@ -304,7 +324,7 @@ class ReconciliationEngine:
             ground_truth_version=gt_version,
         )
 
-    def reconcile_line_item(self, metric: str) -> ReconciliationResult:
+    def reconcile_line_item(self, metric: str, entity_id: Optional[str] = None) -> ReconciliationResult:
         """
         Compare a single metric across all available quarters.
 
@@ -318,7 +338,7 @@ class ReconciliationEngine:
                 f"Farm API at {self._farm_url}, or local file fallback."
             )
 
-        gt_data = self._resolve_gt_data(gt)
+        gt_data = self._resolve_gt_data(gt, entity_id=entity_id)
         quarters = [
             k for k in gt_data
             if k not in _GT_NON_QUARTER_KEYS
@@ -446,6 +466,7 @@ class ReconciliationEngine:
         self,
         period: str,
         breakdown: str,
+        entity_id: Optional[str] = None,
     ) -> ReconciliationResult:
         """
         Compare a dimensional breakdown (e.g., revenue_by_region) against ground truth.
@@ -461,7 +482,7 @@ class ReconciliationEngine:
                 f"Farm API at {self._farm_url}, or local file fallback."
             )
 
-        gt_data = self._resolve_gt_data(gt)
+        gt_data = self._resolve_gt_data(gt, entity_id=entity_id)
         dim_truth = gt_data.get("dimensional_truth")
         if dim_truth is None:
             return _error_result(
@@ -602,7 +623,7 @@ class ReconciliationEngine:
             ground_truth_version=gt_version,
         )
 
-    def reconcile_full(self) -> ReconciliationResult:
+    def reconcile_full(self, entity_id: Optional[str] = None) -> ReconciliationResult:
         """
         Full reconciliation across all quarters.
 
@@ -616,7 +637,7 @@ class ReconciliationEngine:
                 f"Farm API at {self._farm_url}, or local file fallback."
             )
 
-        gt_data = self._resolve_gt_data(gt)
+        gt_data = self._resolve_gt_data(gt, entity_id=entity_id)
         quarters = sorted([
             k for k in gt_data
             if k not in _GT_NON_QUARTER_KEYS
@@ -631,7 +652,7 @@ class ReconciliationEngine:
         total_errors = 0
 
         for period in quarters:
-            qr = self.reconcile_quarter(period)
+            qr = self.reconcile_quarter(period, entity_id=entity_id)
             total_passed += qr.passed
             total_failed += qr.failed
             total_errors += qr.errors

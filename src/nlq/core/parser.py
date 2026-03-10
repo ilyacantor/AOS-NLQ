@@ -12,6 +12,7 @@ The parser normalizes metrics using the synonym system.
 
 import json
 import logging
+import re
 from typing import Optional
 
 from src.nlq.knowledge.synonyms import normalize_metric, normalize_period
@@ -19,6 +20,12 @@ from src.nlq.llm.client import ClaudeClient
 from src.nlq.models.query import ParsedQuery, QueryIntent, PeriodType
 
 logger = logging.getLogger(__name__)
+
+# Matches period-like strings: "2025-Q1", "Q1 2025", "2025_Q1", "Q1_2025", "2024", "H1 2025"
+_PERIOD_PATTERN = re.compile(
+    r'^(?:\d{4}[-_ ]?Q[1-4]|Q[1-4][-_ ]?\d{4}|H[12][-_ ]?\d{4}|\d{4}[-_ ]?H[12]|\d{4})$',
+    re.IGNORECASE,
+)
 
 
 class QueryParser:
@@ -89,6 +96,20 @@ class QueryParser:
             entity = entity.strip()
             if not entity:
                 entity = None
+
+        # Guard: if Claude misclassified a period as an entity, reclassify it.
+        # e.g. "revenue for 2025-Q1" → Claude returns entity="2025-Q1" instead of
+        # period_reference="2025-Q1". Detect and fix.
+        if entity and _PERIOD_PATTERN.match(entity):
+            logger.warning(
+                "Period '%s' was misclassified as entity by LLM — "
+                "reclassifying as period_reference",
+                entity,
+            )
+            if not normalized_period or raw_parse.get("is_relative", False):
+                normalized_period = normalize_period(entity)
+                raw_period = entity
+            entity = None
 
         # Extract dimension if present
         dimension = raw_parse.get("dimension")

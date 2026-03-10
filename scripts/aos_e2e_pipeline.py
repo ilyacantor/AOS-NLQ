@@ -767,6 +767,171 @@ def _open_ui(urls: dict[str, str], label: str, url: str) -> None:
 
 
 # =========================================================================
+# MULTI-ENTITY PIPELINE STEPS
+# =========================================================================
+
+def step_me_01_health(client: httpx.Client, urls: dict[str, str]) -> None:
+    """Health-check Farm, DCL, NLQ for multi-entity pipeline."""
+    label = "ME-1. Health Check (Farm, DCL, NLQ)"
+    t0 = _step_start(label)
+
+    health_endpoints = {
+        "Farm": f"{urls['farm']}/api/health",
+        "DCL":  f"{urls['dcl']}/api/health",
+        "NLQ":  f"{urls['nlq']}/api/v1/health",
+    }
+
+    down: list[str] = []
+    for module, endpoint in health_endpoints.items():
+        try:
+            r = _get(client, endpoint, timeout=10, urls=urls)
+            if r.status_code >= 400:
+                down.append(f"{module} -> {endpoint} -> HTTP {r.status_code}")
+            else:
+                _log(f"   {module:6s}  healthy", _C.GREEN)
+        except httpx.ConnectError:
+            down.append(f"{module} -> {endpoint} -> connection refused (is the service running?)")
+        except httpx.TimeoutException:
+            down.append(f"{module} -> {endpoint} -> timed out after 10s")
+        except Exception as exc:
+            down.append(f"{module} -> {endpoint} -> {exc}")
+
+    if down:
+        _step_fail(label, t0, "Modules DOWN:\n      " + "\n      ".join(down))
+
+    _step_pass(label, t0, "Farm, DCL, NLQ healthy")
+
+
+def step_me_02_farm_generate(
+    client: httpx.Client, urls: dict[str, str], entities: str, seed: int | None,
+) -> str:
+    """Multi-entity Farm generation with push to DCL. Returns run_id."""
+    label = "ME-2. Farm -- Generate Multi-Entity"
+    t0 = _step_start(label)
+
+    params: dict[str, str] = {
+        "entities": entities,
+        "push_to_dcl": "true",
+    }
+    if seed is not None:
+        params["seed"] = str(seed)
+
+    url = f"{urls['farm']}/api/business-data/generate-multi-entity"
+    try:
+        r = client.post(url, params=params, timeout=300)
+    except httpx.TimeoutException:
+        _step_fail(label, t0, f"POST {url} timed out after 300s")
+        return ""
+    except Exception as exc:
+        _step_fail(label, t0, f"POST {url} failed: {exc}")
+        return ""
+
+    if r.status_code >= 400:
+        _step_fail(label, t0, f"HTTP {r.status_code}: {_body_preview(r)}")
+
+    data = r.json()
+    run_id = data.get("run_id", "")
+    if not run_id:
+        _step_fail(label, t0, f"No run_id in response: {json.dumps(data)[:500]}")
+
+    entity_list = data.get("entities", entities)
+    _step_pass(label, t0, f"run_id={run_id}  entities={entity_list}")
+    return run_id
+
+
+def step_me_03_combining_data(
+    client: httpx.Client, urls: dict[str, str],
+) -> None:
+    """Generate combining datasets — reuses step_08b logic."""
+    step_08b_combining_data(client, urls)
+
+
+def step_me_04_dcl_verify(
+    client: httpx.Client, urls: dict[str, str], entities: str,
+) -> None:
+    """Verify DCL ingested data for each entity."""
+    label = "ME-4. DCL -- Verify Entity Ingestion"
+    t0 = _step_start(label)
+
+    entity_list = [e.strip() for e in entities.split(",")]
+    for entity_id in entity_list:
+        try:
+            r = client.post(
+                f"{urls['dcl']}/api/dcl/query",
+                json={
+                    "metric": "revenue",
+                    "entity_id": entity_id,
+                    "time_range": {"start": "2025-Q1", "end": "2025-Q1"},
+                },
+                timeout=30,
+            )
+            if r.status_code >= 400:
+                _step_fail(
+                    label, t0,
+                    f"DCL query for entity '{entity_id}' returned HTTP {r.status_code}: "
+                    f"{_body_preview(r)}",
+                )
+            data = r.json()
+            value = data.get("value", data.get("result", "?"))
+            _log(f"   {entity_id}: revenue = {value}", _C.CYAN)
+        except Exception as exc:
+            _step_fail(label, t0, f"DCL query for '{entity_id}' failed: {exc}")
+
+    _step_pass(label, t0, f"revenue verified for {entity_list}")
+
+
+def step_me_05_harness(urls: dict[str, str], run_id: str) -> None:
+    """Run the pipeline integration harness via subprocess."""
+    label = "ME-5. Pipeline Harness (PI_001–PI_021)"
+    t0 = _step_start(label)
+
+    import subprocess
+
+    harness_script = _SCRIPT_DIR.parent / "tests" / "pipeline" / "run_pipeline_harness.py"
+    if not harness_script.exists():
+        _step_fail(label, t0, f"Harness script not found: {harness_script}")
+        return
+
+    cmd = [
+        sys.executable, str(harness_script),
+        "--farm-url", urls["farm"],
+        "--dcl-url", urls["dcl"],
+        "--nlq-url", urls["nlq"],
+    ]
+    if run_id:
+        cmd.extend(["--run-id", run_id])
+
+    _log(f"   Running: {' '.join(cmd[-6:])}", _C.DIM)
+
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=300,
+        )
+    except subprocess.TimeoutExpired:
+        _step_fail(label, t0, "Harness timed out after 300s")
+        return
+    except Exception as exc:
+        _step_fail(label, t0, f"Harness failed to start: {exc}")
+        return
+
+    # Print harness output
+    for line in result.stdout.strip().split("\n"):
+        if line.strip():
+            print(f"   {line}")
+
+    if result.returncode != 0:
+        stderr_preview = result.stderr[:500] if result.stderr else ""
+        _step_fail(
+            label, t0,
+            f"Harness exited with code {result.returncode}. "
+            f"{stderr_preview}",
+        )
+        return
+
+    _step_pass(label, t0, "all pipeline tests passed")
+
+
+# =========================================================================
 # MAIN
 # =========================================================================
 
@@ -790,6 +955,13 @@ def _build_parser() -> argparse.ArgumentParser:
                     help="Skip opening browser at the end")
     p.add_argument("--skip-reset", action="store_true",
                     help="Deprecated (no-op). Pipeline no longer clears state.")
+    p.add_argument("--entities", default=None,
+                    help="Comma-separated entity IDs for multi-entity pipeline "
+                         "(e.g. --entities=meridian,cascadia). Uses Farm generate-multi-entity.")
+    p.add_argument("--verify", action="store_true",
+                    help="Run pipeline integration harness after pipeline completes")
+    p.add_argument("--seed", default=None, type=int,
+                    help="Random seed for Farm generation (deterministic output)")
     return p
 
 
@@ -798,6 +970,39 @@ def main() -> None:
     urls = _resolve_urls(args)
     tenant_id: str = args.tenant or ""   # empty = let Farm generate
 
+    # ── Multi-entity pipeline ──────────────────────────────────────────────
+    if args.entities:
+        mode_label = "MULTI-ENTITY"
+        _log(f"\n{'=' * 64}", _C.BOLD)
+        _log(f"AOS  E2E  PIPELINE  ORCHESTRATOR  [{mode_label}]", _C.BOLD + _C.CYAN)
+        _log(f"{'=' * 64}", _C.BOLD)
+        _log(f"  Farm : {urls['farm']}", _C.DIM)
+        _log(f"  DCL  : {urls['dcl']}", _C.DIM)
+        _log(f"  NLQ  : {urls['nlq']}", _C.DIM)
+        _log(f"  Entities: {args.entities}", _C.CYAN)
+        if args.seed is not None:
+            _log(f"  Seed: {args.seed}", _C.DIM)
+        _log(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", _C.DIM)
+
+        client = httpx.Client()
+        try:
+            step_me_01_health(client, urls)
+            run_id = step_me_02_farm_generate(client, urls, args.entities, args.seed)
+            step_me_03_combining_data(client, urls)
+            step_me_04_dcl_verify(client, urls, args.entities)
+
+            if args.verify:
+                step_me_05_harness(urls, run_id)
+        finally:
+            client.close()
+
+        _print_summary()
+        _log(f"\n{'=' * 64}", _C.BOLD)
+        _log("MULTI-ENTITY PIPELINE COMPLETE", _C.GREEN + _C.BOLD)
+        _log(f"{'=' * 64}\n", _C.BOLD)
+        return
+
+    # ── Standard single-entity pipeline ────────────────────────────────────
     mode_label = "DEPLOYED (Render)" if args.deployed else "LOCAL"
     _log(f"\n{'=' * 64}", _C.BOLD)
     _log(f"AOS  E2E  PIPELINE  ORCHESTRATOR  [{mode_label}]", _C.BOLD + _C.CYAN)
@@ -853,6 +1058,9 @@ def main() -> None:
 
         if not nb:
             _open_ui(urls, "10. Open DCL Recon", _frontend_url(urls, "dcl"))
+
+        if args.verify:
+            step_me_05_harness(urls, "")
 
     finally:
         client.close()

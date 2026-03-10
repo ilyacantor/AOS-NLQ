@@ -1,0 +1,383 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Pipeline Integration Test Harness — Test Case Definitions
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# 22 test cases (PI_001–PI_021, including PI_002B) validating Farm → DCL → NLQ
+# end-to-end pipeline for dual-entity (Meridian + Cascadia) generation.
+#
+# All tests are HTTP-only — no cross-repo Python imports.
+#
+# Categories:
+#   - Farm generation (PI_001–002)
+#   - DCL freshness gate (PI_002B) — ensures DCL has data from THIS run
+#   - DCL ingestion (PI_003–005)
+#   - NLQ serving (PI_006–007)
+#   - Ground truth reconciliation (PI_008–013) — depends on PI_002B
+#   - P&L shape (PI_014–016)
+#   - Engine freshness (PI_017–020)
+#   - Not-fact_base guard (PI_021)
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ── Farm Generation ──────────────────────────────────────────────────────────
+
+- id: PI_001
+  name: "Farm multi-entity generation"
+  category: farm_generation
+  description: "POST generate-multi-entity returns run_id and both entities"
+  method: POST
+  service: farm
+  path: "/api/business-data/generate-multi-entity"
+  params:
+    entities: "meridian,cascadia"
+    push_to_dcl: "true"
+    seed: "42"
+  assertions:
+    - field: run_id
+      operator: not_null
+    - field: entities
+      operator: contains
+      expected: "meridian"
+    - field: entities
+      operator: contains
+      expected: "cascadia"
+  capture:
+    run_id: run_id
+
+- id: PI_002
+  name: "Farm ground truth available"
+  category: farm_generation
+  description: "GET ground truth for the run_id returns v3.0 manifest with both entities"
+  method: GET
+  service: farm
+  path: "/api/business-data/ground-truth/{run_id}"
+  depends_on: PI_001
+  assertions:
+    - field: manifest_version
+      operator: equals
+      expected: "3.0"
+    - field: ground_truth_by_entity.meridian
+      operator: not_null
+    - field: ground_truth_by_entity.cascadia
+      operator: not_null
+
+
+# ── DCL Freshness Gate ──────────────────────────────────────────────────────
+
+- id: PI_002B
+  name: "DCL has fresh data from this run"
+  category: freshness_gate
+  description: >
+    Verify DCL ingested data from PI_001's generation. Queries DCL directly
+    for a probe metric and compares against the ground truth from the new
+    run_id. If they don't match, DCL is serving stale data and all
+    reconciliation tests (PI_008-013) will be skipped.
+  freshness_gate: true
+  depends_on: PI_002
+  probe_metric: "revenue"
+  probe_entity: "meridian"
+  probe_period: "2025-Q1"
+  tolerance_pct: 0.1
+
+
+# ── DCL Ingestion ────────────────────────────────────────────────────────────
+
+- id: PI_003
+  name: "DCL query — Meridian revenue"
+  category: dcl_ingestion
+  description: "Query DCL for Meridian revenue Q1 2025 — expect ~$1.25B"
+  method: POST
+  service: dcl
+  path: "/api/dcl/query"
+  body:
+    metric: "revenue"
+    entity_id: "meridian"
+    time_range:
+      start: "2025-Q1"
+      end: "2025-Q1"
+  assertions:
+    - field: data.0.value
+      operator: greater_than
+      expected: 500
+    - field: data.0.value
+      operator: not_null
+    - field: data.0.entity_id
+      operator: equals
+      expected: "meridian"
+
+- id: PI_004
+  name: "DCL query — Cascadia revenue"
+  category: dcl_ingestion
+  description: "Query DCL for Cascadia revenue Q1 2025 — expect ~$250M"
+  method: POST
+  service: dcl
+  path: "/api/dcl/query"
+  body:
+    metric: "revenue"
+    entity_id: "cascadia"
+    time_range:
+      start: "2025-Q1"
+      end: "2025-Q1"
+  assertions:
+    - field: data.0.value
+      operator: not_null
+    - field: data.0.value
+      operator: greater_than
+      expected: 50
+    - field: data.0.entity_id
+      operator: equals
+      expected: "cascadia"
+
+- id: PI_005
+  name: "DCL query — no entity_id does not sum entities"
+  category: dcl_ingestion
+  description: >
+    Query DCL without entity_id. DCL returns default (non-entity) data,
+    NOT a sum of meridian+cascadia. Value must differ from both entity values.
+    This validates that DCL does not silently merge entity-scoped data into
+    non-entity queries.
+  method: POST
+  service: dcl
+  path: "/api/dcl/query"
+  body:
+    metric: "revenue"
+    time_range:
+      start: "2025-Q1"
+      end: "2025-Q1"
+  assertions:
+    - field: data.0.value
+      operator: not_null
+    - field: data.0.entity_id
+      operator: equals
+      expected: "None"
+    - field: data.0.value
+      operator: less_than
+      expected: 500
+
+
+# ── NLQ Serving ──────────────────────────────────────────────────────────────
+
+- id: PI_006
+  name: "NLQ Meridian revenue query"
+  category: nlq_serving
+  description: "NLQ returns Meridian revenue via live DCL data"
+  method: POST
+  service: nlq
+  path: "/api/v1/query"
+  body:
+    question: "what is revenue for Q1 2025"
+    entity_id: "meridian"
+    data_mode: "live"
+  assertions:
+    - field: value
+      operator: not_null
+    - field: data_source
+      operator: not_in
+      expected: ["demo", "local", "local_fallback", "fact_base"]
+
+- id: PI_007
+  name: "NLQ Cascadia revenue query"
+  category: nlq_serving
+  description: "NLQ returns Cascadia revenue via live DCL data"
+  method: POST
+  service: nlq
+  path: "/api/v1/query"
+  body:
+    question: "what is revenue for Q1 2025"
+    entity_id: "cascadia"
+    data_mode: "live"
+  assertions:
+    - field: value
+      operator: not_null
+    - field: data_source
+      operator: not_in
+      expected: ["demo", "local", "local_fallback", "fact_base"]
+
+
+# ── Ground Truth Reconciliation ──────────────────────────────────────────────
+
+- id: PI_008
+  name: "Reconcile Meridian revenue"
+  category: ground_truth
+  description: "Farm ground truth revenue vs NLQ actual for Meridian"
+  reconciliation: true
+  depends_on: PI_002B
+  entity_id: "meridian"
+  metric: "revenue"
+  period: "2025-Q1"
+  tolerance_pct: 1.0
+
+- id: PI_009
+  name: "Reconcile Meridian EBITDA"
+  category: ground_truth
+  description: "Farm ground truth EBITDA vs NLQ actual for Meridian"
+  reconciliation: true
+  depends_on: PI_002B
+  entity_id: "meridian"
+  metric: "ebitda"
+  period: "2025-Q1"
+  tolerance_pct: 1.0
+
+- id: PI_010
+  name: "Reconcile Meridian gross_profit"
+  category: ground_truth
+  description: "Farm ground truth gross_profit vs NLQ actual for Meridian"
+  reconciliation: true
+  depends_on: PI_002B
+  entity_id: "meridian"
+  metric: "gross_profit"
+  period: "2025-Q1"
+  tolerance_pct: 1.0
+
+- id: PI_011
+  name: "Reconcile Cascadia revenue"
+  category: ground_truth
+  description: "Farm ground truth revenue vs NLQ actual for Cascadia"
+  reconciliation: true
+  depends_on: PI_002B
+  entity_id: "cascadia"
+  metric: "revenue"
+  period: "2025-Q1"
+  tolerance_pct: 1.0
+
+- id: PI_012
+  name: "Reconcile Cascadia EBITDA"
+  category: ground_truth
+  description: "Farm ground truth EBITDA vs NLQ actual for Cascadia"
+  reconciliation: true
+  depends_on: PI_002B
+  entity_id: "cascadia"
+  metric: "ebitda"
+  period: "2025-Q1"
+  tolerance_pct: 1.0
+
+- id: PI_013
+  name: "Reconcile Cascadia gross_profit"
+  category: ground_truth
+  description: "Farm ground truth gross_profit vs NLQ actual for Cascadia"
+  reconciliation: true
+  depends_on: PI_002B
+  entity_id: "cascadia"
+  metric: "gross_profit"
+  period: "2025-Q1"
+  tolerance_pct: 1.0
+
+
+# ── P&L Shape ────────────────────────────────────────────────────────────────
+
+- id: PI_014
+  name: "Combining IS returns both entities"
+  category: pnl_shape
+  description: "DCL combining-is endpoint returns columns for both entities"
+  method: GET
+  service: dcl
+  path: "/api/reports/combining-is"
+  params:
+    period: "2025-Q1"
+  assertions:
+    - field: _body
+      operator: contains
+      expected: "meridian"
+    - field: _body
+      operator: contains
+      expected: "cascadia"
+
+- id: PI_015
+  name: "Meridian P&L has consultancy terms"
+  category: pnl_shape
+  description: "Meridian column contains consultancy-specific line items"
+  method: GET
+  service: dcl
+  path: "/api/reports/combining-is"
+  params:
+    period: "2025-Q1"
+  assertions:
+    - field: _body
+      operator: contains_any
+      expected: ["Advisory", "Consultant", "Bench", "T&M", "consulting"]
+
+- id: PI_016
+  name: "Cascadia P&L has BPM terms"
+  category: pnl_shape
+  description: "Cascadia column contains BPM-specific line items"
+  method: GET
+  service: dcl
+  path: "/api/reports/combining-is"
+  params:
+    period: "2025-Q1"
+  assertions:
+    - field: _body
+      operator: contains_any
+      expected: ["Offshore", "Nearshore", "Managed Services", "Per-FTE", "BPM"]
+
+
+# ── Engine Freshness ─────────────────────────────────────────────────────────
+
+- id: PI_017
+  name: "Cross-sell report available"
+  category: engine_freshness
+  description: "DCL cross-sell engine rebuilt with fresh combining data"
+  method: GET
+  service: dcl
+  path: "/api/reports/cross-sell"
+  assertions:
+    - field: _status
+      operator: less_than
+      expected: 400
+
+- id: PI_018
+  name: "EBITDA bridge report available"
+  category: engine_freshness
+  description: "DCL EBITDA bridge engine rebuilt with fresh data"
+  method: GET
+  service: dcl
+  path: "/api/reports/ebitda-bridge"
+  assertions:
+    - field: _status
+      operator: less_than
+      expected: 400
+
+- id: PI_019
+  name: "Entity overlap report available"
+  category: engine_freshness
+  description: "DCL entity overlap engine rebuilt with fresh data"
+  method: GET
+  service: dcl
+  path: "/api/reports/entity-overlap"
+  assertions:
+    - field: _status
+      operator: less_than
+      expected: 400
+
+- id: PI_020
+  name: "EBITDA bridge latency < 2s"
+  category: engine_freshness
+  description: "EBITDA bridge responds within 2 seconds"
+  method: GET
+  service: dcl
+  path: "/api/reports/ebitda-bridge"
+  assertions:
+    - field: _latency_ms
+      operator: less_than
+      expected: 2000
+
+
+# ── Not-fact_base Guard ──────────────────────────────────────────────────────
+
+- id: PI_021
+  name: "NLQ data_source is dcl for live queries"
+  category: guard
+  description: "Every NLQ live query must set data_source to 'dcl'. No None, no fact_base, no demo."
+  method: POST
+  service: nlq
+  path: "/api/v1/query"
+  body:
+    question: "what is total revenue"
+    data_mode: "live"
+  assertions:
+    - field: data_source
+      operator: equals
+      expected: "dcl"
+    - field: value
+      operator: not_null
