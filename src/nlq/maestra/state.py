@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 SECTION_ORDER: list[str] = ["0A", "0B", "1", "2", "3", "4", "5", "6", "7"]
 
 # Pre-deal section ordering
-PRE_DEAL_SECTION_ORDER: list[str] = ["PDC", "PDA", "PDT", "PDS", "PDR", "PDF"]
+PRE_DEAL_SECTION_ORDER: list[str] = ["PDI", "PDC", "PDA", "PDT", "PDS", "PDR", "PDF"]
 
 # Only interview sections count toward completion percentage
 INTERVIEW_SECTIONS: list[str] = ["1", "2", "3", "4", "5"]

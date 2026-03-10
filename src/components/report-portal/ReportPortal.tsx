@@ -2494,13 +2494,59 @@ function InlineScopeChecklist({ deliverables, reconciliation_objects, synergy_ta
   );
 }
 
-function RichContentRenderer({ content }: { content: any }) {
+function InlineRoadmap({ title, message, sections, onSectionClick }: {
+  title?: string;
+  message?: string;
+  sections?: { id: string; number: number; name: string; duration: string; status: string }[];
+  onSectionClick?: (sectionName: string) => void;
+}) {
+  if (!sections) return null;
+  return (
+    <div style={{ margin: "8px 0", borderRadius: 6, border: `1px solid ${COLORS.border}`, background: COLORS.bg, overflow: "hidden" }}>
+      {title && <div style={{ padding: "8px 12px", background: COLORS.headerBg, borderBottom: `1px solid ${COLORS.border}` }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, fontFamily: "'JetBrains Mono',monospace", letterSpacing: "0.06em" }}>{title.toUpperCase()}</span>
+      </div>}
+      {message && <div style={{ padding: "8px 12px", fontSize: 12, color: COLORS.textMuted, borderBottom: `1px solid ${COLORS.border}22` }}>{message}</div>}
+      <div>
+        {sections.map((s) => (
+          <div
+            key={s.id}
+            onClick={() => onSectionClick && onSectionClick(`Jump to ${s.name}`)}
+            style={{
+              display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+              cursor: onSectionClick ? "pointer" : "default",
+              borderBottom: `1px solid ${COLORS.border}22`,
+              transition: "background 0.15s",
+            }}
+            onMouseEnter={(e) => { if (onSectionClick) e.currentTarget.style.background = COLORS.surfaceHover; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+          >
+            <span style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 11, fontWeight: 700, flexShrink: 0,
+              background: s.status === "Current" ? COLORS.accent : s.status === "Complete" ? COLORS.green : COLORS.surface,
+              color: s.status === "Current" || s.status === "Complete" ? "#fff" : COLORS.textMuted,
+              border: s.status === "Current" || s.status === "Complete" ? "none" : `1px solid ${COLORS.border}`,
+            }}>{s.number}</span>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.text }}>{s.name}</span>
+              <span style={{ fontSize: 11, color: COLORS.textDim, marginLeft: 8 }}>{s.duration}</span>
+            </div>
+            <span style={{ fontSize: 10, color: s.status === "Complete" ? COLORS.green : s.status === "Current" ? COLORS.accent : COLORS.textDim, fontWeight: 600 }}>{s.status}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RichContentRenderer({ content, onSendMessage }: { content: any; onSendMessage?: (msg: string) => void }) {
   if (!content || !content.type) return null;
   switch (content.type) {
     case "table": return <InlineTable title={content.title} headers={content.headers} rows={content.rows} />;
     case "hierarchy": return <InlineHierarchy title={content.title} root={content.root} />;
     case "comparison": return <InlineComparison dimension={content.dimension} systems={content.systems} />;
     case "scope_checklist": return <InlineScopeChecklist deliverables={content.deliverables} reconciliation_objects={content.reconciliation_objects} synergy_targets={content.synergy_targets} />;
+    case "roadmap": return <InlineRoadmap title={content.title} message={content.message} sections={content.sections} onSectionClick={onSendMessage} />;
     default: return null;
   }
 }
@@ -2536,10 +2582,10 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
       setEngagementId(eng.engagement_id);
       setMessages([{
         role: "maestra",
-        text: `I've completed my background research on both Meridian Partners and Cascadia Advisory. I have their business profiles, systems landscape, and deal context loaded.\n\nLet's get started — I'll walk you through what I found and confirm the details with you.`,
+        text: `I've completed my background research on both Meridian Partners and Cascadia Advisory. I have their business profiles, systems landscape, and deal context loaded.`,
       }]);
-      setSuggestions(["Let's go", "What do you know so far?", "Tell me about both companies"]);
-      setSection("PDC");
+      setSuggestions(["Let's get started", "Jump to findings", "Show me the roadmap"]);
+      setSection("PDI");
       const st = await fetchMaestraStatus(eng.engagement_id);
       setStatus(st);
     } catch (err) {
@@ -2737,7 +2783,7 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
                     }}>{m.text}</div>
                     {m.richContent && m.richContent.length > 0 && (
                       <div style={{ maxWidth: "88%", display: "inline-block", width: "100%" }}>
-                        {m.richContent.map((rc: any, j: number) => <RichContentRenderer key={j} content={rc} />)}
+                        {m.richContent.map((rc: any, j: number) => <RichContentRenderer key={j} content={rc} onSendMessage={sendMessage} />)}
                       </div>
                     )}
                   </>

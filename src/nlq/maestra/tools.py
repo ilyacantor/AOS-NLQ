@@ -316,6 +316,39 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "required": ["confirmed"],
         },
     },
+    {
+        "name": "show_roadmap",
+        "description": "Display the engagement roadmap / table of contents. Each section is clickable. Use at the start of the engagement.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "Message to display above the roadmap (e.g., 'You can skip to any section or come back at any time').",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "jump_to_section",
+        "description": "Jump to a specific section of the engagement. Use when the stakeholder asks to skip ahead, go back, or navigate to a particular topic.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target_section": {
+                    "type": "string",
+                    "enum": ["PDI", "PDC", "PDA", "PDT", "PDS", "PDR", "PDF"],
+                    "description": "Section ID to jump to. PDI=Intro/Roadmap, PDC=Deal Context, PDA=Acquirer Profile, PDT=Target Profile, PDS=DD Scope, PDR=Run Analysis, PDF=Findings.",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Brief reason for the jump.",
+                },
+            },
+            "required": ["target_section"],
+        },
+    },
 ]
 
 
@@ -608,6 +641,52 @@ def process_query_engine(
     }
     data["analysis_label"] = engine_labels.get(engine, engine)
     return data
+
+
+def process_show_roadmap(
+    message: str = "",
+    section_statuses: dict[str, str] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Process show_roadmap. Returns (rich_content, tool_result)."""
+    statuses = section_statuses or {}
+
+    def _status(section_id: str) -> str:
+        s = statuses.get(section_id, "NOT_STARTED")
+        if s == "COMPLETE":
+            return "Complete"
+        if s == "IN_PROGRESS":
+            return "Current"
+        return "Upcoming"
+
+    sections = [
+        {"id": "PDC", "number": 1, "name": "Deal Context", "duration": "2-3 min", "status": _status("PDC")},
+        {"id": "PDA", "number": 2, "name": "Acquirer Profile", "duration": "5 min", "status": _status("PDA")},
+        {"id": "PDT", "number": 3, "name": "Target Profile", "duration": "5-10 min", "status": _status("PDT")},
+        {"id": "PDS", "number": 4, "name": "DD Scope", "duration": "3 min", "status": _status("PDS")},
+        {"id": "PDR", "number": 5, "name": "Analysis", "duration": "1 min (auto)", "status": _status("PDR")},
+        {"id": "PDF", "number": 6, "name": "Findings", "duration": "15-20 min", "status": _status("PDF")},
+    ]
+
+    rich = {
+        "type": "roadmap",
+        "title": "Engagement Roadmap",
+        "message": message or "You can skip to any section or come back to a previous one at any time — just say the word.",
+        "sections": sections,
+    }
+    return rich, {"success": True, "displayed": "roadmap", "sections": len(sections)}
+
+
+def process_jump_to_section(
+    target_section: str,
+    reason: str = "",
+) -> tuple[StateAction, dict[str, Any]]:
+    """Process jump_to_section. Returns state action + tool result."""
+    action = StateAction(
+        action_type=ActionType.JUMP,
+        target_section=target_section,
+        summary=reason,
+    )
+    return action, {"success": True, "action": "JUMP", "target_section": target_section, "reason": reason}
 
 
 def process_configure_scope(

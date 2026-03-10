@@ -55,6 +55,7 @@ class SectionId(str, Enum):
     S6 = "6"   # Convergence: Reconciliation Object Scoping
     S7 = "7"   # Convergence: Cross-Entity Conflict Review
     # Pre-Deal sections
+    PDI = "PDI"   # Pre-Deal Intro (TOC / Roadmap)
     PDC = "PDC"   # Deal Context
     PDA = "PDA"   # Acquirer Profile
     PDT = "PDT"   # Target Profile

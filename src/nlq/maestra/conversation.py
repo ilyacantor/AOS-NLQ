@@ -50,11 +50,13 @@ from src.nlq.maestra.tools import (
     TOOL_DEFINITIONS,
     process_advance_section,
     process_configure_scope,
+    process_jump_to_section,
     process_navigate_portal,
     process_park_item,
     process_query_engine,
     process_show_comparison,
     process_show_hierarchy,
+    process_show_roadmap,
     process_show_table,
     process_update_contour,
 )
@@ -166,6 +168,7 @@ class ConversationService:
 
         # Create single unified session for pre-deal interview
         pd_section_statuses = {
+            "PDI": SectionStatus.NOT_STARTED.value,
             "PDC": SectionStatus.NOT_STARTED.value,
             "PDA": SectionStatus.NOT_STARTED.value,
             "PDT": SectionStatus.NOT_STARTED.value,
@@ -180,7 +183,7 @@ class ConversationService:
             "engagement_id": engagement_id,
             "entity_id": "combined",
             "status": SessionStatus.READY.value,
-            "current_section": SectionId.PDC.value,
+            "current_section": SectionId.PDI.value,
             "section_statuses": pd_section_statuses,
             "contour_map": ContourMap().model_dump(),
             "intel_brief": None,
@@ -497,10 +500,14 @@ class ConversationService:
                 demo_phase = _next_demo_phase(demo_phase)
 
             # Update engagement phase for pre-deal mode
-            if is_pre_deal and state_action.type == ActionType.ADVANCE:
+            if is_pre_deal and state_action.type in (ActionType.ADVANCE, ActionType.JUMP):
                 self._update_engagement_phase(engagement_id, current_section, pre_deal_context)
         else:
             session_status = "IN_PROGRESS"
+
+        # Persist scope confirmation to engagement if configure_scope(confirmed=True) was called
+        if is_pre_deal and any("confirmed=True" in a for a in actions_taken if "DD scope" in a):
+            self._persist_scope_confirmation(engagement_id)
 
         # Calculate completeness
         completeness = calculate_contour_completeness(contour)
@@ -809,6 +816,12 @@ class ConversationService:
                 )
                 action = f"Displayed table: {tool_input.get('title', 'data')}"
 
+            elif tool_name == "show_roadmap":
+                rich, result = process_show_roadmap(
+                    tool_input.get("message", ""),
+                )
+                action = "Displayed engagement roadmap"
+
             elif tool_name == "park_item":
                 contour, result = process_park_item(
                     contour,
@@ -879,6 +892,13 @@ class ConversationService:
                     tool_input.get("confirmed", False),
                 )
                 action = f"Configured DD scope (confirmed={tool_input.get('confirmed', False)})"
+
+            elif tool_name == "jump_to_section":
+                state_action, result = process_jump_to_section(
+                    tool_input.get("target_section", ""),
+                    tool_input.get("reason", ""),
+                )
+                action = f"Jumped to section {tool_input.get('target_section')}"
 
             else:
                 result = {"error": f"Unknown tool: {tool_name}"}
@@ -1064,6 +1084,7 @@ class ConversationService:
     ) -> None:
         """Update engagement phase based on pre-deal section transitions."""
         phase_map = {
+            SectionId.PDI: EngagementPhase.SCOPING,
             SectionId.PDC: EngagementPhase.SCOPING,
             SectionId.PDA: EngagementPhase.SCOPING,
             SectionId.PDT: EngagementPhase.SCOPING,
@@ -1080,6 +1101,22 @@ class ConversationService:
             eng["phase"] = new_phase.value
             eng["updated_at"] = datetime.utcnow().isoformat()
             self._persistence.save_engagement(eng)
+
+    def _persist_scope_confirmation(self, engagement_id: str) -> None:
+        """Persist DD scope confirmation to the engagement's pre_deal_context."""
+        eng = self._persistence.get_engagement(engagement_id)
+        if not eng:
+            return
+        pdc = eng.get("pre_deal_context")
+        if not pdc:
+            return
+        if not pdc.get("dd_scope"):
+            pdc["dd_scope"] = {}
+        pdc["dd_scope"]["confirmed"] = True
+        eng["pre_deal_context"] = pdc
+        eng["updated_at"] = datetime.utcnow().isoformat()
+        self._persistence.save_engagement(eng)
+        logger.info("Persisted DD scope confirmation for engagement %s", engagement_id)
 
     def _get_phase_label(
         self,
@@ -1122,6 +1159,7 @@ class ConversationService:
 
         # Pre-deal suggestions
         pd_suggestions = {
+            SectionId.PDI: ["Let's get started", "Jump to findings", "Show me the roadmap"],
             SectionId.PDC: ["That's correct", "Close date is Q2", "Main concern is system integration"],
             SectionId.PDA: ["That looks right", "We also have a subsidiary in London", "Move on"],
             SectionId.PDT: ["We have limited access to their data", "That matches what we know"],

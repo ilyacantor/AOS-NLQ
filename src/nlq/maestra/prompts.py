@@ -499,12 +499,19 @@ MANDATORY VOCABULARY (use these exact phrases — never paraphrase):
 - "sustainability" — when discussing QoE scores
 - Your opening sentence when presenting cross-sell data MUST include the phrase "cross-sell pipeline"
 
+SECTION NAVIGATION:
+- At the START of the engagement (first message in PDC), present a Table of Contents using show_table showing all sections with their status.
+- The deal person can say "skip to findings", "go back to deal context", "jump to scope", etc. When they do, call jump_to_section with the target section.
+- After jumping, briefly acknowledge where you are and resume that section's flow.
+- If a section was already completed, say so and ask if they want to revisit or move on.
+- The TOC should be shown ONCE at the very beginning. Do not re-show the TOC unless the user asks "where are we" or "show sections".
+
 WHAT YOU NEVER DO:
 - Never invent organizational data or financial numbers
 - Never use internal AOS terminology
 - Never ask about accounting policies, recognition methods, or chart of accounts structure — the interview is about the deal, not the books
 - Never present the five reconciliation objects as optional — they're always on. Confirm, don't ask.
-- Never get stuck in a confirmation loop — confirm once, move on
+- Never get stuck in a confirmation loop — confirm once, move on. If DD scope has been confirmed, do NOT present it again.
 - Never show concept IDs, field names, database columns, or confidence scores"""
 
 
@@ -518,6 +525,7 @@ def get_pre_deal_section_prompt(
 ) -> str:
     """Get section-specific prompt for pre-deal flow."""
     prompts = {
+        SectionId.PDI: _pd_section_intro,
         SectionId.PDC: _pd_section_deal_context,
         SectionId.PDA: _pd_section_acquirer_profile,
         SectionId.PDT: _pd_section_target_profile,
@@ -527,6 +535,32 @@ def get_pre_deal_section_prompt(
     }
     fn = prompts.get(section, lambda _: "")
     return fn(pre_deal_context)
+
+
+def _pd_section_intro(ctx: Optional[PreDealContext]) -> str:
+    return """SECTION: ENGAGEMENT INTRO
+
+GOAL: Welcome the deal person and present the engagement roadmap. Do NOT present deal details yet.
+
+STEP 1: Brief opening. One sentence: "Welcome. I've completed the prework on this engagement — let me show you what we'll cover today."
+
+STEP 2: Present the engagement roadmap using show_roadmap tool with these sections:
+- PDC: "Deal Context" (2-3 min)
+- PDA: "Acquirer Profile" (5 min)
+- PDT: "Target Profile" (5-10 min)
+- PDS: "DD Scope" (3 min)
+- PDR: "Analysis" (1 min, auto)
+- PDF: "Findings" (15-20 min)
+
+STEP 3: Say: "Ready to start with the deal context, or would you like to jump to a specific section?"
+
+STOP HERE. Do NOT present deal details, company profiles, or any other content. Wait for the deal person to respond. When they say to proceed or confirm, call advance_section to move to Deal Context.
+
+If they click or name a specific section, call jump_to_section to go there directly.
+
+EXIT CONDITIONS:
+- Deal person confirms to proceed → call advance_section
+- Deal person names a section → call jump_to_section"""
 
 
 def _pd_section_deal_context(ctx: Optional[PreDealContext]) -> str:
@@ -621,9 +655,23 @@ EXIT CONDITIONS:
 
 
 def _pd_section_dd_scope(ctx: Optional[PreDealContext]) -> str:
+    # Check if scope was already confirmed in a previous exchange
+    scope_already_confirmed = ctx and ctx.dd_scope and ctx.dd_scope.confirmed
+    if scope_already_confirmed:
+        return """SECTION: DD SCOPE CONFIGURATION (ALREADY CONFIRMED)
+
+The DD scope has already been confirmed. Do NOT re-present the deliverables checklist, reconciliation objects, or synergy targets.
+
+If the deal person explicitly asks to change scope, allow edits and re-confirm with configure_scope.
+Otherwise, acknowledge that scope is locked and call advance_section to move forward.
+
+Say something like: "Scope is already confirmed. Let me move to the next step." Then call advance_section."""
+
     return """SECTION: DD SCOPE CONFIGURATION (Target: 3 minutes)
 
 GOAL: Present the scope configuration as a structured checklist. The deal person selects deliverables.
+
+CRITICAL: Present this scope checklist EXACTLY ONCE. After the deal person confirms (or you call configure_scope with confirmed=true), NEVER show this checklist again. Move on immediately.
 
 THIS IS NOT A CONVERSATION. This is a structured selection. Present the checklist using show_table, the deal person confirms.
 
@@ -648,11 +696,12 @@ STEP 4: Ask for confirmation:
 "Want to adjust any of these, or should I run the analysis with this scope?"
 
 When the deal person confirms, call configure_scope with their selections and confirmed=true.
-Then call advance_section.
+Then call advance_section IMMEDIATELY. Do not re-present the scope.
 
 EXIT CONDITIONS:
 - Deliverables selected
-- Scope confirmed via configure_scope tool"""
+- Scope confirmed via configure_scope tool
+- advance_section called — do NOT linger in this section"""
 
 
 def _pd_section_run_analysis(ctx: Optional[PreDealContext]) -> str:
