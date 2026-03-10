@@ -2048,14 +2048,44 @@ class DCLSemanticClient:
                 # 404/405 = endpoint not deployed yet, fall through to catalog
                 diag("[NLQ-DIAG] DCL /api/dcl/resolve not available, using catalog fallback")
 
-            except httpx.ConnectError:
-                logger.warning("DCL server unreachable for graph resolution, using catalog")
-            except httpx.TimeoutException:
-                logger.warning("DCL graph resolution timed out, using catalog")
+            except httpx.ConnectError as e:
+                logger.error(
+                    f"DCL server unreachable for graph resolution at "
+                    f"{self.dcl_url}/api/dcl/resolve — connection refused. "
+                    f"Concepts: {concepts}, Dimensions: {dimensions}"
+                )
+                return {
+                    "can_answer": False,
+                    "error": f"DCL unreachable for graph resolution: {e}",
+                    "source": "dcl_graph_error",
+                    "confidence": 0.0,
+                }
+            except httpx.TimeoutException as e:
+                logger.error(
+                    f"DCL graph resolution timed out (30s) at "
+                    f"{self.dcl_url}/api/dcl/resolve — DCL may be mid-ingest or warming up. "
+                    f"Concepts: {concepts}, Dimensions: {dimensions}"
+                )
+                return {
+                    "can_answer": False,
+                    "error": f"DCL graph resolution timed out: {e}",
+                    "source": "dcl_graph_error",
+                    "confidence": 0.0,
+                }
             except Exception as e:
-                logger.warning(f"DCL graph resolution failed: {e}, using catalog")
+                logger.error(
+                    f"DCL graph resolution failed at "
+                    f"{self.dcl_url}/api/dcl/resolve — {type(e).__name__}: {e}. "
+                    f"Concepts: {concepts}, Dimensions: {dimensions}"
+                )
+                return {
+                    "can_answer": False,
+                    "error": f"DCL graph resolution failed: {e}",
+                    "source": "dcl_graph_error",
+                    "confidence": 0.0,
+                }
 
-        # Catalog-based fallback — uses DCL's semantic catalog to resolve
+        # No DCL URL configured — catalog-based resolution is the only option
         return self._resolve_via_catalog(concepts, dimensions, filters)
 
     # -----------------------------------------------------------------

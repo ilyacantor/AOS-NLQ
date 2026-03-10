@@ -75,16 +75,24 @@ class DashboardDataResolver:
         for widget in schema.widgets:
             try:
                 data = self._resolve_widget_data(widget, reference_year, filters)
-                # Only include widgets that successfully resolved data.
-                # Widgets with errors are omitted — the dashboard renders with
-                # fewer tiles rather than showing "No data" placeholders.
                 if isinstance(data, dict) and data.get("error"):
-                    logger.info(f"Omitting widget {widget.id}: {data['error']}")
+                    logger.error(
+                        f"Widget {widget.id} data resolution failed: {data['error']}"
+                    )
+                    widget_data[widget.id] = {
+                        "error": data["error"],
+                        "widget_id": widget.id,
+                        "status": "dcl_error",
+                    }
                     continue
                 widget_data[widget.id] = data
             except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
                 logger.error(f"Error resolving data for widget {widget.id}: {e}")
-                # Omit failed widgets rather than including error entries
+                widget_data[widget.id] = {
+                    "error": str(e),
+                    "widget_id": widget.id,
+                    "status": "resolution_error",
+                }
 
         return widget_data
 
@@ -579,7 +587,7 @@ class DashboardDataResolver:
     def _extract_value_from_result(self, result: Dict[str, Any]) -> Optional[float]:
         """Extract a single value from DCL query result."""
         if result.get("error"):
-            return None
+            raise RuntimeError(f"DCL query error: {result['error']}")
 
         data = result.get("data", [])
         if not data:
@@ -602,7 +610,7 @@ class DashboardDataResolver:
     def _extract_time_series(self, result: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Extract time series data points from DCL result."""
         if result.get("error"):
-            return []
+            raise RuntimeError(f"DCL query error: {result['error']}")
 
         data = result.get("data", [])
         if not data:
@@ -653,7 +661,7 @@ class DashboardDataResolver:
     ) -> List[Dict[str, Any]]:
         """Extract dimensional breakdown from DCL result."""
         if result.get("error"):
-            return []
+            raise RuntimeError(f"DCL query error: {result['error']}")
 
         data = result.get("data", [])
         if not data:
