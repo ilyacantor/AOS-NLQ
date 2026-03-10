@@ -37,6 +37,7 @@ import httpx
 
 _force_local_ctx: contextvars.ContextVar[bool] = contextvars.ContextVar('_force_local_ctx', default=False)
 _data_mode_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar('_data_mode_ctx', default=None)
+_entity_id_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar('_entity_id_ctx', default=None)
 
 # Diagnostic trace collector — route handlers init this to [] before each request,
 # and the DCL client appends messages.  The route handler reads it back and includes
@@ -1317,7 +1318,10 @@ class DCLSemanticClient:
         # Auto-read data_mode from context when not explicitly provided
         if data_mode is None:
             data_mode = _data_mode_ctx.get()
-        diag(f"[NLQ-DIAG] query() called: metric={metric}, force_local={force_local}, ctx_force={ctx_force}, dcl_url={bool(self.dcl_url)}, data_mode={data_mode}")
+        # Auto-read entity_id from context when not explicitly provided
+        if entity_id is None:
+            entity_id = _entity_id_ctx.get()
+        diag(f"[NLQ-DIAG] query() called: metric={metric}, force_local={force_local}, ctx_force={ctx_force}, dcl_url={bool(self.dcl_url)}, data_mode={data_mode}, entity_id={entity_id}")
 
         # Only explicit demo mode can use local fallback
         if force_local or ctx_force:
@@ -2321,6 +2325,16 @@ def set_data_mode(value: Optional[str]):
 def get_data_mode() -> Optional[str]:
     """Return the data_mode set for the current request context."""
     return _data_mode_ctx.get()
+
+
+def set_entity_id(value: Optional[str]):
+    """Set the entity_id for the current request context."""
+    _entity_id_ctx.set(value)
+
+
+def get_entity_id() -> Optional[str]:
+    """Return the entity_id set for the current request context."""
+    return _entity_id_ctx.get()
 
 
 @contextlib.contextmanager

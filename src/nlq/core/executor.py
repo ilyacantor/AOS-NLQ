@@ -28,16 +28,18 @@ logger = logging.getLogger(__name__)
 class QueryExecutor:
     """Executes parsed queries against DCL."""
 
-    def __init__(self, fact_base=None, claude_client: Optional["ClaudeClient"] = None):
+    def __init__(self, fact_base=None, claude_client: Optional["ClaudeClient"] = None, entity_id: str = None):
         """
         Initialize the query executor.
 
         Args:
             fact_base: Ignored - kept for backwards compatibility
             claude_client: Optional Claude client for LLM fallback on unknown breakdowns
+            entity_id: Entity ID to pass through to DCL queries (e.g., "meridian")
         """
         self.dcl_client = get_semantic_client()
         self.claude_client = claude_client
+        self.entity_id = entity_id
         self.confidence_calculator = ConfidenceCalculator()
         self._last_data_source = None  # Track data source for structural integrity
 
@@ -66,6 +68,7 @@ class QueryExecutor:
             metric=metric,
             time_range={"period": period, "granularity": granularity},
             tenant_id=get_tenant_id(),
+            entity_id=self.entity_id,
         )
 
         if result.get("error") or result.get("status") == "error":

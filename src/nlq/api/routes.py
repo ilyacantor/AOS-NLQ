@@ -51,7 +51,7 @@ from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
 from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
 from src.nlq.services.dcl_enrichment import enrich_response as dcl_enrich_response
 from src.nlq.config import get_tenant_id
-from src.nlq.services.dcl_semantic_client import set_force_local, set_data_mode, force_local_data, diag, diag_init, diag_collect
+from src.nlq.services.dcl_semantic_client import set_force_local, set_data_mode, set_entity_id, force_local_data, diag, diag_init, diag_collect
 from src.nlq.services.insufficient_data_tracker import get_insufficient_data_tracker, CONFIDENCE_THRESHOLD
 from src.nlq.core.dates import current_year, current_quarter, prior_year
 
@@ -407,7 +407,7 @@ def _extract_period_from_dashboard_query(question: str) -> str:
     return get_semantic_client().get_latest_period()
 
 
-def _handle_dashboard_query(question: str, persona: Optional[str] = None) -> Optional[IntentMapResponse]:
+def _handle_dashboard_query(question: str, persona: Optional[str] = None, entity_id: str = None) -> Optional[IntentMapResponse]:
     """
     Generate persona-specific dashboard with key metrics.
 
@@ -425,6 +425,7 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None) -> Opt
                 metric=metric,
                 time_range={"period": period, "granularity": "quarterly"},
                 tenant_id=get_tenant_id(),
+                entity_id=entity_id,
             )
             if result.get("error") or not result.get("data"):
                 # Retry with annual grain as fallback
@@ -432,6 +433,7 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None) -> Opt
                     metric=metric,
                     time_range={"period": current_year(), "granularity": "annual"},
                     tenant_id=get_tenant_id(),
+                    entity_id=entity_id,
                 )
             if result.get("error"):
                 return None
@@ -3639,6 +3641,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         _request_entity_id = "meridian"
     diag(f"[NLQ-DIAG] /query endpoint: question='{request.question[:60]}', data_mode={request.data_mode}, entity_id={_request_entity_id}")
     set_data_mode(request.data_mode)
+    set_entity_id(_request_entity_id)
     if request.data_mode == "demo":
         set_force_local(True)
     try:
@@ -4016,7 +4019,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                 pass
             else:
                 # Fallback to text summary for non-visual dashboard requests
-                dashboard_response = _handle_dashboard_query(request.question, persona=request.persona)
+                dashboard_response = _handle_dashboard_query(request.question, persona=request.persona, entity_id=_request_entity_id)
                 if dashboard_response:
                     await _log_query_event(
                         request.question, "bypass",
@@ -4287,7 +4290,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         reference_date = request.reference_date or date.today()
         resolver = PeriodResolver(reference_date)
         claude_client = get_claude_client()
-        executor = QueryExecutor(claude_client=claude_client)
+        executor = QueryExecutor(claude_client=claude_client, entity_id=_request_entity_id)
 
         # Get session ID from request body
         session_id = request.session_id or "default"
@@ -4544,6 +4547,7 @@ async def query(request: NLQRequest) -> NLQResponse:
     finally:
         set_force_local(False)
         set_data_mode(None)
+        set_entity_id(None)
 
 
 # ─── DELETED: query_galaxy() and /intent-map, /query/galaxy routes ───
