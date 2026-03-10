@@ -1,0 +1,238 @@
+{
+  "timestamp": "2026-03-09T19:11:36.029697+00:00",
+  "endpoint": "http://localhost:8005/api/v1/query",
+  "assumptions_source": "compiled_defaults (mirrors Assumptions dataclass)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "pass_rate_pct": 100.0
+  },
+  "results": [
+    {
+      "test_id": "MA_001",
+      "query": "Maestra engagement creation returns valid structure",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "engagement"
+      ],
+      "passed": true,
+      "response_time_s": 0.46,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "engagement_id",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "94829c3e-45ee-477c-8504-a7dbda9cae53",
+          "passed": true,
+          "message": "expected not null, actual='94829c3e-45ee-477c-8504-a7dbda9cae53'"
+        },
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected not null, actual='prework_complete'"
+        },
+        {
+          "field": "deal_name",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Meridian-Cascadia Integration",
+          "passed": true,
+          "message": "expected not null, actual='Meridian-Cascadia Integration'"
+        },
+        {
+          "field": "workstreams",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 5,
+          "passed": true,
+          "message": "expected > 0, actual=5"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_002",
+      "query": "Give me an overview of where we stand",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "overview"
+      ],
+      "passed": true,
+      "response_time_s": 11.095,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Here's the complete picture:\n\n**CUSTOMER INTELLIGENCE:** 103 cross-sell candidates worth $260M in pipeline value. Your 43 overlapping customers generate $156M in revenue. High-priority accounts like Northwind Financial ($8.2M opportunity) and BlueRidge Healthcare ($6.8M) are ready for immediate cross-sell.\n\n**EBITDA BRIDGE:** Combined pro forma EBITDA of $610M, up from $485M reported. Key drivers: $32M transaction cost add-back, $15M cash-to-accrual adjustment, and $60M in identified synergies.\n\n**CUSTOMER CONCENTRATION RISK:** Your top 3 customers represent 35% of revenue ($89M at risk). Northwind Financial is high-risk due to relationship holder departure.\n\n**VENDOR CONSOLIDATION:** 31 overlapping vendors with $4.2M in savings opportunities. AWS consolidation alone saves $1.2M annually.\n\n**QUALITY OF EARNINGS:** Sustainability score of 68 (B grade). Main concerns are customer concentration and rising DSO (48\u219254 days).\n\nWhich area do you want to dive deeper into first?",
+          "passed": true,
+          "message": "expected not null, actual=\"Here's the complete picture:\\n\\n**CUSTOMER INTELLIGENCE:** 103 cross-sell candidates worth $260M in pipeline value. Your 43 overlapping customers generate $156M in revenue. High-priority accounts like Northwind Financial ($8.2M opportunity) and BlueRidge Healthcare ($6.8M) are ready for immediate cross-sell.\\n\\n**EBITDA BRIDGE:** Combined pro forma EBITDA of $610M, up from $485M reported. Key drivers: $32M transaction cost add-back, $15M cash-to-accrual adjustment, and $60M in identified synergies.\\n\\n**CUSTOMER CONCENTRATION RISK:** Your top 3 customers represent 35% of revenue ($89M at risk). Northwind Financial is high-risk due to relationship holder departure.\\n\\n**VENDOR CONSOLIDATION:** 31 overlapping vendors with $4.2M in savings opportunities. AWS consolidation alone saves $1.2M annually.\\n\\n**QUALITY OF EARNINGS:** Sustainability score of 68 (B grade). Main concerns are customer concentration and rising DSO (48\u219254 days).\\n\\nWhich area do you want to dive deeper into first?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "$",
+          "actual": "Here's the complete picture:\n\n**CUSTOMER INTELLIGENCE:** 103 cross-sell candidates worth $260M in pipeline value. Your 43 overlapping customers generate $156M in revenue. High-priority accounts like Northwind Financial ($8.2M opportunity) and BlueRidge Healthcare ($6.8M) are ready for immediate cross-sell.\n\n**EBITDA BRIDGE:** Combined pro forma EBITDA of $610M, up from $485M reported. Key drivers: $32M transaction cost add-back, $15M cash-to-accrual adjustment, and $60M in identified synergies.\n\n**CUSTOMER CONCENTRATION RISK:** Your top 3 customers represent 35% of revenue ($89M at risk). Northwind Financial is high-risk due to relationship holder departure.\n\n**VENDOR CONSOLIDATION:** 31 overlapping vendors with $4.2M in savings opportunities. AWS consolidation alone saves $1.2M annually.\n\n**QUALITY OF EARNINGS:** Sustainability score of 68 (B grade). Main concerns are customer concentration and rising DSO (48\u219254 days).\n\nWhich area do you want to dive deeper into first?",
+          "passed": true,
+          "message": "expected to contain '$', actual='Here's the complete picture:\n\n**CUSTOMER INTELLIGENCE:** 103 cross-sell candidates worth $260M in pipeline value. Your 4'"
+        },
+        {
+          "field": "suggestions",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "Show me the cross-sell details",
+            "Walk me through the bridge",
+            "What about vendor overlap?"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['Show me the cross-sell details', 'Walk me through the bridge', 'What about vendor overlap?']"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_003",
+      "query": "Walk me through the EBITDA bridge",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "bridge",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 18.012,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "The bridge shows $125M in total uplift from $485M reported to $610M pro forma. The biggest driver is your $32M in transaction costs \u2014 those disappear post-close. \n\nThe $15M cash-to-accrual adjustment for Cascadia's QuickBooks is estimated until we complete the full conversion. Your revenue synergies are back-loaded to years 2-3, but the $22M in cost synergies hit in year 1.\n\nPortal is now showing the what-if scenarios \u2014 conservative case gets you to $565M EBITDA, aggressive case pushes to $680M. That's a $1.4B valuation spread.\n\nAny concerns on these adjustments or the synergy timeline?",
+          "passed": true,
+          "message": "expected not null, actual=\"The bridge shows $125M in total uplift from $485M reported to $610M pro forma. The biggest driver is your $32M in transaction costs \u2014 those disappear post-close. \\n\\nThe $15M cash-to-accrual adjustment for Cascadia's QuickBooks is estimated until we complete the full conversion. Your revenue synergies are back-loaded to years 2-3, but the $22M in cost synergies hit in year 1.\\n\\nPortal is now showing the what-if scenarios \u2014 conservative case gets you to $565M EBITDA, aggressive case pushes to $680M. That's a $1.4B valuation spread.\\n\\nAny concerns on these adjustments or the synergy timeline?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "bridge",
+          "actual": "The bridge shows $125M in total uplift from $485M reported to $610M pro forma. The biggest driver is your $32M in transaction costs \u2014 those disappear post-close. \n\nThe $15M cash-to-accrual adjustment for Cascadia's QuickBooks is estimated until we complete the full conversion. Your revenue synergies are back-loaded to years 2-3, but the $22M in cost synergies hit in year 1.\n\nPortal is now showing the what-if scenarios \u2014 conservative case gets you to $565M EBITDA, aggressive case pushes to $680M. That's a $1.4B valuation spread.\n\nAny concerns on these adjustments or the synergy timeline?",
+          "passed": true,
+          "message": "expected to contain 'bridge', actual='The bridge shows $125M in total uplift from $485M reported to $610M pro forma. The biggest driver is your $32M in transa'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "bridge",
+          "actual": "bridge",
+          "passed": true,
+          "message": "expected='bridge', actual='bridge'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "$",
+          "actual": "The bridge shows $125M in total uplift from $485M reported to $610M pro forma. The biggest driver is your $32M in transaction costs \u2014 those disappear post-close. \n\nThe $15M cash-to-accrual adjustment for Cascadia's QuickBooks is estimated until we complete the full conversion. Your revenue synergies are back-loaded to years 2-3, but the $22M in cost synergies hit in year 1.\n\nPortal is now showing the what-if scenarios \u2014 conservative case gets you to $565M EBITDA, aggressive case pushes to $680M. That's a $1.4B valuation spread.\n\nAny concerns on these adjustments or the synergy timeline?",
+          "passed": true,
+          "message": "expected to contain '$', actual='The bridge shows $125M in total uplift from $485M reported to $610M pro forma. The biggest driver is your $32M in transa'"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_004",
+      "query": "What cross-sell opportunities do we have?",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "cross_sell",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 13.681,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "103 cross-sell candidates worth $260M in pipeline. Your top 10 opportunities above represent $49M in ACV. Northwind Financial is your highest-propensity target at 94% \u2014 they're already paying Cascadia $42M annually and are prime for Meridian's Technology Strategy services.\n\nThe challenge: Northwind is also your highest retention risk due to the relationship holder departing. You need to move fast on both fronts.\n\nPortal is now showing the full cross-sell analysis. Which accounts do you want to prioritize first?",
+          "passed": true,
+          "message": "expected not null, actual=\"103 cross-sell candidates worth $260M in pipeline. Your top 10 opportunities above represent $49M in ACV. Northwind Financial is your highest-propensity target at 94% \u2014 they're already paying Cascadia $42M annually and are prime for Meridian's Technology Strategy services.\\n\\nThe challenge: Northwind is also your highest retention risk due to the relationship holder departing. You need to move fast on both fronts.\\n\\nPortal is now showing the full cross-sell analysis. Which accounts do you want to prioritize first?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "cross-sell",
+          "actual": "103 cross-sell candidates worth $260M in pipeline. Your top 10 opportunities above represent $49M in ACV. Northwind Financial is your highest-propensity target at 94% \u2014 they're already paying Cascadia $42M annually and are prime for Meridian's Technology Strategy services.\n\nThe challenge: Northwind is also your highest retention risk due to the relationship holder departing. You need to move fast on both fronts.\n\nPortal is now showing the full cross-sell analysis. Which accounts do you want to prioritize first?",
+          "passed": true,
+          "message": "expected to contain 'cross-sell', actual='103 cross-sell candidates worth $260M in pipeline. Your top 10 opportunities above represent $49M in ACV. Northwind Fina'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "crosssell",
+          "actual": "crosssell",
+          "passed": true,
+          "message": "expected='crosssell', actual='crosssell'"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_005",
+      "query": "How is earnings quality tracking this quarter?",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "qoe",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 8.842,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Sustainability score is 68 (B grade) this quarter. The biggest drag is customer concentration \u2014 your top 3 customers at 35% of revenue drops your Customer Health score to 58. Working Capital is also concerning with DSO climbing from 48 to 54 days.\n\nThe improvement plan targets 72 by Q2 through the cash-to-accrual conversion and DSO reduction, then 80 by year-end with customer diversification.\n\nPortal is showing the quarterly tracking plan. Are you comfortable with the Q2 target of 72, or do we need to accelerate any initiatives?",
+          "passed": true,
+          "message": "expected not null, actual='Sustainability score is 68 (B grade) this quarter. The biggest drag is customer concentration \u2014 your top 3 customers at 35% of revenue drops your Customer Health score to 58. Working Capital is also concerning with DSO climbing from 48 to 54 days.\\n\\nThe improvement plan targets 72 by Q2 through the cash-to-accrual conversion and DSO reduction, then 80 by year-end with customer diversification.\\n\\nPortal is showing the quarterly tracking plan. Are you comfortable with the Q2 target of 72, or do we need to accelerate any initiatives?'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "sustainability",
+          "actual": "Sustainability score is 68 (B grade) this quarter. The biggest drag is customer concentration \u2014 your top 3 customers at 35% of revenue drops your Customer Health score to 58. Working Capital is also concerning with DSO climbing from 48 to 54 days.\n\nThe improvement plan targets 72 by Q2 through the cash-to-accrual conversion and DSO reduction, then 80 by year-end with customer diversification.\n\nPortal is showing the quarterly tracking plan. Are you comfortable with the Q2 target of 72, or do we need to accelerate any initiatives?",
+          "passed": true,
+          "message": "expected to contain 'sustainability', actual='Sustainability score is 68 (B grade) this quarter. The biggest drag is customer concentration \u2014 your top 3 customers at '"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "qoe",
+          "actual": "qoe",
+          "passed": true,
+          "message": "expected='qoe', actual='qoe'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": []
+}

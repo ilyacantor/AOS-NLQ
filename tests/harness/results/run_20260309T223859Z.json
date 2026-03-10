@@ -1,0 +1,4666 @@
+{
+  "timestamp": "2026-03-09T22:38:59.982408+00:00",
+  "endpoint": "http://localhost:8005/api/v1/query",
+  "assumptions_source": "compiled_defaults (mirrors Assumptions dataclass)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 105,
+    "passed": 49,
+    "failed": 56,
+    "pass_rate_pct": 46.7
+  },
+  "results": [
+    {
+      "test_id": "PL_001",
+      "query": "What is our EBITDA for 2025?",
+      "persona": "cfo",
+      "tags": [
+        "pnl",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.032,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            40.0,
+            60.0
+          ],
+          "actual": 49.019999999999996,
+          "passed": true,
+          "message": "expected in [40.0, 60.0], actual=49.019999999999996"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "usd_millions",
+          "actual": "usd_millions",
+          "passed": true,
+          "message": "expected='usd_millions', actual='usd_millions'"
+        },
+        {
+          "field": "period",
+          "operator": "contains",
+          "expected": "2025",
+          "actual": "2025",
+          "passed": true,
+          "message": "expected to contain '2025', actual='2025'"
+        },
+        {
+          "field": "data_source",
+          "operator": "not_equals",
+          "expected": "demo",
+          "actual": "dcl",
+          "passed": true,
+          "message": "must not equal 'demo', actual='dcl'"
+        },
+        {
+          "field": "confidence",
+          "operator": "greater_than",
+          "expected": 0.7,
+          "actual": 0.95,
+          "passed": true,
+          "message": "expected > 0.7, actual=0.95"
+        }
+      ]
+    },
+    {
+      "test_id": "PL_002",
+      "query": "Show me the 2025 P&L",
+      "persona": "cfo",
+      "tags": [
+        "pnl",
+        "cfo",
+        "breakdown"
+      ],
+      "passed": false,
+      "response_time_s": 0.148,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "revenue",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            160.0
+          ],
+          "actual": 28.41,
+          "passed": false,
+          "message": "expected in [100.0, 160.0], actual=28.41"
+        },
+        {
+          "field": "cogs",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 9.74,
+          "passed": true,
+          "message": "expected not null, actual=9.74"
+        },
+        {
+          "field": "gross_profit",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 18.67,
+          "passed": true,
+          "message": "expected not null, actual=18.67"
+        },
+        {
+          "field": "ebitda",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 11.14,
+          "passed": true,
+          "message": "expected not null, actual=11.14"
+        },
+        {
+          "field": "net_income",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 7.61,
+          "passed": true,
+          "message": "expected not null, actual=7.61"
+        },
+        {
+          "field": "data_source",
+          "operator": "not_equals",
+          "expected": "demo",
+          "actual": "dcl",
+          "passed": true,
+          "message": "must not equal 'demo', actual='dcl'"
+        }
+      ]
+    },
+    {
+      "test_id": "PL_003",
+      "query": "What was gross margin in Q3 2025?",
+      "persona": "cfo",
+      "tags": [
+        "pnl",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.006,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            60.0,
+            75.0
+          ],
+          "actual": 66.0,
+          "passed": true,
+          "message": "expected in [60.0, 75.0], actual=66.0"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": "pct",
+          "passed": true,
+          "message": "expected='pct', actual='pct'"
+        },
+        {
+          "field": "period",
+          "operator": "equals",
+          "expected": "2025-Q3",
+          "actual": "2025-Q3",
+          "passed": true,
+          "message": "expected='2025-Q3', actual='2025-Q3'"
+        }
+      ]
+    },
+    {
+      "test_id": "PL_004",
+      "query": "What is our net income margin?",
+      "persona": "cfo",
+      "tags": [
+        "pnl",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.006,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            24.0,
+            32.0
+          ],
+          "actual": 27.3,
+          "passed": true,
+          "message": "expected in [24.0, 32.0], actual=27.3"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": "pct",
+          "passed": true,
+          "message": "expected='pct', actual='pct'"
+        },
+        {
+          "field": "confidence",
+          "operator": "greater_than",
+          "expected": 0.6,
+          "actual": 0.95,
+          "passed": true,
+          "message": "expected > 0.6, actual=0.95"
+        }
+      ]
+    },
+    {
+      "test_id": "PERIOD_001",
+      "query": "What is 2025 revenue?",
+      "persona": "cfo",
+      "tags": [
+        "period",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            160.0
+          ],
+          "actual": 124.18,
+          "passed": true,
+          "message": "expected in [100.0, 160.0], actual=124.18"
+        },
+        {
+          "field": "value",
+          "operator": "not_equals",
+          "expected": 450.0,
+          "actual": 124.18,
+          "passed": true,
+          "message": "must not equal 450.0, actual=124.18"
+        },
+        {
+          "field": "period",
+          "operator": "contains",
+          "expected": "2025",
+          "actual": "2025",
+          "passed": true,
+          "message": "expected to contain '2025', actual='2025'"
+        }
+      ]
+    },
+    {
+      "test_id": "PERIOD_002",
+      "query": "What is 2024 revenue?",
+      "persona": "cfo",
+      "tags": [
+        "period",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            80.0,
+            120.0
+          ],
+          "actual": 96.4,
+          "passed": true,
+          "message": "expected in [80.0, 120.0], actual=96.4"
+        },
+        {
+          "field": "value",
+          "operator": "not_equals",
+          "expected": 450.0,
+          "actual": 96.4,
+          "passed": true,
+          "message": "must not equal 450.0, actual=96.4"
+        },
+        {
+          "field": "period",
+          "operator": "contains",
+          "expected": "2024",
+          "actual": "2024",
+          "passed": true,
+          "message": "expected to contain '2024', actual='2024'"
+        }
+      ]
+    },
+    {
+      "test_id": "PERIOD_003",
+      "query": "Compare 2024 vs 2025 revenue",
+      "persona": "cfo",
+      "tags": [
+        "period",
+        "cfo",
+        "comparison"
+      ],
+      "passed": false,
+      "response_time_s": 0.083,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "value_2024",
+          "operator": "in_range",
+          "expected": [
+            80.0,
+            120.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [80.0, 120.0]"
+        },
+        {
+          "field": "value_2025",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            160.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [100.0, 160.0]"
+        }
+      ]
+    },
+    {
+      "test_id": "DIM_001",
+      "query": "Show revenue by region for 2025",
+      "persona": "cfo",
+      "tags": [
+        "dimensional",
+        "cfo",
+        "breakdown"
+      ],
+      "passed": true,
+      "response_time_s": 0.006,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "AMER",
+          "actual": "AMER | EMEA | APAC | Here's revenue by region",
+          "passed": true,
+          "message": "expected to contain 'AMER', actual='AMER | EMEA | APAC | Here's revenue by region'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "EMEA",
+          "actual": "AMER | EMEA | APAC | Here's revenue by region",
+          "passed": true,
+          "message": "expected to contain 'EMEA', actual='AMER | EMEA | APAC | Here's revenue by region'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "APAC",
+          "actual": "AMER | EMEA | APAC | Here's revenue by region",
+          "passed": true,
+          "message": "expected to contain 'APAC', actual='AMER | EMEA | APAC | Here's revenue by region'"
+        },
+        {
+          "field": "amer_value",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 62.1,
+          "passed": true,
+          "message": "expected > 0, actual=62.1"
+        },
+        {
+          "field": "total",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            160.0
+          ],
+          "actual": 124.19,
+          "passed": true,
+          "message": "expected in [100.0, 160.0], actual=124.19"
+        }
+      ]
+    },
+    {
+      "test_id": "DIM_002",
+      "query": "Headcount by department",
+      "persona": "chro",
+      "tags": [
+        "dimensional",
+        "chro",
+        "breakdown"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "Engineering",
+          "actual": "Engineering | Product | Sales | Marketing | Customer Success | G&A | Here's headcount by department",
+          "passed": true,
+          "message": "expected to contain 'Engineering', actual='Engineering | Product | Sales | Marketing | Customer Success | G&A | Here's headcount by department'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "Sales",
+          "actual": "Engineering | Product | Sales | Marketing | Customer Success | G&A | Here's headcount by department",
+          "passed": true,
+          "message": "expected to contain 'Sales', actual='Engineering | Product | Sales | Marketing | Customer Success | G&A | Here's headcount by department'"
+        },
+        {
+          "field": "total",
+          "operator": "in_range",
+          "expected": [
+            250,
+            450
+          ],
+          "actual": 333.0,
+          "passed": true,
+          "message": "expected in [250.0, 450.0], actual=333.0"
+        }
+      ]
+    },
+    {
+      "test_id": "DIM_003",
+      "query": "Revenue by segment Q2 2025",
+      "persona": "cro",
+      "tags": [
+        "dimensional",
+        "cro",
+        "breakdown"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "Enterprise",
+          "actual": "Enterprise | Mid-Market | SMB | Here's revenue by segment",
+          "passed": true,
+          "message": "expected to contain 'Enterprise', actual='Enterprise | Mid-Market | SMB | Here's revenue by segment'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "Mid-Market",
+          "actual": "Enterprise | Mid-Market | SMB | Here's revenue by segment",
+          "passed": true,
+          "message": "expected to contain 'Mid-Market', actual='Enterprise | Mid-Market | SMB | Here's revenue by segment'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "SMB",
+          "actual": "Enterprise | Mid-Market | SMB | Here's revenue by segment",
+          "passed": true,
+          "message": "expected to contain 'SMB', actual='Enterprise | Mid-Market | SMB | Here's revenue by segment'"
+        },
+        {
+          "field": "period",
+          "operator": "equals",
+          "expected": "2025-Q2",
+          "actual": "2025-Q2",
+          "passed": true,
+          "message": "expected='2025-Q2', actual='2025-Q2'"
+        }
+      ]
+    },
+    {
+      "test_id": "SAAS_001",
+      "query": "What is our burn multiple?",
+      "persona": "cfo",
+      "tags": [
+        "saas",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            -2.5,
+            0.5
+          ],
+          "actual": -1.89,
+          "passed": true,
+          "message": "expected in [-2.5, 0.5], actual=-1.89"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "ratio",
+          "actual": "ratio",
+          "passed": true,
+          "message": "expected='ratio', actual='ratio'"
+        },
+        {
+          "field": "confidence",
+          "operator": "greater_than",
+          "expected": 0.6,
+          "actual": 0.95,
+          "passed": true,
+          "message": "expected > 0.6, actual=0.95"
+        }
+      ]
+    },
+    {
+      "test_id": "SAAS_002",
+      "query": "Show me LTV to CAC ratio",
+      "persona": "cro",
+      "tags": [
+        "saas",
+        "cro",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            7.0,
+            12.0
+          ],
+          "actual": 4.2,
+          "passed": false,
+          "message": "expected in [7.0, 12.0], actual=4.2"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "ratio",
+          "actual": "ratio",
+          "passed": true,
+          "message": "expected='ratio', actual='ratio'"
+        }
+      ]
+    },
+    {
+      "test_id": "SAAS_003",
+      "query": "What is our rule of 40?",
+      "persona": "cfo",
+      "tags": [
+        "saas",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.006,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            45.0,
+            75.0
+          ],
+          "actual": 57.4,
+          "passed": true,
+          "message": "expected in [45.0, 75.0], actual=57.4"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": "pct",
+          "passed": true,
+          "message": "expected='pct', actual='pct'"
+        }
+      ]
+    },
+    {
+      "test_id": "SAAS_004",
+      "query": "What is NRR?",
+      "persona": "cro",
+      "tags": [
+        "saas",
+        "cro",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            130.0
+          ],
+          "actual": 114.0,
+          "passed": true,
+          "message": "expected in [100.0, 130.0], actual=114.0"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": "pct",
+          "passed": true,
+          "message": "expected='pct', actual='pct'"
+        }
+      ]
+    },
+    {
+      "test_id": "CTO_001",
+      "query": "How many P1 incidents in Q3 2025?",
+      "persona": "cto",
+      "tags": [
+        "cto",
+        "infrastructure",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.006,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 3.0,
+          "passed": true,
+          "message": "expected > 0, actual=3.0"
+        },
+        {
+          "field": "value",
+          "operator": "less_than",
+          "expected": 20,
+          "actual": 3.0,
+          "passed": true,
+          "message": "expected < 20, actual=3.0"
+        },
+        {
+          "field": "period",
+          "operator": "equals",
+          "expected": "2025-Q3",
+          "actual": "2025-Q3",
+          "passed": true,
+          "message": "expected='2025-Q3', actual='2025-Q3'"
+        },
+        {
+          "field": "provenance_source",
+          "operator": "contains",
+          "expected": "datadog",
+          "actual": "datadog",
+          "passed": true,
+          "message": "expected to contain 'datadog', actual='datadog'"
+        }
+      ]
+    },
+    {
+      "test_id": "CTO_002",
+      "query": "What is our uptime?",
+      "persona": "cto",
+      "tags": [
+        "cto",
+        "infrastructure",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "greater_than",
+          "expected": 95.0,
+          "actual": 99.61,
+          "passed": true,
+          "message": "expected > 95.0, actual=99.61"
+        },
+        {
+          "field": "value",
+          "operator": "less_than",
+          "expected": 100.0,
+          "actual": 99.61,
+          "passed": true,
+          "message": "expected < 100.0, actual=99.61"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": "pct",
+          "passed": true,
+          "message": "expected='pct', actual='pct'"
+        }
+      ]
+    },
+    {
+      "test_id": "CTO_003",
+      "query": "Show cloud spend by category",
+      "persona": "cto",
+      "tags": [
+        "cto",
+        "infrastructure",
+        "breakdown"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "dimensions",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Compute | Storage | Database | Network | ML/AI | Other | Here's cloud spend by resource_type",
+          "passed": true,
+          "message": "expected not null, actual=\"Compute | Storage | Database | Network | ML/AI | Other | Here's cloud spend by resource_type\""
+        },
+        {
+          "field": "total",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 1.0,
+          "passed": true,
+          "message": "expected > 0, actual=1.0"
+        },
+        {
+          "field": "provenance_source",
+          "operator": "contains",
+          "expected": "aws_cost_explorer",
+          "actual": "aws_cost_explorer",
+          "passed": true,
+          "message": "expected to contain 'aws_cost_explorer', actual='aws_cost_explorer'"
+        }
+      ]
+    },
+    {
+      "test_id": "CHRO_001",
+      "query": "What is our attrition rate?",
+      "persona": "chro",
+      "tags": [
+        "chro",
+        "people",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            5.0,
+            20.0
+          ],
+          "actual": 11.0,
+          "passed": true,
+          "message": "expected in [5.0, 20.0], actual=11.0"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": "pct",
+          "passed": true,
+          "message": "expected='pct', actual='pct'"
+        },
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "attrition_rate_pct",
+          "actual": "attrition_rate_pct",
+          "passed": true,
+          "message": "expected='attrition_rate_pct', actual='attrition_rate_pct'"
+        }
+      ]
+    },
+    {
+      "test_id": "CHRO_002",
+      "query": "How many open roles do we have?",
+      "persona": "chro",
+      "tags": [
+        "chro",
+        "people",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 51.0,
+          "passed": true,
+          "message": "expected > 0, actual=51.0"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "count",
+          "actual": "count",
+          "passed": true,
+          "message": "expected='count', actual='count'"
+        }
+      ]
+    },
+    {
+      "test_id": "ALIAS_001",
+      "query": "What is win rate?",
+      "persona": "cro",
+      "tags": [
+        "alias",
+        "cro",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "win_rate_pct",
+          "actual": "win_rate_pct",
+          "passed": true,
+          "message": "expected='win_rate_pct', actual='win_rate_pct'"
+        },
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            25.0,
+            55.0
+          ],
+          "actual": 40.0,
+          "passed": true,
+          "message": "expected in [25.0, 55.0], actual=40.0"
+        }
+      ]
+    },
+    {
+      "test_id": "ALIAS_002",
+      "query": "Show quota attainment",
+      "persona": "cro",
+      "tags": [
+        "alias",
+        "cro",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "quota_attainment_pct",
+          "actual": "quota_attainment_pct",
+          "passed": true,
+          "message": "expected='quota_attainment_pct', actual='quota_attainment_pct'"
+        }
+      ]
+    },
+    {
+      "test_id": "ALIAS_003",
+      "query": "What is gross margin?",
+      "persona": "cfo",
+      "tags": [
+        "alias",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "gross_margin_pct",
+          "actual": "gross_margin_pct",
+          "passed": true,
+          "message": "expected='gross_margin_pct', actual='gross_margin_pct'"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": "pct",
+          "passed": true,
+          "message": "expected='pct', actual='pct'"
+        }
+      ]
+    },
+    {
+      "test_id": "ALIAS_004",
+      "query": "cloud cost this quarter",
+      "persona": "cto",
+      "tags": [
+        "alias",
+        "cto",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "cloud_spend",
+          "actual": "cloud_spend",
+          "passed": true,
+          "message": "expected='cloud_spend', actual='cloud_spend'"
+        }
+      ]
+    },
+    {
+      "test_id": "SUP_001",
+      "query": "Which region has the highest revenue?",
+      "persona": "cfo",
+      "tags": [
+        "superlative",
+        "cfo",
+        "ranking"
+      ],
+      "passed": true,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 17.79,
+          "passed": true,
+          "message": "expected not null, actual=17.79"
+        },
+        {
+          "field": "dimension_value",
+          "operator": "in",
+          "expected": [
+            "AMER",
+            "EMEA",
+            "APAC"
+          ],
+          "actual": "AMER",
+          "passed": true,
+          "message": "expected in ['AMER', 'EMEA', 'APAC'], actual='AMER'"
+        }
+      ]
+    },
+    {
+      "test_id": "SUP_002",
+      "query": "Who is our top performing sales rep?",
+      "persona": "cro",
+      "tags": [
+        "superlative",
+        "cro",
+        "graceful_degradation"
+      ],
+      "passed": false,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "quota_attainment_pct",
+          "actual": "quota_attainment_pct",
+          "passed": true,
+          "message": "expected='quota_attainment_pct', actual='quota_attainment_pct'"
+        },
+        {
+          "field": "confidence",
+          "operator": "greater_than",
+          "expected": 0.5,
+          "actual": 0.95,
+          "passed": true,
+          "message": "expected > 0.5, actual=0.95"
+        },
+        {
+          "field": "answer",
+          "operator": "contains",
+          "expected": "not available",
+          "actual": "**David Patel** is the top rep with 165.6% quota attainment.",
+          "passed": false,
+          "message": "expected to contain 'not available', actual='**David Patel** is the top rep with 165.6% quota attainment.'"
+        }
+      ]
+    },
+    {
+      "test_id": "SUP_003",
+      "query": "Which segment has the lowest churn?",
+      "persona": "cro",
+      "tags": [
+        "superlative",
+        "cro",
+        "ranking"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "dimension_value",
+          "operator": "in",
+          "expected": [
+            "Enterprise",
+            "Mid-Market",
+            "SMB"
+          ],
+          "actual": "Enterprise",
+          "passed": true,
+          "message": "expected in ['Enterprise', 'Mid-Market', 'SMB'], actual='Enterprise'"
+        }
+      ]
+    },
+    {
+      "test_id": "CLARIFY_001",
+      "query": "how did we do?",
+      "persona": "cfo",
+      "tags": [
+        "clarification",
+        "cfo",
+        "ambiguous"
+      ],
+      "passed": true,
+      "response_time_s": 0.014,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "response_type",
+          "operator": "equals",
+          "expected": "clarification",
+          "actual": "clarification",
+          "passed": true,
+          "message": "expected='clarification', actual='clarification'"
+        },
+        {
+          "field": "clarification_prompt",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Which metric are you asking about? Revenue, EBITDA, Net Income, Margins, or ARR?",
+          "passed": true,
+          "message": "expected not null, actual='Which metric are you asking about? Revenue, EBITDA, Net Income, Margins, or ARR?'"
+        }
+      ]
+    },
+    {
+      "test_id": "CLARIFY_002",
+      "query": "show me the margin",
+      "persona": "cfo",
+      "tags": [
+        "clarification",
+        "cfo",
+        "ambiguous"
+      ],
+      "passed": false,
+      "response_time_s": 0.022,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "response_type",
+          "operator": "equals",
+          "expected": "clarification",
+          "actual": "data",
+          "passed": false,
+          "message": "expected='clarification', actual='data'"
+        },
+        {
+          "field": "clarification_options",
+          "operator": "contains",
+          "expected": "gross",
+          "actual": "Gross: 66.4%, Operating: 36.4%, Net: 27.3%",
+          "passed": true,
+          "message": "expected to contain 'gross', actual='Gross: 66.4%, Operating: 36.4%, Net: 27.3%'"
+        }
+      ]
+    },
+    {
+      "test_id": "CLARIFY_003",
+      "query": "revenue",
+      "persona": "cfo",
+      "tags": [
+        "clarification",
+        "cfo",
+        "ambiguous"
+      ],
+      "passed": true,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response_type",
+          "operator": "in",
+          "expected": [
+            "clarification",
+            "data"
+          ],
+          "actual": "data",
+          "passed": true,
+          "message": "expected in ['clarification', 'data'], actual='data'"
+        }
+      ]
+    },
+    {
+      "test_id": "PROV_001",
+      "query": "What is revenue for Q1 2025?",
+      "persona": "cfo",
+      "tags": [
+        "provenance",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.003,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "provenance",
+          "operator": "not_null",
+          "expected": null,
+          "actual": {
+            "run_id": null,
+            "tenant_id": "default",
+            "snapshot_name": "Ingest-v5.0",
+            "run_timestamp": "2026-03-09T22:35:23.622902Z",
+            "source_systems": [
+              "salesforce_crm",
+              "netsuite_erp"
+            ],
+            "source_system": "netsuite_erp",
+            "is_sor": true,
+            "freshness": "2026-02-07T00:00:00Z",
+            "quality_score": 1.0,
+            "mode": "Ingest"
+          },
+          "passed": true,
+          "message": "expected not null, actual={'run_id': None, 'tenant_id': 'default', 'snapshot_name': 'Ingest-v5.0', 'run_timestamp': '2026-03-09T22:35:23.622902Z', 'source_systems': ['salesforce_crm', 'netsuite_erp'], 'source_system': 'netsuite_erp', 'is_sor': True, 'freshness': '2026-02-07T00:00:00Z', 'quality_score': 1.0, 'mode': 'Ingest'}"
+        },
+        {
+          "field": "provenance_source",
+          "operator": "contains",
+          "expected": "netsuite",
+          "actual": "netsuite_erp",
+          "passed": true,
+          "message": "expected to contain 'netsuite', actual='netsuite_erp'"
+        },
+        {
+          "field": "provenance_is_sor",
+          "operator": "equals",
+          "expected": true,
+          "actual": true,
+          "passed": true,
+          "message": "expected=True, actual=True"
+        }
+      ]
+    },
+    {
+      "test_id": "PROV_002",
+      "query": "Show me ARR",
+      "persona": "cfo",
+      "tags": [
+        "provenance",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "provenance_source",
+          "operator": "contains",
+          "expected": "chargebee",
+          "actual": "chargebee_billing",
+          "passed": true,
+          "message": "expected to contain 'chargebee', actual='chargebee_billing'"
+        }
+      ]
+    },
+    {
+      "test_id": "CS_001",
+      "query": "Revenue concept has recognition_basis",
+      "persona": "cfo",
+      "tags": [
+        "concept_schema",
+        "revenue"
+      ],
+      "passed": true,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 145.52,
+          "passed": true,
+          "message": "expected not null, actual=145.52"
+        }
+      ]
+    },
+    {
+      "test_id": "CS_002",
+      "query": "Revenue recognition_basis is specific",
+      "persona": "cfo",
+      "tags": [
+        "concept_schema",
+        "revenue"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "length",
+          "operator": "greater_than",
+          "expected": 50,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected > 50"
+        }
+      ]
+    },
+    {
+      "test_id": "CS_003",
+      "query": "Headcount concept has scope_boundaries",
+      "persona": "cfo",
+      "tags": [
+        "concept_schema",
+        "headcount"
+      ],
+      "passed": true,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 16.99,
+          "passed": true,
+          "message": "expected not null, actual=16.99"
+        }
+      ]
+    },
+    {
+      "test_id": "CS_004",
+      "query": "All priority concepts have all 5 new fields populated",
+      "persona": "cfo",
+      "tags": [
+        "concept_schema",
+        "priority"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "all_populated",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "CS_005",
+      "query": "Comparable fields includes more than the hardcoded 5",
+      "persona": "cfo",
+      "tags": [
+        "concept_schema",
+        "comparable"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "count",
+          "operator": "greater_than",
+          "expected": 5,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected > 5"
+        }
+      ]
+    },
+    {
+      "test_id": "CS_006",
+      "query": "Conflict detection uses concept metadata for revenue",
+      "persona": "cfo",
+      "tags": [
+        "concept_schema",
+        "conflict"
+      ],
+      "passed": false,
+      "response_time_s": 3.591,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "root_cause_source",
+          "operator": "equals",
+          "expected": "concept_metadata",
+          "actual": null,
+          "passed": false,
+          "message": "expected='concept_metadata', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "CS_007",
+      "query": "Conflict detection logs warning when metadata missing",
+      "persona": "cfo",
+      "tags": [
+        "concept_schema",
+        "conflict"
+      ],
+      "passed": false,
+      "response_time_s": 2.133,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "warning_logged",
+          "operator": "contains",
+          "expected": "using heuristic classification",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain 'using heuristic classification'"
+        }
+      ]
+    },
+    {
+      "test_id": "HR_001",
+      "query": "Geo hierarchy has 3+ depth levels",
+      "persona": "cfo",
+      "tags": [
+        "hierarchy",
+        "geo"
+      ],
+      "passed": false,
+      "response_time_s": 3.819,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "max_depth",
+          "operator": "greater_than",
+          "expected": 2,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected > 2"
+        }
+      ]
+    },
+    {
+      "test_id": "HR_002",
+      "query": "revenue for US",
+      "persona": "cfo",
+      "tags": [
+        "hierarchy",
+        "rollup"
+      ],
+      "passed": false,
+      "response_time_s": 0.089,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 35.57,
+          "passed": true,
+          "message": "expected not null, actual=35.57"
+        },
+        {
+          "field": "is_rollup",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "HR_003",
+      "query": "Drill-down: North America shows US, Canada",
+      "persona": "cfo",
+      "tags": [
+        "hierarchy",
+        "drilldown"
+      ],
+      "passed": false,
+      "response_time_s": 0.059,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "children",
+          "operator": "contains",
+          "expected": "US",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain 'US'"
+        },
+        {
+          "field": "children",
+          "operator": "contains",
+          "expected": "Canada",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain 'Canada'"
+        }
+      ]
+    },
+    {
+      "test_id": "HR_004",
+      "query": "Period hierarchy: Q1 2025 contains Jan, Feb, Mar",
+      "persona": "cfo",
+      "tags": [
+        "hierarchy",
+        "period"
+      ],
+      "passed": false,
+      "response_time_s": 0.013,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "children",
+          "operator": "contains",
+          "expected": "2025-01",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain '2025-01'"
+        },
+        {
+          "field": "children",
+          "operator": "contains",
+          "expected": "2025-02",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain '2025-02'"
+        },
+        {
+          "field": "children",
+          "operator": "contains",
+          "expected": "2025-03",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain '2025-03'"
+        }
+      ]
+    },
+    {
+      "test_id": "HR_005",
+      "query": "Farm output includes dimensional attributes",
+      "persona": "cfo",
+      "tags": [
+        "hierarchy",
+        "farm"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "has_dimensions",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "dimensions_include",
+          "operator": "contains",
+          "expected": "segment",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain 'segment'"
+        },
+        {
+          "field": "dimensions_include",
+          "operator": "contains",
+          "expected": "geo",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain 'geo'"
+        }
+      ]
+    },
+    {
+      "test_id": "HR_006",
+      "query": "revenue by region",
+      "persona": "cfo",
+      "tags": [
+        "hierarchy",
+        "dimensional"
+      ],
+      "passed": false,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "AMER",
+          "actual": "AMER | EMEA | APAC | Here's revenue by region",
+          "passed": true,
+          "message": "expected to contain 'AMER', actual='AMER | EMEA | APAC | Here's revenue by region'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "EMEA",
+          "actual": "AMER | EMEA | APAC | Here's revenue by region",
+          "passed": true,
+          "message": "expected to contain 'EMEA', actual='AMER | EMEA | APAC | Here's revenue by region'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "APAC",
+          "actual": "AMER | EMEA | APAC | Here's revenue by region",
+          "passed": true,
+          "message": "expected to contain 'APAC', actual='AMER | EMEA | APAC | Here's revenue by region'"
+        },
+        {
+          "field": "dimension_name",
+          "operator": "equals",
+          "expected": "geo",
+          "actual": null,
+          "passed": false,
+          "message": "expected='geo', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "HR_007",
+      "query": "revenue by zip code",
+      "persona": "cfo",
+      "tags": [
+        "hierarchy",
+        "error"
+      ],
+      "passed": false,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: answer contains N/A or 'not available'"
+      ],
+      "assertions": [
+        {
+          "field": "error",
+          "operator": "contains",
+          "expected": "not available",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain 'not available'"
+        }
+      ]
+    },
+    {
+      "test_id": "HR_008",
+      "query": "Dimension values in Farm match hierarchy table",
+      "persona": "cfo",
+      "tags": [
+        "hierarchy",
+        "consistency"
+      ],
+      "passed": false,
+      "response_time_s": 0.006,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "all_farm_values_in_hierarchy",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "DT_001",
+      "query": "Revenue drill-through: region level returns all regions",
+      "persona": "cfo",
+      "tags": [
+        "drill_through",
+        "region"
+      ],
+      "passed": false,
+      "response_time_s": 3.341,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "result_count",
+          "operator": "greater_than",
+          "expected": 2,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected > 2"
+        }
+      ]
+    },
+    {
+      "test_id": "DT_002",
+      "query": "Revenue drill-through: region to reps",
+      "persona": "cfo",
+      "tags": [
+        "drill_through",
+        "rep"
+      ],
+      "passed": false,
+      "response_time_s": 0.01,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "result_count",
+          "operator": "greater_than",
+          "expected": 1,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected > 1"
+        }
+      ]
+    },
+    {
+      "test_id": "DT_003",
+      "query": "Revenue drill-through: rep to customers",
+      "persona": "cfo",
+      "tags": [
+        "drill_through",
+        "customer"
+      ],
+      "passed": false,
+      "response_time_s": 0.006,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "result_count",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected > 0"
+        }
+      ]
+    },
+    {
+      "test_id": "DT_004",
+      "query": "Revenue drill-through: customer to projects",
+      "persona": "cfo",
+      "tags": [
+        "drill_through",
+        "project"
+      ],
+      "passed": false,
+      "response_time_s": 0.008,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "result_count",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected > 0"
+        }
+      ]
+    },
+    {
+      "test_id": "DT_005",
+      "query": "Drill-through roll-up: project revenues sum to customer revenue",
+      "persona": "cfo",
+      "tags": [
+        "drill_through",
+        "rollup",
+        "integrity"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "sum_matches_parent",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "max_delta_pct",
+          "operator": "less_than",
+          "expected": 0.01,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected < 0.01"
+        }
+      ]
+    },
+    {
+      "test_id": "DT_006",
+      "query": "Drill-through roll-up: customer revenues sum to rep revenue",
+      "persona": "cfo",
+      "tags": [
+        "drill_through",
+        "rollup",
+        "integrity"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "sum_matches_parent",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "max_delta_pct",
+          "operator": "less_than",
+          "expected": 0.01,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected < 0.01"
+        }
+      ]
+    },
+    {
+      "test_id": "DT_007",
+      "query": "Drill-through roll-up: rep revenues sum to region revenue",
+      "persona": "cfo",
+      "tags": [
+        "drill_through",
+        "rollup",
+        "integrity"
+      ],
+      "passed": false,
+      "response_time_s": 0.008,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "sum_matches_parent",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "max_delta_pct",
+          "operator": "less_than",
+          "expected": 0.01,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected < 0.01"
+        }
+      ]
+    },
+    {
+      "test_id": "DT_008",
+      "query": "Drill-through roll-up: region revenues sum to total revenue",
+      "persona": "cfo",
+      "tags": [
+        "drill_through",
+        "rollup",
+        "integrity"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "sum_matches_parent",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "max_delta_pct",
+          "operator": "less_than",
+          "expected": 0.01,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected < 0.01"
+        }
+      ]
+    },
+    {
+      "test_id": "DT_009",
+      "query": "Every project is assigned to exactly one customer",
+      "persona": "cfo",
+      "tags": [
+        "drill_through",
+        "integrity"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "orphan_projects",
+          "operator": "equals",
+          "expected": 0,
+          "actual": null,
+          "passed": false,
+          "message": "expected=0, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "DT_010",
+      "query": "Every customer is assigned to exactly one rep",
+      "persona": "cfo",
+      "tags": [
+        "drill_through",
+        "integrity"
+      ],
+      "passed": false,
+      "response_time_s": 0.008,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "orphan_customers",
+          "operator": "equals",
+          "expected": 0,
+          "actual": null,
+          "passed": false,
+          "message": "expected=0, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "DT_011",
+      "query": "Every rep is assigned to exactly one region",
+      "persona": "cfo",
+      "tags": [
+        "drill_through",
+        "integrity"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "orphan_reps",
+          "operator": "equals",
+          "expected": 0,
+          "actual": null,
+          "passed": false,
+          "message": "expected=0, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "CE_001",
+      "query": "Comparable fields count exceeds minimum 5",
+      "persona": "cfo",
+      "tags": [
+        "conflict_expansion",
+        "comparable"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "count",
+          "operator": "greater_than",
+          "expected": 10,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected > 10"
+        }
+      ]
+    },
+    {
+      "test_id": "CE_002",
+      "query": "Revenue-adjacent fields are comparable",
+      "persona": "cfo",
+      "tags": [
+        "conflict_expansion",
+        "comparable"
+      ],
+      "passed": false,
+      "response_time_s": 0.006,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "fields",
+          "operator": "contains",
+          "expected": "revenue",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain 'revenue'"
+        },
+        {
+          "field": "fields",
+          "operator": "contains",
+          "expected": "headcount",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain 'headcount'"
+        }
+      ]
+    },
+    {
+      "test_id": "CE_003",
+      "query": "No silent fallback to minimum set",
+      "persona": "cfo",
+      "tags": [
+        "conflict_expansion",
+        "no_fallback"
+      ],
+      "passed": false,
+      "response_time_s": 2.895,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "log_output",
+          "operator": "not_null",
+          "expected": null,
+          "actual": null,
+          "passed": false,
+          "message": "expected not null, actual=None"
+        },
+        {
+          "field": "log_output",
+          "operator": "not_equals",
+          "expected": "Using minimum comparable fields",
+          "actual": null,
+          "passed": true,
+          "message": "must not equal 'Using minimum comparable fields', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RP_001",
+      "query": "Show me the full year P&L",
+      "persona": "cfo",
+      "tags": [
+        "reporting",
+        "pnl",
+        "act_vs_py"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "line_item_count",
+          "operator": "greater_than",
+          "expected": 14,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected > 14"
+        },
+        {
+          "field": "has_revenue",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "has_cogs",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "has_gross_profit",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "has_ebitda",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RP_002",
+      "query": "P&L revenue line matches DCL metric query",
+      "persona": "cfo",
+      "tags": [
+        "reporting",
+        "consistency"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "values_match",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RP_003",
+      "query": "P&L balances: Revenue - COGS = Gross Profit",
+      "persona": "cfo",
+      "tags": [
+        "reporting",
+        "arithmetic"
+      ],
+      "passed": false,
+      "response_time_s": 0.006,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "formula_matches",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RP_004",
+      "query": "Variance calculation is correct",
+      "persona": "cfo",
+      "tags": [
+        "reporting",
+        "arithmetic"
+      ],
+      "passed": false,
+      "response_time_s": 0.006,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "variance_correct",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RP_005",
+      "query": "P&L Q3 2025 vs prior year",
+      "persona": "cfo",
+      "tags": [
+        "reporting",
+        "quarterly"
+      ],
+      "passed": false,
+      "response_time_s": 0.062,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "left_period",
+          "operator": "equals",
+          "expected": "2025-Q3",
+          "actual": null,
+          "passed": false,
+          "message": "expected='2025-Q3', actual=None"
+        },
+        {
+          "field": "right_period",
+          "operator": "equals",
+          "expected": "2024-Q3",
+          "actual": null,
+          "passed": false,
+          "message": "expected='2024-Q3', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RP_006",
+      "query": "Forecast P&L for 2026",
+      "persona": "cfo",
+      "tags": [
+        "reporting",
+        "forecast"
+      ],
+      "passed": false,
+      "response_time_s": 0.142,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "has_act_quarters",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "has_cf_quarters",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RP_007",
+      "query": "CF quarters are clearly tagged",
+      "persona": "cfo",
+      "tags": [
+        "reporting",
+        "forecast"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "cf_quarters_tagged",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RP_008",
+      "query": "BS has no forecast variant",
+      "persona": "cfo",
+      "tags": [
+        "reporting",
+        "balance_sheet"
+      ],
+      "passed": false,
+      "response_time_s": 0.088,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "error",
+          "operator": "contains",
+          "expected": "not available",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain 'not available'"
+        }
+      ]
+    },
+    {
+      "test_id": "RP_009",
+      "query": "P&L for Digital/AI segment",
+      "persona": "cfo",
+      "tags": [
+        "reporting",
+        "dimensional"
+      ],
+      "passed": false,
+      "response_time_s": 0.324,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "is_filtered",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "filter_dimension",
+          "operator": "equals",
+          "expected": "segment",
+          "actual": null,
+          "passed": false,
+          "message": "expected='segment', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RP_010",
+      "query": "Dimensional P&L sums to total P&L",
+      "persona": "cfo",
+      "tags": [
+        "reporting",
+        "dimensional",
+        "integrity"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "dimensional_sum_equals_total",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RP_011",
+      "query": "give me the P&L",
+      "persona": "cfo",
+      "tags": [
+        "reporting",
+        "intent"
+      ],
+      "passed": false,
+      "response_time_s": 0.275,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "intent",
+          "operator": "equals",
+          "expected": "report",
+          "actual": null,
+          "passed": false,
+          "message": "expected='report', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RP_012",
+      "query": "what's revenue",
+      "persona": "cfo",
+      "tags": [
+        "reporting",
+        "intent"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "intent",
+          "operator": "not_equals",
+          "expected": "report",
+          "actual": null,
+          "passed": true,
+          "message": "must not equal 'report', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RP_013",
+      "query": "Wall clock date determines Act/CF boundary",
+      "persona": "cfo",
+      "tags": [
+        "reporting",
+        "period_logic"
+      ],
+      "passed": false,
+      "response_time_s": 0.008,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "period_type",
+          "operator": "equals",
+          "expected": "actual",
+          "actual": null,
+          "passed": false,
+          "message": "expected='actual', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RP_014",
+      "query": "Show me the cash flow statement",
+      "persona": "cfo",
+      "tags": [
+        "reporting",
+        "cash_flow"
+      ],
+      "passed": false,
+      "response_time_s": 0.068,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "has_operating",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "has_investing",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "has_financing",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RECON_001",
+      "query": "Full reconciliation: zero RED items",
+      "persona": "cfo",
+      "tags": [
+        "reconciliation",
+        "gate"
+      ],
+      "passed": false,
+      "response_time_s": 2.625,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "red_count",
+          "operator": "equals",
+          "expected": 0,
+          "actual": null,
+          "passed": false,
+          "message": "expected=0, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RECON_002",
+      "query": "Ground truth internal integrity: segments sum to total",
+      "persona": "cfo",
+      "tags": [
+        "reconciliation",
+        "integrity"
+      ],
+      "passed": false,
+      "response_time_s": 0.008,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "dimensional_sum_equals_total",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RECON_003",
+      "query": "Ground truth internal integrity: geos sum to total",
+      "persona": "cfo",
+      "tags": [
+        "reconciliation",
+        "integrity"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "dimensional_sum_equals_total",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RECON_004",
+      "query": "Ground truth covers all 12 quarters",
+      "persona": "cfo",
+      "tags": [
+        "reconciliation",
+        "integrity"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "period_count",
+          "operator": "equals",
+          "expected": 12,
+          "actual": null,
+          "passed": false,
+          "message": "expected=12, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RECON_005",
+      "query": "Ground truth has forecast data for CF quarters",
+      "persona": "cfo",
+      "tags": [
+        "reconciliation",
+        "integrity"
+      ],
+      "passed": false,
+      "response_time_s": 0.006,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "has_forecast_periods",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "RECON_006",
+      "query": "P&L total revenue matches ground truth for every quarter",
+      "persona": "cfo",
+      "tags": [
+        "reconciliation",
+        "revenue"
+      ],
+      "passed": false,
+      "response_time_s": 0.006,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "all_match",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "max_delta",
+          "operator": "less_than",
+          "expected": 0.01,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected < 0.01"
+        }
+      ]
+    },
+    {
+      "test_id": "RECON_007",
+      "query": "BS total assets matches ground truth for every quarter-end",
+      "persona": "cfo",
+      "tags": [
+        "reconciliation",
+        "balance_sheet"
+      ],
+      "passed": false,
+      "response_time_s": 0.09,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "all_match",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "max_delta",
+          "operator": "less_than",
+          "expected": 0.01,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected < 0.01"
+        }
+      ]
+    },
+    {
+      "test_id": "RECON_008",
+      "query": "Dimensional P&L reconciles to ground truth per segment per quarter",
+      "persona": "cfo",
+      "tags": [
+        "reconciliation",
+        "dimensional"
+      ],
+      "passed": false,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "all_match",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "max_delta",
+          "operator": "less_than",
+          "expected": 0.01,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected < 0.01"
+        }
+      ]
+    },
+    {
+      "test_id": "QE_001",
+      "query": "QofE endpoint returns complete report structure",
+      "persona": "cfo",
+      "tags": [
+        "qoe",
+        "structure"
+      ],
+      "passed": true,
+      "response_time_s": 0.054,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "ebitda_bridge",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            {
+              "name": "Above-market exec compensation \u2014 Meridian",
+              "category": "normalization",
+              "entity": "meridian",
+              "confidence": "high",
+              "current_amount": 18000000,
+              "diligence_amount": 18000000,
+              "prior_amount": null,
+              "amount_low": 18000000,
+              "amount_high": 18000000,
+              "lever": null,
+              "support_reference": "Executive compensation analysis vs. industry benchmarks",
+              "rationale": "Meridian CEO/CFO compensation $18M above market median for comparable firms.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Above-market exec compensation \u2014 Cascadia",
+              "category": "normalization",
+              "entity": "cascadia",
+              "confidence": "high",
+              "current_amount": 8000000,
+              "diligence_amount": 8000000,
+              "prior_amount": null,
+              "amount_low": 8000000,
+              "amount_high": 8000000,
+              "lever": null,
+              "support_reference": "Executive compensation analysis vs. industry benchmarks",
+              "rationale": "Cascadia founder/CEO compensation $8M above market median.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Non-recurring: M litigation reserve",
+              "category": "one_time",
+              "entity": "meridian",
+              "confidence": "high",
+              "current_amount": 22000000,
+              "diligence_amount": 22000000,
+              "prior_amount": null,
+              "amount_low": 22000000,
+              "amount_high": 22000000,
+              "lever": null,
+              "support_reference": "Meridian 10-K Note 14 \u2014 Litigation contingencies",
+              "rationale": "One-time litigation reserve for patent infringement case settled in Q3.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Non-recurring: C delivery center closure",
+              "category": "one_time",
+              "entity": "cascadia",
+              "confidence": "high",
+              "current_amount": 35000000,
+              "diligence_amount": 35000000,
+              "prior_amount": null,
+              "amount_low": 35000000,
+              "amount_high": 35000000,
+              "lever": null,
+              "support_reference": "Cascadia 10-K Note 8 \u2014 Restructuring charges",
+              "rationale": "One-time charge for Manila delivery center closure and staff transition.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Transaction costs \u2014 this deal (Meridian)",
+              "category": "one_time",
+              "entity": "meridian",
+              "confidence": "high",
+              "current_amount": 15000000,
+              "diligence_amount": 15000000,
+              "prior_amount": null,
+              "amount_low": 15000000,
+              "amount_high": 15000000,
+              "lever": null,
+              "support_reference": "Merger proxy statement \u2014 Transaction expenses",
+              "rationale": "Meridian-side investment banking, legal, and accounting fees for this transaction.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Transaction costs \u2014 this deal (Cascadia)",
+              "category": "one_time",
+              "entity": "cascadia",
+              "confidence": "high",
+              "current_amount": 8000000,
+              "diligence_amount": 8000000,
+              "prior_amount": null,
+              "amount_low": 8000000,
+              "amount_high": 8000000,
+              "lever": null,
+              "support_reference": "Merger proxy statement \u2014 Transaction expenses",
+              "rationale": "Cascadia-side advisory and legal fees for this transaction.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Related-party leases \u2014 C founder properties",
+              "category": "normalization",
+              "entity": "cascadia",
+              "confidence": "high",
+              "current_amount": 4000000,
+              "diligence_amount": 4000000,
+              "prior_amount": null,
+              "amount_low": 4000000,
+              "amount_high": 4000000,
+              "lever": null,
+              "support_reference": "Cascadia related-party transaction disclosures",
+              "rationale": "Cascadia leases 2 properties from founder entity at above-market rates; $4M annual excess.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Run-rate: new contracts not at full revenue (Meridian)",
+              "category": "run_rate",
+              "entity": "meridian",
+              "confidence": "medium",
+              "current_amount": 28000000,
+              "diligence_amount": 28000000,
+              "prior_amount": null,
+              "amount_low": 28000000,
+              "amount_high": 28000000,
+              "lever": null,
+              "support_reference": "Meridian backlog analysis \u2014 contracts signed but not fully ramped",
+              "rationale": "3 large contracts signed in Q3-Q4 not yet at full run-rate revenue.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Run-rate: new contracts not at full revenue (Cascadia)",
+              "category": "run_rate",
+              "entity": "cascadia",
+              "confidence": "medium",
+              "current_amount": 15000000,
+              "diligence_amount": 15000000,
+              "prior_amount": null,
+              "amount_low": 15000000,
+              "amount_high": 15000000,
+              "lever": null,
+              "support_reference": "Cascadia backlog analysis \u2014 contracts signed but not fully ramped",
+              "rationale": "2 BPM engagements ramping to full headcount in Q1-Q2 2026.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Utilization normalization \u2014 M Q2-Q3 dip",
+              "category": "normalization",
+              "entity": "meridian",
+              "confidence": "medium",
+              "current_amount": 45000000,
+              "diligence_amount": 45000000,
+              "prior_amount": null,
+              "amount_low": 45000000,
+              "amount_high": 45000000,
+              "lever": "m_utilization_rate",
+              "support_reference": "Meridian utilization reports \u2014 Q2/Q3 2025 vs. trailing 8-quarter avg",
+              "rationale": "Q2-Q3 utilization dipped to 73% vs. normalized 78%; add-back for temporary bench buildup.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Offshore labor mix shift \u2014 C in progress",
+              "category": "run_rate",
+              "entity": "cascadia",
+              "confidence": "medium",
+              "current_amount": 12000000,
+              "diligence_amount": 12000000,
+              "prior_amount": null,
+              "amount_low": 12000000,
+              "amount_high": 12000000,
+              "lever": "c_offshore_mix",
+              "support_reference": "Cascadia workforce planning \u2014 offshore migration program",
+              "rationale": "Cascadia migrating 15% of onshore delivery to offshore; $12M annualized savings at completion.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "C attrition normalization 18% \u2192 15%",
+              "category": "normalization",
+              "entity": "cascadia",
+              "confidence": "low",
+              "current_amount": 18000000,
+              "diligence_amount": 18000000,
+              "prior_amount": null,
+              "amount_low": 18000000,
+              "amount_high": 18000000,
+              "lever": "c_attrition_rate",
+              "support_reference": "Cascadia HR metrics \u2014 attrition trending down from 18% to 15% target",
+              "rationale": "Cascadia attrition at 18% vs. 15% industry norm; excess recruiting/training cost add-back.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Bench optimization \u2014 consulting",
+              "category": "cost_synergy",
+              "entity": "combined",
+              "confidence": "medium",
+              "current_amount": 100000000,
+              "diligence_amount": 100000000,
+              "prior_amount": null,
+              "amount_low": 80000000,
+              "amount_high": 120000000,
+              "lever": "bench_cross_deploy_rate",
+              "support_reference": "Bench utilization analysis \u2014 4500 consultants \u00d7 cross-deploy model",
+              "rationale": "Cross-deploying Meridian bench consultants onto Cascadia delivery engagements.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Bench optimization \u2014 delivery",
+              "category": "cost_synergy",
+              "entity": "combined",
+              "confidence": "medium",
+              "current_amount": 35000000,
+              "diligence_amount": 35000000,
+              "prior_amount": null,
+              "amount_low": 25000000,
+              "amount_high": 45000000,
+              "lever": "bench_cross_deploy_rate",
+              "support_reference": "Delivery bench analysis \u2014 4200 FTEs \u00d7 cross-deploy model",
+              "rationale": "Redeploying idle Cascadia delivery FTEs onto Meridian project support roles.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Corporate function consolidation",
+              "category": "cost_synergy",
+              "entity": "combined",
+              "confidence": "medium",
+              "current_amount": 27300000.0,
+              "diligence_amount": 27300000.0,
+              "prior_amount": null,
+              "amount_low": 45000000,
+              "amount_high": 70000000,
+              "lever": "corporate_hc_reduction_pct",
+              "support_reference": "People overlap analysis \u2014 Finance, HR, IT, Legal functions",
+              "rationale": "Consolidating overlapping corporate functions; reduction based on min(M,C) headcount per function.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Vendor consolidation",
+              "category": "cost_synergy",
+              "entity": "combined",
+              "confidence": "high",
+              "current_amount": 48800000.0,
+              "diligence_amount": 48800000.0,
+              "prior_amount": null,
+              "amount_low": 15000000,
+              "amount_high": 25000000,
+              "lever": null,
+              "support_reference": "Vendor overlap analysis \u2014 170 overlapping vendors with consolidation savings",
+              "rationale": "Consolidating overlapping vendor contracts for volume discounts and eliminated redundancy.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Technology redundancy elimination",
+              "category": "cost_synergy",
+              "entity": "combined",
+              "confidence": "medium",
+              "current_amount": 10000000,
+              "diligence_amount": 10000000,
+              "prior_amount": null,
+              "amount_low": 8000000,
+              "amount_high": 12000000,
+              "lever": null,
+              "support_reference": "Technology stack audit \u2014 overlapping SaaS, middleware, and dev tools",
+              "rationale": "Eliminating duplicate SaaS licenses, middleware, and internal tools post-combination.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Cross-sell revenue contribution",
+              "category": "revenue_synergy",
+              "entity": "combined",
+              "confidence": "low",
+              "current_amount": 11923200.0,
+              "diligence_amount": 11923200.0,
+              "prior_amount": null,
+              "amount_low": 35000000,
+              "amount_high": 65000000,
+              "lever": "cross_sell_capture_rate",
+              "support_reference": "Cross-sell pipeline \u2014 high-confidence ACV \u00d7 capture rate \u00d7 margin \u00d7 ramp",
+              "rationale": "EBITDA contribution from cross-selling services to the other entity's non-overlapping clients.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Integration costs Year 1",
+              "category": "dis_synergy",
+              "entity": "combined",
+              "confidence": "high",
+              "current_amount": -100000000,
+              "diligence_amount": -100000000,
+              "prior_amount": null,
+              "amount_low": -120000000,
+              "amount_high": -85000000,
+              "lever": "integration_cost_M",
+              "support_reference": "Integration management office budget \u2014 systems, people, branding",
+              "rationale": "Year 1 integration costs: IT system migration, org redesign, rebranding, change management.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            },
+            {
+              "name": "Retention packages",
+              "category": "dis_synergy",
+              "entity": "combined",
+              "confidence": "high",
+              "current_amount": -25000000,
+              "diligence_amount": -25000000,
+              "prior_amount": null,
+              "amount_low": -30000000,
+              "amount_high": -20000000,
+              "lever": null,
+              "support_reference": "Retention program \u2014 key talent across both entities",
+              "rationale": "Year 1 retention bonuses for critical leadership and top performers.",
+              "status": "active",
+              "lifecycle_stage": "ongoing",
+              "trend": "stable"
+            }
+          ],
+          "passed": true,
+          "message": "expected not null, actual=[{'name': 'Above-market exec compensation \u2014 Meridian', 'category': 'normalization', 'entity': 'meridian', 'confidence': 'high', 'current_amount': 18000000, 'diligence_amount': 18000000, 'prior_amount': None, 'amount_low': 18000000, 'amount_high': 18000000, 'lever': None, 'support_reference': 'Executive compensation analysis vs. industry benchmarks', 'rationale': 'Meridian CEO/CFO compensation $18M above market median for comparable firms.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Above-market exec compensation \u2014 Cascadia', 'category': 'normalization', 'entity': 'cascadia', 'confidence': 'high', 'current_amount': 8000000, 'diligence_amount': 8000000, 'prior_amount': None, 'amount_low': 8000000, 'amount_high': 8000000, 'lever': None, 'support_reference': 'Executive compensation analysis vs. industry benchmarks', 'rationale': 'Cascadia founder/CEO compensation $8M above market median.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Non-recurring: M litigation reserve', 'category': 'one_time', 'entity': 'meridian', 'confidence': 'high', 'current_amount': 22000000, 'diligence_amount': 22000000, 'prior_amount': None, 'amount_low': 22000000, 'amount_high': 22000000, 'lever': None, 'support_reference': 'Meridian 10-K Note 14 \u2014 Litigation contingencies', 'rationale': 'One-time litigation reserve for patent infringement case settled in Q3.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Non-recurring: C delivery center closure', 'category': 'one_time', 'entity': 'cascadia', 'confidence': 'high', 'current_amount': 35000000, 'diligence_amount': 35000000, 'prior_amount': None, 'amount_low': 35000000, 'amount_high': 35000000, 'lever': None, 'support_reference': 'Cascadia 10-K Note 8 \u2014 Restructuring charges', 'rationale': 'One-time charge for Manila delivery center closure and staff transition.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Transaction costs \u2014 this deal (Meridian)', 'category': 'one_time', 'entity': 'meridian', 'confidence': 'high', 'current_amount': 15000000, 'diligence_amount': 15000000, 'prior_amount': None, 'amount_low': 15000000, 'amount_high': 15000000, 'lever': None, 'support_reference': 'Merger proxy statement \u2014 Transaction expenses', 'rationale': 'Meridian-side investment banking, legal, and accounting fees for this transaction.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Transaction costs \u2014 this deal (Cascadia)', 'category': 'one_time', 'entity': 'cascadia', 'confidence': 'high', 'current_amount': 8000000, 'diligence_amount': 8000000, 'prior_amount': None, 'amount_low': 8000000, 'amount_high': 8000000, 'lever': None, 'support_reference': 'Merger proxy statement \u2014 Transaction expenses', 'rationale': 'Cascadia-side advisory and legal fees for this transaction.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Related-party leases \u2014 C founder properties', 'category': 'normalization', 'entity': 'cascadia', 'confidence': 'high', 'current_amount': 4000000, 'diligence_amount': 4000000, 'prior_amount': None, 'amount_low': 4000000, 'amount_high': 4000000, 'lever': None, 'support_reference': 'Cascadia related-party transaction disclosures', 'rationale': 'Cascadia leases 2 properties from founder entity at above-market rates; $4M annual excess.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Run-rate: new contracts not at full revenue (Meridian)', 'category': 'run_rate', 'entity': 'meridian', 'confidence': 'medium', 'current_amount': 28000000, 'diligence_amount': 28000000, 'prior_amount': None, 'amount_low': 28000000, 'amount_high': 28000000, 'lever': None, 'support_reference': 'Meridian backlog analysis \u2014 contracts signed but not fully ramped', 'rationale': '3 large contracts signed in Q3-Q4 not yet at full run-rate revenue.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Run-rate: new contracts not at full revenue (Cascadia)', 'category': 'run_rate', 'entity': 'cascadia', 'confidence': 'medium', 'current_amount': 15000000, 'diligence_amount': 15000000, 'prior_amount': None, 'amount_low': 15000000, 'amount_high': 15000000, 'lever': None, 'support_reference': 'Cascadia backlog analysis \u2014 contracts signed but not fully ramped', 'rationale': '2 BPM engagements ramping to full headcount in Q1-Q2 2026.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Utilization normalization \u2014 M Q2-Q3 dip', 'category': 'normalization', 'entity': 'meridian', 'confidence': 'medium', 'current_amount': 45000000, 'diligence_amount': 45000000, 'prior_amount': None, 'amount_low': 45000000, 'amount_high': 45000000, 'lever': 'm_utilization_rate', 'support_reference': 'Meridian utilization reports \u2014 Q2/Q3 2025 vs. trailing 8-quarter avg', 'rationale': 'Q2-Q3 utilization dipped to 73% vs. normalized 78%; add-back for temporary bench buildup.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Offshore labor mix shift \u2014 C in progress', 'category': 'run_rate', 'entity': 'cascadia', 'confidence': 'medium', 'current_amount': 12000000, 'diligence_amount': 12000000, 'prior_amount': None, 'amount_low': 12000000, 'amount_high': 12000000, 'lever': 'c_offshore_mix', 'support_reference': 'Cascadia workforce planning \u2014 offshore migration program', 'rationale': 'Cascadia migrating 15% of onshore delivery to offshore; $12M annualized savings at completion.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'C attrition normalization 18% \u2192 15%', 'category': 'normalization', 'entity': 'cascadia', 'confidence': 'low', 'current_amount': 18000000, 'diligence_amount': 18000000, 'prior_amount': None, 'amount_low': 18000000, 'amount_high': 18000000, 'lever': 'c_attrition_rate', 'support_reference': 'Cascadia HR metrics \u2014 attrition trending down from 18% to 15% target', 'rationale': 'Cascadia attrition at 18% vs. 15% industry norm; excess recruiting/training cost add-back.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Bench optimization \u2014 consulting', 'category': 'cost_synergy', 'entity': 'combined', 'confidence': 'medium', 'current_amount': 100000000, 'diligence_amount': 100000000, 'prior_amount': None, 'amount_low': 80000000, 'amount_high': 120000000, 'lever': 'bench_cross_deploy_rate', 'support_reference': 'Bench utilization analysis \u2014 4500 consultants \u00d7 cross-deploy model', 'rationale': 'Cross-deploying Meridian bench consultants onto Cascadia delivery engagements.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Bench optimization \u2014 delivery', 'category': 'cost_synergy', 'entity': 'combined', 'confidence': 'medium', 'current_amount': 35000000, 'diligence_amount': 35000000, 'prior_amount': None, 'amount_low': 25000000, 'amount_high': 45000000, 'lever': 'bench_cross_deploy_rate', 'support_reference': 'Delivery bench analysis \u2014 4200 FTEs \u00d7 cross-deploy model', 'rationale': 'Redeploying idle Cascadia delivery FTEs onto Meridian project support roles.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Corporate function consolidation', 'category': 'cost_synergy', 'entity': 'combined', 'confidence': 'medium', 'current_amount': 27300000.0, 'diligence_amount': 27300000.0, 'prior_amount': None, 'amount_low': 45000000, 'amount_high': 70000000, 'lever': 'corporate_hc_reduction_pct', 'support_reference': 'People overlap analysis \u2014 Finance, HR, IT, Legal functions', 'rationale': 'Consolidating overlapping corporate functions; reduction based on min(M,C) headcount per function.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Vendor consolidation', 'category': 'cost_synergy', 'entity': 'combined', 'confidence': 'high', 'current_amount': 48800000.0, 'diligence_amount': 48800000.0, 'prior_amount': None, 'amount_low': 15000000, 'amount_high': 25000000, 'lever': None, 'support_reference': 'Vendor overlap analysis \u2014 170 overlapping vendors with consolidation savings', 'rationale': 'Consolidating overlapping vendor contracts for volume discounts and eliminated redundancy.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Technology redundancy elimination', 'category': 'cost_synergy', 'entity': 'combined', 'confidence': 'medium', 'current_amount': 10000000, 'diligence_amount': 10000000, 'prior_amount': None, 'amount_low': 8000000, 'amount_high': 12000000, 'lever': None, 'support_reference': 'Technology stack audit \u2014 overlapping SaaS, middleware, and dev tools', 'rationale': 'Eliminating duplicate SaaS licenses, middleware, and internal tools post-combination.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Cross-sell revenue contribution', 'category': 'revenue_synergy', 'entity': 'combined', 'confidence': 'low', 'current_amount': 11923200.0, 'diligence_amount': 11923200.0, 'prior_amount': None, 'amount_low': 35000000, 'amount_high': 65000000, 'lever': 'cross_sell_capture_rate', 'support_reference': 'Cross-sell pipeline \u2014 high-confidence ACV \u00d7 capture rate \u00d7 margin \u00d7 ramp', 'rationale': \"EBITDA contribution from cross-selling services to the other entity's non-overlapping clients.\", 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Integration costs Year 1', 'category': 'dis_synergy', 'entity': 'combined', 'confidence': 'high', 'current_amount': -100000000, 'diligence_amount': -100000000, 'prior_amount': None, 'amount_low': -120000000, 'amount_high': -85000000, 'lever': 'integration_cost_M', 'support_reference': 'Integration management office budget \u2014 systems, people, branding', 'rationale': 'Year 1 integration costs: IT system migration, org redesign, rebranding, change management.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}, {'name': 'Retention packages', 'category': 'dis_synergy', 'entity': 'combined', 'confidence': 'high', 'current_amount': -25000000, 'diligence_amount': -25000000, 'prior_amount': None, 'amount_low': -30000000, 'amount_high': -20000000, 'lever': None, 'support_reference': 'Retention program \u2014 key talent across both entities', 'rationale': 'Year 1 retention bonuses for critical leadership and top performers.', 'status': 'active', 'lifecycle_stage': 'ongoing', 'trend': 'stable'}]"
+        },
+        {
+          "field": "adjustment_lifecycle",
+          "operator": "not_null",
+          "expected": null,
+          "actual": {
+            "lifecycle_stages": {
+              "identified": {
+                "count": 0,
+                "items": []
+              },
+              "validated": {
+                "count": 0,
+                "items": []
+              },
+              "ongoing": {
+                "count": 20,
+                "items": [
+                  "Above-market exec compensation \u2014 Meridian",
+                  "Above-market exec compensation \u2014 Cascadia",
+                  "Non-recurring: M litigation reserve",
+                  "Non-recurring: C delivery center closure",
+                  "Transaction costs \u2014 this deal (Meridian)",
+                  "Transaction costs \u2014 this deal (Cascadia)",
+                  "Related-party leases \u2014 C founder properties",
+                  "Run-rate: new contracts not at full revenue (Meridian)",
+                  "Run-rate: new contracts not at full revenue (Cascadia)",
+                  "Utilization normalization \u2014 M Q2-Q3 dip",
+                  "Offshore labor mix shift \u2014 C in progress",
+                  "C attrition normalization 18% \u2192 15%",
+                  "Bench optimization \u2014 consulting",
+                  "Bench optimization \u2014 delivery",
+                  "Corporate function consolidation",
+                  "Vendor consolidation",
+                  "Technology redundancy elimination",
+                  "Cross-sell revenue contribution",
+                  "Integration costs Year 1",
+                  "Retention packages"
+                ]
+              },
+              "resolved": {
+                "count": 0,
+                "items": []
+              },
+              "escalated": {
+                "count": 0,
+                "items": []
+              },
+              "new": {
+                "count": 0,
+                "items": []
+              }
+            },
+            "status_counts": {
+              "active": 20,
+              "resolved": 0,
+              "new": 0,
+              "changed": 0
+            },
+            "total_adjustments": 20
+          },
+          "passed": true,
+          "message": "expected not null, actual={'lifecycle_stages': {'identified': {'count': 0, 'items': []}, 'validated': {'count': 0, 'items': []}, 'ongoing': {'count': 20, 'items': ['Above-market exec compensation \u2014 Meridian', 'Above-market exec compensation \u2014 Cascadia', 'Non-recurring: M litigation reserve', 'Non-recurring: C delivery center closure', 'Transaction costs \u2014 this deal (Meridian)', 'Transaction costs \u2014 this deal (Cascadia)', 'Related-party leases \u2014 C founder properties', 'Run-rate: new contracts not at full revenue (Meridian)', 'Run-rate: new contracts not at full revenue (Cascadia)', 'Utilization normalization \u2014 M Q2-Q3 dip', 'Offshore labor mix shift \u2014 C in progress', 'C attrition normalization 18% \u2192 15%', 'Bench optimization \u2014 consulting', 'Bench optimization \u2014 delivery', 'Corporate function consolidation', 'Vendor consolidation', 'Technology redundancy elimination', 'Cross-sell revenue contribution', 'Integration costs Year 1', 'Retention packages']}, 'resolved': {'count': 0, 'items': []}, 'escalated': {'count': 0, 'items': []}, 'new': {'count': 0, 'items': []}}, 'status_counts': {'active': 20, 'resolved': 0, 'new': 0, 'changed': 0}, 'total_adjustments': 20}"
+        },
+        {
+          "field": "revenue_quality",
+          "operator": "not_null",
+          "expected": null,
+          "actual": {
+            "customer_concentration": {
+              "hhi": 52.6,
+              "top_10_pct": 13.84,
+              "top_20_pct": 21.19,
+              "top_50_pct": 38.92,
+              "threshold_alerts": [],
+              "total_customers": 1400
+            },
+            "contract_quality": {
+              "msa_pct": 31.6,
+              "sow_pct": 33.2,
+              "t_and_m_pct": 35.1,
+              "avg_tenure_years": 8.2
+            },
+            "revenue_mix": {
+              "recurring_pct": 17.2,
+              "non_recurring_pct": 82.8,
+              "advisory_consulting_M": 1377.65,
+              "managed_services_M": 124.7,
+              "per_fte_M": 104.86,
+              "per_transaction_M": 53.85
+            },
+            "cohort_retention": [
+              {
+                "years_as_client": 1,
+                "total_revenue_M": 474.71
+              },
+              {
+                "years_as_client": 2,
+                "total_revenue_M": 420.04
+              },
+              {
+                "years_as_client": 3,
+                "total_revenue_M": 304.89
+              },
+              {
+                "years_as_client": 4,
+                "total_revenue_M": 383.15
+              },
+              {
+                "years_as_client": 5,
+                "total_revenue_M": 462.7
+              },
+              {
+                "years_as_client": 6,
+                "total_revenue_M": 290.19
+              },
+              {
+                "years_as_client": 7,
+                "total_revenue_M": 487.15
+              },
+              {
+                "years_as_client": 8,
+                "total_revenue_M": 573.5
+              },
+              {
+                "years_as_client": 9,
+                "total_revenue_M": 386.63
+              },
+              {
+                "years_as_client": 10,
+                "total_revenue_M": 379.61
+              },
+              {
+                "years_as_client": 11,
+                "total_revenue_M": 698.89
+              },
+              {
+                "years_as_client": 12,
+                "total_revenue_M": 564.48
+              },
+              {
+                "years_as_client": 13,
+                "total_revenue_M": 619.47
+              },
+              {
+                "years_as_client": 14,
+                "total_revenue_M": 541.97
+              },
+              {
+                "years_as_client": 15,
+                "total_revenue_M": 507.41
+              }
+            ],
+            "cross_sell_penetration": {
+              "total_candidates": 103,
+              "total_pipeline_acv_M": 272.53,
+              "converted_count": 0,
+              "converted_acv_M": 0,
+              "conversion_rate_pct": 0
+            }
+          },
+          "passed": true,
+          "message": "expected not null, actual={'customer_concentration': {'hhi': 52.6, 'top_10_pct': 13.84, 'top_20_pct': 21.19, 'top_50_pct': 38.92, 'threshold_alerts': [], 'total_customers': 1400}, 'contract_quality': {'msa_pct': 31.6, 'sow_pct': 33.2, 't_and_m_pct': 35.1, 'avg_tenure_years': 8.2}, 'revenue_mix': {'recurring_pct': 17.2, 'non_recurring_pct': 82.8, 'advisory_consulting_M': 1377.65, 'managed_services_M': 124.7, 'per_fte_M': 104.86, 'per_transaction_M': 53.85}, 'cohort_retention': [{'years_as_client': 1, 'total_revenue_M': 474.71}, {'years_as_client': 2, 'total_revenue_M': 420.04}, {'years_as_client': 3, 'total_revenue_M': 304.89}, {'years_as_client': 4, 'total_revenue_M': 383.15}, {'years_as_client': 5, 'total_revenue_M': 462.7}, {'years_as_client': 6, 'total_revenue_M': 290.19}, {'years_as_client': 7, 'total_revenue_M': 487.15}, {'years_as_client': 8, 'total_revenue_M': 573.5}, {'years_as_client': 9, 'total_revenue_M': 386.63}, {'years_as_client': 10, 'total_revenue_M': 379.61}, {'years_as_client': 11, 'total_revenue_M': 698.89}, {'years_as_client': 12, 'total_revenue_M': 564.48}, {'years_as_client': 13, 'total_revenue_M': 619.47}, {'years_as_client': 14, 'total_revenue_M': 541.97}, {'years_as_client': 15, 'total_revenue_M': 507.41}], 'cross_sell_penetration': {'total_candidates': 103, 'total_pipeline_acv_M': 272.53, 'converted_count': 0, 'converted_acv_M': 0, 'conversion_rate_pct': 0}}"
+        },
+        {
+          "field": "sustainability_score",
+          "operator": "not_null",
+          "expected": null,
+          "actual": {
+            "overall": 78.9,
+            "components": [
+              {
+                "name": "Contract Duration",
+                "score": 63.2,
+                "weight": 25,
+                "max_points": 25
+              },
+              {
+                "name": "Customer Concentration",
+                "score": 100,
+                "weight": 15,
+                "max_points": 15
+              },
+              {
+                "name": "Adjustment Stability",
+                "score": 100,
+                "weight": 20,
+                "max_points": 20
+              },
+              {
+                "name": "Working Capital Health",
+                "score": 80.0,
+                "weight": 15,
+                "max_points": 15
+              },
+              {
+                "name": "Margin Stability",
+                "score": 90,
+                "weight": 15,
+                "max_points": 15
+              },
+              {
+                "name": "Organic Revenue",
+                "score": 25.8,
+                "weight": 10,
+                "max_points": 10
+              }
+            ],
+            "grade": "B"
+          },
+          "passed": true,
+          "message": "expected not null, actual={'overall': 78.9, 'components': [{'name': 'Contract Duration', 'score': 63.2, 'weight': 25, 'max_points': 25}, {'name': 'Customer Concentration', 'score': 100, 'weight': 15, 'max_points': 15}, {'name': 'Adjustment Stability', 'score': 100, 'weight': 20, 'max_points': 20}, {'name': 'Working Capital Health', 'score': 80.0, 'weight': 15, 'max_points': 15}, {'name': 'Margin Stability', 'score': 90, 'weight': 15, 'max_points': 15}, {'name': 'Organic Revenue', 'score': 25.8, 'weight': 10, 'max_points': 10}], 'grade': 'B'}"
+        },
+        {
+          "field": "working_capital",
+          "operator": "not_null",
+          "expected": null,
+          "actual": {
+            "dso_trend": [
+              {
+                "period": "2024-Q1",
+                "value": 13.5
+              },
+              {
+                "period": "2024-Q2",
+                "value": 13.5
+              },
+              {
+                "period": "2024-Q3",
+                "value": 13.5
+              },
+              {
+                "period": "2024-Q4",
+                "value": 13.5
+              },
+              {
+                "period": "2025-Q1",
+                "value": 13.5
+              },
+              {
+                "period": "2025-Q2",
+                "value": 13.5
+              },
+              {
+                "period": "2025-Q3",
+                "value": 13.5
+              },
+              {
+                "period": "2025-Q4",
+                "value": 13.5
+              },
+              {
+                "period": "2026-Q1",
+                "value": 13.5
+              },
+              {
+                "period": "2026-Q2",
+                "value": 13.5
+              },
+              {
+                "period": "2026-Q3",
+                "value": 13.5
+              },
+              {
+                "period": "2026-Q4",
+                "value": 13.5
+              }
+            ],
+            "dpo_trend": [
+              {
+                "period": "2024-Q1",
+                "value": 10.8
+              },
+              {
+                "period": "2024-Q2",
+                "value": 10.8
+              },
+              {
+                "period": "2024-Q3",
+                "value": 10.8
+              },
+              {
+                "period": "2024-Q4",
+                "value": 10.8
+              },
+              {
+                "period": "2025-Q1",
+                "value": 10.8
+              },
+              {
+                "period": "2025-Q2",
+                "value": 10.8
+              },
+              {
+                "period": "2025-Q3",
+                "value": 10.8
+              },
+              {
+                "period": "2025-Q4",
+                "value": 10.8
+              },
+              {
+                "period": "2026-Q1",
+                "value": 10.8
+              },
+              {
+                "period": "2026-Q2",
+                "value": 10.8
+              },
+              {
+                "period": "2026-Q3",
+                "value": 10.8
+              },
+              {
+                "period": "2026-Q4",
+                "value": 10.8
+              }
+            ],
+            "bench_cost_trend": [
+              {
+                "period": "2024-Q1",
+                "value": 220.63
+              },
+              {
+                "period": "2024-Q2",
+                "value": 223.66
+              },
+              {
+                "period": "2024-Q3",
+                "value": 226.74
+              },
+              {
+                "period": "2024-Q4",
+                "value": 229.86
+              },
+              {
+                "period": "2025-Q1",
+                "value": 232.72
+              },
+              {
+                "period": "2025-Q2",
+                "value": 235.62
+              },
+              {
+                "period": "2025-Q3",
+                "value": 238.55
+              },
+              {
+                "period": "2025-Q4",
+                "value": 241.53
+              },
+              {
+                "period": "2026-Q1",
+                "value": 244.22
+              },
+              {
+                "period": "2026-Q2",
+                "value": 246.94
+              },
+              {
+                "period": "2026-Q3",
+                "value": 249.7
+              },
+              {
+                "period": "2026-Q4",
+                "value": 252.49
+              }
+            ],
+            "working_capital_pct_trend": [
+              {
+                "period": "2024-Q1",
+                "value": 7.52
+              },
+              {
+                "period": "2024-Q2",
+                "value": 7.53
+              },
+              {
+                "period": "2024-Q3",
+                "value": 7.54
+              },
+              {
+                "period": "2024-Q4",
+                "value": 7.54
+              },
+              {
+                "period": "2025-Q1",
+                "value": 7.55
+              },
+              {
+                "period": "2025-Q2",
+                "value": 7.56
+              },
+              {
+                "period": "2025-Q3",
+                "value": 7.57
+              },
+              {
+                "period": "2025-Q4",
+                "value": 7.58
+              },
+              {
+                "period": "2026-Q1",
+                "value": 7.59
+              },
+              {
+                "period": "2026-Q2",
+                "value": 7.6
+              },
+              {
+                "period": "2026-Q3",
+                "value": 7.61
+              },
+              {
+                "period": "2026-Q4",
+                "value": 7.62
+              }
+            ],
+            "margin_trend": [
+              {
+                "period": "2024-Q1",
+                "gross_margin_pct": 37.65,
+                "ebitda_margin_pct": 17.78
+              },
+              {
+                "period": "2024-Q2",
+                "gross_margin_pct": 37.72,
+                "ebitda_margin_pct": 17.84
+              },
+              {
+                "period": "2024-Q3",
+                "gross_margin_pct": 37.79,
+                "ebitda_margin_pct": 17.9
+              },
+              {
+                "period": "2024-Q4",
+                "gross_margin_pct": 37.87,
+                "ebitda_margin_pct": 17.95
+              },
+              {
+                "period": "2025-Q1",
+                "gross_margin_pct": 37.94,
+                "ebitda_margin_pct": 18.01
+              },
+              {
+                "period": "2025-Q2",
+                "gross_margin_pct": 38.02,
+                "ebitda_margin_pct": 18.08
+              },
+              {
+                "period": "2025-Q3",
+                "gross_margin_pct": 38.09,
+                "ebitda_margin_pct": 18.14
+              },
+              {
+                "period": "2025-Q4",
+                "gross_margin_pct": 38.17,
+                "ebitda_margin_pct": 18.2
+              },
+              {
+                "period": "2026-Q1",
+                "gross_margin_pct": 38.24,
+                "ebitda_margin_pct": 18.27
+              },
+              {
+                "period": "2026-Q2",
+                "gross_margin_pct": 38.32,
+                "ebitda_margin_pct": 18.34
+              },
+              {
+                "period": "2026-Q3",
+                "gross_margin_pct": 38.4,
+                "ebitda_margin_pct": 18.41
+              },
+              {
+                "period": "2026-Q4",
+                "gross_margin_pct": 38.48,
+                "ebitda_margin_pct": 18.48
+              }
+            ]
+          },
+          "passed": true,
+          "message": "expected not null, actual={'dso_trend': [{'period': '2024-Q1', 'value': 13.5}, {'period': '2024-Q2', 'value': 13.5}, {'period': '2024-Q3', 'value': 13.5}, {'period': '2024-Q4', 'value': 13.5}, {'period': '2025-Q1', 'value': 13.5}, {'period': '2025-Q2', 'value': 13.5}, {'period': '2025-Q3', 'value': 13.5}, {'period': '2025-Q4', 'value': 13.5}, {'period': '2026-Q1', 'value': 13.5}, {'period': '2026-Q2', 'value': 13.5}, {'period': '2026-Q3', 'value': 13.5}, {'period': '2026-Q4', 'value': 13.5}], 'dpo_trend': [{'period': '2024-Q1', 'value': 10.8}, {'period': '2024-Q2', 'value': 10.8}, {'period': '2024-Q3', 'value': 10.8}, {'period': '2024-Q4', 'value': 10.8}, {'period': '2025-Q1', 'value': 10.8}, {'period': '2025-Q2', 'value': 10.8}, {'period': '2025-Q3', 'value': 10.8}, {'period': '2025-Q4', 'value': 10.8}, {'period': '2026-Q1', 'value': 10.8}, {'period': '2026-Q2', 'value': 10.8}, {'period': '2026-Q3', 'value': 10.8}, {'period': '2026-Q4', 'value': 10.8}], 'bench_cost_trend': [{'period': '2024-Q1', 'value': 220.63}, {'period': '2024-Q2', 'value': 223.66}, {'period': '2024-Q3', 'value': 226.74}, {'period': '2024-Q4', 'value': 229.86}, {'period': '2025-Q1', 'value': 232.72}, {'period': '2025-Q2', 'value': 235.62}, {'period': '2025-Q3', 'value': 238.55}, {'period': '2025-Q4', 'value': 241.53}, {'period': '2026-Q1', 'value': 244.22}, {'period': '2026-Q2', 'value': 246.94}, {'period': '2026-Q3', 'value': 249.7}, {'period': '2026-Q4', 'value': 252.49}], 'working_capital_pct_trend': [{'period': '2024-Q1', 'value': 7.52}, {'period': '2024-Q2', 'value': 7.53}, {'period': '2024-Q3', 'value': 7.54}, {'period': '2024-Q4', 'value': 7.54}, {'period': '2025-Q1', 'value': 7.55}, {'period': '2025-Q2', 'value': 7.56}, {'period': '2025-Q3', 'value': 7.57}, {'period': '2025-Q4', 'value': 7.58}, {'period': '2026-Q1', 'value': 7.59}, {'period': '2026-Q2', 'value': 7.6}, {'period': '2026-Q3', 'value': 7.61}, {'period': '2026-Q4', 'value': 7.62}], 'margin_trend': [{'period': '2024-Q1', 'gross_margin_pct': 37.65, 'ebitda_margin_pct': 17.78}, {'period': '2024-Q2', 'gross_margin_pct': 37.72, 'ebitda_margin_pct': 17.84}, {'period': '2024-Q3', 'gross_margin_pct': 37.79, 'ebitda_margin_pct': 17.9}, {'period': '2024-Q4', 'gross_margin_pct': 37.87, 'ebitda_margin_pct': 17.95}, {'period': '2025-Q1', 'gross_margin_pct': 37.94, 'ebitda_margin_pct': 18.01}, {'period': '2025-Q2', 'gross_margin_pct': 38.02, 'ebitda_margin_pct': 18.08}, {'period': '2025-Q3', 'gross_margin_pct': 38.09, 'ebitda_margin_pct': 18.14}, {'period': '2025-Q4', 'gross_margin_pct': 38.17, 'ebitda_margin_pct': 18.2}, {'period': '2026-Q1', 'gross_margin_pct': 38.24, 'ebitda_margin_pct': 18.27}, {'period': '2026-Q2', 'gross_margin_pct': 38.32, 'ebitda_margin_pct': 18.34}, {'period': '2026-Q3', 'gross_margin_pct': 38.4, 'ebitda_margin_pct': 18.41}, {'period': '2026-Q4', 'gross_margin_pct': 38.48, 'ebitda_margin_pct': 18.48}]}"
+        },
+        {
+          "field": "summary",
+          "operator": "not_null",
+          "expected": null,
+          "actual": {
+            "reported_ebitda": 1220440000.0,
+            "entity_adjusted_ebitda": 1448440000.0,
+            "pro_forma_year_1": 1556463200.0,
+            "pro_forma_steady_state": 1681463200.0,
+            "total_adjustments": 20,
+            "active_adjustments": 20,
+            "resolved_adjustments": 0,
+            "new_adjustments": 0,
+            "changed_adjustments": 0,
+            "sustainability_score": 78.9,
+            "sustainability_grade": "B"
+          },
+          "passed": true,
+          "message": "expected not null, actual={'reported_ebitda': 1220440000.0, 'entity_adjusted_ebitda': 1448440000.0, 'pro_forma_year_1': 1556463200.0, 'pro_forma_steady_state': 1681463200.0, 'total_adjustments': 20, 'active_adjustments': 20, 'resolved_adjustments': 0, 'new_adjustments': 0, 'changed_adjustments': 0, 'sustainability_score': 78.9, 'sustainability_grade': 'B'}"
+        }
+      ]
+    },
+    {
+      "test_id": "QE_002",
+      "query": "QofE sustainability score is 0-100 with valid grade",
+      "persona": "cfo",
+      "tags": [
+        "qoe",
+        "sustainability"
+      ],
+      "passed": true,
+      "response_time_s": 0.046,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "sustainability_score.overall",
+          "operator": "in_range",
+          "expected": [
+            0,
+            100
+          ],
+          "actual": 78.9,
+          "passed": true,
+          "message": "expected in [0.0, 100.0], actual=78.9"
+        },
+        {
+          "field": "sustainability_score.grade",
+          "operator": "in",
+          "expected": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "F"
+          ],
+          "actual": "B",
+          "passed": true,
+          "message": "expected in ['A', 'B', 'C', 'D', 'F'], actual='B'"
+        },
+        {
+          "field": "sustainability_score.components",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            {
+              "name": "Contract Duration",
+              "score": 63.2,
+              "weight": 25,
+              "max_points": 25
+            },
+            {
+              "name": "Customer Concentration",
+              "score": 100,
+              "weight": 15,
+              "max_points": 15
+            },
+            {
+              "name": "Adjustment Stability",
+              "score": 100,
+              "weight": 20,
+              "max_points": 20
+            },
+            {
+              "name": "Working Capital Health",
+              "score": 80.0,
+              "weight": 15,
+              "max_points": 15
+            },
+            {
+              "name": "Margin Stability",
+              "score": 90,
+              "weight": 15,
+              "max_points": 15
+            },
+            {
+              "name": "Organic Revenue",
+              "score": 25.8,
+              "weight": 10,
+              "max_points": 10
+            }
+          ],
+          "passed": true,
+          "message": "expected not null, actual=[{'name': 'Contract Duration', 'score': 63.2, 'weight': 25, 'max_points': 25}, {'name': 'Customer Concentration', 'score': 100, 'weight': 15, 'max_points': 15}, {'name': 'Adjustment Stability', 'score': 100, 'weight': 20, 'max_points': 20}, {'name': 'Working Capital Health', 'score': 80.0, 'weight': 15, 'max_points': 15}, {'name': 'Margin Stability', 'score': 90, 'weight': 15, 'max_points': 15}, {'name': 'Organic Revenue', 'score': 25.8, 'weight': 10, 'max_points': 10}]"
+        }
+      ]
+    },
+    {
+      "test_id": "QE_003",
+      "query": "QofE sustainability components sum to correct weights",
+      "persona": "cfo",
+      "tags": [
+        "qoe",
+        "sustainability",
+        "weights"
+      ],
+      "passed": false,
+      "response_time_s": 0.045,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "sustainability_score.components_count",
+          "operator": "equals",
+          "expected": 6,
+          "actual": null,
+          "passed": false,
+          "message": "expected=6, actual=None"
+        },
+        {
+          "field": "sustainability_score.total_weight",
+          "operator": "equals",
+          "expected": 1.0,
+          "actual": null,
+          "passed": false,
+          "message": "expected=1.0, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "QE_004",
+      "query": "QofE bridge has adjustments with required fields",
+      "persona": "cfo",
+      "tags": [
+        "qoe",
+        "bridge"
+      ],
+      "passed": false,
+      "response_time_s": 0.046,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "ebitda_bridge_count",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected > 0"
+        },
+        {
+          "field": "ebitda_bridge_has_status",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        },
+        {
+          "field": "ebitda_bridge_has_trend",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "QE_005",
+      "query": "QofE revenue quality has concentration metrics",
+      "persona": "cfo",
+      "tags": [
+        "qoe",
+        "revenue_quality"
+      ],
+      "passed": true,
+      "response_time_s": 0.049,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "revenue_quality.customer_concentration.hhi",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 52.6,
+          "passed": true,
+          "message": "expected > 0, actual=52.6"
+        },
+        {
+          "field": "revenue_quality.customer_concentration.top_10_pct",
+          "operator": "in_range",
+          "expected": [
+            0,
+            100
+          ],
+          "actual": 13.84,
+          "passed": true,
+          "message": "expected in [0.0, 100.0], actual=13.84"
+        },
+        {
+          "field": "revenue_quality.customer_concentration.total_customers",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 1400,
+          "passed": true,
+          "message": "expected > 0, actual=1400"
+        }
+      ]
+    },
+    {
+      "test_id": "QE_006",
+      "query": "QofE working capital has trend data",
+      "persona": "cfo",
+      "tags": [
+        "qoe",
+        "working_capital"
+      ],
+      "passed": true,
+      "response_time_s": 0.047,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "working_capital.dso_trend",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            {
+              "period": "2024-Q1",
+              "value": 13.5
+            },
+            {
+              "period": "2024-Q2",
+              "value": 13.5
+            },
+            {
+              "period": "2024-Q3",
+              "value": 13.5
+            },
+            {
+              "period": "2024-Q4",
+              "value": 13.5
+            },
+            {
+              "period": "2025-Q1",
+              "value": 13.5
+            },
+            {
+              "period": "2025-Q2",
+              "value": 13.5
+            },
+            {
+              "period": "2025-Q3",
+              "value": 13.5
+            },
+            {
+              "period": "2025-Q4",
+              "value": 13.5
+            },
+            {
+              "period": "2026-Q1",
+              "value": 13.5
+            },
+            {
+              "period": "2026-Q2",
+              "value": 13.5
+            },
+            {
+              "period": "2026-Q3",
+              "value": 13.5
+            },
+            {
+              "period": "2026-Q4",
+              "value": 13.5
+            }
+          ],
+          "passed": true,
+          "message": "expected not null, actual=[{'period': '2024-Q1', 'value': 13.5}, {'period': '2024-Q2', 'value': 13.5}, {'period': '2024-Q3', 'value': 13.5}, {'period': '2024-Q4', 'value': 13.5}, {'period': '2025-Q1', 'value': 13.5}, {'period': '2025-Q2', 'value': 13.5}, {'period': '2025-Q3', 'value': 13.5}, {'period': '2025-Q4', 'value': 13.5}, {'period': '2026-Q1', 'value': 13.5}, {'period': '2026-Q2', 'value': 13.5}, {'period': '2026-Q3', 'value': 13.5}, {'period': '2026-Q4', 'value': 13.5}]"
+        },
+        {
+          "field": "working_capital.dpo_trend",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            {
+              "period": "2024-Q1",
+              "value": 10.8
+            },
+            {
+              "period": "2024-Q2",
+              "value": 10.8
+            },
+            {
+              "period": "2024-Q3",
+              "value": 10.8
+            },
+            {
+              "period": "2024-Q4",
+              "value": 10.8
+            },
+            {
+              "period": "2025-Q1",
+              "value": 10.8
+            },
+            {
+              "period": "2025-Q2",
+              "value": 10.8
+            },
+            {
+              "period": "2025-Q3",
+              "value": 10.8
+            },
+            {
+              "period": "2025-Q4",
+              "value": 10.8
+            },
+            {
+              "period": "2026-Q1",
+              "value": 10.8
+            },
+            {
+              "period": "2026-Q2",
+              "value": 10.8
+            },
+            {
+              "period": "2026-Q3",
+              "value": 10.8
+            },
+            {
+              "period": "2026-Q4",
+              "value": 10.8
+            }
+          ],
+          "passed": true,
+          "message": "expected not null, actual=[{'period': '2024-Q1', 'value': 10.8}, {'period': '2024-Q2', 'value': 10.8}, {'period': '2024-Q3', 'value': 10.8}, {'period': '2024-Q4', 'value': 10.8}, {'period': '2025-Q1', 'value': 10.8}, {'period': '2025-Q2', 'value': 10.8}, {'period': '2025-Q3', 'value': 10.8}, {'period': '2025-Q4', 'value': 10.8}, {'period': '2026-Q1', 'value': 10.8}, {'period': '2026-Q2', 'value': 10.8}, {'period': '2026-Q3', 'value': 10.8}, {'period': '2026-Q4', 'value': 10.8}]"
+        },
+        {
+          "field": "working_capital.margin_trend",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            {
+              "period": "2024-Q1",
+              "gross_margin_pct": 37.65,
+              "ebitda_margin_pct": 17.78
+            },
+            {
+              "period": "2024-Q2",
+              "gross_margin_pct": 37.72,
+              "ebitda_margin_pct": 17.84
+            },
+            {
+              "period": "2024-Q3",
+              "gross_margin_pct": 37.79,
+              "ebitda_margin_pct": 17.9
+            },
+            {
+              "period": "2024-Q4",
+              "gross_margin_pct": 37.87,
+              "ebitda_margin_pct": 17.95
+            },
+            {
+              "period": "2025-Q1",
+              "gross_margin_pct": 37.94,
+              "ebitda_margin_pct": 18.01
+            },
+            {
+              "period": "2025-Q2",
+              "gross_margin_pct": 38.02,
+              "ebitda_margin_pct": 18.08
+            },
+            {
+              "period": "2025-Q3",
+              "gross_margin_pct": 38.09,
+              "ebitda_margin_pct": 18.14
+            },
+            {
+              "period": "2025-Q4",
+              "gross_margin_pct": 38.17,
+              "ebitda_margin_pct": 18.2
+            },
+            {
+              "period": "2026-Q1",
+              "gross_margin_pct": 38.24,
+              "ebitda_margin_pct": 18.27
+            },
+            {
+              "period": "2026-Q2",
+              "gross_margin_pct": 38.32,
+              "ebitda_margin_pct": 18.34
+            },
+            {
+              "period": "2026-Q3",
+              "gross_margin_pct": 38.4,
+              "ebitda_margin_pct": 18.41
+            },
+            {
+              "period": "2026-Q4",
+              "gross_margin_pct": 38.48,
+              "ebitda_margin_pct": 18.48
+            }
+          ],
+          "passed": true,
+          "message": "expected not null, actual=[{'period': '2024-Q1', 'gross_margin_pct': 37.65, 'ebitda_margin_pct': 17.78}, {'period': '2024-Q2', 'gross_margin_pct': 37.72, 'ebitda_margin_pct': 17.84}, {'period': '2024-Q3', 'gross_margin_pct': 37.79, 'ebitda_margin_pct': 17.9}, {'period': '2024-Q4', 'gross_margin_pct': 37.87, 'ebitda_margin_pct': 17.95}, {'period': '2025-Q1', 'gross_margin_pct': 37.94, 'ebitda_margin_pct': 18.01}, {'period': '2025-Q2', 'gross_margin_pct': 38.02, 'ebitda_margin_pct': 18.08}, {'period': '2025-Q3', 'gross_margin_pct': 38.09, 'ebitda_margin_pct': 18.14}, {'period': '2025-Q4', 'gross_margin_pct': 38.17, 'ebitda_margin_pct': 18.2}, {'period': '2026-Q1', 'gross_margin_pct': 38.24, 'ebitda_margin_pct': 18.27}, {'period': '2026-Q2', 'gross_margin_pct': 38.32, 'ebitda_margin_pct': 18.34}, {'period': '2026-Q3', 'gross_margin_pct': 38.4, 'ebitda_margin_pct': 18.41}, {'period': '2026-Q4', 'gross_margin_pct': 38.48, 'ebitda_margin_pct': 18.48}]"
+        }
+      ]
+    },
+    {
+      "test_id": "QE_007",
+      "query": "QofE summary totals are internally consistent",
+      "persona": "cfo",
+      "tags": [
+        "qoe",
+        "summary"
+      ],
+      "passed": true,
+      "response_time_s": 0.102,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "summary.reported_ebitda",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 1220440000.0,
+          "passed": true,
+          "message": "expected > 0, actual=1220440000.0"
+        },
+        {
+          "field": "summary.entity_adjusted_ebitda",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 1448440000.0,
+          "passed": true,
+          "message": "expected > 0, actual=1448440000.0"
+        },
+        {
+          "field": "summary.pro_forma_year_1",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 1556463200.0,
+          "passed": true,
+          "message": "expected > 0, actual=1556463200.0"
+        },
+        {
+          "field": "summary.total_adjustments",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 20,
+          "passed": true,
+          "message": "expected > 0, actual=20"
+        }
+      ]
+    },
+    {
+      "test_id": "QE_008",
+      "query": "QofE adjustment lifecycle stages are populated",
+      "persona": "cfo",
+      "tags": [
+        "qoe",
+        "lifecycle"
+      ],
+      "passed": true,
+      "response_time_s": 0.044,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "adjustment_lifecycle.total_adjustments",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 20,
+          "passed": true,
+          "message": "expected > 0, actual=20"
+        },
+        {
+          "field": "adjustment_lifecycle.lifecycle_stages",
+          "operator": "not_null",
+          "expected": null,
+          "actual": {
+            "identified": {
+              "count": 0,
+              "items": []
+            },
+            "validated": {
+              "count": 0,
+              "items": []
+            },
+            "ongoing": {
+              "count": 20,
+              "items": [
+                "Above-market exec compensation \u2014 Meridian",
+                "Above-market exec compensation \u2014 Cascadia",
+                "Non-recurring: M litigation reserve",
+                "Non-recurring: C delivery center closure",
+                "Transaction costs \u2014 this deal (Meridian)",
+                "Transaction costs \u2014 this deal (Cascadia)",
+                "Related-party leases \u2014 C founder properties",
+                "Run-rate: new contracts not at full revenue (Meridian)",
+                "Run-rate: new contracts not at full revenue (Cascadia)",
+                "Utilization normalization \u2014 M Q2-Q3 dip",
+                "Offshore labor mix shift \u2014 C in progress",
+                "C attrition normalization 18% \u2192 15%",
+                "Bench optimization \u2014 consulting",
+                "Bench optimization \u2014 delivery",
+                "Corporate function consolidation",
+                "Vendor consolidation",
+                "Technology redundancy elimination",
+                "Cross-sell revenue contribution",
+                "Integration costs Year 1",
+                "Retention packages"
+              ]
+            },
+            "resolved": {
+              "count": 0,
+              "items": []
+            },
+            "escalated": {
+              "count": 0,
+              "items": []
+            },
+            "new": {
+              "count": 0,
+              "items": []
+            }
+          },
+          "passed": true,
+          "message": "expected not null, actual={'identified': {'count': 0, 'items': []}, 'validated': {'count': 0, 'items': []}, 'ongoing': {'count': 20, 'items': ['Above-market exec compensation \u2014 Meridian', 'Above-market exec compensation \u2014 Cascadia', 'Non-recurring: M litigation reserve', 'Non-recurring: C delivery center closure', 'Transaction costs \u2014 this deal (Meridian)', 'Transaction costs \u2014 this deal (Cascadia)', 'Related-party leases \u2014 C founder properties', 'Run-rate: new contracts not at full revenue (Meridian)', 'Run-rate: new contracts not at full revenue (Cascadia)', 'Utilization normalization \u2014 M Q2-Q3 dip', 'Offshore labor mix shift \u2014 C in progress', 'C attrition normalization 18% \u2192 15%', 'Bench optimization \u2014 consulting', 'Bench optimization \u2014 delivery', 'Corporate function consolidation', 'Vendor consolidation', 'Technology redundancy elimination', 'Cross-sell revenue contribution', 'Integration costs Year 1', 'Retention packages']}, 'resolved': {'count': 0, 'items': []}, 'escalated': {'count': 0, 'items': []}, 'new': {'count': 0, 'items': []}}"
+        },
+        {
+          "field": "adjustment_lifecycle.status_counts",
+          "operator": "not_null",
+          "expected": null,
+          "actual": {
+            "active": 20,
+            "resolved": 0,
+            "new": 0,
+            "changed": 0
+          },
+          "passed": true,
+          "message": "expected not null, actual={'active': 20, 'resolved': 0, 'new': 0, 'changed': 0}"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_001",
+      "query": "Maestra engagement creation returns valid structure",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "engagement"
+      ],
+      "passed": true,
+      "response_time_s": 0.439,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "engagement_id",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "ab36a83f-bdad-4426-a928-1c32c3be50de",
+          "passed": true,
+          "message": "expected not null, actual='ab36a83f-bdad-4426-a928-1c32c3be50de'"
+        },
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected not null, actual='prework_complete'"
+        },
+        {
+          "field": "deal_name",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Meridian-Cascadia Integration",
+          "passed": true,
+          "message": "expected not null, actual='Meridian-Cascadia Integration'"
+        },
+        {
+          "field": "workstreams",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 5,
+          "passed": true,
+          "message": "expected > 0, actual=5"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_002",
+      "query": "Give me an overview of where we stand",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "overview"
+      ],
+      "passed": true,
+      "response_time_s": 34.253,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Here's where we stand across all key areas:\n\n**Cross-sell Pipeline:** 103 opportunities worth $272.5M total pipeline, with $119.2M in high-confidence opportunities ready to launch.\n\n**EBITDA Bridge:** Pro forma EBITDA of $1.68B steady-state (+37% vs. reported $1.22B). Key drivers: $221M in cost synergies offset by $125M integration costs Year 1.\n\n**Sustainability Score:** 78.9/100 (Grade B) \u2014 strong contract duration and customer concentration, but revenue is 83% non-recurring consulting work.\n\n**Vendor Consolidation:** 170 overlapping vendors with $49M annual savings potential from consolidation.\n\n**People Integration:** 27,800 combined headcount with $27M savings from corporate function consolidation.\n\n**IT Landscape:** Both systems keep running with the intelligence layer reading both \u2014 phased migration approach minimizes disruption.\n\nAny area you'd like to drill into further?",
+          "passed": true,
+          "message": "expected not null, actual=\"Here's where we stand across all key areas:\\n\\n**Cross-sell Pipeline:** 103 opportunities worth $272.5M total pipeline, with $119.2M in high-confidence opportunities ready to launch.\\n\\n**EBITDA Bridge:** Pro forma EBITDA of $1.68B steady-state (+37% vs. reported $1.22B). Key drivers: $221M in cost synergies offset by $125M integration costs Year 1.\\n\\n**Sustainability Score:** 78.9/100 (Grade B) \u2014 strong contract duration and customer concentration, but revenue is 83% non-recurring consulting work.\\n\\n**Vendor Consolidation:** 170 overlapping vendors with $49M annual savings potential from consolidation.\\n\\n**People Integration:** 27,800 combined headcount with $27M savings from corporate function consolidation.\\n\\n**IT Landscape:** Both systems keep running with the intelligence layer reading both \u2014 phased migration approach minimizes disruption.\\n\\nAny area you'd like to drill into further?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "EBITDA",
+          "actual": "Here's where we stand across all key areas:\n\n**Cross-sell Pipeline:** 103 opportunities worth $272.5M total pipeline, with $119.2M in high-confidence opportunities ready to launch.\n\n**EBITDA Bridge:** Pro forma EBITDA of $1.68B steady-state (+37% vs. reported $1.22B). Key drivers: $221M in cost synergies offset by $125M integration costs Year 1.\n\n**Sustainability Score:** 78.9/100 (Grade B) \u2014 strong contract duration and customer concentration, but revenue is 83% non-recurring consulting work.\n\n**Vendor Consolidation:** 170 overlapping vendors with $49M annual savings potential from consolidation.\n\n**People Integration:** 27,800 combined headcount with $27M savings from corporate function consolidation.\n\n**IT Landscape:** Both systems keep running with the intelligence layer reading both \u2014 phased migration approach minimizes disruption.\n\nAny area you'd like to drill into further?",
+          "passed": true,
+          "message": "expected to contain 'EBITDA', actual='Here's where we stand across all key areas:\n\n**Cross-sell Pipeline:** 103 opportunities worth $272.5M total pipeline, wi'"
+        },
+        {
+          "field": "actions_taken",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "Queried cross_sell engine",
+            "Queried ebitda_bridge engine",
+            "Queried qoe engine",
+            "Displayed table: Cross-Sell Pipeline - Top 10 Opportunities",
+            "Displayed table: EBITDA Bridge - Reported to Pro Forma ($M)"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['Queried cross_sell engine', 'Queried ebitda_bridge engine', 'Queried qoe engine', 'Displayed table: Cross-Sell Pipeline - Top 10 Opportunities', 'Displayed table: EBITDA Bridge - Reported to Pro Forma ($M)']"
+        },
+        {
+          "field": "suggestions",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "Show me the cross-sell details",
+            "Walk me through the bridge",
+            "What about vendor overlap?"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['Show me the cross-sell details', 'Walk me through the bridge', 'What about vendor overlap?']"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_003",
+      "query": "Walk me through the EBITDA bridge",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "bridge",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 18.476,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**EBITDA Bridge Summary:**\n- **Reported:** $1,220M combined\n- **Adjusted:** $1,448M (+$228M in normalization/one-time items)  \n- **Pro Forma Year 1:** $1,556M (+$108M net synergies after integration costs)\n- **Steady State:** $1,681M (+$233M total synergies)\n\nThe biggest drivers: $135M from bench optimization and $49M from vendor consolidation. Integration costs hit $100M in Year 1 but drop off for steady state.\n\nWhat-if spread shows $1,506M-$1,680M range depending on synergy capture rates.\n\nAny questions on specific line items?",
+          "passed": true,
+          "message": "expected not null, actual='**EBITDA Bridge Summary:**\\n- **Reported:** $1,220M combined\\n- **Adjusted:** $1,448M (+$228M in normalization/one-time items)  \\n- **Pro Forma Year 1:** $1,556M (+$108M net synergies after integration costs)\\n- **Steady State:** $1,681M (+$233M total synergies)\\n\\nThe biggest drivers: $135M from bench optimization and $49M from vendor consolidation. Integration costs hit $100M in Year 1 but drop off for steady state.\\n\\nWhat-if spread shows $1,506M-$1,680M range depending on synergy capture rates.\\n\\nAny questions on specific line items?'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "bridge",
+          "actual": "**EBITDA Bridge Summary:**\n- **Reported:** $1,220M combined\n- **Adjusted:** $1,448M (+$228M in normalization/one-time items)  \n- **Pro Forma Year 1:** $1,556M (+$108M net synergies after integration costs)\n- **Steady State:** $1,681M (+$233M total synergies)\n\nThe biggest drivers: $135M from bench optimization and $49M from vendor consolidation. Integration costs hit $100M in Year 1 but drop off for steady state.\n\nWhat-if spread shows $1,506M-$1,680M range depending on synergy capture rates.\n\nAny questions on specific line items?",
+          "passed": true,
+          "message": "expected to contain 'bridge', actual='**EBITDA Bridge Summary:**\n- **Reported:** $1,220M combined\n- **Adjusted:** $1,448M (+$228M in normalization/one-time it'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "bridge",
+          "actual": "bridge",
+          "passed": true,
+          "message": "expected='bridge', actual='bridge'"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_004",
+      "query": "What cross-sell opportunities do we have?",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "cross_sell",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 19.697,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**Cross-Sell Pipeline**: 103 opportunities worth $272.5M total pipeline, with $119.2M in high-confidence opportunities ready to launch.\n\nThe top opportunities come from both sides:\n- **Meridian customers** \u2192 Cascadia services: $10M from Wavecrest Analytics (F&A Outsourcing), $4M from Delphi Analytics (Data & Analytics BPO)\n- **Cascadia customers** \u2192 Meridian services: $2.7M from Tidewater BPM (Operations Advisory), $3.5M from Mukilteo Systems (Strategy Consulting)\n\nThe portal shows the full pipeline ranked by propensity score. 65 Meridian customers are ready for Cascadia's managed services, while 38 Cascadia customers can expand into Meridian's strategy work.\n\nWhat questions do you have about specific opportunities?",
+          "passed": true,
+          "message": "expected not null, actual=\"**Cross-Sell Pipeline**: 103 opportunities worth $272.5M total pipeline, with $119.2M in high-confidence opportunities ready to launch.\\n\\nThe top opportunities come from both sides:\\n- **Meridian customers** \u2192 Cascadia services: $10M from Wavecrest Analytics (F&A Outsourcing), $4M from Delphi Analytics (Data & Analytics BPO)\\n- **Cascadia customers** \u2192 Meridian services: $2.7M from Tidewater BPM (Operations Advisory), $3.5M from Mukilteo Systems (Strategy Consulting)\\n\\nThe portal shows the full pipeline ranked by propensity score. 65 Meridian customers are ready for Cascadia's managed services, while 38 Cascadia customers can expand into Meridian's strategy work.\\n\\nWhat questions do you have about specific opportunities?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "pipeline",
+          "actual": "**Cross-Sell Pipeline**: 103 opportunities worth $272.5M total pipeline, with $119.2M in high-confidence opportunities ready to launch.\n\nThe top opportunities come from both sides:\n- **Meridian customers** \u2192 Cascadia services: $10M from Wavecrest Analytics (F&A Outsourcing), $4M from Delphi Analytics (Data & Analytics BPO)\n- **Cascadia customers** \u2192 Meridian services: $2.7M from Tidewater BPM (Operations Advisory), $3.5M from Mukilteo Systems (Strategy Consulting)\n\nThe portal shows the full pipeline ranked by propensity score. 65 Meridian customers are ready for Cascadia's managed services, while 38 Cascadia customers can expand into Meridian's strategy work.\n\nWhat questions do you have about specific opportunities?",
+          "passed": true,
+          "message": "expected to contain 'pipeline', actual='**Cross-Sell Pipeline**: 103 opportunities worth $272.5M total pipeline, with $119.2M in high-confidence opportunities r'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "crosssell",
+          "actual": "crosssell",
+          "passed": true,
+          "message": "expected='crosssell', actual='crosssell'"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_005",
+      "query": "Show me the quality of earnings analysis",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "qoe",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 11.777,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**Quality of Earnings Analysis:**\n\n**Sustainability Score: 78.9/100 (Grade B)**\n\nKey components:\n- **Contract Duration:** 63.2/100 \u2014 32% under MSAs, 33% SOWs, 35% T&M engagements\n- **Customer Concentration:** 100/100 \u2014 Well diversified across 1,400 customers  \n- **Revenue Mix:** 17% recurring, 83% non-recurring consulting work\n- **Margin Stability:** 90/100 \u2014 EBITDA margins trending up from 17.8% to 18.5%\n\n**Key Risks:**\n- Heavy non-recurring revenue (83% consulting vs. managed services)\n- Contract duration averaging 8.2 years but mix skews toward shorter T&M work\n\n**Quarterly Tracking Plan:** DSO steady at 13.5 days, working capital stable at 7.6% of revenue, margins improving consistently.\n\nThe business is sustainable but relies heavily on project-based work rather than recurring revenue streams.\n\nAny specific concerns about earnings quality?",
+          "passed": true,
+          "message": "expected not null, actual='**Quality of Earnings Analysis:**\\n\\n**Sustainability Score: 78.9/100 (Grade B)**\\n\\nKey components:\\n- **Contract Duration:** 63.2/100 \u2014 32% under MSAs, 33% SOWs, 35% T&M engagements\\n- **Customer Concentration:** 100/100 \u2014 Well diversified across 1,400 customers  \\n- **Revenue Mix:** 17% recurring, 83% non-recurring consulting work\\n- **Margin Stability:** 90/100 \u2014 EBITDA margins trending up from 17.8% to 18.5%\\n\\n**Key Risks:**\\n- Heavy non-recurring revenue (83% consulting vs. managed services)\\n- Contract duration averaging 8.2 years but mix skews toward shorter T&M work\\n\\n**Quarterly Tracking Plan:** DSO steady at 13.5 days, working capital stable at 7.6% of revenue, margins improving consistently.\\n\\nThe business is sustainable but relies heavily on project-based work rather than recurring revenue streams.\\n\\nAny specific concerns about earnings quality?'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "sustainability",
+          "actual": "**Quality of Earnings Analysis:**\n\n**Sustainability Score: 78.9/100 (Grade B)**\n\nKey components:\n- **Contract Duration:** 63.2/100 \u2014 32% under MSAs, 33% SOWs, 35% T&M engagements\n- **Customer Concentration:** 100/100 \u2014 Well diversified across 1,400 customers  \n- **Revenue Mix:** 17% recurring, 83% non-recurring consulting work\n- **Margin Stability:** 90/100 \u2014 EBITDA margins trending up from 17.8% to 18.5%\n\n**Key Risks:**\n- Heavy non-recurring revenue (83% consulting vs. managed services)\n- Contract duration averaging 8.2 years but mix skews toward shorter T&M work\n\n**Quarterly Tracking Plan:** DSO steady at 13.5 days, working capital stable at 7.6% of revenue, margins improving consistently.\n\nThe business is sustainable but relies heavily on project-based work rather than recurring revenue streams.\n\nAny specific concerns about earnings quality?",
+          "passed": true,
+          "message": "expected to contain 'sustainability', actual='**Quality of Earnings Analysis:**\n\n**Sustainability Score: 78.9/100 (Grade B)**\n\nKey components:\n- **Contract Duration:*'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "qoe",
+          "actual": "qoe",
+          "passed": true,
+          "message": "expected='qoe', actual='qoe'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_001",
+      "query": "Engagement creation triggers prework",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "prework"
+      ],
+      "passed": true,
+      "response_time_s": 0.361,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "engagement_id",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "93a0fa18-0e83-45f2-bb1f-07c04ded3f93",
+          "passed": true,
+          "message": "expected not null, actual='93a0fa18-0e83-45f2-bb1f-07c04ded3f93'"
+        },
+        {
+          "field": "phase",
+          "operator": "equals",
+          "expected": "prework_complete",
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected='prework_complete', actual='prework_complete'"
+        },
+        {
+          "field": "prework_complete",
+          "operator": "equals",
+          "expected": true,
+          "actual": true,
+          "passed": true,
+          "message": "expected=True, actual=True"
+        },
+        {
+          "field": "mode",
+          "operator": "equals",
+          "expected": "pre_deal",
+          "actual": "pre_deal",
+          "passed": true,
+          "message": "expected='pre_deal', actual='pre_deal'"
+        },
+        {
+          "field": "session_ids",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "d9fc5f5b-51ef-44ab-8113-e22ac3ae5122"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['d9fc5f5b-51ef-44ab-8113-e22ac3ae5122']"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_002",
+      "query": "What do you know about the two companies?",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "prework",
+        "entities"
+      ],
+      "passed": true,
+      "response_time_s": 4.144,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Based on our prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\n\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded 2015, bootstrapped until Meridian acquisition.\n\nThis is a PE-backed acquisition with Crestview Capital as the sponsor.\n\nIs that correct \u2014 Meridian acquiring Cascadia under Crestview's ownership?",
+          "passed": true,
+          "message": "expected not null, actual=\"Based on our prework, here's what I found:\\n\\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\\n\\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded 2015, bootstrapped until Meridian acquisition.\\n\\nThis is a PE-backed acquisition with Crestview Capital as the sponsor.\\n\\nIs that correct \u2014 Meridian acquiring Cascadia under Crestview's ownership?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "Meridian",
+          "actual": "Based on our prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\n\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded 2015, bootstrapped until Meridian acquisition.\n\nThis is a PE-backed acquisition with Crestview Capital as the sponsor.\n\nIs that correct \u2014 Meridian acquiring Cascadia under Crestview's ownership?",
+          "passed": true,
+          "message": "expected to contain 'Meridian', actual='Based on our prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company w'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "Cascadia",
+          "actual": "Based on our prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\n\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded 2015, bootstrapped until Meridian acquisition.\n\nThis is a PE-backed acquisition with Crestview Capital as the sponsor.\n\nIs that correct \u2014 Meridian acquiring Cascadia under Crestview's ownership?",
+          "passed": true,
+          "message": "expected to contain 'Cascadia', actual='Based on our prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company w'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_003",
+      "query": "Tell me about Meridian",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "acquirer"
+      ],
+      "passed": true,
+      "response_time_s": 4.736,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**Meridian Partners** is a PE-backed professional services holding company:\n\n- **Revenue**: $5B annually\n- **Structure**: 14 legal entities across 3 divisions (Strategy, Operations, Technology)\n- **Location**: Headquartered in Chicago, IL\n- **Ownership**: Backed by Crestview Capital since 2022\n- **Systems**: SAP S/4HANA (Primary ERP), NetSuite (Subsidiary ERP), Oracle (from Apex acquisition), Workday (HCM), Salesforce (CRM), ADP (Payroll)\n\n**Recent developments**: They acquired Apex Consulting in Q3 2025 \u2014 Oracle ERP integration is still pending. Crestview Capital is evaluating add-on acquisitions. Their consolidated P&L takes 3 weeks due to the dual-ERP issue between SAP and Oracle.\n\nDoes this match what you know about Meridian?",
+          "passed": true,
+          "message": "expected not null, actual='**Meridian Partners** is a PE-backed professional services holding company:\\n\\n- **Revenue**: $5B annually\\n- **Structure**: 14 legal entities across 3 divisions (Strategy, Operations, Technology)\\n- **Location**: Headquartered in Chicago, IL\\n- **Ownership**: Backed by Crestview Capital since 2022\\n- **Systems**: SAP S/4HANA (Primary ERP), NetSuite (Subsidiary ERP), Oracle (from Apex acquisition), Workday (HCM), Salesforce (CRM), ADP (Payroll)\\n\\n**Recent developments**: They acquired Apex Consulting in Q3 2025 \u2014 Oracle ERP integration is still pending. Crestview Capital is evaluating add-on acquisitions. Their consolidated P&L takes 3 weeks due to the dual-ERP issue between SAP and Oracle.\\n\\nDoes this match what you know about Meridian?'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "division",
+          "actual": "**Meridian Partners** is a PE-backed professional services holding company:\n\n- **Revenue**: $5B annually\n- **Structure**: 14 legal entities across 3 divisions (Strategy, Operations, Technology)\n- **Location**: Headquartered in Chicago, IL\n- **Ownership**: Backed by Crestview Capital since 2022\n- **Systems**: SAP S/4HANA (Primary ERP), NetSuite (Subsidiary ERP), Oracle (from Apex acquisition), Workday (HCM), Salesforce (CRM), ADP (Payroll)\n\n**Recent developments**: They acquired Apex Consulting in Q3 2025 \u2014 Oracle ERP integration is still pending. Crestview Capital is evaluating add-on acquisitions. Their consolidated P&L takes 3 weeks due to the dual-ERP issue between SAP and Oracle.\n\nDoes this match what you know about Meridian?",
+          "passed": true,
+          "message": "expected to contain 'division', actual='**Meridian Partners** is a PE-backed professional services holding company:\n\n- **Revenue**: $5B annually\n- **Structure**'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "system",
+          "actual": "**Meridian Partners** is a PE-backed professional services holding company:\n\n- **Revenue**: $5B annually\n- **Structure**: 14 legal entities across 3 divisions (Strategy, Operations, Technology)\n- **Location**: Headquartered in Chicago, IL\n- **Ownership**: Backed by Crestview Capital since 2022\n- **Systems**: SAP S/4HANA (Primary ERP), NetSuite (Subsidiary ERP), Oracle (from Apex acquisition), Workday (HCM), Salesforce (CRM), ADP (Payroll)\n\n**Recent developments**: They acquired Apex Consulting in Q3 2025 \u2014 Oracle ERP integration is still pending. Crestview Capital is evaluating add-on acquisitions. Their consolidated P&L takes 3 weeks due to the dual-ERP issue between SAP and Oracle.\n\nDoes this match what you know about Meridian?",
+          "passed": true,
+          "message": "expected to contain 'system', actual='**Meridian Partners** is a PE-backed professional services holding company:\n\n- **Revenue**: $5B annually\n- **Structure**'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_004",
+      "query": "Maestra scoping interview advances through sections",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "state_machine"
+      ],
+      "passed": true,
+      "response_time_s": 0.0,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "sections",
+          "operator": "sections_advance",
+          "expected": [
+            "PDC",
+            "PDA",
+            "PDT",
+            "PDS",
+            "PDR",
+            "PDF"
+          ],
+          "actual": [
+            "PDC",
+            "PDA",
+            "PDT",
+            "PDS",
+            "PDR",
+            "PDF"
+          ],
+          "passed": true,
+          "message": "sections defined: ['PDC', 'PDA', 'PDT', 'PDS', 'PDR', 'PDF']"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_005",
+      "query": "DD scope configuration captures selections",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "scope"
+      ],
+      "passed": true,
+      "response_time_s": 0.329,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected not null, actual='prework_complete'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_006",
+      "query": "Analysis runs after scope confirmation",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "analysis"
+      ],
+      "passed": true,
+      "response_time_s": 0.0,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "section",
+          "operator": "section_reached",
+          "expected": "PDR",
+          "actual": "PDR",
+          "passed": true,
+          "message": "target=PDR, reached=True"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_007",
+      "query": "Walk me through what you found",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "findings"
+      ],
+      "passed": false,
+      "response_time_s": 7.417,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Let me walk you through what our prework uncovered:\n\n**MERIDIAN PARTNERS (Acquirer)**\n- $5B revenue, 14 legal entities, 3 divisions: Strategy, Operations, Technology\n- Chicago-based, PE-backed by Crestview Capital since 2022\n- Systems: SAP S/4HANA (primary), NetSuite, Oracle (from recent Apex acquisition), Workday, Salesforce, ADP\n- Challenge: 3-week consolidation cycle due to dual ERP (SAP vs Oracle)\n\n**CASCADIA ADVISORY (Target)**\n- $1B revenue, 5 legal entities, 2 divisions: Advisory and Managed Services  \n- Seattle-based, bootstrapped since 2015\n- Systems: QuickBooks (cash basis), BambooHR, HubSpot, Gusto\n- Risk: Revenue concentration \u2014 top 3 customers are 35% of revenue\n\n**THE DEAL**\n- PE-backed acquisition under Crestview Capital\n- Combined entity: $6B revenue, 19 legal entities, 20 systems\n- Synergy targets: $215M revenue, $180M cost synergies\n- Integration budget: $100M\n- Key overlap: Financial services vertical customers\n\nIs this the deal structure you're working with?",
+          "passed": true,
+          "message": "expected not null, actual=\"Let me walk you through what our prework uncovered:\\n\\n**MERIDIAN PARTNERS (Acquirer)**\\n- $5B revenue, 14 legal entities, 3 divisions: Strategy, Operations, Technology\\n- Chicago-based, PE-backed by Crestview Capital since 2022\\n- Systems: SAP S/4HANA (primary), NetSuite, Oracle (from recent Apex acquisition), Workday, Salesforce, ADP\\n- Challenge: 3-week consolidation cycle due to dual ERP (SAP vs Oracle)\\n\\n**CASCADIA ADVISORY (Target)**\\n- $1B revenue, 5 legal entities, 2 divisions: Advisory and Managed Services  \\n- Seattle-based, bootstrapped since 2015\\n- Systems: QuickBooks (cash basis), BambooHR, HubSpot, Gusto\\n- Risk: Revenue concentration \u2014 top 3 customers are 35% of revenue\\n\\n**THE DEAL**\\n- PE-backed acquisition under Crestview Capital\\n- Combined entity: $6B revenue, 19 legal entities, 20 systems\\n- Synergy targets: $215M revenue, $180M cost synergies\\n- Integration budget: $100M\\n- Key overlap: Financial services vertical customers\\n\\nIs this the deal structure you're working with?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "cross-sell",
+          "actual": "Let me walk you through what our prework uncovered:\n\n**MERIDIAN PARTNERS (Acquirer)**\n- $5B revenue, 14 legal entities, 3 divisions: Strategy, Operations, Technology\n- Chicago-based, PE-backed by Crestview Capital since 2022\n- Systems: SAP S/4HANA (primary), NetSuite, Oracle (from recent Apex acquisition), Workday, Salesforce, ADP\n- Challenge: 3-week consolidation cycle due to dual ERP (SAP vs Oracle)\n\n**CASCADIA ADVISORY (Target)**\n- $1B revenue, 5 legal entities, 2 divisions: Advisory and Managed Services  \n- Seattle-based, bootstrapped since 2015\n- Systems: QuickBooks (cash basis), BambooHR, HubSpot, Gusto\n- Risk: Revenue concentration \u2014 top 3 customers are 35% of revenue\n\n**THE DEAL**\n- PE-backed acquisition under Crestview Capital\n- Combined entity: $6B revenue, 19 legal entities, 20 systems\n- Synergy targets: $215M revenue, $180M cost synergies\n- Integration budget: $100M\n- Key overlap: Financial services vertical customers\n\nIs this the deal structure you're working with?",
+          "passed": false,
+          "message": "expected to contain 'cross-sell', actual='Let me walk you through what our prework uncovered:\n\n**MERIDIAN PARTNERS (Acquirer)**\n- $5B revenue, 14 legal entities, '"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "pipeline",
+          "actual": "Let me walk you through what our prework uncovered:\n\n**MERIDIAN PARTNERS (Acquirer)**\n- $5B revenue, 14 legal entities, 3 divisions: Strategy, Operations, Technology\n- Chicago-based, PE-backed by Crestview Capital since 2022\n- Systems: SAP S/4HANA (primary), NetSuite, Oracle (from recent Apex acquisition), Workday, Salesforce, ADP\n- Challenge: 3-week consolidation cycle due to dual ERP (SAP vs Oracle)\n\n**CASCADIA ADVISORY (Target)**\n- $1B revenue, 5 legal entities, 2 divisions: Advisory and Managed Services  \n- Seattle-based, bootstrapped since 2015\n- Systems: QuickBooks (cash basis), BambooHR, HubSpot, Gusto\n- Risk: Revenue concentration \u2014 top 3 customers are 35% of revenue\n\n**THE DEAL**\n- PE-backed acquisition under Crestview Capital\n- Combined entity: $6B revenue, 19 legal entities, 20 systems\n- Synergy targets: $215M revenue, $180M cost synergies\n- Integration budget: $100M\n- Key overlap: Financial services vertical customers\n\nIs this the deal structure you're working with?",
+          "passed": false,
+          "message": "expected to contain 'pipeline', actual='Let me walk you through what our prework uncovered:\n\n**MERIDIAN PARTNERS (Acquirer)**\n- $5B revenue, 14 legal entities, '"
+        },
+        {
+          "field": "actions_taken",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [],
+          "passed": true,
+          "message": "expected not null, actual=[]"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_008",
+      "query": "Maestra never uses internal terminology",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "vocabulary"
+      ],
+      "passed": true,
+      "response_time_s": 0.0,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "vocabulary",
+          "operator": "does_not_contain",
+          "expected": "no banned terms",
+          "actual": "clean",
+          "passed": true,
+          "message": "No banned terms found in 12 messages"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_009",
+      "query": "Portal shows engagement context after creation",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "portal"
+      ],
+      "passed": true,
+      "response_time_s": 0.401,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "deal_name",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Meridian-Cascadia Integration",
+          "passed": true,
+          "message": "expected not null, actual='Meridian-Cascadia Integration'"
+        },
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected not null, actual='prework_complete'"
+        },
+        {
+          "field": "entity_completeness",
+          "operator": "not_null",
+          "expected": null,
+          "actual": {
+            "combined": 15
+          },
+          "passed": true,
+          "message": "expected not null, actual={'combined': 15}"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_010",
+      "query": "Show me the cross-sell details",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "findings",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 20.571,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "The cross-sell engine identified **$272.5M in total pipeline** across 103 opportunities. The strongest direction is Cascadia customers buying Meridian services ($155.1M with 18 high-confidence opportunities). \n\nKey insight: Cascadia's BPM clients with high process complexity are prime candidates for Meridian's advisory services, especially in financial services and healthcare verticals.\n\nWhere are you in the process, and what's the target close date?",
+          "passed": true,
+          "message": "expected not null, actual=\"The cross-sell engine identified **$272.5M in total pipeline** across 103 opportunities. The strongest direction is Cascadia customers buying Meridian services ($155.1M with 18 high-confidence opportunities). \\n\\nKey insight: Cascadia's BPM clients with high process complexity are prime candidates for Meridian's advisory services, especially in financial services and healthcare verticals.\\n\\nWhere are you in the process, and what's the target close date?\""
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "crosssell",
+          "actual": "crosssell",
+          "passed": true,
+          "message": "expected='crosssell', actual='crosssell'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": []
+}

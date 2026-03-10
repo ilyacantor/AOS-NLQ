@@ -1,0 +1,34 @@
+{
+  "timestamp": "2026-03-09T22:45:44.269898+00:00",
+  "endpoint": "http://localhost:8005/api/v1/query",
+  "assumptions_source": "compiled_defaults (mirrors Assumptions dataclass)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "pass_rate_pct": 0.0
+  },
+  "results": [
+    {
+      "test_id": "PD_007",
+      "query": "Walk me through what you found",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "findings"
+      ],
+      "passed": false,
+      "response_time_s": 0.0,
+      "error": "No engagement_id \u2014 PD_001 must run first",
+      "warnings": [],
+      "assertions": []
+    }
+  ],
+  "cheat_warnings": []
+}

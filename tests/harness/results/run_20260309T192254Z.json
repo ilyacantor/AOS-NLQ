@@ -1,0 +1,230 @@
+{
+  "timestamp": "2026-03-09T19:22:54.841861+00:00",
+  "endpoint": "http://localhost:8005/api/v1/query",
+  "assumptions_source": "compiled_defaults (mirrors Assumptions dataclass)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "pass_rate_pct": 100.0
+  },
+  "results": [
+    {
+      "test_id": "MA_001",
+      "query": "Maestra engagement creation returns valid structure",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "engagement"
+      ],
+      "passed": true,
+      "response_time_s": 0.556,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "engagement_id",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "e3c5bed5-3931-40e7-aaec-db3a55eb20f8",
+          "passed": true,
+          "message": "expected not null, actual='e3c5bed5-3931-40e7-aaec-db3a55eb20f8'"
+        },
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected not null, actual='prework_complete'"
+        },
+        {
+          "field": "deal_name",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Meridian-Cascadia Integration",
+          "passed": true,
+          "message": "expected not null, actual='Meridian-Cascadia Integration'"
+        },
+        {
+          "field": "workstreams",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 5,
+          "passed": true,
+          "message": "expected > 0, actual=5"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_002",
+      "query": "Give me an overview of where we stand",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "overview"
+      ],
+      "passed": true,
+      "response_time_s": 13.692,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**MERIDIAN + CASCADIA: CURRENT STATE**\n\n**\ud83d\udcb0 Revenue Opportunity: $260M Cross-Sell Pipeline**\n- 103 qualified opportunities across customer base\n- $94M in high-propensity accounts (27 customers)\n- 43 overlapping customers generating $156M combined revenue\n\n**\ud83d\udcca Combined Scale: $6B Revenue + 4,880 Employees**\n- Meridian: 847 customers, $5B revenue, 4,200 headcount\n- Cascadia: 312 customers, $1B revenue, 680 headcount  \n- Pro forma EBITDA: $610M (from $485M reported)\n\n**\u2699\ufe0f Integration Complexity: 20 Systems, 31 Vendor Overlaps**\n- $4.2M annual savings from vendor consolidation\n- Key overlap: AWS ($15.5M combined), Microsoft ($8M combined)\n- Both CRM systems stay (Salesforce + HubSpot)\n\n**\u26a0\ufe0f Key Risks:**\n- Customer concentration: 35% revenue from top 3 accounts\n- 14 at-risk customer relationships worth $89M\n- System migration from QuickBooks to SAP required\n\nReady to dive deeper into any area?",
+          "passed": true,
+          "message": "expected not null, actual='**MERIDIAN + CASCADIA: CURRENT STATE**\\n\\n**\ud83d\udcb0 Revenue Opportunity: $260M Cross-Sell Pipeline**\\n- 103 qualified opportunities across customer base\\n- $94M in high-propensity accounts (27 customers)\\n- 43 overlapping customers generating $156M combined revenue\\n\\n**\ud83d\udcca Combined Scale: $6B Revenue + 4,880 Employees**\\n- Meridian: 847 customers, $5B revenue, 4,200 headcount\\n- Cascadia: 312 customers, $1B revenue, 680 headcount  \\n- Pro forma EBITDA: $610M (from $485M reported)\\n\\n**\u2699\ufe0f Integration Complexity: 20 Systems, 31 Vendor Overlaps**\\n- $4.2M annual savings from vendor consolidation\\n- Key overlap: AWS ($15.5M combined), Microsoft ($8M combined)\\n- Both CRM systems stay (Salesforce + HubSpot)\\n\\n**\u26a0\ufe0f Key Risks:**\\n- Customer concentration: 35% revenue from top 3 accounts\\n- 14 at-risk customer relationships worth $89M\\n- System migration from QuickBooks to SAP required\\n\\nReady to dive deeper into any area?'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "$",
+          "actual": "**MERIDIAN + CASCADIA: CURRENT STATE**\n\n**\ud83d\udcb0 Revenue Opportunity: $260M Cross-Sell Pipeline**\n- 103 qualified opportunities across customer base\n- $94M in high-propensity accounts (27 customers)\n- 43 overlapping customers generating $156M combined revenue\n\n**\ud83d\udcca Combined Scale: $6B Revenue + 4,880 Employees**\n- Meridian: 847 customers, $5B revenue, 4,200 headcount\n- Cascadia: 312 customers, $1B revenue, 680 headcount  \n- Pro forma EBITDA: $610M (from $485M reported)\n\n**\u2699\ufe0f Integration Complexity: 20 Systems, 31 Vendor Overlaps**\n- $4.2M annual savings from vendor consolidation\n- Key overlap: AWS ($15.5M combined), Microsoft ($8M combined)\n- Both CRM systems stay (Salesforce + HubSpot)\n\n**\u26a0\ufe0f Key Risks:**\n- Customer concentration: 35% revenue from top 3 accounts\n- 14 at-risk customer relationships worth $89M\n- System migration from QuickBooks to SAP required\n\nReady to dive deeper into any area?",
+          "passed": true,
+          "message": "expected to contain '$', actual='**MERIDIAN + CASCADIA: CURRENT STATE**\n\n**\ud83d\udcb0 Revenue Opportunity: $260M Cross-Sell Pipeline**\n- 103 qualified opportuniti'"
+        },
+        {
+          "field": "suggestions",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "Show me the cross-sell details",
+            "Walk me through the bridge",
+            "What about vendor overlap?"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['Show me the cross-sell details', 'Walk me through the bridge', 'What about vendor overlap?']"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_003",
+      "query": "Walk me through the EBITDA bridge",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "bridge",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 14.897,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**EBITDA BRIDGE: $485M \u2192 $610M**\n\nYour pro forma EBITDA grows 26% from $485M to $610M. Key driver: $38M cross-sell revenue synergies hit in Years 2-3.\n\n**What-if spread:** Conservative $565M to Aggressive $680M EBITDA (25% upside/downside from base case).\n\nThe portal now shows your full bridge detail. Any specific adjustment you want to discuss?",
+          "passed": true,
+          "message": "expected not null, actual='**EBITDA BRIDGE: $485M \u2192 $610M**\\n\\nYour pro forma EBITDA grows 26% from $485M to $610M. Key driver: $38M cross-sell revenue synergies hit in Years 2-3.\\n\\n**What-if spread:** Conservative $565M to Aggressive $680M EBITDA (25% upside/downside from base case).\\n\\nThe portal now shows your full bridge detail. Any specific adjustment you want to discuss?'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "bridge",
+          "actual": "**EBITDA BRIDGE: $485M \u2192 $610M**\n\nYour pro forma EBITDA grows 26% from $485M to $610M. Key driver: $38M cross-sell revenue synergies hit in Years 2-3.\n\n**What-if spread:** Conservative $565M to Aggressive $680M EBITDA (25% upside/downside from base case).\n\nThe portal now shows your full bridge detail. Any specific adjustment you want to discuss?",
+          "passed": true,
+          "message": "expected to contain 'bridge', actual='**EBITDA BRIDGE: $485M \u2192 $610M**\n\nYour pro forma EBITDA grows 26% from $485M to $610M. Key driver: $38M cross-sell reven'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "bridge",
+          "actual": "bridge",
+          "passed": true,
+          "message": "expected='bridge', actual='bridge'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "$",
+          "actual": "**EBITDA BRIDGE: $485M \u2192 $610M**\n\nYour pro forma EBITDA grows 26% from $485M to $610M. Key driver: $38M cross-sell revenue synergies hit in Years 2-3.\n\n**What-if spread:** Conservative $565M to Aggressive $680M EBITDA (25% upside/downside from base case).\n\nThe portal now shows your full bridge detail. Any specific adjustment you want to discuss?",
+          "passed": true,
+          "message": "expected to contain '$', actual='**EBITDA BRIDGE: $485M \u2192 $610M**\n\nYour pro forma EBITDA grows 26% from $485M to $610M. Key driver: $38M cross-sell reven'"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_004",
+      "query": "What cross-sell opportunities do we have?",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "cross_sell",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 15.214,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**$260M Cross-Sell Pipeline Breakdown:**\n- **High-propensity:** 27 accounts, $94M potential (90%+ probability)\n- **Medium-propensity:** 41 accounts, $112M potential \n- **Low-propensity:** 35 accounts, $54M potential\n\n**Key insights:**\n- Northwind Financial ($8.2M opportunity) - your largest Cascadia client wants Meridian's tech strategy services\n- Two-way cross-sell working: Summit Manufacturing (Meridian client) wants Cascadia's managed IT services\n- 18 shared prospects already in both pipelines - need coordination\n\n**Customer retention priority:** 14 at-risk accounts worth $89M need immediate attention.\n\nWant to see the territory conflicts or dive into specific accounts?",
+          "passed": true,
+          "message": "expected not null, actual=\"**$260M Cross-Sell Pipeline Breakdown:**\\n- **High-propensity:** 27 accounts, $94M potential (90%+ probability)\\n- **Medium-propensity:** 41 accounts, $112M potential \\n- **Low-propensity:** 35 accounts, $54M potential\\n\\n**Key insights:**\\n- Northwind Financial ($8.2M opportunity) - your largest Cascadia client wants Meridian's tech strategy services\\n- Two-way cross-sell working: Summit Manufacturing (Meridian client) wants Cascadia's managed IT services\\n- 18 shared prospects already in both pipelines - need coordination\\n\\n**Customer retention priority:** 14 at-risk accounts worth $89M need immediate attention.\\n\\nWant to see the territory conflicts or dive into specific accounts?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "$",
+          "actual": "**$260M Cross-Sell Pipeline Breakdown:**\n- **High-propensity:** 27 accounts, $94M potential (90%+ probability)\n- **Medium-propensity:** 41 accounts, $112M potential \n- **Low-propensity:** 35 accounts, $54M potential\n\n**Key insights:**\n- Northwind Financial ($8.2M opportunity) - your largest Cascadia client wants Meridian's tech strategy services\n- Two-way cross-sell working: Summit Manufacturing (Meridian client) wants Cascadia's managed IT services\n- 18 shared prospects already in both pipelines - need coordination\n\n**Customer retention priority:** 14 at-risk accounts worth $89M need immediate attention.\n\nWant to see the territory conflicts or dive into specific accounts?",
+          "passed": true,
+          "message": "expected to contain '$', actual='**$260M Cross-Sell Pipeline Breakdown:**\n- **High-propensity:** 27 accounts, $94M potential (90%+ probability)\n- **Mediu'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "crosssell",
+          "actual": "crosssell",
+          "passed": true,
+          "message": "expected='crosssell', actual='crosssell'"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_005",
+      "query": "Show me the quality of earnings analysis",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "qoe",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 12.626,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**QUALITY OF EARNINGS: B Grade, 68/100 Score**\n\nCombined sustainability score is solid but shows room for improvement. Main concerns:\n- **Customer concentration:** Top 3 accounts = 35% of revenue  \n- **Working capital:** Days sales outstanding trending up from 48 to 54 days\n- **One-time items:** 3 adjustments in trailing 4 quarters\n\n**12-month improvement plan:** Target 80/100 by Q4 through customer diversification and working capital optimization.\n\nThe portal now shows quarterly tracking detail. Any specific component you want to address?",
+          "passed": true,
+          "message": "expected not null, actual='**QUALITY OF EARNINGS: B Grade, 68/100 Score**\\n\\nCombined sustainability score is solid but shows room for improvement. Main concerns:\\n- **Customer concentration:** Top 3 accounts = 35% of revenue  \\n- **Working capital:** Days sales outstanding trending up from 48 to 54 days\\n- **One-time items:** 3 adjustments in trailing 4 quarters\\n\\n**12-month improvement plan:** Target 80/100 by Q4 through customer diversification and working capital optimization.\\n\\nThe portal now shows quarterly tracking detail. Any specific component you want to address?'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "qoe",
+          "actual": "qoe",
+          "passed": true,
+          "message": "expected='qoe', actual='qoe'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": []
+}

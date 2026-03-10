@@ -1,0 +1,366 @@
+{
+  "timestamp": "2026-03-09T19:13:21.071485+00:00",
+  "endpoint": "http://localhost:8005/api/v1/query",
+  "assumptions_source": "compiled_defaults (mirrors Assumptions dataclass)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 10,
+    "passed": 10,
+    "failed": 0,
+    "pass_rate_pct": 100.0
+  },
+  "results": [
+    {
+      "test_id": "PD_001",
+      "query": "Engagement creation triggers prework",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "prework"
+      ],
+      "passed": true,
+      "response_time_s": 0.444,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "engagement_id",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "09bbf9ee-a7c8-465d-93c6-0e170c63827a",
+          "passed": true,
+          "message": "expected not null, actual='09bbf9ee-a7c8-465d-93c6-0e170c63827a'"
+        },
+        {
+          "field": "phase",
+          "operator": "equals",
+          "expected": "prework_complete",
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected='prework_complete', actual='prework_complete'"
+        },
+        {
+          "field": "prework_complete",
+          "operator": "equals",
+          "expected": true,
+          "actual": true,
+          "passed": true,
+          "message": "expected=True, actual=True"
+        },
+        {
+          "field": "mode",
+          "operator": "equals",
+          "expected": "pre_deal",
+          "actual": "pre_deal",
+          "passed": true,
+          "message": "expected='pre_deal', actual='pre_deal'"
+        },
+        {
+          "field": "session_ids",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "50645c94-5957-4d5a-9eb6-afdfa2cd24e5"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['50645c94-5957-4d5a-9eb6-afdfa2cd24e5']"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_002",
+      "query": "What do you know about the two companies?",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "prework",
+        "entities"
+      ],
+      "passed": true,
+      "response_time_s": 4.286,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Based on the prework, here's what I found about both companies:\n\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\n\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded 2015, bootstrapped until Meridian acquisition.\n\nThis is a PE-backed acquisition with Crestview Capital as the sponsor.\n\nIs this structure correct \u2014 Meridian acquiring Cascadia under Crestview's backing?",
+          "passed": true,
+          "message": "expected not null, actual=\"Based on the prework, here's what I found about both companies:\\n\\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\\n\\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded 2015, bootstrapped until Meridian acquisition.\\n\\nThis is a PE-backed acquisition with Crestview Capital as the sponsor.\\n\\nIs this structure correct \u2014 Meridian acquiring Cascadia under Crestview's backing?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "Meridian",
+          "actual": "Based on the prework, here's what I found about both companies:\n\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\n\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded 2015, bootstrapped until Meridian acquisition.\n\nThis is a PE-backed acquisition with Crestview Capital as the sponsor.\n\nIs this structure correct \u2014 Meridian acquiring Cascadia under Crestview's backing?",
+          "passed": true,
+          "message": "expected to contain 'Meridian', actual='Based on the prework, here's what I found about both companies:\n\n**Meridian Partners** is a PE-backed professional servi'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "Cascadia",
+          "actual": "Based on the prework, here's what I found about both companies:\n\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\n\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded 2015, bootstrapped until Meridian acquisition.\n\nThis is a PE-backed acquisition with Crestview Capital as the sponsor.\n\nIs this structure correct \u2014 Meridian acquiring Cascadia under Crestview's backing?",
+          "passed": true,
+          "message": "expected to contain 'Cascadia', actual='Based on the prework, here's what I found about both companies:\n\n**Meridian Partners** is a PE-backed professional servi'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_003",
+      "query": "Tell me about Meridian",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "acquirer"
+      ],
+      "passed": true,
+      "response_time_s": 5.205,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\n\nKey details from the prework:\n- **Systems**: SAP S/4HANA (Primary ERP), NetSuite (Subsidiary ERP), Oracle (from Apex acquisition \u2014 cash basis), Workday (HCM), Salesforce (CRM), ADP (Payroll)\n- **Recent activity**: Just acquired Apex Consulting in Q3 2025 \u2014 Oracle ERP integration is still pending\n- **Current challenge**: Consolidated P&L takes 3 weeks due to dual-ERP issue (SAP vs Oracle)\n- **Strategy**: PE sponsor Crestview Capital is evaluating add-on acquisitions\n\nThe synergy targets for this deal are $215M in revenue synergies and $180M in cost synergies, with a $100M integration budget.\n\nDoes this match what you know about Meridian's current state?",
+          "passed": true,
+          "message": "expected not null, actual=\"**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\\n\\nKey details from the prework:\\n- **Systems**: SAP S/4HANA (Primary ERP), NetSuite (Subsidiary ERP), Oracle (from Apex acquisition \u2014 cash basis), Workday (HCM), Salesforce (CRM), ADP (Payroll)\\n- **Recent activity**: Just acquired Apex Consulting in Q3 2025 \u2014 Oracle ERP integration is still pending\\n- **Current challenge**: Consolidated P&L takes 3 weeks due to dual-ERP issue (SAP vs Oracle)\\n- **Strategy**: PE sponsor Crestview Capital is evaluating add-on acquisitions\\n\\nThe synergy targets for this deal are $215M in revenue synergies and $180M in cost synergies, with a $100M integration budget.\\n\\nDoes this match what you know about Meridian's current state?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "division",
+          "actual": "**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\n\nKey details from the prework:\n- **Systems**: SAP S/4HANA (Primary ERP), NetSuite (Subsidiary ERP), Oracle (from Apex acquisition \u2014 cash basis), Workday (HCM), Salesforce (CRM), ADP (Payroll)\n- **Recent activity**: Just acquired Apex Consulting in Q3 2025 \u2014 Oracle ERP integration is still pending\n- **Current challenge**: Consolidated P&L takes 3 weeks due to dual-ERP issue (SAP vs Oracle)\n- **Strategy**: PE sponsor Crestview Capital is evaluating add-on acquisitions\n\nThe synergy targets for this deal are $215M in revenue synergies and $180M in cost synergies, with a $100M integration budget.\n\nDoes this match what you know about Meridian's current state?",
+          "passed": true,
+          "message": "expected to contain 'division', actual='**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal en'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "system",
+          "actual": "**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\n\nKey details from the prework:\n- **Systems**: SAP S/4HANA (Primary ERP), NetSuite (Subsidiary ERP), Oracle (from Apex acquisition \u2014 cash basis), Workday (HCM), Salesforce (CRM), ADP (Payroll)\n- **Recent activity**: Just acquired Apex Consulting in Q3 2025 \u2014 Oracle ERP integration is still pending\n- **Current challenge**: Consolidated P&L takes 3 weeks due to dual-ERP issue (SAP vs Oracle)\n- **Strategy**: PE sponsor Crestview Capital is evaluating add-on acquisitions\n\nThe synergy targets for this deal are $215M in revenue synergies and $180M in cost synergies, with a $100M integration budget.\n\nDoes this match what you know about Meridian's current state?",
+          "passed": true,
+          "message": "expected to contain 'system', actual='**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal en'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_004",
+      "query": "Maestra scoping interview advances through sections",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "state_machine"
+      ],
+      "passed": true,
+      "response_time_s": 0.0,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "sections",
+          "operator": "sections_advance",
+          "expected": [
+            "PDC",
+            "PDA",
+            "PDT",
+            "PDS",
+            "PDR",
+            "PDF"
+          ],
+          "actual": [
+            "PDC",
+            "PDA",
+            "PDT",
+            "PDS",
+            "PDR",
+            "PDF"
+          ],
+          "passed": true,
+          "message": "sections defined: ['PDC', 'PDA', 'PDT', 'PDS', 'PDR', 'PDF']"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_005",
+      "query": "DD scope configuration captures selections",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "scope"
+      ],
+      "passed": true,
+      "response_time_s": 0.429,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected not null, actual='prework_complete'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_006",
+      "query": "Analysis runs after scope confirmation",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "analysis"
+      ],
+      "passed": true,
+      "response_time_s": 0.0,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "section",
+          "operator": "section_reached",
+          "expected": "PDR",
+          "actual": "PDR",
+          "passed": true,
+          "message": "target=PDR, reached=True"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_007",
+      "query": "Walk me through what you found",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "findings"
+      ],
+      "passed": true,
+      "response_time_s": 15.276,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**Critical risk**: Northwind Financial shows $8.2M cross-sell opportunity but $42M at-risk revenue due to key relationship holder departing.\n\nDo you want to see the combined pipeline next, or drill deeper into customer risk?",
+          "passed": true,
+          "message": "expected not null, actual='**Critical risk**: Northwind Financial shows $8.2M cross-sell opportunity but $42M at-risk revenue due to key relationship holder departing.\\n\\nDo you want to see the combined pipeline next, or drill deeper into customer risk?'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "$",
+          "actual": "**Critical risk**: Northwind Financial shows $8.2M cross-sell opportunity but $42M at-risk revenue due to key relationship holder departing.\n\nDo you want to see the combined pipeline next, or drill deeper into customer risk?",
+          "passed": true,
+          "message": "expected to contain '$', actual='**Critical risk**: Northwind Financial shows $8.2M cross-sell opportunity but $42M at-risk revenue due to key relationsh'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_008",
+      "query": "Maestra never uses internal terminology",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "vocabulary"
+      ],
+      "passed": true,
+      "response_time_s": 0.001,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "vocabulary",
+          "operator": "does_not_contain",
+          "expected": "no banned terms",
+          "actual": "clean",
+          "passed": true,
+          "message": "No banned terms found in 9 messages"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_009",
+      "query": "Portal shows engagement context after creation",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "portal"
+      ],
+      "passed": true,
+      "response_time_s": 0.51,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "deal_name",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Meridian-Cascadia Integration",
+          "passed": true,
+          "message": "expected not null, actual='Meridian-Cascadia Integration'"
+        },
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "findings",
+          "passed": true,
+          "message": "expected not null, actual='findings'"
+        },
+        {
+          "field": "entity_completeness",
+          "operator": "not_null",
+          "expected": null,
+          "actual": {
+            "combined": 33
+          },
+          "passed": true,
+          "message": "expected not null, actual={'combined': 33}"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_010",
+      "query": "Show me the cross-sell details",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "findings",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 13.154,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**Cross-sell pipeline**: 103 total candidates worth $260M in potential ACV. The top 27 high-propensity opportunities represent $94M.\n\n**Territory overlap**: 18 shared prospects, 7 territory conflicts need resolution, 12 expansion lanes identified.\n\n**Customer migration priorities**: 14 accounts totaling $89M revenue are at risk. Northwind Financial is your biggest concern \u2014 $42M revenue, key relationship holder departing.\n\nReady for the combined pipeline view, or do you want to address the at-risk accounts first?",
+          "passed": true,
+          "message": "expected not null, actual='**Cross-sell pipeline**: 103 total candidates worth $260M in potential ACV. The top 27 high-propensity opportunities represent $94M.\\n\\n**Territory overlap**: 18 shared prospects, 7 territory conflicts need resolution, 12 expansion lanes identified.\\n\\n**Customer migration priorities**: 14 accounts totaling $89M revenue are at risk. Northwind Financial is your biggest concern \u2014 $42M revenue, key relationship holder departing.\\n\\nReady for the combined pipeline view, or do you want to address the at-risk accounts first?'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "crosssell",
+          "actual": "crosssell",
+          "passed": true,
+          "message": "expected='crosssell', actual='crosssell'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": []
+}
