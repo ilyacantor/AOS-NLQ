@@ -604,6 +604,76 @@ def step_08_aam_runners(client: httpx.Client, urls: dict[str, str]) -> None:
     _step_pass(label, t0, f"dispatched={dispatched}, skipped={skipped}")
 
 
+def step_08b_combining_data(
+    client: httpx.Client, urls: dict[str, str],
+) -> None:
+    """Generate combining datasets from Farm and update DCL data files.
+
+    Runs generate_combining_data.py which writes directly to DCL's data/
+    directory. Verifies files exist and are fresh after generation.
+    """
+    label = "8b. Generate Combining Data -> DCL"
+    t0 = _step_start(label)
+
+    script = _CODE_DIR / "dcl" / "scripts" / "generate_combining_data.py"
+    if not script.exists():
+        _step_fail(label, t0, f"Generate script not found: {script}")
+        return
+
+    # Use Farm's venv Python — the script imports Farm generators which
+    # need pydantic and other Farm-specific dependencies.
+    farm_python = _CODE_DIR / "farm" / ".venv" / "bin" / "python3"
+    python_bin = str(farm_python) if farm_python.exists() else sys.executable
+
+    _log("   Running generate_combining_data.py...", _C.DIM)
+    import subprocess
+    try:
+        result = subprocess.run(
+            [python_bin, str(script)],
+            capture_output=True,
+            text=True,
+            cwd=str(_CODE_DIR / "dcl"),
+            timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        _step_fail(label, t0, "generate_combining_data.py timed out after 120s")
+        return
+    except Exception as exc:
+        _step_fail(label, t0, f"generate_combining_data.py failed to start: {exc}")
+        return
+
+    if result.returncode != 0:
+        stderr_preview = result.stderr[:500] if result.stderr else "(no stderr)"
+        _step_fail(
+            label, t0,
+            f"generate_combining_data.py exited with code {result.returncode}. "
+            f"stderr: {stderr_preview}",
+        )
+        return
+
+    for line in result.stdout.strip().split("\n"):
+        if line.strip():
+            _log(f"   {line.strip()}", _C.CYAN)
+
+    import time as _time
+    now = _time.time()
+    data_dir = _CODE_DIR / "dcl" / "data"
+    expected_files = ["combining_statements.json", "entity_overlap.json", "customer_profiles.json"]
+    for fname in expected_files:
+        fpath = data_dir / fname
+        if not fpath.exists():
+            _step_fail(label, t0, f"Expected file missing after generation: {fpath}")
+            return
+        age = now - fpath.stat().st_mtime
+        if age > 120:
+            _log(f"   WARNING: {fname} is {age:.0f}s old — may not have been regenerated", _C.YELLOW)
+        else:
+            size_kb = fpath.stat().st_size / 1024
+            _log(f"   {fname}: {size_kb:.0f} KB (fresh, {age:.0f}s old)", _C.GREEN)
+
+    _step_pass(label, t0, "3 combining datasets generated in DCL data/")
+
+
 def step_09_nlq_test(client: httpx.Client, urls: dict[str, str]) -> None:
     """Fire a test NLQ query to verify the full chain end-to-end."""
     label = "9. NLQ -- Test Query"
@@ -774,6 +844,8 @@ def main() -> None:
             _open_ui(urls, "7b. Open DCL Ingest", _frontend_url(urls, "dcl"))
 
         step_08_aam_runners(client, urls)
+
+        step_08b_combining_data(client, urls)
 
         step_09_nlq_test(client, urls)
         if not nb:

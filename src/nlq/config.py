@@ -136,11 +136,6 @@ class Settings(BaseSettings):
     )
 
     # Paths
-    fact_base_path: str = Field(
-        default="data/fact_base.json",
-        description="Path to the fact base JSON file"
-    )
-
     test_questions_path: str = Field(
         default="data/nlq_test_questions.json",
         description="Path to the test questions JSON file"

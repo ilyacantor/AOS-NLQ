@@ -20,9 +20,12 @@ Maestra LLM tools — Claude function calling definitions + processors.
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from datetime import datetime
 from typing import Any
+
+import httpx
 
 from src.nlq.maestra.types import (
     Conflict,
@@ -254,9 +257,9 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "tab": {
                     "type": "string",
                     "enum": [
-                        "pl", "bs", "socf", "drill", "recon",
-                        "combining", "overlap", "cross_sell",
-                        "ebitda", "what_if", "qoe", "dashboard",
+                        "pl", "bs", "cf", "recon",
+                        "combining", "overlap", "crosssell",
+                        "bridge", "whatif", "qoe", "dashboards",
                     ],
                     "description": "Which portal tab to navigate to.",
                 },
@@ -538,43 +541,82 @@ def process_query_engine(
     query: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
-    Process query_engine. Returns demo data from seed_data.
-    In production, this would call actual engine endpoints.
+    Process query_engine by calling DCL report endpoints.
+
+    Each engine maps to a DCL /api/reports/* endpoint.
+    If DCL is unavailable, raises — no silent fallback to seed data.
     """
-    from src.nlq.maestra.seed_data import (
-        get_cofa_mapping_data,
-        get_cross_sell_data,
-        get_ebitda_bridge_data,
-        get_entity_overlap_data,
-        get_qoe_data,
-    )
+    dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+    if not dcl_url:
+        raise RuntimeError(
+            "DCL_API_URL not set — cannot query engine. "
+            "Maestra requires a live DCL connection for engine data."
+        )
 
-    engine_data = {
-        "cross_sell": get_cross_sell_data,
-        "ebitda_bridge": get_ebitda_bridge_data,
-        "qoe": get_qoe_data,
-        "entity_resolution": get_entity_overlap_data,
-        "cofa_mapping": get_cofa_mapping_data,
+    engine_endpoints: dict[str, tuple[str, str]] = {
+        "cross_sell": ("GET", "/api/reports/cross-sell"),
+        "ebitda_bridge": ("GET", "/api/reports/ebitda-bridge"),
+        "qoe": ("GET", "/api/reports/qoe"),
+        "entity_resolution": ("GET", "/api/reports/entity-overlap"),
+        "cofa_mapping": ("GET", "/api/reports/entity-overlap"),
+        "what_if": ("POST", "/api/reports/what-if"),
     }
 
-    loader = engine_data.get(engine)
-    if loader:
-        return loader()
+    endpoint = engine_endpoints.get(engine)
+    if not endpoint:
+        raise ValueError(
+            f"Unknown engine '{engine}'. "
+            f"Valid engines: {', '.join(engine_endpoints.keys())}"
+        )
 
-    return {
-        "success": True,
-        "engine": engine,
-        "note": f"Unknown engine: {engine}",
+    method, path = endpoint
+    url = f"{dcl_url}{path}"
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            if method == "POST":
+                resp = client.post(url, json=query or {})
+            else:
+                resp = client.get(url, params=query or {})
+    except httpx.ConnectError:
+        raise RuntimeError(
+            f"Maestra engine '{engine}' failed: could not connect to DCL at {url}. "
+            f"Ensure DCL backend is running at {dcl_url}."
+        )
+    except httpx.TimeoutException:
+        raise RuntimeError(
+            f"Maestra engine '{engine}' timed out waiting for DCL at {url} (30s limit)."
+        )
+
+    if not resp.is_success:
+        raise RuntimeError(
+            f"Maestra engine '{engine}' failed: DCL returned HTTP {resp.status_code} "
+            f"from {url}: {resp.text[:500]}"
+        )
+
+    data = resp.json()
+    data["engine"] = engine
+    data["source"] = "dcl_live"
+    # Add standard terminology labels so the LLM uses consistent terms
+    engine_labels = {
+        "cross_sell": "Cross-Sell Pipeline Analysis",
+        "ebitda_bridge": "EBITDA Bridge Analysis",
+        "qoe": "Quality of Earnings — Sustainability Analysis",
+        "entity_resolution": "Entity Overlap Analysis",
+        "cofa_mapping": "COFA Mapping / IT Landscape",
+        "what_if": "What-If Scenario Analysis",
     }
+    data["analysis_label"] = engine_labels.get(engine, engine)
+    return data
 
 
 def process_configure_scope(
     deliverable_selections: dict[str, bool] | None = None,
     confirmed: bool = False,
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """
     Process configure_scope. Records DD scope selections.
-    Returns the confirmed scope configuration.
+    Returns (rich_content, tool_result).
     """
     from src.nlq.maestra.types import DDScope
 
@@ -589,14 +631,26 @@ def process_configure_scope(
 
     selected_names = [d.name for d in scope.deliverables if d.selected]
 
-    return {
+    # Emit rich content for the frontend checklist
+    rich = {
+        "type": "scope_checklist",
+        "deliverables": [
+            {"id": d.id, "name": d.name, "description": d.description, "selected": d.selected}
+            for d in scope.deliverables
+        ],
+        "reconciliation_objects": scope.reconciliation_objects,
+        "synergy_targets": scope.synergy_targets,
+    }
+
+    result = {
         "success": True,
         "confirmed": confirmed,
         "selected_deliverables": selected_names,
         "reconciliation_objects": scope.reconciliation_objects,
         "synergy_targets": scope.synergy_targets,
-        "scope": scope.model_dump(),
     }
+
+    return rich, result
 
 
 def _update_in_list(nodes: list[HierarchyNode], updated: HierarchyNode) -> None:

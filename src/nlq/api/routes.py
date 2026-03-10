@@ -846,7 +846,7 @@ def _has_complexity_signal(query: str) -> bool:
     return bool(_COMPLEXITY_SIGNALS.search(query))
 
 
-def _try_comparison_query(question: str) -> Optional[NLQResponse]:
+def _try_comparison_query(question: str, entity_id: Optional[str] = None) -> Optional[NLQResponse]:
     """
     Handle comparison, trend, direction, and YoY growth queries.
 
@@ -872,7 +872,7 @@ def _try_comparison_query(question: str) -> Optional[NLQResponse]:
     def _dcl_val(metric: str, period: str) -> Optional[float]:
         """Query a single metric value from DCL for a specific period."""
         client = get_semantic_client()
-        result = client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, tenant_id=get_tenant_id())
+        result = client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=entity_id)
         if result.get("error") or not result.get("data"):
             return None
         data = result.get("data", [])
@@ -2531,6 +2531,7 @@ def _handle_ambiguous_query_text(
     ambiguity_type: AmbiguityType,
     candidates: list,
     clarification: Optional[str],
+    entity_id: Optional[str] = None,
 ) -> NLQResponse:
     """
     Handle an ambiguous query and return text response matching ground truth format.
@@ -2584,14 +2585,14 @@ def _handle_ambiguous_query_text(
         is_annual = bool(re.match(r'^20\d{2}$', str(period)))
         if is_annual:
             # For annual periods, query the current quarter directly
-            result = dcl_client.query(metric=metric, time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id())
+            result = dcl_client.query(metric=metric, time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=entity_id)
             if result.get("error") or not result.get("data"):
                 # Fallback to yearly
-                result = dcl_client.query(metric=metric, time_range={"period": period}, tenant_id=get_tenant_id())
+                result = dcl_client.query(metric=metric, time_range={"period": period}, tenant_id=get_tenant_id(), entity_id=entity_id)
         else:
-            result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, tenant_id=get_tenant_id())
+            result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=entity_id)
             if result.get("error") or not result.get("data"):
-                result = dcl_client.query(metric=metric, time_range={"period": period}, tenant_id=get_tenant_id())
+                result = dcl_client.query(metric=metric, time_range={"period": period}, tenant_id=get_tenant_id(), entity_id=entity_id)
         if result.get("error"):
             return None
         data = result.get("data", [])
@@ -3147,7 +3148,7 @@ def _handle_ambiguous_query_text(
 
             def _get_top_deals(year: str):
                 """Get top deals from DCL."""
-                result = dcl_client.query(metric="top_deals", time_range={"period": year}, tenant_id=get_tenant_id())
+                result = dcl_client.query(metric="top_deals", time_range={"period": year}, tenant_id=get_tenant_id(), entity_id=entity_id)
                 return result.get("data", [])
 
             # Check if specific year is requested
@@ -3606,12 +3607,16 @@ async def query(request: NLQRequest) -> NLQResponse:
     """
     _start_time = time.perf_counter()
     _trace = diag_init()
-    # Resolve entity_id: request body takes priority, then detect from question text
+    # Resolve entity_id: request body takes priority, then detect from question text,
+    # then default to "meridian" (the primary entity in the Convergence scenario).
+    # Without a default, DCL returns non-entity-scoped data at demo scale.
     _request_entity_id = request.entity_id
     if not _request_entity_id and request.consolidate:
         _request_entity_id = "combined"
     if not _request_entity_id:
         _request_entity_id = _detect_entity_id(request.question)
+    if not _request_entity_id:
+        _request_entity_id = "meridian"
     diag(f"[NLQ-DIAG] /query endpoint: question='{request.question[:60]}', data_mode={request.data_mode}, entity_id={_request_entity_id}")
     set_data_mode(request.data_mode)
     if request.data_mode == "demo":
@@ -3660,7 +3665,7 @@ async def query(request: NLQRequest) -> NLQResponse:
             _cost_parts = []
             _cost_total = 0
             for _cm_key, _cm_name in _cost_metrics:
-                _cr = _cost_client.query(metric=_cm_key, time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id())
+                _cr = _cost_client.query(metric=_cm_key, time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=_request_entity_id)
                 if _cr.get("data") and not _cr.get("error"):
                     _cd = _cr["data"]
                     if isinstance(_cd, list) and _cd and isinstance(_cd[0], dict):
@@ -3671,7 +3676,7 @@ async def query(request: NLQRequest) -> NLQResponse:
             if _cost_parts:
                 # Sort by value descending for "biggest cost driver"
                 _cost_parts.sort(key=lambda x: x[1], reverse=True)
-                _rev_r = _cost_client.query(metric="revenue", time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id())
+                _rev_r = _cost_client.query(metric="revenue", time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=_request_entity_id)
                 _rev_val = None
                 if _rev_r.get("data") and isinstance(_rev_r["data"], list) and _rev_r["data"]:
                     _rev_val = _rev_r["data"][0].get("value") if isinstance(_rev_r["data"][0], dict) else None
@@ -3712,7 +3717,7 @@ async def query(request: NLQRequest) -> NLQResponse:
             ]
             _sales_parts = []
             for _sm_key, _sm_name, _sm_unit, _sm_pre, _sm_suf in _sales_metrics:
-                _sr = _sales_client.query(metric=_sm_key, time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id())
+                _sr = _sales_client.query(metric=_sm_key, time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=_request_entity_id)
                 if _sr.get("data") and not _sr.get("error"):
                     _sd = _sr["data"]
                     if isinstance(_sd, list) and _sd and isinstance(_sd[0], dict):
@@ -3753,7 +3758,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         # "Compare Q1 vs Q2 revenue", "Revenue growth YoY", "Is revenue going up?"
         # Must intercept before ambiguity pre-check and simple metric queries.
         # =================================================================
-        _comparison_result = _try_comparison_query(request.question)
+        _comparison_result = _try_comparison_query(request.question, entity_id=_request_entity_id)
         if _comparison_result:
             await _log_query_event(
                 request.question, "bypass",
@@ -3791,6 +3796,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         if _pre_amb_type == AmbiguityType.VAGUE_METRIC and _pre_clarification:
             _result = _handle_ambiguous_query_text(
                 request.question, _pre_amb_type, _pre_candidates, _pre_clarification,
+                entity_id=_request_entity_id,
             )
             await _log_query_event(
                 request.question, "bypass",
@@ -3808,6 +3814,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         if _pre_amb_type == AmbiguityType.COMPARISON:
             _result = _handle_ambiguous_query_text(
                 request.question, _pre_amb_type, _pre_candidates, _pre_clarification,
+                entity_id=_request_entity_id,
             )
             await _log_query_event(
                 request.question, "bypass",
@@ -3832,6 +3839,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         if _pre_amb_type in _EARLY_INTERCEPT_TYPES:
             _result = _handle_ambiguous_query_text(
                 request.question, _pre_amb_type, _pre_candidates, _pre_clarification,
+                entity_id=_request_entity_id,
             )
             await _log_query_event(
                 request.question, "bypass",
@@ -3873,7 +3881,7 @@ async def query(request: NLQRequest) -> NLQResponse:
             _summary_metrics = ["revenue", "gross_margin_pct", "ebitda", "net_income", "arr"]
             _summary_parts = []
             for _sm in _summary_metrics:
-                _sr = dcl_client_summary.query(metric=_sm, time_range={"period": _summary_period, "granularity": "quarterly"}, tenant_id=get_tenant_id())
+                _sr = dcl_client_summary.query(metric=_sm, time_range={"period": _summary_period, "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=_request_entity_id)
                 if _sr.get("data") and not _sr.get("error"):
                     _data = _sr["data"]
                     if isinstance(_data, list) and _data:
@@ -3907,6 +3915,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         if "margin" in _q_lower and ("all" in _q_lower or "margins" in _q_lower):
             _composite = _handle_ambiguous_query_text(
                 request.question, AmbiguityType.BROAD_REQUEST, [], None,
+                entity_id=_request_entity_id,
             )
             if _composite:
                 await _log_query_event(
@@ -4058,6 +4067,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         if "margin" in _q_lower and ("all" in _q_lower or "margins" in _q_lower):
             _composite = _handle_ambiguous_query_text(
                 request.question, AmbiguityType.BROAD_REQUEST, [], None,
+                entity_id=_request_entity_id,
             )
             if _composite:
                 await _log_query_event(
@@ -4071,6 +4081,7 @@ async def query(request: NLQRequest) -> NLQResponse:
         if "financial health" in _q_lower:
             _composite = _handle_ambiguous_query_text(
                 request.question, AmbiguityType.BROAD_REQUEST, [], None,
+                entity_id=_request_entity_id,
             )
             if _composite:
                 await _log_query_event(
@@ -4249,6 +4260,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                 ambiguity_type,
                 candidates,
                 clarification,
+                entity_id=_request_entity_id,
             )
 
         # Set up components

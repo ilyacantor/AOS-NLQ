@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { fetchReport, fetchDrillThrough, fetchReconciliation, fetchCombiningStatement, fetchOverlapData, fetchCrossSell, fetchEBITDABridge, fetchWhatIf, fetchQofE, fetchDashboard, createMaestraEngagement, sendMaestraMessage, fetchMaestraStatus } from "./api";
 import React from "react";
 import type { ReportData, ReconReport, ReconCheck, DrillThroughItem, ReportVariant, EntitySelection, CombiningStatementData, OverlapData, CrossSellData, EBITDABridgeData, BridgeAdjustment, WhatIfResult, QofEData, DashboardData, DashboardPersona, MaestraStatus, FinancialStatementData, FinancialStatementLineItem } from "./types";
@@ -2441,20 +2442,74 @@ function InlineComparison({ dimension, systems }: { dimension?: string; systems?
   );
 }
 
+function InlineScopeChecklist({ deliverables, reconciliation_objects, synergy_targets }: {
+  deliverables?: { id: string; name: string; description: string; selected: boolean }[];
+  reconciliation_objects?: string[];
+  synergy_targets?: { revenue_synergy?: number; cost_synergy?: number; integration_budget?: number };
+}) {
+  if (!deliverables) return null;
+  return (
+    <div style={{ margin: "8px 0", borderRadius: 6, border: `1px solid ${COLORS.border}`, background: COLORS.bg, overflow: "hidden" }}>
+      <div style={{ padding: "8px 12px", background: COLORS.headerBg, borderBottom: `1px solid ${COLORS.border}` }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, fontFamily: "'JetBrains Mono',monospace", letterSpacing: "0.06em" }}>DD DELIVERABLES</span>
+      </div>
+      <div style={{ padding: "8px 12px" }}>
+        {deliverables.map((d) => (
+          <div key={d.id} style={{ padding: "4px 0", display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <span style={{ fontSize: 14, lineHeight: "18px", color: d.selected ? COLORS.green : COLORS.textDim, flexShrink: 0 }}>{d.selected ? "\u2611" : "\u2610"}</span>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.text }}>{d.name}</div>
+              <div style={{ fontSize: 11, color: COLORS.textMuted }}>{d.description}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {reconciliation_objects && (
+        <>
+          <div style={{ padding: "8px 12px", background: COLORS.headerBg, borderTop: `1px solid ${COLORS.border}`, borderBottom: `1px solid ${COLORS.border}` }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, fontFamily: "'JetBrains Mono',monospace", letterSpacing: "0.06em" }}>RECONCILIATION OBJECTS (always included)</span>
+          </div>
+          <div style={{ padding: "8px 12px" }}>
+            {reconciliation_objects.map((obj, i) => (
+              <div key={i} style={{ padding: "2px 0", fontSize: 12, color: COLORS.text, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ color: COLORS.green, fontSize: 12 }}>{"\u2713"}</span> {obj}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      {synergy_targets && (
+        <>
+          <div style={{ padding: "8px 12px", background: COLORS.headerBg, borderTop: `1px solid ${COLORS.border}`, borderBottom: `1px solid ${COLORS.border}` }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, fontFamily: "'JetBrains Mono',monospace", letterSpacing: "0.06em" }}>DEAL MODEL TARGETS</span>
+          </div>
+          <div style={{ padding: "8px 12px", fontSize: 12, color: COLORS.text }}>
+            {synergy_targets.revenue_synergy != null && <div>Revenue synergy: ${(synergy_targets.revenue_synergy / 1e6).toFixed(0)}M</div>}
+            {synergy_targets.cost_synergy != null && <div>Cost synergy: ${(synergy_targets.cost_synergy / 1e6).toFixed(0)}M</div>}
+            {synergy_targets.integration_budget != null && <div>Integration budget: ${(synergy_targets.integration_budget / 1e6).toFixed(0)}M</div>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function RichContentRenderer({ content }: { content: any }) {
   if (!content || !content.type) return null;
   switch (content.type) {
     case "table": return <InlineTable title={content.title} headers={content.headers} rows={content.rows} />;
     case "hierarchy": return <InlineHierarchy title={content.title} root={content.root} />;
     case "comparison": return <InlineComparison dimension={content.dimension} systems={content.systems} />;
+    case "scope_checklist": return <InlineScopeChecklist deliverables={content.deliverables} reconciliation_objects={content.reconciliation_objects} synergy_targets={content.synergy_targets} />;
     default: return null;
   }
 }
 
-// ── Maestra Tab ────────────────────────────────────────────────────────────
+// ── Maestra Floating Chat ──────────────────────────────────────────────────
 type ChatMsg = { role: "user" | "maestra"; text: string; richContent?: any[]; nav?: string; completeness?: number };
 
-function MaestraTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
+function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab: string) => void; onEntityChange?: (entity: EntitySelection) => void }) {
+  const [expanded, setExpanded] = useState(false);
   const [engagementId, setEngagementId] = useState<string | null>(null);
   const [status, setStatus] = useState<MaestraStatus | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -2463,6 +2518,8 @@ function MaestraTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [completeness, setCompleteness] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [section, setSection] = useState<string>("");
   const chatEndRef = React.useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -2471,14 +2528,21 @@ function MaestraTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
 
   useEffect(() => { scrollToBottom(); }, [messages, loading]);
 
+  // Clear unread when expanded
+  useEffect(() => { if (expanded) setUnreadCount(0); }, [expanded]);
+
   const startEngagement = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const eng = await createMaestraEngagement();
       setEngagementId(eng.engagement_id);
-      setMessages([{ role: "maestra", text: `Engagement created: ${eng.deal_name}. Phase: ${eng.phase}. ${eng.workstreams} workstreams active. How can I help?` }]);
-      setSuggestions(["Tell me about the deal", "Show me the discovered systems", "Walk me through the org structure"]);
+      setMessages([{
+        role: "maestra",
+        text: `I've completed my background research on both Meridian Partners and Cascadia Advisory. I have their business profiles, systems landscape, and deal context loaded.\n\nLet's get started — I'll walk you through what I found and confirm the details with you.`,
+      }]);
+      setSuggestions(["Let's go", "What do you know so far?", "Tell me about both companies"]);
+      setSection("PDC");
       const st = await fetchMaestraStatus(eng.engagement_id);
       setStatus(st);
     } catch (err) {
@@ -2487,6 +2551,15 @@ function MaestraTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
       setLoading(false);
     }
   }, []);
+
+  const handleNavigate = useCallback((tab: string) => {
+    if (onNavigate) onNavigate(tab);
+    // Auto-switch to combined entity for M&A tabs
+    const combinedTabs = ["combining", "overlap", "crosssell", "cross_sell", "bridge", "ebitda", "whatif", "what_if", "qoe", "dashboards"];
+    if (onEntityChange && combinedTabs.includes(tab)) {
+      onEntityChange("combined");
+    }
+  }, [onNavigate, onEntityChange]);
 
   const sendMessage = useCallback(async (overrideMsg?: string) => {
     const msg = (overrideMsg || input).trim();
@@ -2504,15 +2577,25 @@ function MaestraTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
         completeness: resp.completeness,
       };
       setMessages((prev) => [...prev, newMsg]);
+      if (!expanded) setUnreadCount((c) => c + 1);
 
       if (resp.completeness !== undefined) setCompleteness(resp.completeness);
       if (resp.suggestions) setSuggestions(resp.suggestions);
+      if (resp.section) setSection(resp.section);
 
-      if (resp.navigation && onNavigate) {
+      if (resp.navigation && handleNavigate) {
+        // Map navigate_portal tab names to portal tab IDs
+        const tabMap: Record<string, string> = {
+          cross_sell: "crosssell", ebitda: "bridge", what_if: "whatif",
+          pl: "pl", bs: "bs", socf: "cf", drill: "pl", recon: "recon",
+          combining: "combining", overlap: "overlap", qoe: "qoe", dashboard: "dashboards",
+        };
+        const portalTab = tabMap[resp.navigation.tab] || resp.navigation.tab;
+        handleNavigate(portalTab);
         setMessages((prev) => [...prev, {
           role: "maestra",
-          text: `View in portal: ${resp.navigation!.tab.toUpperCase()} tab`,
-          nav: resp.navigation!.tab,
+          text: `I've opened the ${resp.navigation!.tab.replace(/_/g, " ")} view in the portal.`,
+          nav: portalTab,
         }]);
       }
       const st = await fetchMaestraStatus(engagementId);
@@ -2522,160 +2605,181 @@ function MaestraTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
     } finally {
       setLoading(false);
     }
-  }, [engagementId, input, onNavigate]);
+  }, [engagementId, input, handleNavigate, expanded]);
 
-  if (!engagementId) {
-    return (
-      <div style={{ textAlign: "center", padding: "60px 20px" }}>
-        <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.text, marginBottom: 12, fontFamily: "'IBM Plex Sans',sans-serif" }}>Maestra Integration Manager</div>
-        <div style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 24 }}>AI-powered engagement lifecycle for the Meridian-Cascadia integration.</div>
-        {error && <div style={{ color: COLORS.red, fontSize: 12, marginBottom: 12 }}>{error}</div>}
-        <button onClick={startEngagement} disabled={loading} style={{
-          padding: "10px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-          background: COLORS.accent, color: "#fff", border: "none", borderRadius: 6,
-          fontFamily: "'IBM Plex Sans',sans-serif", opacity: loading ? 0.6 : 1,
-        }}>{loading ? "Starting..." : "Start Engagement"}</button>
-      </div>
+  const sectionLabel = (s: string) => {
+    const labels: Record<string, string> = {
+      PDC: "Deal Context", PDA: "Acquirer Profile", PDT: "Target Profile",
+      PDS: "DD Scope", PDR: "Analysis", PDF: "Findings",
+    };
+    return labels[s] || s;
+  };
+
+  // Collapsed state — floating icon
+  // Use createPortal to render at document.body, bypassing any parent overflow/transform constraints
+  if (!expanded) {
+    return createPortal(
+      <div
+        onClick={() => setExpanded(true)}
+        style={{
+          position: "fixed", bottom: 24, right: 24, width: 56, height: 56,
+          borderRadius: "50%", background: COLORS.accent, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.4)", zIndex: 10000,
+          transition: "transform 0.15s ease",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.08)")}
+        onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+        title="Open Maestra"
+      >
+        {/* M icon */}
+        <span style={{ fontSize: 22, fontWeight: 700, color: "#fff", fontFamily: "'IBM Plex Sans',sans-serif", lineHeight: 1 }}>M</span>
+        {/* Notification badge */}
+        {unreadCount > 0 && (
+          <span style={{
+            position: "absolute", top: -2, right: -2, minWidth: 18, height: 18,
+            borderRadius: 9, background: COLORS.red, color: "#fff",
+            fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center",
+            justifyContent: "center", padding: "0 4px",
+          }}>{unreadCount}</span>
+        )}
+      </div>,
+      document.body,
     );
   }
 
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, height: "65vh" }}>
-      {/* Chat */}
-      <div style={{ display: "flex", flexDirection: "column", background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-        <div style={{ padding: "10px 16px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "'JetBrains Mono',monospace" }}>
-            Maestra Chat — {status?.phase || "..."}
+  // Expanded state — full chat panel
+  // Use createPortal to render at document.body, bypassing any parent overflow/transform constraints
+  return createPortal(
+    <div style={{
+      position: "fixed", bottom: 24, right: 24, width: 420, height: 580,
+      borderRadius: 12, background: COLORS.surface, border: `1px solid ${COLORS.border}`,
+      display: "flex", flexDirection: "column", overflow: "hidden",
+      boxShadow: "0 8px 40px rgba(0,0,0,0.5)", zIndex: 10000,
+      fontFamily: "'IBM Plex Sans',sans-serif",
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: "12px 16px", background: COLORS.headerBg,
+        borderBottom: `1px solid ${COLORS.border}`,
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ width: 28, height: 28, borderRadius: "50%", background: COLORS.accent, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>M</span>
           </span>
-          {completeness > 0 && (
-            <span style={{ fontSize: 11, color: COLORS.textMuted, fontFamily: "'JetBrains Mono',monospace" }}>
-              Contour: <span style={{ color: completeness >= 70 ? COLORS.green : completeness >= 40 ? COLORS.accent : COLORS.textDim, fontWeight: 600 }}>{completeness}%</span>
-            </span>
-          )}
-        </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
-          {messages.map((m, i) => (
-            <div key={i} style={{ marginBottom: 12, textAlign: m.role === "user" ? "right" : "left" }}>
-              {m.nav && onNavigate ? (
-                <button onClick={() => onNavigate(m.nav!)} style={{
-                  display: "inline-block", padding: "6px 14px", borderRadius: 8,
-                  background: "rgba(199,120,64,0.12)", border: `1px solid ${COLORS.accent}44`,
-                  color: COLORS.accent, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                  fontFamily: "'IBM Plex Sans',sans-serif",
-                }}>{m.text}</button>
-              ) : (
-                <>
-                  <div style={{
-                    display: "inline-block", maxWidth: "85%", padding: "8px 14px", borderRadius: 8,
-                    background: m.role === "user" ? "rgba(199,120,64,0.12)" : COLORS.bg,
-                    color: COLORS.text, fontSize: 13, fontFamily: "'IBM Plex Sans',sans-serif", lineHeight: 1.5,
-                    textAlign: "left", whiteSpace: "pre-wrap",
-                  }}>{m.text}</div>
-                  {m.richContent && m.richContent.length > 0 && (
-                    <div style={{ maxWidth: "85%", display: "inline-block", width: "100%" }}>
-                      {m.richContent.map((rc: any, j: number) => <RichContentRenderer key={j} content={rc} />)}
-                    </div>
-                  )}
-                </>
-              )}
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Maestra</div>
+            <div style={{ fontSize: 10, color: COLORS.textMuted }}>
+              {!engagementId ? "Integration Manager" : section ? sectionLabel(section) : status?.phase || "Ready"}
+              {completeness > 0 && <span style={{ marginLeft: 6, color: completeness >= 70 ? COLORS.green : COLORS.accent }}>{completeness}%</span>}
             </div>
-          ))}
-          {loading && (
-            <div style={{ fontSize: 12, color: COLORS.textDim, fontStyle: "italic", display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ display: "inline-flex", gap: 3 }}>
-                {[0, 1, 2].map(d => <span key={d} style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.accent, animation: `bounce 1.4s ${d * 0.16}s infinite ease-in-out both` }} />)}
-              </span>
-              Maestra is thinking...
-            </div>
-          )}
-          <div ref={chatEndRef} />
-        </div>
-
-        {/* Suggestions */}
-        {suggestions.length > 0 && !loading && (
-          <div style={{ padding: "6px 12px", borderTop: `1px solid ${COLORS.border}22`, display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {suggestions.map((s, i) => (
-              <button key={i} onClick={() => sendMessage(s)} style={{
-                padding: "4px 10px", fontSize: 11, borderRadius: 12, cursor: "pointer",
-                background: COLORS.bg, color: COLORS.textMuted, border: `1px solid ${COLORS.border}`,
-                fontFamily: "'IBM Plex Sans',sans-serif",
-              }}>{s}</button>
-            ))}
           </div>
-        )}
-
-        <div style={{ padding: "10px 12px", borderTop: `1px solid ${COLORS.border}`, display: "flex", gap: 8 }}>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-            placeholder="Ask Maestra..."
-            style={{
-              flex: 1, padding: "8px 12px", fontSize: 13, background: COLORS.bg, color: COLORS.text,
-              border: `1px solid ${COLORS.border}`, borderRadius: 6, outline: "none",
-              fontFamily: "'IBM Plex Sans',sans-serif",
-            }}
-          />
-          <button onClick={() => sendMessage()} disabled={loading || !input.trim()} style={{
-            padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer",
-            background: COLORS.accent, color: "#fff", border: "none", borderRadius: 6,
-            opacity: loading || !input.trim() ? 0.5 : 1,
-          }}>Send</button>
         </div>
+        <button
+          onClick={() => setExpanded(false)}
+          style={{ background: "transparent", border: "none", color: COLORS.textMuted, cursor: "pointer", fontSize: 18, padding: "0 4px", lineHeight: 1 }}
+          title="Minimize"
+        >{"\u2013"}</button>
       </div>
 
-      {/* Status sidebar */}
-      <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, padding: "14px 16px", overflowY: "auto" }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>Engagement Status</div>
-        {status && (
-          <>
-            <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 8 }}>
-              <span style={{ color: COLORS.textDim }}>Phase:</span> <span style={{ color: COLORS.text, fontWeight: 600 }}>{status.phase}</span>
-            </div>
-            <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 8 }}>
-              <span style={{ color: COLORS.textDim }}>Progress:</span> <span style={{ color: COLORS.text, fontWeight: 600 }}>{status.overall_progress_pct}%</span>
-            </div>
-            <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 8 }}>
-              <span style={{ color: COLORS.textDim }}>Open Risks:</span> <span style={{ color: status.open_risks > 0 ? COLORS.red : COLORS.green, fontWeight: 600 }}>{status.open_risks}</span>
-            </div>
-            <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 12 }}>
-              <span style={{ color: COLORS.textDim }}>Synergy Realized:</span> <span style={{ color: COLORS.text, fontWeight: 600 }}>{status.synergy_realization_pct}%</span>
-            </div>
-
-            {/* Contour Completeness */}
-            {status.entity_completeness && Object.keys(status.entity_completeness).length > 0 && (
-              <>
-                <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.accent, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>Contour Maps</div>
-                {Object.entries(status.entity_completeness).map(([entity, score]) => (
-                  <div key={entity} style={{ marginBottom: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.text }}>
-                      <span style={{ textTransform: "capitalize" }}>{entity}</span>
-                      <span style={{ fontWeight: 600, color: (score as number) >= 70 ? COLORS.green : (score as number) >= 40 ? COLORS.accent : COLORS.textDim }}>{score}%</span>
-                    </div>
-                    <div style={{ height: 3, background: COLORS.bg, borderRadius: 2, marginTop: 3 }}>
-                      <div style={{ height: 3, borderRadius: 2, width: `${score}%`, background: (score as number) >= 70 ? COLORS.green : COLORS.accent }} />
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
-
-            <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.accent, marginBottom: 8, marginTop: 12, textTransform: "uppercase", letterSpacing: "0.06em" }}>Workstreams</div>
-            {status.workstream_summary.map((ws) => (
-              <div key={ws.name} style={{ marginBottom: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>
-                  <span>{ws.name}</span>
-                  <span style={{ fontWeight: 600, color: ws.status === "complete" || ws.status === "COMPLETE" ? COLORS.green : ws.status === "in_progress" || ws.status === "IN_PROGRESS" ? COLORS.accent : COLORS.textDim }}>{ws.progress_pct}%</span>
-                </div>
-                <div style={{ height: 3, background: COLORS.bg, borderRadius: 2, marginTop: 3 }}>
-                  <div style={{ height: 3, borderRadius: 2, width: `${ws.progress_pct}%`, background: ws.status === "complete" || ws.status === "COMPLETE" ? COLORS.green : COLORS.accent }} />
-                </div>
+      {/* Body */}
+      {!engagementId ? (
+        /* First visit — Start New Engagement */
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", textAlign: "center" }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: "50%", background: `${COLORS.accent}22`,
+            display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20,
+          }}>
+            <span style={{ fontSize: 28, fontWeight: 700, color: COLORS.accent }}>M</span>
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.text, marginBottom: 8 }}>Maestra Integration Manager</div>
+          <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 24, lineHeight: 1.5 }}>
+            I'll guide you through the Meridian-Cascadia integration — from initial scoping through findings presentation.
+          </div>
+          {error && <div style={{ color: COLORS.red, fontSize: 11, marginBottom: 12 }}>{error}</div>}
+          <button onClick={startEngagement} disabled={loading} style={{
+            padding: "12px 32px", fontSize: 14, fontWeight: 600, cursor: "pointer",
+            background: COLORS.accent, color: "#fff", border: "none", borderRadius: 8,
+            opacity: loading ? 0.6 : 1, transition: "opacity 0.15s",
+          }}>{loading ? "Preparing..." : "Start New Engagement"}</button>
+        </div>
+      ) : (
+        /* Chat interface */
+        <>
+          <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
+            {messages.map((m, i) => (
+              <div key={i} style={{ marginBottom: 12, textAlign: m.role === "user" ? "right" : "left" }}>
+                {m.nav && handleNavigate ? (
+                  <button onClick={() => handleNavigate(m.nav!)} style={{
+                    display: "inline-block", padding: "6px 14px", borderRadius: 8,
+                    background: "rgba(199,120,64,0.12)", border: `1px solid ${COLORS.accent}44`,
+                    color: COLORS.accent, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  }}>
+                    {"\u2197"} {m.text}
+                  </button>
+                ) : (
+                  <>
+                    <div style={{
+                      display: "inline-block", maxWidth: "88%", padding: "8px 14px", borderRadius: 8,
+                      background: m.role === "user" ? "rgba(199,120,64,0.12)" : COLORS.bg,
+                      color: COLORS.text, fontSize: 13, lineHeight: 1.5,
+                      textAlign: "left", whiteSpace: "pre-wrap",
+                    }}>{m.text}</div>
+                    {m.richContent && m.richContent.length > 0 && (
+                      <div style={{ maxWidth: "88%", display: "inline-block", width: "100%" }}>
+                        {m.richContent.map((rc: any, j: number) => <RichContentRenderer key={j} content={rc} />)}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             ))}
-          </>
-        )}
-      </div>
-    </div>
+            {loading && (
+              <div style={{ fontSize: 12, color: COLORS.textDim, fontStyle: "italic", display: "flex", alignItems: "center", gap: 6, padding: "4px 0" }}>
+                <span style={{ display: "inline-flex", gap: 3 }}>
+                  {[0, 1, 2].map(d => <span key={d} style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.accent, animation: `bounce 1.4s ${d * 0.16}s infinite ease-in-out both` }} />)}
+                </span>
+                Maestra is thinking...
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Suggestions */}
+          {suggestions.length > 0 && !loading && (
+            <div style={{ padding: "6px 12px", borderTop: `1px solid ${COLORS.border}22`, display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {suggestions.map((s, i) => (
+                <button key={i} onClick={() => sendMessage(s)} style={{
+                  padding: "4px 10px", fontSize: 11, borderRadius: 12, cursor: "pointer",
+                  background: COLORS.bg, color: COLORS.textMuted, border: `1px solid ${COLORS.border}`,
+                }}>{s}</button>
+              ))}
+            </div>
+          )}
+
+          {/* Input */}
+          <div style={{ padding: "10px 12px", borderTop: `1px solid ${COLORS.border}`, display: "flex", gap: 8 }}>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+              placeholder="Ask Maestra..."
+              style={{
+                flex: 1, padding: "8px 12px", fontSize: 13, background: COLORS.bg, color: COLORS.text,
+                border: `1px solid ${COLORS.border}`, borderRadius: 6, outline: "none",
+              }}
+            />
+            <button onClick={() => sendMessage()} disabled={loading || !input.trim()} style={{
+              padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              background: COLORS.accent, color: "#fff", border: "none", borderRadius: 6,
+              opacity: loading || !input.trim() ? 0.5 : 1,
+            }}>Send</button>
+          </div>
+        </>
+      )}
+    </div>,
+    document.body,
   );
 }
 
@@ -2714,7 +2818,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
   const handleEntityChange = useCallback((e: EntitySelection) => {
     setEntity(e);
     // Reset to a valid tab when switching entity mode
-    const combinedOnlyTabs = ["combining", "overlap", "crosssell", "bridge", "whatif", "qoe", "dashboards", "maestra"];
+    const combinedOnlyTabs = ["combining", "overlap", "crosssell", "bridge", "whatif", "qoe", "dashboards"];
     if (e !== "combined" && combinedOnlyTabs.includes(tab)) {
       setTab("pl");
     }
@@ -2767,7 +2871,6 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
         { id: "whatif", label: "What-If" },
         { id: "qoe", label: "QofE" },
         { id: "dashboards", label: "Dashboards" },
-        { id: "maestra", label: "Maestra" },
       ];
     }
     return base;
@@ -2968,8 +3071,13 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
         {tab === "whatif" && entity === "combined" && <WhatIfTab />}
         {tab === "qoe" && entity === "combined" && <QofETab />}
         {tab === "dashboards" && entity === "combined" && <DashboardsTab />}
-        {tab === "maestra" && entity === "combined" && <MaestraTab onNavigate={(t) => setTab(t)} />}
       </div>
+
+      {/* Maestra floating chat — always visible */}
+      <MaestraFloatingChat
+        onNavigate={(t) => { setTab(t); }}
+        onEntityChange={(e) => { setEntity(e); }}
+      />
     </div>
   );
 }

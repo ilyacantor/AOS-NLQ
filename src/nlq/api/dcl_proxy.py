@@ -7,8 +7,13 @@ backend (port 8005), this router forwards report requests to DCL (port 8004).
 
 Per RACI: DCL owns report data, NLQ owns rendering. This proxy is the
 thin bridge between the NLQ frontend and DCL's report API.
+
+Uses asyncio.to_thread with sync httpx so proxy calls run in a thread pool
+and are not blocked when sync DCL calls from the query handler occupy the
+event loop.
 """
 
+import asyncio
 import os
 import logging
 
@@ -28,6 +33,9 @@ if not DCL_BASE_URL:
         "Set DCL_API_URL to the DCL service URL (e.g. https://aos-dclv2.onrender.com)."
     )
 
+# Shared sync HTTP client — connection pool reused across proxy calls.
+_proxy_client = httpx.Client(timeout=30.0, follow_redirects=True)
+
 
 @router.get("/api/reports/{path:path}")
 async def proxy_dcl_report_get(path: str, request: Request):
@@ -43,8 +51,7 @@ async def proxy_dcl_report_get(path: str, request: Request):
         dcl_url += f"?{request.query_params}"
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(dcl_url)
+        resp = await asyncio.to_thread(_proxy_client.get, dcl_url)
     except httpx.ConnectError:
         raise HTTPException(
             status_code=502,
@@ -82,12 +89,11 @@ async def proxy_dcl_report_post(path: str, request: Request):
     body = await request.body()
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                dcl_url,
-                content=body,
-                headers={"Content-Type": "application/json"},
-            )
+        resp = await asyncio.to_thread(
+            _proxy_client.post, dcl_url,
+            content=body,
+            headers={"Content-Type": "application/json"},
+        )
     except httpx.ConnectError:
         raise HTTPException(
             status_code=502,

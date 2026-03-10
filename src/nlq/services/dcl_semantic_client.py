@@ -1425,18 +1425,26 @@ class DCLSemanticClient:
             dcl_body = response.json()
 
             # When DCL explicitly reports ingest_empty (no ingested data for
-            # this tenant/metric), fall back to local tenant data rather than
-            # returning zeros.  This is NOT a silent fallback: DCL told us
-            # explicitly that its ingest store is empty; the local tenant file
-            # is the canonical data source until real data is ingested.
+            # this tenant/metric), only fall back to local data in demo mode.
+            # In live mode, this is an error — no silent fallback to fact_base.
             dcl_meta_source = (dcl_body.get("metadata") or {}).get("source", "")
             dcl_data = dcl_body.get("data", [])
             if dcl_meta_source == "ingest_empty" and not dcl_data:
-                diag(f"[NLQ-DIAG] query() DCL returned ingest_empty — falling back to local tenant data")
-                result = self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
-                result["data_source"] = "demo"
-                result["data_source_reason"] = "DCL ingest store empty for this tenant — using local tenant data"
-                return result
+                if data_mode == "demo":
+                    diag(f"[NLQ-DIAG] query() DCL returned ingest_empty — falling back to local tenant data (demo mode)")
+                    result = self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
+                    result["data_source"] = "demo"
+                    result["data_source_reason"] = "DCL ingest store empty for this tenant — using local tenant data (demo mode)"
+                    return result
+                else:
+                    error_msg = (
+                        f"DCL has no ingested data for metric '{metric}' "
+                        f"(tenant={tenant_id or 'default'}, source=ingest_empty). "
+                        f"Data mode is '{data_mode}' — refusing to fall back to local fact_base.json. "
+                        f"Ingest data via the Farm→DCL pipeline or switch to demo mode."
+                    )
+                    logger.warning(f"DCL INGEST EMPTY (live mode): {error_msg}")
+                    return {"error": error_msg, "status": "no_data"}
 
             normalized = self._normalize_dcl_query_response(dcl_body)
 

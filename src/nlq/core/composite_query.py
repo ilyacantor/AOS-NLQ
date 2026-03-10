@@ -8,11 +8,9 @@ The harness extracts composite fields from related_metrics by matching
 metric/display_name against field names (see _extract_composite_field).
 """
 
-import json
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from src.nlq.models.response import (
@@ -91,30 +89,18 @@ def determine_pl_periods(period_spec: Optional[str]) -> List[str]:
         year = period_spec
         return [f"{year}-Q1", f"{year}-Q2", f"{year}-Q3", f"{year}-Q4"]
 
-    # Default: all quarters from fact_base up through the current quarter
+    # Default: generate all quarters from 2024 through the current quarter.
+    # DCL queries will return data for periods that have it; periods without
+    # data will simply have no line items. No fact_base.json dependency.
     from src.nlq.core.dates import current_quarter
     cq = current_quarter()  # e.g. "2026-Q1"
 
-    from src.nlq.services.dcl_semantic_client import get_semantic_client
-    client = get_semantic_client()
-    try:
-        fact_base_path = Path(__file__).parent.parent.parent.parent / "data" / "fact_base.json"
-        with open(fact_base_path, 'r') as f:
-            fb = json.load(f)
-        quarterly = fb.get("quarterly", [])
-        all_periods = [e.get("period") for e in quarterly if e.get("period")]
-        # Filter to periods <= current quarter (don't show future quarters)
-        periods = [p for p in all_periods if p <= cq]
-        if periods:
-            return periods
-    except (FileNotFoundError, IOError, json.JSONDecodeError) as e:
-        logger.debug(f"Could not read fact_base for periods: {e}")
-
-    # Fallback: generate from metadata years
     periods = []
-    for year in [2024, 2025]:
+    for year in range(2024, 2027):
         for q in range(1, 5):
-            periods.append(f"{year}-Q{q}")
+            p = f"{year}-Q{q}"
+            if p <= cq:
+                periods.append(p)
     return periods
 
 

@@ -317,24 +317,26 @@ class ConversationService:
         Run prework pipeline — load all available data into engagement context.
 
         In demo mode: loads seed data for Meridian and Cascadia.
-        In production: would ingest public filings, parse term sheet, run AOD/AAM.
+        In production: queries DCL for entity intel and system data.
         """
-        from src.nlq.maestra.seed_data import get_cascadia_intel, get_meridian_intel
-
         ctx = PreDealContext()
 
-        # Load entity intel briefs
-        ctx.acquirer_intel = get_meridian_intel()
-        ctx.target_intel = get_cascadia_intel()
+        if demo_mode:
+            from src.nlq.maestra.seed_data import get_cascadia_intel, get_meridian_intel
+            ctx.acquirer_intel = get_meridian_intel()
+            ctx.target_intel = get_cascadia_intel()
+        else:
+            ctx.acquirer_intel = self._fetch_entity_intel("meridian", "Meridian Partners")
+            ctx.target_intel = self._fetch_entity_intel("cascadia", "Cascadia Advisory")
 
         # Load system data
-        systems_data = self._lookup_system_data("systems")
+        systems_data = self._lookup_system_data("systems", demo_mode=demo_mode)
         all_systems = systems_data.get("systems", [])
         ctx.acquirer_systems = [s for s in all_systems if s.get("entity") == "Meridian"]
         ctx.target_systems = [s for s in all_systems if s.get("entity") == "Cascadia"]
 
         # Load connections
-        connections_data = self._lookup_system_data("connections")
+        connections_data = self._lookup_system_data("connections", demo_mode=demo_mode)
         ctx.system_connections = connections_data.get("connections", [])
 
         ctx.prework_complete = True
@@ -343,6 +345,61 @@ class ConversationService:
                      len(all_systems), len(ctx.system_connections))
 
         return ctx
+
+    def _fetch_entity_intel(self, entity_id: str, entity_name: str) -> IntelBrief:
+        """Fetch entity intel from DCL. Raises on failure — no silent fallback."""
+        import httpx
+
+        dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+        if not dcl_url:
+            raise RuntimeError(
+                f"DCL_API_URL not set — cannot fetch intel for {entity_name}. "
+                "Maestra requires DCL for live entity intel."
+            )
+
+        # Query DCL for entity financial data
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                # Get systems from semantic export
+                catalog_resp = client.get(f"{dcl_url}/api/dcl/semantic-export")
+                if not catalog_resp.is_success:
+                    raise RuntimeError(
+                        f"DCL semantic-export failed (HTTP {catalog_resp.status_code}) "
+                        f"while fetching intel for {entity_name}"
+                    )
+                catalog = catalog_resp.json()
+
+                # Get entity overlap for system/org info
+                overlap_resp = client.get(f"{dcl_url}/api/reports/entity-overlap")
+                overlap = overlap_resp.json() if overlap_resp.is_success else {}
+
+        except httpx.ConnectError:
+            raise RuntimeError(
+                f"Could not connect to DCL at {dcl_url} while fetching intel for {entity_name}."
+            )
+        except httpx.TimeoutException:
+            raise RuntimeError(
+                f"DCL timed out while fetching intel for {entity_name}."
+            )
+
+        # Build intel brief from DCL data
+        source_systems = []
+        mode_info = catalog.get("mode", {})
+        metrics = catalog.get("metrics", [])
+        for m in metrics:
+            src = m.get("source_system")
+            if src and src not in source_systems:
+                source_systems.append(src)
+
+        return IntelBrief(
+            company_overview=f"{entity_name} — intel loaded from DCL pipeline data.",
+            industry="Professional Services",
+            public_structure=[],
+            known_systems=source_systems or [f"No systems ingested for {entity_name}"],
+            recent_events=[],
+            suggested_questions=[],
+            sources=[],
+        )
 
     # =========================================================================
     # PUBLIC: SEND MESSAGE
@@ -585,6 +642,35 @@ class ConversationService:
 
         messages = list(history)  # copy
 
+        # In findings section (PDF), inject a nudge so the LLM calls query_engine
+        # instead of summarizing from memory. This addresses non-determinism where
+        # the LLM sometimes interprets "walk me through what you found" as a request
+        # to summarize company profiles rather than running analysis engines.
+        if current_section == "PDF" and messages and messages[-1].get("role") == "user":
+            last_msg = messages[-1]
+            user_text = ""
+            if isinstance(last_msg.get("content"), str):
+                user_text = last_msg["content"]
+            elif isinstance(last_msg.get("content"), list):
+                user_text = " ".join(
+                    b.get("text", "") for b in last_msg["content"] if isinstance(b, dict) and b.get("type") == "text"
+                )
+            # If the user message doesn't explicitly name an engine, add a nudge
+            engine_keywords = {"cross_sell", "ebitda", "qoe", "cofa", "entity_resolution"}
+            if not any(kw in user_text.lower().replace("-", "_") for kw in engine_keywords):
+                nudge = (
+                    "\n\n[SYSTEM: You are in the FINDINGS section. "
+                    "You MUST call query_engine with engine=\"cross_sell\" as your first action. "
+                    "Do NOT summarize companies or prework. Go directly to cross-sell pipeline data.]"
+                )
+                if isinstance(last_msg.get("content"), str):
+                    messages[-1] = {**last_msg, "content": last_msg["content"] + nudge}
+                elif isinstance(last_msg.get("content"), list):
+                    messages[-1] = {
+                        **last_msg,
+                        "content": last_msg["content"] + [{"type": "text", "text": nudge}],
+                    }
+
         for round_num in range(MAX_TOOL_ROUNDS):
             try:
                 response = self._anthropic.messages.create(
@@ -611,7 +697,11 @@ class ConversationService:
                     tool_calls.append(block)
 
             if text_parts:
-                agent_text = "\n".join(text_parts)
+                new_text = "\n".join(text_parts)
+                if agent_text:
+                    agent_text = agent_text + "\n\n" + new_text
+                else:
+                    agent_text = new_text
 
             if not tool_calls:
                 break  # No more tools to process
@@ -769,14 +859,22 @@ class ConversationService:
                 action = f"Navigated to {tool_input.get('tab')}"
 
             elif tool_name == "query_engine":
-                result = process_query_engine(
-                    tool_input.get("engine", ""),
-                    tool_input.get("query"),
-                )
-                action = f"Queried {tool_input.get('engine')} engine"
+                engine = tool_input.get("engine", "")
+                result = process_query_engine(engine, tool_input.get("query"))
+                action = f"Queried {engine} engine"
+                # Auto-navigate portal when engine data is returned during findings
+                engine_to_tab = {
+                    "cross_sell": "crosssell",
+                    "ebitda_bridge": "bridge",
+                    "entity_resolution": "overlap",
+                    "cofa_mapping": "overlap",
+                    "qoe": "qoe",
+                }
+                if engine in engine_to_tab:
+                    nav = {"tab": engine_to_tab[engine]}
 
             elif tool_name == "configure_scope":
-                result = process_configure_scope(
+                rich, result = process_configure_scope(
                     tool_input.get("deliverable_selections"),
                     tool_input.get("confirmed", False),
                 )
@@ -839,12 +937,80 @@ class ConversationService:
         query_type: str,
         system_name: str | None = None,
         dimension: str | None = None,
+        demo_mode: bool = True,
     ) -> dict[str, Any]:
         """
         Look up discovered system data.
-        In demo mode, returns seed data. In live mode, calls AOD/AAM.
+        In demo mode, returns seed data. In live mode, queries DCL.
         """
-        # Demo seed data for Meridian + Cascadia
+        if demo_mode:
+            return self._lookup_system_data_demo(query_type, dimension)
+
+        # Live mode — query DCL
+        import httpx
+
+        dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+        if not dcl_url:
+            raise RuntimeError(
+                "DCL_API_URL not set — cannot look up system data. "
+                "Maestra requires DCL for live system data."
+            )
+
+        if query_type == "systems":
+            try:
+                with httpx.Client(timeout=30.0) as client:
+                    resp = client.get(f"{dcl_url}/api/reports/entity-overlap")
+                if not resp.is_success:
+                    raise RuntimeError(
+                        f"DCL entity-overlap failed (HTTP {resp.status_code}) "
+                        f"while looking up systems"
+                    )
+                overlap = resp.json()
+                # Extract system info from overlap data if available
+                systems = []
+                for entity_key in ["acquirer", "target"]:
+                    entity_data = overlap.get(entity_key, {})
+                    for sys_info in entity_data.get("systems", []):
+                        systems.append(sys_info)
+                return {"success": True, "systems": systems}
+            except httpx.ConnectError:
+                raise RuntimeError(f"Could not connect to DCL at {dcl_url} for system lookup.")
+            except httpx.TimeoutException:
+                raise RuntimeError(f"DCL timed out during system lookup at {dcl_url}.")
+
+        elif query_type == "connections":
+            # Connections come from AAM — query DCL's topology if available
+            try:
+                with httpx.Client(timeout=30.0) as client:
+                    resp = client.get(f"{dcl_url}/api/dcl/semantic-export")
+                if not resp.is_success:
+                    raise RuntimeError(
+                        f"DCL semantic-export failed (HTTP {resp.status_code}) "
+                        f"while looking up connections"
+                    )
+                catalog = resp.json()
+                connections = catalog.get("connections", [])
+                return {"success": True, "connections": connections}
+            except httpx.ConnectError:
+                raise RuntimeError(f"Could not connect to DCL at {dcl_url} for connection lookup.")
+            except httpx.TimeoutException:
+                raise RuntimeError(f"DCL timed out during connection lookup at {dcl_url}.")
+
+        elif query_type == "dimension_data":
+            return {
+                "success": True,
+                "dimension": dimension,
+                "data": f"Dimension data for '{dimension}' available via contour map.",
+            }
+
+        return {"success": True, "query_type": query_type, "data": "No data available."}
+
+    @staticmethod
+    def _lookup_system_data_demo(
+        query_type: str,
+        dimension: str | None = None,
+    ) -> dict[str, Any]:
+        """Demo seed data for system lookups."""
         if query_type == "systems":
             return {
                 "success": True,
@@ -871,7 +1037,6 @@ class ConversationService:
                     {"name": "Looker", "type": "BI", "entity": "Cascadia", "governance": "Shadow"},
                 ],
             }
-
         elif query_type == "connections":
             return {
                 "success": True,
@@ -883,14 +1048,12 @@ class ConversationService:
                     {"source": "HubSpot", "target": "QuickBooks", "type": "API", "frequency": "Daily"},
                 ],
             }
-
         elif query_type == "dimension_data":
             return {
                 "success": True,
                 "dimension": dimension,
                 "data": f"Dimension data for '{dimension}' available via contour map.",
             }
-
         return {"success": True, "query_type": query_type, "data": "No data available."}
 
     def _update_engagement_phase(

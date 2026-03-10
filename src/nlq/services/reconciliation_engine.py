@@ -142,6 +142,36 @@ class ReconciliationEngine:
             )
         self.tolerance_pct = tolerance_pct
 
+    # ── Internal helpers ────────────────────────────────────────────────────
+
+    def _resolve_gt_data(self, gt: Dict) -> Dict:
+        """
+        Extract the quarter-level ground truth dict from a manifest.
+
+        Handles three manifest formats:
+        - v2.0: top-level "ground_truth" key → return it directly
+        - v3.0 (multi-entity): "ground_truth_by_entity" → pick first entity
+        - Legacy: no wrapper → return gt as-is
+        """
+        # v2.0 single-entity path
+        if "ground_truth" in gt:
+            return gt["ground_truth"]
+
+        # v3.0 multi-entity path
+        if "ground_truth_by_entity" in gt:
+            by_entity = gt["ground_truth_by_entity"]
+            if not by_entity:
+                logger.error("ground_truth_by_entity is empty in v3.0 manifest")
+                return gt
+            entity_id = next(iter(by_entity))
+            logger.info(
+                f"Using ground truth for entity '{entity_id}' from v3.0 manifest"
+            )
+            return by_entity[entity_id]
+
+        # Legacy fallback — gt is the ground truth dict itself
+        return gt
+
     # ── Public API ────────────────────────────────────────────────────────────
 
     def reconcile_quarter(self, period: str) -> ReconciliationResult:
@@ -160,7 +190,7 @@ class ReconciliationEngine:
                 f"Farm API at {self._farm_url}, or local file fallback."
             )
 
-        gt_data = gt.get("ground_truth", gt)
+        gt_data = self._resolve_gt_data(gt)
         quarter_data = gt_data.get(period)
         if quarter_data is None:
             available = [
@@ -288,7 +318,7 @@ class ReconciliationEngine:
                 f"Farm API at {self._farm_url}, or local file fallback."
             )
 
-        gt_data = gt.get("ground_truth", gt)
+        gt_data = self._resolve_gt_data(gt)
         quarters = [
             k for k in gt_data
             if k not in _GT_NON_QUARTER_KEYS
@@ -431,7 +461,7 @@ class ReconciliationEngine:
                 f"Farm API at {self._farm_url}, or local file fallback."
             )
 
-        gt_data = gt.get("ground_truth", gt)
+        gt_data = self._resolve_gt_data(gt)
         dim_truth = gt_data.get("dimensional_truth")
         if dim_truth is None:
             return _error_result(
@@ -586,7 +616,7 @@ class ReconciliationEngine:
                 f"Farm API at {self._farm_url}, or local file fallback."
             )
 
-        gt_data = gt.get("ground_truth", gt)
+        gt_data = self._resolve_gt_data(gt)
         quarters = sorted([
             k for k in gt_data
             if k not in _GT_NON_QUARTER_KEYS

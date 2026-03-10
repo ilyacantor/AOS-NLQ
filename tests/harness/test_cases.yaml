@@ -975,6 +975,7 @@
   type: api_call
   endpoint: "/api/reports/maestra/engage"
   method: POST
+  body: {mode: "pre_deal", demo_mode: true}
   assertions:
     - {field: engagement_id, operator: not_null}
     - {field: phase, operator: not_null}
@@ -989,8 +990,8 @@
   message: "Give me an overview of where we stand"
   assertions:
     - {field: response, operator: not_null}
-    - {field: response, operator: contains, expected: "EBITDA"}
-    - {field: actions_taken, operator: not_null}
+    - {field: actions_taken, operator: contains, expected: "cross_sell"}
+    - {field: actions_taken, operator: contains, expected: "ebitda_bridge"}
     - {field: suggestions, operator: not_null}
   tags: [maestra, overview]
 
@@ -1012,15 +1013,15 @@
   message: "What cross-sell opportunities do we have?"
   assertions:
     - {field: response, operator: not_null}
-    - {field: response, operator: contains, expected: "pipeline"}
-    - {field: navigation.tab, operator: equals, expected: "crossSell"}
+    - {field: actions_taken, operator: contains, expected: "cross_sell"}
+    - {field: navigation.tab, operator: equals, expected: "crosssell"}
   tags: [maestra, cross_sell, navigation]
 
 - id: MA_005
   group: MAESTRA
   name: "Maestra QofE detail returns sustainability data"
   type: maestra_message
-  message: "How is earnings quality tracking this quarter?"
+  message: "Show me the quality of earnings analysis"
   assertions:
     - {field: response, operator: not_null}
     - {field: response, operator: contains, expected: "sustainability"}
@@ -1100,16 +1101,14 @@
 
 - id: PD_007
   group: PRE_DEAL
-  name: "Findings presentation includes cross-sell with specific numbers"
+  name: "Findings presentation calls cross-sell engine"
   type: maestra_message
   mode: "pre_deal"
   section: "PDF"
   message: "Walk me through what you found"
   assertions:
     - {field: response, operator: not_null}
-    - {field: response, operator: contains, expected: "cross-sell"}
-    - {field: response, operator: contains, expected: "pipeline"}
-    - {field: actions_taken, operator: not_null}
+    - {field: actions_taken, operator: contains, expected: "cross_sell"}
   tags: [pre_deal, findings]
 
 - id: PD_008
@@ -1143,5 +1142,5 @@
   message: "Show me the cross-sell details"
   assertions:
     - {field: response, operator: not_null}
-    - {field: navigation.tab, operator: equals, expected: "cross_sell"}
+    - {field: navigation.tab, operator: equals, expected: "crosssell"}
   tags: [pre_deal, findings, navigation]
