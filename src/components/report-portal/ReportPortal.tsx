@@ -2568,6 +2568,33 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
   const [section, setSection] = useState<string>("");
   const chatEndRef = React.useRef<HTMLDivElement>(null);
 
+  // Draggable position for expanded panel
+  const [panelPos, setPanelPos] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = React.useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    // Only drag from header area (not buttons)
+    if ((e.target as HTMLElement).closest("button")) return;
+    e.preventDefault();
+    const panel = (e.currentTarget as HTMLElement).parentElement!;
+    const rect = panel.getBoundingClientRect();
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: rect.left, origY: rect.top };
+
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return;
+      const dx = ev.clientX - dragRef.current.startX;
+      const dy = ev.clientY - dragRef.current.startY;
+      setPanelPos({ x: dragRef.current.origX + dx, y: dragRef.current.origY + dy });
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, []);
+
   const scrollToBottom = useCallback(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
@@ -2703,17 +2730,22 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
   // Use createPortal to render at document.body, bypassing any parent overflow/transform constraints
   return createPortal(
     <div style={{
-      position: "fixed", bottom: 24, right: 24, width: 420, height: 580,
+      position: "fixed",
+      ...(panelPos ? { left: panelPos.x, top: panelPos.y } : { bottom: 24, right: 24 }),
+      width: 420, height: 580,
       borderRadius: 12, background: COLORS.surface, border: `1px solid ${COLORS.border}`,
       display: "flex", flexDirection: "column", overflow: "hidden",
       boxShadow: "0 8px 40px rgba(0,0,0,0.5)", zIndex: 10000,
       fontFamily: "'IBM Plex Sans',sans-serif",
     }}>
-      {/* Header */}
-      <div style={{
+      {/* Header — drag handle */}
+      <div
+        onMouseDown={handleDragStart}
+        style={{
         padding: "12px 16px", background: COLORS.headerBg,
         borderBottom: `1px solid ${COLORS.border}`,
         display: "flex", justifyContent: "space-between", alignItems: "center",
+        cursor: "grab", userSelect: "none",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ width: 28, height: 28, borderRadius: "50%", background: COLORS.accent, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -2728,7 +2760,7 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
           </div>
         </div>
         <button
-          onClick={() => setExpanded(false)}
+          onClick={() => { setExpanded(false); setPanelPos(null); }}
           style={{ background: "transparent", border: "none", color: COLORS.textMuted, cursor: "pointer", fontSize: 18, padding: "0 4px", lineHeight: 1 }}
           title="Minimize"
         >{"\u2013"}</button>
