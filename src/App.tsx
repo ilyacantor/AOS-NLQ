@@ -436,11 +436,16 @@ function App() {
         }
         case 'reportNavigate': {
           // Switch to Reports view and dispatch internal navigation event
-          // so ReportPortal can update entity/tab state
+          // so ReportPortal can update entity/tab state.
+          // ReportPortal is lazy-loaded and conditionally rendered — it only
+          // mounts after setViewMode triggers a re-render + Suspense resolves.
+          // Delay the event so the listener is attached before it fires.
           setViewMode('reports')
-          window.dispatchEvent(new CustomEvent('aos-report-navigate', {
-            detail: { entity: data.entity, tab: data.tab },
-          }))
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('aos-report-navigate', {
+              detail: { entity: data.entity, tab: data.tab },
+            }))
+          }, 500)
           break
         }
         default:
