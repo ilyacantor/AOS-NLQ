@@ -2528,9 +2528,6 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
 
   useEffect(() => { scrollToBottom(); }, [messages, loading]);
 
-  // Clear unread when expanded
-  useEffect(() => { if (expanded) setUnreadCount(0); }, [expanded]);
-
   const startEngagement = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -2551,6 +2548,14 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
       setLoading(false);
     }
   }, []);
+
+  // Clear unread when expanded; auto-start engagement on first open
+  useEffect(() => {
+    if (expanded) {
+      setUnreadCount(0);
+      if (!engagementId && !loading) startEngagement();
+    }
+  }, [expanded, engagementId, loading, startEngagement]);
 
   const handleNavigate = useCallback((tab: string) => {
     if (onNavigate) onNavigate(tab);
@@ -2685,7 +2690,7 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
 
       {/* Body */}
       {!engagementId ? (
-        /* First visit — Start New Engagement */
+        /* Loading — engagement auto-starts on open */
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", textAlign: "center" }}>
           <div style={{
             width: 64, height: 64, borderRadius: "50%", background: `${COLORS.accent}22`,
@@ -2694,15 +2699,19 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
             <span style={{ fontSize: 28, fontWeight: 700, color: COLORS.accent }}>M</span>
           </div>
           <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.text, marginBottom: 8 }}>Maestra Integration Manager</div>
-          <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 24, lineHeight: 1.5 }}>
-            I'll guide you through the Meridian-Cascadia integration — from initial scoping through findings presentation.
-          </div>
-          {error && <div style={{ color: COLORS.red, fontSize: 11, marginBottom: 12 }}>{error}</div>}
-          <button onClick={startEngagement} disabled={loading} style={{
-            padding: "12px 32px", fontSize: 14, fontWeight: 600, cursor: "pointer",
-            background: COLORS.accent, color: "#fff", border: "none", borderRadius: 8,
-            opacity: loading ? 0.6 : 1, transition: "opacity 0.15s",
-          }}>{loading ? "Preparing..." : "Start New Engagement"}</button>
+          {error ? (
+            <>
+              <div style={{ color: COLORS.red, fontSize: 11, marginBottom: 12 }}>{error}</div>
+              <button onClick={startEngagement} style={{
+                padding: "10px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                background: COLORS.accent, color: "#fff", border: "none", borderRadius: 8,
+              }}>Retry</button>
+            </>
+          ) : (
+            <div style={{ fontSize: 12, color: COLORS.textMuted, lineHeight: 1.5 }}>
+              Preparing engagement...
+            </div>
+          )}
         </div>
       ) : (
         /* Chat interface */

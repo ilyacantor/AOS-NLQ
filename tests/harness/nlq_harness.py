@@ -885,7 +885,13 @@ class HarnessRunner:
 
             # Store engagement_id for subsequent tests
             if body.get("engagement_id"):
-                self._pd_engagement_id = body["engagement_id"]
+                new_eid = body["engagement_id"]
+                if new_eid != self._pd_engagement_id:
+                    # New engagement — reset advance state so PD_ tests
+                    # get their own advance-to-findings pass
+                    self._pd_reached_findings = False
+                    self._pd_session_messages = []
+                self._pd_engagement_id = new_eid
 
         except Exception as e:
             return TestResult(
@@ -1082,14 +1088,16 @@ class HarnessRunner:
         url = f"{self.base_url}/api/reports/maestra/{self._pd_engagement_id}/message"
 
         advance_messages = [
-            # Each message is designed to satisfy the section and trigger advance_section
-            # Do NOT include findings-phase messages here — PD_007/PD_010 test those separately
+            # Each message advances through interview sections to reach findings (PDF).
+            # Do NOT include findings-phase queries here — PD_007/PD_010 test those.
             "Yes, Meridian acquiring Cascadia, Q2 2026 close, system integration is our top concern. Everything looks correct. Please advance to the next section.",
             "Confirmed. Sarah Chen leads Strategy, Tom Rivera Operations, Maya Patel Technology. Priorities are tech stack consolidation and go-to-market alignment. No other questions — advance to the next section.",
             "Confirmed. Alex Kim runs Advisory, Beth Santos Managed Services. 40% customer concentration is a known risk. NetSuite is well-maintained. Advance to the next section.",
             "All divisions confirmed, no additional questions. Please advance to the next section.",
             "Yes, scope is confirmed. All deliverables approved. Run the analysis.",
             "Scope confirmed. Let's proceed with the analysis.",
+            # This triggers PDR→PDF transition (analysis complete → findings)
+            "Great, the analysis is running. Please advance to the next section when ready.",
         ]
 
         print("  [HARNESS] Advancing interview to findings...")
@@ -1103,8 +1111,7 @@ class HarnessRunner:
                     print(f"    Step {i+1}: section={section}")
                     if section in ("PDF", "PDR"):
                         self._pd_reached_findings = True
-                        # Stop at PDR or PDF — let PD_007 be the first
-                        # message in findings, not the advance phase
+                    if section == "PDF":
                         break
                 else:
                     print(f"    Step {i+1}: HTTP {resp.status_code}")
