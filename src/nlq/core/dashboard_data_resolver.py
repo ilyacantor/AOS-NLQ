@@ -139,6 +139,7 @@ class DashboardDataResolver:
         """Execute query against DCL and handle errors."""
         from src.nlq.config import get_tenant_id
         from src.nlq.knowledge.synonyms import normalize_metric
+        from src.nlq.services.dcl_semantic_client import get_entity_id
         canonical = normalize_metric(metric)
         if canonical != metric:
             logger.info(f"Resolved metric alias '{metric}' -> '{canonical}'")
@@ -149,6 +150,7 @@ class DashboardDataResolver:
             time_range=time_range,
             grain=grain,
             tenant_id=get_tenant_id(),
+            entity_id=get_entity_id(),
         )
 
         if result.get("status") == "error" or result.get("error"):

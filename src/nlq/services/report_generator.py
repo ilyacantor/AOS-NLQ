@@ -88,14 +88,16 @@ class ReportGenerator:
     to produce multi-period, multi-statement reports (P&L, BS, SOCF).
     """
 
-    def __init__(self, query_fn: Callable, wall_clock: Optional[date] = None):
+    def __init__(self, query_fn: Callable, wall_clock: Optional[date] = None, entity_id: Optional[str] = None):
         """
         Args:
             query_fn: callable(metric_id, period) -> Optional[SimpleMetricResult]
             wall_clock: Override wall clock date (defaults to date.today())
+            entity_id: Optional entity filter (e.g., "meridian", "cascadia").
         """
         self.query_fn = query_fn
         self.wall_clock = wall_clock or date.today()
+        self.entity_id = entity_id
 
     def generate_report(
         self,
@@ -245,13 +247,15 @@ class ReportGenerator:
                 values=values_dict,
             ))
 
+        from src.nlq.core.composite_query import _resolve_entity_name
+        entity_name = _resolve_entity_name(self.entity_id)
         fs_data = FinancialStatementData(
             title=(
                 f"{title} — {comparison.left_label} vs {comparison.right_label}"
                 if right_values
                 else f"{title} — {comparison.left_label}"
             ),
-            entity="Meridian Partners",
+            entity=entity_name,
             periods=periods_display,
             line_items=fs_line_items,
             currency="USD",
@@ -305,6 +309,7 @@ class ReportGenerator:
             ),
             response_type="financial_statement",
             financial_statement_data=fs_data,
+            data_source="live",
         )
 
     def _query_periods(

@@ -1703,7 +1703,7 @@ def _try_report_query(question: str, session_id: Optional[str] = None, entity_id
     )
 
     from src.nlq.services.report_generator import ReportGenerator
-    generator = ReportGenerator(query_fn=query_fn)
+    generator = ReportGenerator(query_fn=query_fn, entity_id=entity_id)
     result = generator.generate_report(
         statement_type=intent.statement_type,
         variant=intent.variant,
@@ -1743,7 +1743,7 @@ def _try_pl_statement_query(question: str, session_id: Optional[str] = None, ent
     )
 
     periods = determine_pl_periods(period_spec)
-    handler = PLStatementHandler(periods=periods, query_fn=query_fn)
+    handler = PLStatementHandler(periods=periods, query_fn=query_fn, entity_id=entity_id)
     result = handler.execute()
 
     if result and result.financial_statement_data and session_id:
@@ -2862,7 +2862,7 @@ def _handle_ambiguous_query_text(
             answer = f"Yes, {round(uptime, 2) if uptime else 0}% uptime, MTTR {round(mttr, 0) if mttr else 0}hr"
             return NLQResponse(success=True, answer=answer, value=uptime, unit="%",
                 confidence=0.95, parsed_intent="YES_NO", resolved_metric="uptime_pct", resolved_period=current_year,
-                related_metrics=related_metrics)
+                related_metrics=related_metrics, data_source="live")
 
         # "eng team growing?" -> "Yes, 80 → 115 → 150 (+88% over 2 years)"
         if "eng team" in q:
@@ -3061,7 +3061,7 @@ def _handle_ambiguous_query_text(
             answer = f"{round(nrr, 0) if nrr else 0}% ({current_year}F)"
             return NLQResponse(success=True, answer=answer, value=nrr, unit="%",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="nrr", resolved_period=current_year,
-                related_metrics=related_metrics)
+                related_metrics=related_metrics, data_source="live")
 
         # "logo adds" -> "1,100 total customers, +150 net new"
         if "logo" in q:
@@ -3080,7 +3080,7 @@ def _handle_ambiguous_query_text(
             answer = f"${round(pipeline, 0) if pipeline else 0}M pipeline, ${round(qualified, 0) if qualified else 0}M qualified, {round(win_rate, 0) if win_rate else 0}% win rate"
             return NLQResponse(success=True, answer=answer, value=pipeline, unit="$M",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="pipeline", resolved_period=current_year,
-                related_metrics=related_metrics)
+                related_metrics=related_metrics, data_source="live")
 
         # "magic number" -> "0.9 (2026F)"
         if "magic" in q:
@@ -4202,6 +4202,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                     response_type="dashboard",
                     dashboard=updated_dict,
                     dashboard_data=widget_data,
+                    data_source="live",
                 )
             except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
                 logger.error(f"Dashboard refinement failed: {e}", exc_info=True)
@@ -4256,6 +4257,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                     response_type="dashboard",
                     dashboard=dashboard_dict,
                     dashboard_data=widget_data,
+                    data_source="live",
                     debug_info=debug_info.to_dict() if is_strict_mode() else None,
                 )
             except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:

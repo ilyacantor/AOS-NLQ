@@ -22,6 +22,19 @@ from src.nlq.models.response import (
 
 logger = logging.getLogger(__name__)
 
+# Entity ID → display name mapping
+_ENTITY_NAMES = {
+    "meridian": "Meridian Partners",
+    "cascadia": "Cascadia Process Solutions",
+}
+
+
+def _resolve_entity_name(entity_id: Optional[str]) -> str:
+    """Resolve entity_id to display name, defaulting to Meridian."""
+    if entity_id:
+        return _ENTITY_NAMES.get(entity_id.lower(), entity_id.title())
+    return "Meridian Partners"
+
 # ── P&L line items in presentation order ──────────────────────────────────
 PL_LINE_ITEMS = [
     "revenue",
@@ -107,15 +120,17 @@ def determine_pl_periods(period_spec: Optional[str]) -> List[str]:
 class PLStatementHandler:
     """Builds a composite P&L response by querying all line items from DCL."""
 
-    def __init__(self, periods: List[str], query_fn: Callable):
+    def __init__(self, periods: List[str], query_fn: Callable, entity_id: Optional[str] = None):
         """
         Args:
             periods: List of quarterly periods (e.g., ["2024-Q1", "2024-Q2", ...]).
             query_fn: callable(metric_id, period) -> Optional[SimpleMetricResult].
                       Injected from routes.py to avoid circular imports.
+            entity_id: Optional entity filter (e.g., "meridian", "cascadia").
         """
         self.periods = periods
         self.query_fn = query_fn
+        self.entity_id = entity_id
 
     def execute(self) -> Optional[NLQResponse]:
         """Query all P&L line items for all periods and assemble response."""
@@ -221,9 +236,10 @@ class PLStatementHandler:
                 values=display_values,
             ))
 
+        entity_name = _resolve_entity_name(self.entity_id)
         fs_data = FinancialStatementData(
             title="Income Statement",
-            entity="Meridian Partners",
+            entity=entity_name,
             periods=final_periods,
             line_items=line_items,
             currency="USD",
