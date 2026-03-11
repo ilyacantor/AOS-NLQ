@@ -331,6 +331,8 @@ function App() {
         dashboard_data: data.dashboard_data || null,
         response_type: data.response_type || 'text',
         debug_info: data.debug_info || null,
+        provenance: data.provenance || null,
+        data_source: data.data_source || null,
       } as IntentMapResponse
 
       // Auto-navigate based on response type:

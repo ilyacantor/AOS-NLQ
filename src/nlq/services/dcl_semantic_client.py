@@ -44,6 +44,9 @@ _entity_id_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar('
 # it in the JSON response so the trace is visible in the browser Network tab.
 _diag_trace: contextvars.ContextVar[Optional[List[str]]] = contextvars.ContextVar('_diag_trace', default=None)
 
+_last_provenance_ctx: contextvars.ContextVar[Optional[Dict[str, Any]]] = contextvars.ContextVar('_last_provenance_ctx', default=None)
+_last_data_source_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar('_last_data_source_ctx', default=None)
+
 
 def diag(msg: str) -> None:
     """Print a diagnostic message AND append it to the per-request trace list."""
@@ -1458,6 +1461,10 @@ class DCLSemanticClient:
 
             normalized = self._normalize_dcl_query_response(dcl_body)
 
+            if normalized.get("run_provenance"):
+                _last_provenance_ctx.set(normalized["run_provenance"])
+                _last_data_source_ctx.set(normalized.get("data_source"))
+
             return normalized
 
         except httpx.HTTPStatusError as e:
@@ -2341,6 +2348,22 @@ def set_entity_id(value: Optional[str]):
 def get_entity_id() -> Optional[str]:
     """Return the entity_id set for the current request context."""
     return _entity_id_ctx.get()
+
+
+def get_last_provenance() -> Optional[Dict[str, Any]]:
+    """Return the last DCL provenance captured during a query() call."""
+    return _last_provenance_ctx.get(None)
+
+
+def get_last_data_source() -> Optional[str]:
+    """Return the last DCL data_source captured during a query() call."""
+    return _last_data_source_ctx.get(None)
+
+
+def reset_provenance_ctx():
+    """Clear the per-request provenance context variables."""
+    _last_provenance_ctx.set(None)
+    _last_data_source_ctx.set(None)
 
 
 @contextlib.contextmanager
