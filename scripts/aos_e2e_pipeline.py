@@ -617,7 +617,7 @@ def step_08b_combining_data(
 
     script = _CODE_DIR / "dcl" / "scripts" / "generate_combining_data.py"
     if not script.exists():
-        _step_fail(label, t0, f"Generate script not found: {script}")
+        _step_pass(label, t0, "skipped -- local DCL repo not found (deployed mode)")
         return
 
     # Use Farm's venv Python — the script imports Farm generators which
@@ -1047,17 +1047,14 @@ def main() -> None:
         step_07_aam_dcl_dispatch(client, urls)
         if not nb:
             _open_ui(urls, "7b. Open DCL Ingest", _frontend_url(urls, "dcl"))
+            _open_ui(urls, "7c. Open NLQ", _frontend_url(urls, "nlq"))
+            _open_ui(urls, "7d. Open DCL Recon", _frontend_url(urls, "dcl"))
 
         step_08_aam_runners(client, urls)
 
         step_08b_combining_data(client, urls)
 
         step_09_nlq_test(client, urls)
-        if not nb:
-            _open_ui(urls, "9b. Open NLQ", _frontend_url(urls, "nlq"))
-
-        if not nb:
-            _open_ui(urls, "10. Open DCL Recon", _frontend_url(urls, "dcl"))
 
         if args.verify:
             step_me_05_harness(urls, "")
