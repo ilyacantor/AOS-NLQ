@@ -51,7 +51,7 @@ from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
 from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
 from src.nlq.services.dcl_enrichment import enrich_response as dcl_enrich_response
 from src.nlq.config import get_tenant_id
-from src.nlq.services.dcl_semantic_client import set_force_local, set_data_mode, set_entity_id, force_local_data, diag, diag_init, diag_collect
+from src.nlq.services.dcl_semantic_client import set_force_local, set_data_mode, set_entity_id, force_local_data, diag, diag_init, diag_collect, reset_provenance_ctx
 from src.nlq.services.insufficient_data_tracker import get_insufficient_data_tracker, CONFIDENCE_THRESHOLD
 from src.nlq.core.dates import current_year, current_quarter, prior_year
 
@@ -168,6 +168,23 @@ async def _log_query_event(
 def _elapsed_ms(start: float) -> int:
     """Compute elapsed milliseconds from a time.perf_counter() start."""
     return int((time.perf_counter() - start) * 1000)
+
+
+def _ensure_provenance(response: NLQResponse) -> NLQResponse:
+    """Attach captured DCL provenance to responses that lack it."""
+    if response.data_source is not None and response.provenance is not None:
+        return response
+    from src.nlq.services.dcl_semantic_client import get_last_provenance, get_last_data_source
+    prov = get_last_provenance()
+    ds = get_last_data_source()
+    if not prov and not ds:
+        return response
+    updates: dict = {}
+    if response.provenance is None and prov:
+        updates["provenance"] = prov
+    if response.data_source is None and ds:
+        updates["data_source"] = ds
+    return response.model_copy(update=updates) if updates else response
 
 
 # =============================================================================
@@ -3664,30 +3681,47 @@ def _handle_ambiguous_query_text(
     )
 
 
+def _resolve_entity_id(request: NLQRequest) -> str:
+    """Resolve entity_id from request body, question text, or default to meridian."""
+    eid = request.entity_id
+    if not eid and request.consolidate:
+        eid = "combined"
+    if not eid:
+        eid = _detect_entity_id(request.question)
+    if not eid:
+        eid = "meridian"
+    return eid
+
+
 @router.post("/query", response_model=NLQResponse)
 async def query(request: NLQRequest) -> NLQResponse:
     """
     Process a natural language query about financial data.
 
     Returns the answer with confidence score bounded [0.0, 1.0].
+    Provenance is applied once at this boundary via _ensure_provenance.
     """
-    _start_time = time.perf_counter()
-    _trace = diag_init()
-    # Resolve entity_id: request body takes priority, then detect from question text,
-    # then default to "meridian" (the primary entity in the Convergence scenario).
-    # Without a default, DCL returns non-entity-scoped data at demo scale.
-    _request_entity_id = request.entity_id
-    if not _request_entity_id and request.consolidate:
-        _request_entity_id = "combined"
-    if not _request_entity_id:
-        _request_entity_id = _detect_entity_id(request.question)
-    if not _request_entity_id:
-        _request_entity_id = "meridian"
-    diag(f"[NLQ-DIAG] /query endpoint: question='{request.question[:60]}', data_mode={request.data_mode}, entity_id={_request_entity_id}")
+    _request_entity_id = _resolve_entity_id(request)
     set_data_mode(request.data_mode)
     set_entity_id(_request_entity_id)
+    reset_provenance_ctx()
     if request.data_mode == "demo":
         set_force_local(True)
+    try:
+        result = await _query_impl(request, _request_entity_id)
+        return _ensure_provenance(result)
+    finally:
+        set_force_local(False)
+        set_data_mode(None)
+        set_entity_id(None)
+        reset_provenance_ctx()
+
+
+async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQResponse:
+    """Core query implementation. Provenance is applied by the caller."""
+    _start_time = time.perf_counter()
+    _trace = diag_init()
+    diag(f"[NLQ-DIAG] /query endpoint: question='{request.question[:60]}', data_mode={request.data_mode}, entity_id={_request_entity_id}")
     try:
         off_topic_response = handle_off_topic_or_easter_egg(request.question)
         if off_topic_response:
@@ -4592,10 +4626,6 @@ async def query(request: NLQRequest) -> NLQResponse:
             error_message=error_msg,
             debug_info={"nlq_diag_trace": _trace, "error": error_msg, "error_type": type(e).__name__} if _trace else {"error": error_msg, "error_type": type(e).__name__},
         )
-    finally:
-        set_force_local(False)
-        set_data_mode(None)
-        set_entity_id(None)
 
 
 # ─── DELETED: query_galaxy() and /intent-map, /query/galaxy routes ───
