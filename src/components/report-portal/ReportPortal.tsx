@@ -2891,7 +2891,8 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
   const [combiningData, setCombiningData] = useState<CombiningStatementData | null>(null);
   const [combiningLoading, setCombiningLoading] = useState(false);
   const [combiningError, setCombiningError] = useState<string | null>(null);
-  const [combiningPeriod, setCombiningPeriod] = useState("2025-Q3");
+  const [combiningVariant, setCombiningVariant] = useState("act_vs_py");
+  const [combiningQuarter, setCombiningQuarter] = useState("2025-Q3");
   const [combiningSegment, setCombiningSegment] = useState("all");
 
   // Overlap report data states
@@ -2992,6 +2993,15 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
     if (variant === "quarterly") return quarter;
     return `${lastFullYear}-Q4`;
   }, [variant, quarter, lastFullYear, cfQuarters]);
+
+  // Combining period mirrors IS variant logic
+  const combiningPeriod = useMemo(() => {
+    if (combiningVariant === "act_vs_py") return `${lastFullYear}-Q4`;
+    if (combiningVariant === "q_act_vs_py") return combiningQuarter;
+    if (combiningVariant === "cf_vs_py") return `${wallClockDate().getFullYear()}-Q2`;
+    if (combiningVariant === "q_cf_vs_py") return combiningQuarter || cfQuarters[0];
+    return `${lastFullYear}-Q4`;
+  }, [combiningVariant, combiningQuarter, lastFullYear, cfQuarters]);
 
   // Fetch report data when tab/variant/quarter/segment changes
   const loadReport = useCallback(async () => {
@@ -3153,7 +3163,19 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
         {tab === "combining" && entity === "combined" && (
           <>
             <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
-              <Select label="Period" value={combiningPeriod} onChange={setCombiningPeriod} options={QUARTERS.map((q) => ({ value: q, label: q }))} width={140} />
+              <Select label="Report Variant" value={combiningVariant} onChange={setCombiningVariant} options={[
+                { value: "act_vs_py", label: `FY${lastFullYear} Act vs FY${pyYear}` },
+                { value: "q_act_vs_py", label: "Quarterly Act vs PY" },
+                { value: "cf_vs_py", label: `FY${wallClockDate().getFullYear()} CF vs FY${lastFullYear}` },
+                { value: "q_cf_vs_py", label: "Quarterly CF vs PY" },
+              ]} width={220} />
+              {(combiningVariant === "q_act_vs_py" || combiningVariant === "q_cf_vs_py") && (
+                <Select label="Quarter" value={combiningQuarter} onChange={setCombiningQuarter} options={
+                  combiningVariant === "q_cf_vs_py"
+                    ? cfQuarters.map((q) => ({ value: q, label: q }))
+                    : actQuarters.map((q) => ({ value: q, label: q }))
+                } width={140} />
+              )}
               <Select label="Segment" value={combiningSegment} onChange={setCombiningSegment} width={180} options={[
                 { value: "all", label: "All Segments" },
                 ...SEGMENTS.map((s) => ({ value: s, label: s })),
