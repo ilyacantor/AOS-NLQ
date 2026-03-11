@@ -50,6 +50,12 @@ class DashboardDataResolver:
     def __init__(self, fact_base=None):
         """Initialize resolver. fact_base param kept for backwards compatibility but ignored."""
         self.dcl_client = get_semantic_client()
+        self._provenance: Optional[Dict[str, Any]] = None
+
+    @property
+    def provenance(self) -> Optional[Dict[str, Any]]:
+        """Run provenance from the first successful DCL query, for the ProvenanceBadge."""
+        return self._provenance
 
     def resolve_dashboard_data(
         self,
@@ -155,6 +161,9 @@ class DashboardDataResolver:
 
         if result.get("status") == "error" or result.get("error"):
             logger.warning(f"DCL query error for '{canonical}': {result.get('error')}")
+        elif self._provenance is None and result.get("run_provenance"):
+            # Capture provenance from the first successful DCL query (set-once)
+            self._provenance = result["run_provenance"]
 
         return result
 
@@ -674,7 +683,14 @@ class DashboardDataResolver:
 
         for item in data:
             if isinstance(item, dict):
-                label = item.get(dimension, item.get("label", item.get("name", "")))
+                # DCL returns dimensions nested: {"dimensions": {"region": "AMER"}, "value": 24.0}
+                # Local/legacy returns flat: {"region": "AMER", "value": 24.0}
+                dims_dict = item.get("dimensions", {})
+                label = (
+                    (dims_dict.get(dimension) if isinstance(dims_dict, dict) else None)
+                    or item.get(dimension)
+                    or item.get("label", item.get("name", ""))
+                )
                 value = item.get("value", item.get("val", 0))
 
                 # Handle nested value dicts (e.g., {'pipeline': 6.4, 'qualified': 3.84})

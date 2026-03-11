@@ -4247,6 +4247,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                     dashboard=updated_dict,
                     dashboard_data=widget_data,
                     data_source="live",
+                    provenance=data_resolver.provenance,
                 )
             except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
                 logger.error(f"Dashboard refinement failed: {e}", exc_info=True)
@@ -4302,6 +4303,7 @@ async def query(request: NLQRequest) -> NLQResponse:
                     dashboard=dashboard_dict,
                     dashboard_data=widget_data,
                     data_source="live",
+                    provenance=data_resolver.provenance,
                     debug_info=debug_info.to_dict() if is_strict_mode() else None,
                 )
             except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
