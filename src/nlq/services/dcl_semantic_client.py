@@ -1558,7 +1558,7 @@ class DCLSemanticClient:
             "is_sor": is_sor,
             "freshness": metadata.get("freshness_display", ""),
             "quality_score": metadata.get("quality_score"),
-            "mode": metadata.get("mode"),
+            "mode": metadata.get("mode") or ("Ingest" if dcl_source == "ingest" else ("Demo" if dcl_source == "fact_base" else None)),
         }
 
         # Carry over entity resolution and conflict data when present

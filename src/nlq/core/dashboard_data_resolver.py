@@ -367,7 +367,7 @@ class DashboardDataResolver:
             metric=metric,
             dimensions=[dimension],
             filters=filters,
-            time_range={"period": cq, "granularity": "quarterly"},
+            time_range={"period": cq},
         )
 
         if result.get("error") or not result.get("data"):
@@ -376,7 +376,7 @@ class DashboardDataResolver:
                 metric=metric,
                 dimensions=[dimension],
                 filters=filters,
-                time_range={"period": reference_year, "granularity": "yearly"},
+                time_range={"period": reference_year},
             )
             if result.get("error"):
                 return None
@@ -506,7 +506,7 @@ class DashboardDataResolver:
                     metric=metric,
                     dimensions=[dimension],
                     filters=filters,
-                    time_range={"period": cq, "granularity": "quarterly"},
+                    time_range={"period": cq},
                 )
                 if result.get("error") or not result.get("data"):
                     logger.info(f"Table quarterly query failed for '{metric}', retrying with yearly")
@@ -514,7 +514,7 @@ class DashboardDataResolver:
                         metric=metric,
                         dimensions=[dimension],
                         filters=filters,
-                        time_range={"period": reference_year, "granularity": "yearly"},
+                        time_range={"period": reference_year},
                     )
 
                 breakdown = self._extract_dimensional_data(result, dimension, metric)
@@ -548,7 +548,7 @@ class DashboardDataResolver:
             metric=metric,
             dimensions=["region"],
             filters=filters,
-            time_range={"period": cq, "granularity": "quarterly"},
+            time_range={"period": cq},
         )
 
         if result.get("error"):
