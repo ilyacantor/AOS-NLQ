@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 _ENTITY_NAMES = {
     "meridian": "Meridian Partners",
     "cascadia": "Cascadia Process Solutions",
+    "combined": "Combined (Meridian + Cascadia)",
 }
 
 

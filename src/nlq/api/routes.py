@@ -1687,6 +1687,40 @@ def _has_explicit_period(question: str) -> bool:
     return False
 
 
+def _build_combined_metric_result(metric: str, period: Optional[str] = None) -> Optional['SimpleMetricResult']:
+    """Query both meridian and cascadia, sum additive metrics or average non-additive."""
+    from src.nlq.knowledge.schema import is_additive_metric
+    m_result = _build_simple_metric_result(metric, period, entity_id="meridian")
+    c_result = _build_simple_metric_result(metric, period, entity_id="cascadia")
+    if m_result is None and c_result is None:
+        return None
+    if m_result is None:
+        return c_result
+    if c_result is None:
+        return m_result
+    if is_additive_metric(metric):
+        combined_val = m_result.value + c_result.value
+    else:
+        combined_val = (m_result.value + c_result.value) / 2.0
+    # Clone m_result with combined value
+    from dataclasses import replace
+    from src.nlq.knowledge.schema import get_metric_unit
+    unit = get_metric_unit(metric)
+    if unit == "%":
+        formatted = f"{round(combined_val, 1)}%"
+    elif unit in ("USD millions", "USD", "$"):
+        formatted = f"${round(combined_val, 1)}M"
+    else:
+        formatted = str(round(combined_val, 1))
+    return replace(
+        m_result,
+        value=combined_val,
+        formatted_value=formatted,
+        answer=f"{m_result.display_name} for {m_result.period} is {formatted}",
+        data_source="live",
+    )
+
+
 def _try_report_query(question: str, session_id: Optional[str] = None, entity_id: Optional[str] = None) -> Optional[NLQResponse]:
     """Detect Standard Reporting Package queries and generate comparison reports."""
     from src.nlq.core.report_intent import detect_report_intent
@@ -1696,11 +1730,12 @@ def _try_report_query(question: str, session_id: Optional[str] = None, entity_id
         return None
 
     entity_id = entity_id or _detect_entity_id(question)
-    query_fn = (
-        functools.partial(_build_simple_metric_result, entity_id=entity_id)
-        if entity_id
-        else _build_simple_metric_result
-    )
+    if entity_id == "combined":
+        query_fn = _build_combined_metric_result
+    elif entity_id:
+        query_fn = functools.partial(_build_simple_metric_result, entity_id=entity_id)
+    else:
+        query_fn = _build_simple_metric_result
 
     from src.nlq.services.report_generator import ReportGenerator
     generator = ReportGenerator(query_fn=query_fn, entity_id=entity_id)
@@ -1736,11 +1771,12 @@ def _try_pl_statement_query(question: str, session_id: Optional[str] = None, ent
         period_spec = None  # signals "show all periods"
 
     entity_id = entity_id or _detect_entity_id(question)
-    query_fn = (
-        functools.partial(_build_simple_metric_result, entity_id=entity_id)
-        if entity_id
-        else _build_simple_metric_result
-    )
+    if entity_id == "combined":
+        query_fn = _build_combined_metric_result
+    elif entity_id:
+        query_fn = functools.partial(_build_simple_metric_result, entity_id=entity_id)
+    else:
+        query_fn = _build_simple_metric_result
 
     periods = determine_pl_periods(period_spec)
     handler = PLStatementHandler(periods=periods, query_fn=query_fn, entity_id=entity_id)
@@ -1769,7 +1805,7 @@ def _try_bridge_query(question: str, session_id: Optional[str] = None, entity_id
         else _build_simple_metric_result
     )
 
-    handler = BridgeHandler(query_fn=query_fn)
+    handler = BridgeHandler(query_fn=query_fn, entity_id=entity_id)
     result = handler.execute()
 
     if result and result.bridge_chart_data and session_id:

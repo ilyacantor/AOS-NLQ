@@ -1359,7 +1359,13 @@ class DCLSemanticClient:
             if time_range:
                 period = time_range.get("period")
                 if period:
-                    dcl_time_range = {"start": period, "end": period}
+                    # Expand year-only periods (e.g. "2024") to Q1-Q4 range
+                    # so DCL returns all quarterly data for the year
+                    import re as _re_tr
+                    if _re_tr.match(r'^20\d{2}$', str(period)):
+                        dcl_time_range = {"start": f"{period}-Q1", "end": f"{period}-Q4"}
+                    else:
+                        dcl_time_range = {"start": period, "end": period}
                 else:
                     # Pass through start/end if already in DCL format
                     if "start" in time_range:

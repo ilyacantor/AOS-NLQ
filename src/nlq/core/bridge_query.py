@@ -1,8 +1,8 @@
 """
 Revenue variance bridge (waterfall) handler.
 
-Decomposes year-over-year revenue change into New Logo, Expansion,
-and Renewal drivers. All data from DCL via _build_simple_metric_result.
+Decomposes year-over-year revenue change by region using live DCL
+dimensional data. All data from DCL via the semantic client.
 """
 
 import logging
@@ -47,29 +47,23 @@ def is_bridge_query(question: str) -> Optional[str]:
     return None
 
 
-# ── Bridge metrics ────────────────────────────────────────────────────────
-
-BRIDGE_DRIVERS = [
-    ("new_logo_revenue", "New Logo Growth"),
-    ("expansion_revenue", "Expansion Growth"),
-    ("renewal_revenue", "Renewal Change"),
-]
-
 ROUNDING_TOLERANCE = 0.5  # $M
 
 
 class BridgeHandler:
-    """Builds a revenue variance bridge by querying DCL for driver metrics."""
+    """Builds a revenue variance bridge by querying DCL for regional revenue."""
 
     def __init__(
         self,
         query_fn: Callable,
         year_start: str = "2024",
         year_end: str = "2025",
+        entity_id: Optional[str] = None,
     ):
         self.query_fn = query_fn
         self.year_start = year_start
         self.year_end = year_end
+        self.entity_id = entity_id
 
     def _query_annual(self, metric: str, year: str) -> Optional[float]:
         """Query a single metric for a full year via the existing metric resolver."""
@@ -78,8 +72,44 @@ class BridgeHandler:
             return None
         return result.value
 
+    def _query_regional_revenue(self, year: str) -> Dict[str, float]:
+        """Query revenue by region for a full year from DCL.
+
+        Returns dict mapping region name -> annual revenue value.
+        """
+        from src.nlq.services.dcl_semantic_client import get_semantic_client
+        from src.nlq.config import get_tenant_id
+
+        client = get_semantic_client()
+        result = client.query(
+            metric="revenue",
+            dimensions=["region"],
+            time_range={"period": year, "granularity": "quarterly"},
+            tenant_id=get_tenant_id(),
+            entity_id=self.entity_id,
+        )
+
+        if result.get("error") or not result.get("data"):
+            return {}
+
+        # Sum quarterly values per region for the year
+        region_totals: Dict[str, float] = {}
+        for row in result.get("data", []):
+            if not isinstance(row, dict):
+                continue
+            period = str(row.get("period", ""))
+            if year not in period:
+                continue
+            dims = row.get("dimensions") or {}
+            region = dims.get("region", "Unknown")
+            value = row.get("value")
+            if value is not None:
+                region_totals[region] = region_totals.get(region, 0.0) + value
+
+        return region_totals
+
     def execute(self) -> Optional[NLQResponse]:
-        """Query all bridge metrics and compute the waterfall."""
+        """Query revenue totals and regional breakdown, compute the waterfall."""
         fy_start_label = f"FY {self.year_start}"
         fy_end_label = f"FY {self.year_end}"
 
@@ -91,16 +121,21 @@ class BridgeHandler:
             logger.warning("Bridge: could not resolve revenue for either period")
             return None
 
-        # Query driver metrics for both years
-        driver_deltas: List[Tuple[str, str, Optional[float], Optional[float], Optional[float]]] = []
-        for metric_key, label in BRIDGE_DRIVERS:
-            val_start = self._query_annual(metric_key, self.year_start)
-            val_end = self._query_annual(metric_key, self.year_end)
-            if val_start is not None and val_end is not None:
-                delta = round(val_end - val_start, 2)
-            else:
-                delta = None
-            driver_deltas.append((metric_key, label, val_start, val_end, delta))
+        # Query regional revenue for both years
+        regions_start = self._query_regional_revenue(self.year_start)
+        regions_end = self._query_regional_revenue(self.year_end)
+
+        # Compute per-region deltas
+        all_regions = sorted(set(regions_start.keys()) | set(regions_end.keys()))
+        region_deltas: List[Tuple[str, float]] = []
+        for region in all_regions:
+            start_val = regions_start.get(region, 0.0)
+            end_val = regions_end.get(region, 0.0)
+            delta = round(end_val - start_val, 2)
+            region_deltas.append((region, delta))
+
+        # Sort by absolute delta descending (largest movers first)
+        region_deltas.sort(key=lambda x: abs(x[1]), reverse=True)
 
         # Build bars
         bars: List[BridgeChartBar] = []
@@ -113,26 +148,21 @@ class BridgeHandler:
             running_total=rev_start,
         ))
 
-        # Driver bars
+        # Regional driver bars
         running = rev_start if rev_start is not None else 0.0
-        for _, label, _, _, delta in driver_deltas:
-            if delta is not None:
-                bar_type = "increase" if delta >= 0 else "decrease"
-                running = round(running + delta, 2)
-            else:
-                bar_type = "increase"  # placeholder — value is null
+        for region, delta in region_deltas:
+            bar_type = "increase" if delta >= 0 else "decrease"
+            running = round(running + delta, 2)
             bars.append(BridgeChartBar(
-                label=label,
+                label=f"{region} Growth",
                 value=delta,
                 type=bar_type,
-                running_total=round(running, 2) if delta is not None else None,
+                running_total=round(running, 2),
             ))
 
         # Check rounding gap
         if rev_end is not None and rev_start is not None:
-            expected_running = round(running, 2)
-            actual_end = round(rev_end, 2)
-            gap = round(actual_end - expected_running, 2)
+            gap = round(rev_end - running, 2)
             if abs(gap) > ROUNDING_TOLERANCE:
                 running = round(running + gap, 2)
                 bars.append(BridgeChartBar(
@@ -150,6 +180,10 @@ class BridgeHandler:
             running_total=rev_end,
         ))
 
+        # Determine data source
+        first_result = self.query_fn("revenue", self.year_end)
+        data_source = first_result.data_source if first_result else None
+
         bridge_data = BridgeChartData(
             bridge_type="revenue",
             title=f"Revenue Bridge: {fy_start_label} → {fy_end_label}",
@@ -159,14 +193,12 @@ class BridgeHandler:
             start_value=rev_start,
             end_value=rev_end,
             bars=bars,
+            data_source=data_source,
         )
 
-        # Determine data source from first successful query
-        first_result = self.query_fn("revenue", self.year_end)
-        data_source = first_result.data_source if first_result else None
-        bridge_data.data_source = data_source
-
         # Build text answer
+        total_change = round(rev_end - rev_start, 1) if rev_start and rev_end else None
+        pct_change = round(total_change / rev_start * 100, 1) if total_change and rev_start else None
         lines = [f"**{bridge_data.title}**\n"]
         for bar in bars:
             if bar.value is not None:
@@ -177,6 +209,9 @@ class BridgeHandler:
                     lines.append(f"  {bar.label}: {sign}${bar.value:.1f}M")
             else:
                 lines.append(f"  {bar.label}: Data unavailable")
+        if total_change is not None:
+            sign = "+" if total_change >= 0 else ""
+            lines.append(f"\nChange: {sign}${total_change:.1f}M ({sign}{pct_change:.1f}%)")
 
         return NLQResponse(
             success=True,

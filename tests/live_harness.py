@@ -33,7 +33,7 @@ import httpx
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://127.0.0.1:8005"
 NLQ_ENDPOINT = "/api/v1/query"
 TIMEOUT = 45.0  # generous — LLM calls can be slow
 
@@ -46,6 +46,9 @@ POINT = "POINT"
 BREAKDOWN = "BREAKDOWN"
 RANKING = "RANKING"
 INGEST_STATUS = "INGEST_STATUS"
+REPORT_ENTITY = "REPORT_ENTITY"
+BRIDGE_FORMAT = "BRIDGE_FORMAT"
+BRIDGE_SOURCE = "BRIDGE_SOURCE"
 
 
 # ---------------------------------------------------------------------------
@@ -56,7 +59,9 @@ class TestCase:
     qid: str           # e.g. "Q01"
     persona: str
     question: str
-    shape: str          # POINT | BREAKDOWN | RANKING | INGEST_STATUS
+    shape: str          # POINT | BREAKDOWN | RANKING | INGEST_STATUS | ...
+    entity_id: Optional[str] = None       # sent as entity_id in payload
+    consolidate: bool = False             # sent as consolidate in payload
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +105,11 @@ QUESTIONS: List[TestCase] = [
     TestCase("Q09", "COO",  "How many data sources are connected?",              INGEST_STATUS),
     TestCase("Q10", "COO",  "Which source system has the most ingested rows?",   INGEST_STATUS),
     TestCase("Q30", "COO",  "How many total rows have been ingested?",           INGEST_STATUS),
+
+    # UF (user-fix) tests: entity-scoped reports + bridge chart
+    TestCase("UF_040", "CFO", "Show me the P&L actual vs prior year",            REPORT_ENTITY, entity_id="cascadia"),
+    TestCase("UF_042", "CFO", "why did revenue increase",                        BRIDGE_FORMAT),
+    TestCase("UF_043", "CFO", "why did revenue increase",                        BRIDGE_SOURCE),
 ]
 
 
@@ -269,12 +279,108 @@ def validate_ingest_status(body: Dict) -> Tuple[bool, str]:
     return True, f"OK (answer has digits, source={ds or 'n/a'})"
 
 
+def validate_report_entity(body: Dict) -> Tuple[bool, str]:
+    """REPORT_ENTITY: success=True, financial_statement_data present with
+    non-empty line_items, entity matches expected, source is not demo."""
+    if not body.get("success"):
+        err = body.get("error_message") or body.get("error_code") or "success=false"
+        return False, f"NOT_SUCCESS: {err}"
+
+    ds = (body.get("data_source") or "").lower()
+    if ds in DEMO_SOURCES:
+        return False, f"DEMO_DATA_SOURCE: {ds}"
+
+    fs = body.get("financial_statement_data")
+    if not fs or not isinstance(fs, dict):
+        return False, "NO_FINANCIAL_STATEMENT_DATA"
+
+    line_items = fs.get("line_items", [])
+    if not line_items or len(line_items) < 3:
+        return False, f"INSUFFICIENT_LINE_ITEMS: got {len(line_items)}"
+
+    # At least one line item must have a non-null value
+    has_value = False
+    for li in line_items:
+        vals = li.get("values", {})
+        for v in vals.values():
+            if v is not None:
+                has_value = True
+                break
+        if has_value:
+            break
+
+    if not has_value:
+        return False, "ALL_VALUES_NULL — report has line items but no data"
+
+    entity = fs.get("entity", "")
+    return True, f"OK (entity='{entity}', {len(line_items)} line items, source={ds or 'n/a'})"
+
+
+def validate_bridge_format(body: Dict) -> Tuple[bool, str]:
+    """BRIDGE_FORMAT: success=True, response_type='bridge_chart',
+    bridge_chart_data with 3+ bars (start, at least one driver, end)."""
+    if not body.get("success"):
+        err = body.get("error_message") or body.get("error_code") or "success=false"
+        return False, f"NOT_SUCCESS: {err}"
+
+    rt = body.get("response_type", "")
+    if rt != "bridge_chart":
+        return False, f"WRONG_RESPONSE_TYPE: '{rt}' (expected 'bridge_chart')"
+
+    bcd = body.get("bridge_chart_data")
+    if not bcd or not isinstance(bcd, dict):
+        return False, "NO_BRIDGE_CHART_DATA"
+
+    bars = bcd.get("bars", [])
+    if len(bars) < 3:
+        return False, f"INSUFFICIENT_BARS: got {len(bars)} (need start + drivers + end)"
+
+    # First and last bars should be totals
+    if bars[0].get("type") != "total":
+        return False, f"FIRST_BAR_NOT_TOTAL: type='{bars[0].get('type')}'"
+    if bars[-1].get("type") != "total":
+        return False, f"LAST_BAR_NOT_TOTAL: type='{bars[-1].get('type')}'"
+
+    # At least one driver bar (increase or decrease)
+    drivers = [b for b in bars if b.get("type") in ("increase", "decrease")]
+    if not drivers:
+        return False, "NO_DRIVER_BARS"
+
+    driver_labels = [b.get("label", "?") for b in drivers[:3]]
+    return True, f"OK ({len(bars)} bars, drivers: {driver_labels})"
+
+
+def validate_bridge_source(body: Dict) -> Tuple[bool, str]:
+    """BRIDGE_SOURCE: response_type='bridge_chart' AND data_source is NOT
+    'Local', 'fact_base', 'demo', or null. Must be 'live' or 'dcl'."""
+    if not body.get("success"):
+        err = body.get("error_message") or body.get("error_code") or "success=false"
+        return False, f"NOT_SUCCESS: {err}"
+
+    rt = body.get("response_type", "")
+    if rt != "bridge_chart":
+        return False, f"WRONG_RESPONSE_TYPE: '{rt}' (expected 'bridge_chart')"
+
+    ds = (body.get("data_source") or "").strip()
+    if not ds:
+        return False, "DATA_SOURCE_NULL — must be 'live' or 'dcl', got empty/null"
+
+    bad_sources = {"local", "fact_base", "demo", "local_fallback"}
+    if ds.lower() in bad_sources:
+        return False, f"BAD_DATA_SOURCE: '{ds}' — must be 'live' or 'dcl'"
+
+    return True, f"OK (data_source='{ds}')"
+
+
 # Map shape to validator
 VALIDATORS = {
     POINT: validate_point,
     BREAKDOWN: validate_breakdown,
     RANKING: validate_ranking,
     INGEST_STATUS: validate_ingest_status,
+    REPORT_ENTITY: validate_report_entity,
+    BRIDGE_FORMAT: validate_bridge_format,
+    BRIDGE_SOURCE: validate_bridge_source,
 }
 
 
@@ -306,6 +412,10 @@ def run_one(client: httpx.Client, tc: TestCase) -> TestResult:
         "data_mode": "live",
         "mode": "ai",
     }
+    if tc.entity_id:
+        payload["entity_id"] = tc.entity_id
+    if tc.consolidate:
+        payload["consolidate"] = True
 
     try:
         start = time.monotonic()
@@ -350,11 +460,92 @@ def run_one(client: httpx.Client, tc: TestCase) -> TestResult:
         )
 
 
+def run_comparison_uf041(client: httpx.Client) -> TestResult:
+    """UF_041: Cascadia revenue must differ from Meridian revenue.
+
+    Queries revenue for both entities and asserts the values are different,
+    proving entity-scoped data is not returning the same (default) result.
+    """
+    qid = "UF_041"
+    question = "What is revenue for 2025?"
+    results = {}
+
+    for entity in ("meridian", "cascadia"):
+        payload = {
+            "question": question,
+            "data_mode": "live",
+            "mode": "ai",
+            "entity_id": entity,
+        }
+        try:
+            start = time.monotonic()
+            resp = client.post(
+                f"{BASE_URL}{NLQ_ENDPOINT}",
+                json=payload,
+                timeout=TIMEOUT,
+            )
+            elapsed_ms = (time.monotonic() - start) * 1000
+
+            if resp.status_code >= 400:
+                return TestResult(
+                    qid=qid, persona="CFO", question=f"{question} [{entity}]",
+                    shape="COMPARISON", passed=False,
+                    reason=f"HTTP_{resp.status_code} for {entity}",
+                    response_time_ms=elapsed_ms,
+                )
+
+            body = resp.json()
+            if not body.get("success"):
+                return TestResult(
+                    qid=qid, persona="CFO", question=f"{question} [{entity}]",
+                    shape="COMPARISON", passed=False,
+                    reason=f"NOT_SUCCESS for {entity}: {body.get('error_message', '')}",
+                )
+
+            results[entity] = body.get("value")
+
+        except Exception as e:
+            return TestResult(
+                qid=qid, persona="CFO", question=f"{question} [{entity}]",
+                shape="COMPARISON", passed=False,
+                reason=f"ERROR querying {entity}: {e}",
+            )
+
+    m_val = results.get("meridian")
+    c_val = results.get("cascadia")
+
+    if m_val is None or c_val is None:
+        return TestResult(
+            qid=qid, persona="CFO",
+            question="Cascadia revenue != Meridian revenue",
+            shape="COMPARISON", passed=False,
+            reason=f"NULL_VALUE — meridian={m_val}, cascadia={c_val}",
+        )
+
+    if m_val == c_val:
+        return TestResult(
+            qid=qid, persona="CFO",
+            question="Cascadia revenue != Meridian revenue",
+            shape="COMPARISON", passed=False,
+            reason=(
+                f"VALUES_IDENTICAL — meridian={m_val}, cascadia={c_val}. "
+                f"Entity scoping is broken (same data returned for both)."
+            ),
+        )
+
+    return TestResult(
+        qid=qid, persona="CFO",
+        question="Cascadia revenue != Meridian revenue",
+        shape="COMPARISON", passed=True,
+        reason=f"OK (meridian={m_val}, cascadia={c_val} — values differ)",
+    )
+
+
 def run_all(verbose: bool = False) -> List[TestResult]:
-    """Run all 30 questions sequentially."""
+    """Run all questions sequentially."""
     print("=" * 76)
     print("  NLQ Live Mode — Structural Test Harness")
-    print(f"  {len(QUESTIONS)} questions | data_mode=live | Validators: shape-only")
+    print(f"  {len(QUESTIONS)} questions + 1 comparison | data_mode=live | Validators: shape-only")
     print(f"  Endpoint: POST {BASE_URL}{NLQ_ENDPOINT}")
     print("=" * 76)
 
@@ -387,6 +578,18 @@ def run_all(verbose: bool = False) -> List[TestResult]:
         elif verbose:
             print(f"         \u2192 {r.reason}")
 
+    # UF_041: comparison test — Cascadia revenue != Meridian revenue
+    uf041 = run_comparison_uf041(client)
+    results.append(uf041)
+    icon = "\u2713" if uf041.passed else "\u2717"
+    status = "PASS" if uf041.passed else "FAIL"
+    line = f"  {uf041.qid} [{uf041.persona:4s}] {icon} {status:4s} | {'COMPARISON':14s} | {uf041.question}"
+    print(line)
+    if not uf041.passed:
+        print(f"         \u2192 {uf041.reason}")
+    elif verbose:
+        print(f"         \u2192 {uf041.reason}")
+
     client.close()
     return results
 
@@ -413,9 +616,12 @@ def print_summary(results: List[TestResult]):
     print("=" * 76)
     print(f"  RESULTS: {passed}/{total} passed ({passed/total*100:.0f}%)")
     print()
-    for shape in [POINT, BREAKDOWN, RANKING, INGEST_STATUS]:
+    all_shapes = [POINT, BREAKDOWN, RANKING, INGEST_STATUS,
+                   REPORT_ENTITY, BRIDGE_FORMAT, BRIDGE_SOURCE, "COMPARISON"]
+    for shape in all_shapes:
         b = by_shape.get(shape, {"total": 0, "pass": 0, "fail": 0})
-        print(f"    {shape:14s}  {b['pass']}/{b['total']}")
+        if b["total"] > 0:
+            print(f"    {shape:14s}  {b['pass']}/{b['total']}")
     print("=" * 76)
 
 
@@ -445,9 +651,12 @@ def write_markdown(results: List[TestResult], path: str = "LIVE_TEST_RESULTS.md"
     lines.append("")
     lines.append("| Shape | Pass | Total |")
     lines.append("|-------|------|-------|")
-    for shape in [POINT, BREAKDOWN, RANKING, INGEST_STATUS]:
+    all_shapes = [POINT, BREAKDOWN, RANKING, INGEST_STATUS,
+                   REPORT_ENTITY, BRIDGE_FORMAT, BRIDGE_SOURCE, "COMPARISON"]
+    for shape in all_shapes:
         b = by_shape.get(shape, {"total": 0, "pass": 0, "fail": 0})
-        lines.append(f"| {shape} | {b['pass']} | {b['total']} |")
+        if b["total"] > 0:
+            lines.append(f"| {shape} | {b['pass']} | {b['total']} |")
     lines.append("")
 
     # Full results table
