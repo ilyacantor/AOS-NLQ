@@ -1581,10 +1581,12 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None, entit
     freshness = metadata.get("freshness_display", "") or "0h"
 
     # Determine aggregation method BEFORE summing:
-    # Additive metrics (revenue, costs, counts) -> sum quarterly rows for annual
+    # Additive (flow) metrics (revenue, costs) -> sum quarterly rows for annual
     # Non-additive metrics (pct, ratio, score, days) -> average quarterly rows
-    from src.nlq.knowledge.schema import is_additive_metric
+    # Point-in-time (stock) metrics (headcount, BS items) -> last value
+    from src.nlq.knowledge.schema import is_additive_metric, is_point_in_time_metric
     _is_additive = is_additive_metric(metric)
+    _is_pit = is_point_in_time_metric(metric)
 
     # Handle different response formats
     if isinstance(data, list) and len(data) > 0:
@@ -1598,7 +1600,10 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None, entit
                 if not filtered:
                     # If period field doesn't exist on rows, use all (backward compat)
                     filtered = [d for d in data if d.get("value") is not None]
-                if _is_additive:
+                if _is_pit:
+                    # Point-in-time: take latest quarter's value (last in sorted order)
+                    value = filtered[-1].get("value") if filtered else None
+                elif _is_additive:
                     value = sum(d.get("value", 0) for d in filtered)
                 else:
                     # Average for percentages, ratios, scores, durations
@@ -1615,8 +1620,11 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None, entit
                     # Fall back to last row if no period field on rows
                     value = data[-1].get("value") if isinstance(data[-1], dict) else data[-1]
             else:
-                # Unknown period format
-                if _is_additive:
+                # Unknown period format — take last value for PIT, else sum/avg
+                if _is_pit:
+                    non_null = [d for d in data if d.get("value") is not None]
+                    value = non_null[-1].get("value") if non_null else None
+                elif _is_additive:
                     value = sum(d.get("value", 0) for d in data if d.get("value") is not None)
                 else:
                     vals = [d.get("value") for d in data if d.get("value") is not None]

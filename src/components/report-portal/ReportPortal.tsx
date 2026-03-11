@@ -2891,6 +2891,8 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
   const [combiningData, setCombiningData] = useState<CombiningStatementData | null>(null);
   const [combiningLoading, setCombiningLoading] = useState(false);
   const [combiningError, setCombiningError] = useState<string | null>(null);
+  const [combiningPeriod, setCombiningPeriod] = useState("2025-Q3");
+  const [combiningSegment, setCombiningSegment] = useState("all");
 
   // Overlap report data states
   const [overlapData, setOverlapData] = useState<OverlapData | null>(null);
@@ -3030,12 +3032,13 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
   }, [loadReport, isStatementTab]);
 
   // Load combining statement data when the combining tab is active
+  const combSeg = combiningSegment === "all" ? null : combiningSegment;
   const loadCombining = useCallback(async () => {
     if (tab !== "combining" || entity !== "combined") return;
     setCombiningLoading(true);
     setCombiningError(null);
     try {
-      const result = await fetchCombiningStatement(effectiveQuarter);
+      const result = await fetchCombiningStatement(combiningPeriod, combSeg);
       setCombiningData(result);
     } catch (err) {
       setCombiningError(err instanceof Error ? err.message : String(err));
@@ -3043,7 +3046,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
     } finally {
       setCombiningLoading(false);
     }
-  }, [tab, entity, effectiveQuarter]);
+  }, [tab, entity, combiningPeriod, combSeg]);
 
   useEffect(() => {
     if (tab === "combining" && entity === "combined") {
@@ -3148,7 +3151,16 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
 
         {tab === "recon" && <ReconView />}
         {tab === "combining" && entity === "combined" && (
-          <CombiningStatement data={combiningData} loading={combiningLoading} error={combiningError} onRetry={loadCombining} />
+          <>
+            <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
+              <Select label="Period" value={combiningPeriod} onChange={setCombiningPeriod} options={QUARTERS.map((q) => ({ value: q, label: q }))} width={140} />
+              <Select label="Segment" value={combiningSegment} onChange={setCombiningSegment} width={180} options={[
+                { value: "all", label: "All Segments" },
+                ...SEGMENTS.map((s) => ({ value: s, label: s })),
+              ]} />
+            </div>
+            <CombiningStatement data={combiningData} loading={combiningLoading} error={combiningError} onRetry={loadCombining} />
+          </>
         )}
         {tab === "overlap" && entity === "combined" && (
           <OverlapReport data={overlapData} loading={overlapLoading} error={overlapError} onRetry={loadOverlap} />

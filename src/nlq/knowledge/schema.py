@@ -1075,16 +1075,50 @@ NON_ADDITIVE_UNITS = frozenset({
 })
 
 
+# Point-in-time (stock) metrics — use latest value, never sum across periods.
+# These represent a snapshot at a moment in time (like a balance sheet item),
+# not a flow over a period (like revenue). When rolling up quarters into a
+# full-year figure, take the last quarter's value.
+POINT_IN_TIME_METRICS = frozenset({
+    # Headcount / staffing levels
+    "headcount", "engineering_headcount", "product_headcount",
+    "marketing_headcount", "cs_headcount", "ga_headcount",
+    "sales_reps", "finance_headcount", "open_reqs",
+    # Balance sheet items
+    "cash", "ar", "unbilled_revenue", "prepaid_expenses",
+    "pp_e", "intangibles", "goodwill", "total_assets",
+    "ap", "accrued_expenses", "deferred_revenue",
+    "total_liabilities", "retained_earnings", "stockholders_equity",
+    # Other point-in-time
+    "arr", "mrr", "pipeline_value", "backlog",
+    "customer_count", "active_customers",
+})
+
+
+def is_point_in_time_metric(metric_name: str) -> bool:
+    """Return True if the metric is point-in-time (stock, not flow).
+
+    Point-in-time metrics use the latest period's value when aggregating
+    across quarters. They are never summed (that would be double-counting).
+    """
+    return metric_name in POINT_IN_TIME_METRICS
+
+
 def is_additive_metric(metric_name: str) -> bool:
     """Return True if a metric's values can be summed across periods.
 
     Non-additive metrics (percentages, ratios, scores, durations) must be
     averaged when rolling up quarterly data into annual figures.  Additive
-    metrics (revenue, counts, headcount deltas) are summed.
+    metrics (revenue, costs, flow-based counts) are summed.
+
+    Point-in-time metrics (headcount, balance sheet items) use last value —
+    they are NOT additive even though their unit is "count" or "currency".
 
     This is the ONLY place this decision should be made.  All call sites
     must use this function instead of inline sets.
     """
+    if metric_name in POINT_IN_TIME_METRICS:
+        return False
     canonical = get_canonical_unit(metric_name)
     return canonical not in NON_ADDITIVE_UNITS
 

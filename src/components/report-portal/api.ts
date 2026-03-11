@@ -211,8 +211,10 @@ export async function fetchReconciliation(): Promise<ReconReport> {
 
 export async function fetchCombiningStatement(
   period: string,
+  segment?: string | null,
 ): Promise<CombiningStatementData> {
   const params = new URLSearchParams({ period })
+  if (segment) params.set('segment', segment)
 
   const res = await fetch(`/api/reports/combining-is?${params}`)
 
