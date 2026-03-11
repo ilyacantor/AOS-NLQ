@@ -221,6 +221,29 @@ export interface CrossSellData {
   summary: CrossSellSummary
 }
 
+// ── Revenue by Customer ───────────────────────────────────────────────────
+
+export interface RevenueByCustomerRow {
+  name: string
+  total: number
+  [quarter: string]: string | number  // e.g. "2024-Q1": 1.75
+}
+
+export interface RevenueByCustomerData {
+  entity_id: string
+  quarters: string[]
+  customers: RevenueByCustomerRow[]
+  total_revenue: number
+  customer_count: number
+  provenance: {
+    run_id?: string | null
+    mode?: string | null
+    source?: string | null
+    run_timestamp?: string | null
+    entity_id?: string | null
+  }
+}
+
 // ── EBITDA Bridge ──────────────────────────────────────────────────────────
 
 export interface BridgeAdjustment {

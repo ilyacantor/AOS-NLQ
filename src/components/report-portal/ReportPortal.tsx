@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { fetchReport, fetchDrillThrough, fetchReconciliation, fetchCombiningStatement, fetchOverlapData, fetchCrossSell, fetchEBITDABridge, fetchWhatIf, fetchQofE, fetchDashboard, createMaestraEngagement, sendMaestraMessage, fetchMaestraStatus } from "./api";
+import { fetchReport, fetchDrillThrough, fetchReconciliation, fetchCombiningStatement, fetchOverlapData, fetchCrossSell, fetchRevenueByCustomer, fetchEBITDABridge, fetchWhatIf, fetchQofE, fetchDashboard, createMaestraEngagement, sendMaestraMessage, fetchMaestraStatus } from "./api";
 import React from "react";
-import type { ReportData, ReconReport, ReconCheck, DrillThroughItem, ReportVariant, EntitySelection, CombiningStatementData, OverlapData, CrossSellData, EBITDABridgeData, BridgeAdjustment, WhatIfResult, QofEData, DashboardData, DashboardPersona, MaestraStatus, FinancialStatementData, FinancialStatementLineItem } from "./types";
+import type { ReportData, ReconReport, ReconCheck, DrillThroughItem, ReportVariant, EntitySelection, CombiningStatementData, OverlapData, CrossSellData, RevenueByCustomerData, EBITDABridgeData, BridgeAdjustment, WhatIfResult, QofEData, DashboardData, DashboardPersona, MaestraStatus, FinancialStatementData, FinancialStatementLineItem } from "./types";
 
 // ============================================================
 // FORMATTING
@@ -1267,6 +1267,112 @@ function CrossSellTab() {
             })}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// REVENUE BY CUSTOMER TAB
+// ============================================================
+
+function RevenueByCustomerTab({ entityId }: { entityId: string }) {
+  const [data, setData] = useState<RevenueByCustomerData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetchRevenueByCustomer(entityId)
+      .then(setData)
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setLoading(false));
+  }, [entityId]);
+
+  if (loading) return <LoadingState message="Loading revenue by customer..." />;
+  if (error || !data) return <ErrorState error={error || "No data"} onRetry={() => { setLoading(true); setError(null); fetchRevenueByCustomer(entityId).then(setData).catch((e) => setError(String(e))).finally(() => setLoading(false)); }} />;
+
+  const thS: React.CSSProperties = { textAlign: "left", padding: "8px 12px", color: COLORS.textMuted, fontWeight: 500, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "'JetBrains Mono',monospace" };
+  const thR: React.CSSProperties = { ...thS, textAlign: "right" };
+  const tdR: React.CSSProperties = { textAlign: "right", padding: "8px 12px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12 };
+
+  const top20 = data.customers.slice(0, 20);
+  const top20Total = top20.reduce((s, c) => s + c.total, 0);
+  const coverageRatio = data.total_revenue > 0 ? (top20Total / data.total_revenue * 100) : 0;
+
+  // Format quarter label: "2024-Q1" -> "Q1 '24"
+  const fmtQ = (q: string) => {
+    const [y, qn] = q.split("-");
+    return `${qn} '${y.slice(2)}`;
+  };
+
+  const provMode = data.provenance?.mode?.toLowerCase();
+  const isVerified = provMode === "ingest" || provMode === "live";
+
+  return (
+    <div>
+      {/* Summary row */}
+      <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
+        {[
+          { label: "Total Revenue", value: `$${data.total_revenue.toFixed(1)}M` },
+          { label: "Customers", value: String(data.customer_count) },
+          { label: "Top 20 Coverage", value: `${coverageRatio.toFixed(1)}%`, sub: `$${top20Total.toFixed(1)}M of $${data.total_revenue.toFixed(1)}M` },
+          { label: "Data Source", value: isVerified ? "Verified" : data.provenance?.mode || "Unknown", sub: data.provenance?.run_id ? `Run: ${data.provenance.run_id.slice(0, 20)}...` : undefined },
+        ].map((card) => (
+          <div key={card.label} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "16px 20px", flex: "1 1 180px", minWidth: 180 }}>
+            <div style={{ fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>{card.label}</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace", marginTop: 4 }}>{card.value}</div>
+            {card.sub && <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{card.sub}</div>}
+          </div>
+        ))}
+      </div>
+
+      {/* Quarterly revenue table */}
+      <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'IBM Plex Mono','JetBrains Mono',monospace", fontSize: 12 }}>
+          <thead>
+            <tr style={{ borderBottom: `2px solid ${COLORS.accent}` }}>
+              <th style={thS}>Customer</th>
+              {data.quarters.map((q) => <th key={q} style={thR}>{fmtQ(q)}</th>)}
+              <th style={{ ...thR, fontWeight: 700 }}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {top20.map((c) => (
+              <tr key={c.name} style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
+                <td style={{ padding: "8px 12px", color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>{c.name}</td>
+                {data.quarters.map((q) => {
+                  const v = c[q] as number;
+                  return <td key={q} style={{ ...tdR, color: v > 0 ? COLORS.text : COLORS.textDim }}>{v > 0 ? v.toFixed(2) : "\u2014"}</td>;
+                })}
+                <td style={{ ...tdR, fontWeight: 600, color: COLORS.text }}>{c.total.toFixed(2)}</td>
+              </tr>
+            ))}
+            {/* Reconciliation row */}
+            <tr style={{ borderTop: `2px solid ${COLORS.accent}`, background: COLORS.surfaceHover }}>
+              <td style={{ padding: "8px 12px", fontWeight: 700, color: COLORS.accent, fontFamily: "'IBM Plex Sans',sans-serif" }}>Top 20 Subtotal</td>
+              {data.quarters.map((q) => {
+                const qTotal = top20.reduce((s, c) => s + ((c[q] as number) || 0), 0);
+                return <td key={q} style={{ ...tdR, fontWeight: 600, color: COLORS.accent }}>{qTotal.toFixed(2)}</td>;
+              })}
+              <td style={{ ...tdR, fontWeight: 700, color: COLORS.accent }}>{top20Total.toFixed(2)}</td>
+            </tr>
+            <tr style={{ background: COLORS.surfaceHover }}>
+              <td style={{ padding: "8px 12px", fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>Total Revenue</td>
+              {data.quarters.map((q) => {
+                const qTotal = data.customers.reduce((s, c) => s + ((c[q] as number) || 0), 0);
+                return <td key={q} style={{ ...tdR, fontWeight: 600, color: COLORS.text }}>{qTotal.toFixed(2)}</td>;
+              })}
+              <td style={{ ...tdR, fontWeight: 700, color: COLORS.text }}>{data.total_revenue.toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* AR by Customer note */}
+      <div style={{ marginTop: 16, padding: "12px 16px", background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, fontSize: 12, color: COLORS.textMuted }}>
+        <strong>Note:</strong> AR by Customer data is not available. Farm does not generate accounts receivable at customer granularity.
       </div>
     </div>
   );
@@ -2963,7 +3069,10 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
         { id: "dashboards", label: "Dashboards" },
       ];
     }
-    return base;
+    return [
+      ...base,
+      { id: "rev_by_customer", label: "Revenue by Customer" },
+    ];
   }, [entity]);
 
   const variantOptions = tab === "bs" ? [
@@ -3192,6 +3301,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
         {tab === "whatif" && entity === "combined" && <WhatIfTab />}
         {tab === "qoe" && entity === "combined" && <QofETab />}
         {tab === "dashboards" && entity === "combined" && <DashboardsTab />}
+        {tab === "rev_by_customer" && entity !== "combined" && <RevenueByCustomerTab entityId={entity} />}
       </div>
 
       {/* Maestra floating chat — always visible */}

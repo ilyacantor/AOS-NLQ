@@ -17,6 +17,7 @@ import type {
   CombiningStatementData,
   OverlapData,
   CrossSellData,
+  RevenueByCustomerData,
   EBITDABridgeData,
   WhatIfResult,
   QofEData,
@@ -250,6 +251,17 @@ export async function fetchCrossSell(): Promise<CrossSellData> {
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
     throw new Error(`Cross-sell query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+  }
+  return res.json()
+}
+
+// ── Revenue by Customer ──────────────────────────────────────────────────────
+
+export async function fetchRevenueByCustomer(entityId: string): Promise<RevenueByCustomerData> {
+  const res = await fetch(`/api/reports/revenue-by-customer?entity_id=${encodeURIComponent(entityId)}`)
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Unknown error')
+    throw new Error(`Revenue by customer query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
   }
   return res.json()
 }
