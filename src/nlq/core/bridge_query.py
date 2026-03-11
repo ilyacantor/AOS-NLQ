@@ -78,14 +78,11 @@ class BridgeHandler:
         Returns dict mapping region name -> annual revenue value.
         """
         from src.nlq.services.dcl_semantic_client import get_semantic_client
-        from src.nlq.config import get_tenant_id
-
         client = get_semantic_client()
         result = client.query(
             metric="revenue",
             dimensions=["region"],
             time_range={"period": year, "granularity": "quarterly"},
-            tenant_id=get_tenant_id(),
             entity_id=self.entity_id,
         )
 

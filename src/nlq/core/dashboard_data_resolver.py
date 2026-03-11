@@ -143,7 +143,6 @@ class DashboardDataResolver:
         grain: str = None,
     ) -> Dict[str, Any]:
         """Execute query against DCL and handle errors."""
-        from src.nlq.config import get_tenant_id
         from src.nlq.knowledge.synonyms import normalize_metric
         from src.nlq.services.dcl_semantic_client import get_entity_id
         canonical = normalize_metric(metric)
@@ -155,7 +154,6 @@ class DashboardDataResolver:
             filters=filters,
             time_range=time_range,
             grain=grain,
-            tenant_id=get_tenant_id(),
             entity_id=get_entity_id(),
         )
 

@@ -50,7 +50,6 @@ from src.nlq.services.llm_call_counter import get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
 from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
 from src.nlq.services.dcl_enrichment import enrich_response as dcl_enrich_response
-from src.nlq.config import get_tenant_id
 from src.nlq.services.dcl_semantic_client import set_force_local, set_data_mode, set_entity_id, force_local_data, diag, diag_init, diag_collect, reset_provenance_ctx
 from src.nlq.services.insufficient_data_tracker import get_insufficient_data_tracker, CONFIDENCE_THRESHOLD
 from src.nlq.core.dates import current_year, current_quarter, prior_year
@@ -441,7 +440,6 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None, entity
             result = dcl_client.query(
                 metric=metric,
                 time_range={"period": period, "granularity": "quarterly"},
-                tenant_id=get_tenant_id(),
                 entity_id=entity_id,
             )
             if result.get("error") or not result.get("data"):
@@ -449,7 +447,6 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None, entity
                 result = dcl_client.query(
                     metric=metric,
                     time_range={"period": current_year(), "granularity": "annual"},
-                    tenant_id=get_tenant_id(),
                     entity_id=entity_id,
                 )
             if result.get("error"):
@@ -891,7 +888,7 @@ def _try_comparison_query(question: str, entity_id: Optional[str] = None) -> Opt
     def _dcl_val(metric: str, period: str) -> Optional[float]:
         """Query a single metric value from DCL for a specific period."""
         client = get_semantic_client()
-        result = client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=entity_id)
+        result = client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, entity_id=entity_id)
         if result.get("error") or not result.get("data"):
             return None
         data = result.get("data", [])
@@ -1579,7 +1576,6 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None, entit
     result = dcl_client.query(
         metric=metric,
         time_range={"period": requested_period, "granularity": "quarterly"},
-        tenant_id=get_tenant_id(),
         entity_id=entity_id,
     )
 
@@ -1886,7 +1882,7 @@ def _try_multi_metric_query(question: str) -> Optional[NLQResponse]:
     primary_value = None
 
     for term, metric in resolved:
-        result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=entity_id)
+        result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, entity_id=entity_id)
         if result.get("error") or not result.get("data"):
             continue
         data = result.get("data", [])
@@ -2154,7 +2150,6 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
         metric=metric,
         dimensions=[dimension],
         time_range={"period": current_period},
-        tenant_id=get_tenant_id(),
     )
 
     # If flat query failed, try graph resolution (cross-system join path)
@@ -2668,14 +2663,14 @@ def _handle_ambiguous_query_text(
         is_annual = bool(re.match(r'^20\d{2}$', str(period)))
         if is_annual:
             # For annual periods, query the current quarter directly
-            result = dcl_client.query(metric=metric, time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=entity_id)
+            result = dcl_client.query(metric=metric, time_range={"period": current_quarter(), "granularity": "quarterly"}, entity_id=entity_id)
             if result.get("error") or not result.get("data"):
                 # Fallback to yearly
-                result = dcl_client.query(metric=metric, time_range={"period": period}, tenant_id=get_tenant_id(), entity_id=entity_id)
+                result = dcl_client.query(metric=metric, time_range={"period": period}, entity_id=entity_id)
         else:
-            result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=entity_id)
+            result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, entity_id=entity_id)
             if result.get("error") or not result.get("data"):
-                result = dcl_client.query(metric=metric, time_range={"period": period}, tenant_id=get_tenant_id(), entity_id=entity_id)
+                result = dcl_client.query(metric=metric, time_range={"period": period}, entity_id=entity_id)
         if result.get("error"):
             return None
         data = result.get("data", [])
@@ -3231,7 +3226,7 @@ def _handle_ambiguous_query_text(
 
             def _get_top_deals(year: str):
                 """Get top deals from DCL."""
-                result = dcl_client.query(metric="top_deals", time_range={"period": year}, tenant_id=get_tenant_id(), entity_id=entity_id)
+                result = dcl_client.query(metric="top_deals", time_range={"period": year}, entity_id=entity_id)
                 return result.get("data", [])
 
             # Check if specific year is requested
@@ -3766,7 +3761,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
             _cost_parts = []
             _cost_total = 0
             for _cm_key, _cm_name in _cost_metrics:
-                _cr = _cost_client.query(metric=_cm_key, time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=_request_entity_id)
+                _cr = _cost_client.query(metric=_cm_key, time_range={"period": current_quarter(), "granularity": "quarterly"}, entity_id=_request_entity_id)
                 if _cr.get("data") and not _cr.get("error"):
                     _cd = _cr["data"]
                     if isinstance(_cd, list) and _cd and isinstance(_cd[0], dict):
@@ -3777,7 +3772,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
             if _cost_parts:
                 # Sort by value descending for "biggest cost driver"
                 _cost_parts.sort(key=lambda x: x[1], reverse=True)
-                _rev_r = _cost_client.query(metric="revenue", time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=_request_entity_id)
+                _rev_r = _cost_client.query(metric="revenue", time_range={"period": current_quarter(), "granularity": "quarterly"}, entity_id=_request_entity_id)
                 _rev_val = None
                 if _rev_r.get("data") and isinstance(_rev_r["data"], list) and _rev_r["data"]:
                     _rev_val = _rev_r["data"][0].get("value") if isinstance(_rev_r["data"][0], dict) else None
@@ -3818,7 +3813,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
             ]
             _sales_parts = []
             for _sm_key, _sm_name, _sm_unit, _sm_pre, _sm_suf in _sales_metrics:
-                _sr = _sales_client.query(metric=_sm_key, time_range={"period": current_quarter(), "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=_request_entity_id)
+                _sr = _sales_client.query(metric=_sm_key, time_range={"period": current_quarter(), "granularity": "quarterly"}, entity_id=_request_entity_id)
                 if _sr.get("data") and not _sr.get("error"):
                     _sd = _sr["data"]
                     if isinstance(_sd, list) and _sd and isinstance(_sd[0], dict):
@@ -3982,7 +3977,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
             _summary_metrics = ["revenue", "gross_margin_pct", "ebitda", "net_income", "arr"]
             _summary_parts = []
             for _sm in _summary_metrics:
-                _sr = dcl_client_summary.query(metric=_sm, time_range={"period": _summary_period, "granularity": "quarterly"}, tenant_id=get_tenant_id(), entity_id=_request_entity_id)
+                _sr = dcl_client_summary.query(metric=_sm, time_range={"period": _summary_period, "granularity": "quarterly"}, entity_id=_request_entity_id)
                 if _sr.get("data") and not _sr.get("error"):
                     _data = _sr["data"]
                     if isinstance(_data, list) and _data:

@@ -63,11 +63,9 @@ class QueryExecutor:
         """
         granularity = "annual" if self._is_year_period(period) else "quarterly"
 
-        from src.nlq.config import get_tenant_id
         result = self.dcl_client.query(
             metric=metric,
             time_range={"period": period, "granularity": granularity},
-            tenant_id=get_tenant_id(),
             entity_id=self.entity_id,
         )
 

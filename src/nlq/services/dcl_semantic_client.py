@@ -29,7 +29,6 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from src.nlq.config import get_tenant_id
 from src.nlq.core.dates import current_quarter, current_year
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -861,16 +860,9 @@ class DCLSemanticClient:
             summary = self.get_ingest_summary()
             if summary is None or not summary.available:
                 return False
-            # Check if our tenant is in DCL's tenant list
-            if summary.tenant_names:
-                from src.nlq.config import get_tenant_id
-                current = get_tenant_id()
-                if current not in summary.tenant_names:
-                    logger.debug(
-                        "DCL ingest available but tenant %s not in DCL tenants: %s",
-                        current, summary.tenant_names
-                    )
-                    return False
+            # DCL tenant_ids come from Farm (synthetic company names like "AeroWorks-7SDK").
+            # NLQ's get_tenant_id() returns a Supabase UUID — different namespace entirely.
+            # Data isolation is handled by entity_id, not tenant_id. If DCL has data, it's live.
             return True
         except (RuntimeError, AttributeError, KeyError, TypeError) as e:
             logger.debug("Ingest summary check failed: %s", e)
