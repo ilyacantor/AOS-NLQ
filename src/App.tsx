@@ -244,6 +244,7 @@ function App() {
     if (!queryText.trim()) return
 
     setIsLoading(true)
+    setIsGeneratingDashboard(true)
     setFinancialStatementData(null)
     setBridgeChartData(null)
     setQuery('')
@@ -303,6 +304,7 @@ function App() {
           count: 1,
         }
         setQueryHistory(prev => [newItem, ...prev.filter(h => h.query.toLowerCase().trim() !== newItem.query.toLowerCase().trim())].slice(0, 100))
+        setIsGeneratingDashboard(false)
         setIsLoading(false)
         refreshLLMStats()
         setHistoryVersion(v => v + 1)
@@ -393,6 +395,7 @@ function App() {
       } as IntentMapResponse)
     }
 
+    setIsGeneratingDashboard(false)
     setIsLoading(false)
     refreshLLMStats()
     setHistoryVersion(v => v + 1)
