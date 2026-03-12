@@ -1551,7 +1551,7 @@ def _detect_entity_id(question: str) -> Optional[str]:
     return None
 
 
-def _build_simple_metric_result(metric: str, period: Optional[str] = None, entity_id: Optional[str] = None) -> Optional[SimpleMetricResult]:
+def _build_simple_metric_result(metric: str, period: Optional[str] = None, entity_id: Optional[str] = None, filters: Optional[dict] = None) -> Optional[SimpleMetricResult]:
     """
     Build a SimpleMetricResult for a resolved metric.
 
@@ -1573,8 +1573,11 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None, entit
     is_annual = bool(_re_bsmr.match(r'^20\d{2}$', str(requested_period)))
     is_quarterly = bool(_re_bsmr.match(r'^20\d{2}-Q[1-4]$', str(requested_period)))
 
+    dcl_dimensions = list(filters.keys()) if filters else None
     result = dcl_client.query(
         metric=metric,
+        dimensions=dcl_dimensions,
+        filters=filters,
         time_range={"period": requested_period, "granularity": "quarterly"},
         entity_id=entity_id,
     )
@@ -1708,11 +1711,11 @@ def _has_explicit_period(question: str) -> bool:
     return False
 
 
-def _build_combined_metric_result(metric: str, period: Optional[str] = None) -> Optional['SimpleMetricResult']:
+def _build_combined_metric_result(metric: str, period: Optional[str] = None, filters: Optional[dict] = None) -> Optional['SimpleMetricResult']:
     """Query both meridian and cascadia, sum additive metrics or average non-additive."""
     from src.nlq.knowledge.schema import is_additive_metric
-    m_result = _build_simple_metric_result(metric, period, entity_id="meridian")
-    c_result = _build_simple_metric_result(metric, period, entity_id="cascadia")
+    m_result = _build_simple_metric_result(metric, period, entity_id="meridian", filters=filters)
+    c_result = _build_simple_metric_result(metric, period, entity_id="cascadia", filters=filters)
     if m_result is None and c_result is None:
         return None
     if m_result is None:
@@ -1764,6 +1767,7 @@ def _try_report_query(question: str, session_id: Optional[str] = None, entity_id
         statement_type=intent.statement_type,
         variant=intent.variant,
         selected_quarter=intent.selected_quarter,
+        segment=intent.segment,
     )
 
     if result and result.financial_statement_data and session_id:

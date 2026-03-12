@@ -106,6 +106,7 @@ class ReportGenerator:
         statement_type: str,
         variant: str,
         selected_quarter: Optional[str] = None,
+        segment: Optional[str] = None,
     ) -> Optional[NLQResponse]:
         """Generate a financial report with comparison columns.
 
@@ -185,9 +186,10 @@ class ReportGenerator:
             )
 
         # 4. Query metrics for left and right period columns (in parallel)
+        dcl_filters = {"segment": segment} if segment else None
         with ThreadPoolExecutor(max_workers=2) as pool:
-            left_future = pool.submit(propagate_context(self._query_periods), line_items, comparison.left_periods)
-            right_future = pool.submit(propagate_context(self._query_periods), line_items, comparison.right_periods)
+            left_future = pool.submit(propagate_context(self._query_periods), line_items, comparison.left_periods, dcl_filters)
+            right_future = pool.submit(propagate_context(self._query_periods), line_items, comparison.right_periods, dcl_filters)
             left_values = left_future.result()
             right_values = right_future.result()
 
@@ -318,6 +320,7 @@ class ReportGenerator:
         self,
         line_items: List[str],
         periods: list,
+        filters: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Optional[float]]:
         """Query metrics across periods and aggregate.
 
@@ -347,7 +350,10 @@ class ReportGenerator:
 
         def _fetch(metric_id: str, period_idx: int, period_label: str):
             try:
-                result = self.query_fn(metric_id, period_label)
+                if filters:
+                    result = self.query_fn(metric_id, period_label, filters=filters)
+                else:
+                    result = self.query_fn(metric_id, period_label)
                 if result is not None:
                     return (metric_id, period_idx, result.value)
             except Exception as exc:

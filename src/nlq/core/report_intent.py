@@ -31,6 +31,7 @@ class ReportIntent:
     statement_type: str  # "income_statement", "balance_sheet", "cash_flow"
     variant: str  # "full_year_act_vs_py", "quarterly_act_vs_py", etc.
     selected_quarter: Optional[str] = None  # e.g., "2025-Q3"
+    segment: Optional[str] = None  # e.g., "Strategy", "Operations"
     raw_question: str = ""
 
 
@@ -93,6 +94,23 @@ _YEAR_PATTERN = re.compile(
 # Only triggers when a statement type is also present.
 _GENERIC_COMPARISON_PATTERN = re.compile(
     r"(?:\bvs?\.?\b|\bversus\b|\bcompared?\s+to\b|\bagainst\b|\brelative\s+to\b)",
+    re.IGNORECASE,
+)
+
+
+# ---------------------------------------------------------------------------
+# Segment / practice area pattern
+# ---------------------------------------------------------------------------
+
+# Known segments — consultancy practice areas and BPM service lines.
+# Matched case-insensitively at the end of the question after "for".
+_KNOWN_SEGMENTS = [
+    "Strategy", "Operations", "Technology", "Risk", "Digital/AI", "Commercial",
+    "Finance & Accounting", "HR Operations", "Customer Operations", "Supply Chain",
+]
+
+_SEGMENT_PATTERN = re.compile(
+    r"\bfor\s+(" + "|".join(re.escape(s) for s in _KNOWN_SEGMENTS) + r")\s*$",
     re.IGNORECASE,
 )
 
@@ -194,6 +212,19 @@ def _extract_quarter(question: str) -> Optional[str]:
     return f"{year}-Q{quarter_num}"
 
 
+def _extract_segment(question: str) -> Optional[str]:
+    """Extract a segment/practice area name from the question."""
+    m = _SEGMENT_PATTERN.search(question)
+    if m:
+        # Return with proper casing from _KNOWN_SEGMENTS
+        matched = m.group(1).lower()
+        for seg in _KNOWN_SEGMENTS:
+            if seg.lower() == matched:
+                return seg
+        return m.group(1)
+    return None
+
+
 def _latest_completed_quarter() -> str:
     """Return the most recently completed quarter, e.g. '2025-Q4'."""
     from src.nlq.core.dates import current_quarter
@@ -239,10 +270,16 @@ def detect_report_intent(question: str) -> Optional[ReportIntent]:
             # Default to latest completed quarter
             selected_quarter = _latest_completed_quarter()
 
+    # Extract segment (only for P&L — BS and SOCF don't support segmentation)
+    segment = None
+    if statement_type == "income_statement":
+        segment = _extract_segment(question)
+
     intent = ReportIntent(
         statement_type=statement_type,
         variant=variant,
         selected_quarter=selected_quarter,
+        segment=segment,
         raw_question=question,
     )
     logger.info("Report intent detected: %s", intent)

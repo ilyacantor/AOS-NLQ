@@ -1254,6 +1254,7 @@ class DCLSemanticClient:
         "net_income_pct": "net_margin_pct",
         "ltv_cac": "ltv_cac_ratio",
         "time_to_fill_days": "time_to_fill",
+        "cfo": "cash_from_operations",
     }
 
     def _negotiate_metric_id(self, nlq_metric: str) -> str:
