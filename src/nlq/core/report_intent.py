@@ -69,7 +69,7 @@ _ACT_VS_PY_PATTERN = re.compile(
 )
 
 _CF_VS_PY_PATTERN = re.compile(
-    r"(?:(?:current\s+)?forecast\s+vs?\.?\s+(?:prior\s+year|py|last\s+year|prev(?:ious)?\s+year)"
+    r"(?:(?:current\s+)?forecast\s+(?:for\s+)?(?:Q[1-4]\s+\d{4}\s+)?vs?\.?\s+(?:prior\s+year|py|last\s+year|prev(?:ious)?\s+year)"
     r"|cf\s+vs?\.?\s+py"
     r"|forecast\s+comp(?:arison)?)",
     re.IGNORECASE,
