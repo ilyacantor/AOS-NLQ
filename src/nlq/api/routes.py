@@ -50,7 +50,7 @@ from src.nlq.services.llm_call_counter import get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
 from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
 from src.nlq.services.dcl_enrichment import enrich_response as dcl_enrich_response
-from src.nlq.services.dcl_semantic_client import set_force_local, set_data_mode, set_entity_id, force_local_data, diag, diag_init, diag_collect, reset_provenance_ctx
+from src.nlq.services.dcl_semantic_client import set_force_local, set_data_mode, set_entity_id, force_local_data, diag, diag_init, diag_collect, reset_provenance_ctx, propagate_context
 from src.nlq.services.insufficient_data_tracker import get_insufficient_data_tracker, CONFIDENCE_THRESHOLD
 from src.nlq.core.dates import current_year, current_quarter, prior_year
 
@@ -4762,8 +4762,9 @@ async def reconciliation():
 
     try:
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            wrapped = propagate_context(_fetch)
             futures = [
-                pool.submit(_fetch, metric_id, period)
+                pool.submit(wrapped, metric_id, period)
                 for metric_id, period, _ in all_checks
             ]
             for future in as_completed(futures):

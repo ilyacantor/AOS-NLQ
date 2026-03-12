@@ -18,6 +18,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
 from typing import Callable, Dict, List, Optional
 
+from src.nlq.services.dcl_semantic_client import propagate_context
+
 from src.nlq.models.response import (
     NLQResponse,
     FinancialStatementData,
@@ -184,8 +186,8 @@ class ReportGenerator:
 
         # 4. Query metrics for left and right period columns (in parallel)
         with ThreadPoolExecutor(max_workers=2) as pool:
-            left_future = pool.submit(self._query_periods, line_items, comparison.left_periods)
-            right_future = pool.submit(self._query_periods, line_items, comparison.right_periods)
+            left_future = pool.submit(propagate_context(self._query_periods), line_items, comparison.left_periods)
+            right_future = pool.submit(propagate_context(self._query_periods), line_items, comparison.right_periods)
             left_values = left_future.result()
             right_values = right_future.result()
 
@@ -356,8 +358,9 @@ class ReportGenerator:
             return (metric_id, period_idx, None)
 
         with ThreadPoolExecutor(max_workers=min(32, len(line_items) * len(periods))) as pool:
+            wrapped = propagate_context(_fetch)
             futures = [
-                pool.submit(_fetch, metric_id, pi, period_info.label)
+                pool.submit(wrapped, metric_id, pi, period_info.label)
                 for metric_id in line_items
                 for pi, period_info in enumerate(periods)
             ]

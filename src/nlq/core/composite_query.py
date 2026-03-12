@@ -13,6 +13,8 @@ import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable, Dict, List, Optional
 
+from src.nlq.services.dcl_semantic_client import propagate_context
+
 from src.nlq.models.response import (
     NLQResponse,
     RelatedMetric,
@@ -151,8 +153,9 @@ class PLStatementHandler:
 
         total_queries = len(self.periods) * len(PL_LINE_ITEMS)
         with ThreadPoolExecutor(max_workers=min(32, total_queries)) as pool:
+            wrapped = propagate_context(_fetch)
             futures = [
-                pool.submit(_fetch, metric, period)
+                pool.submit(wrapped, metric, period)
                 for period in self.periods
                 for metric in PL_LINE_ITEMS
             ]

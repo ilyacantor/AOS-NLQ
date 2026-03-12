@@ -22,6 +22,7 @@ Usage:
 
 import contextlib
 import contextvars
+import functools
 import json
 import logging
 import os
@@ -45,6 +46,33 @@ _diag_trace: contextvars.ContextVar[Optional[List[str]]] = contextvars.ContextVa
 
 _last_provenance_ctx: contextvars.ContextVar[Optional[Dict[str, Any]]] = contextvars.ContextVar('_last_provenance_ctx', default=None)
 _last_data_source_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar('_last_data_source_ctx', default=None)
+
+
+def propagate_context(fn):
+    """Wrap fn so it runs with the caller's request-scoped contextvars.
+
+    Usage: pool.submit(propagate_context(my_func), arg1, arg2)
+
+    Captures contextvar values at wrap time (main thread), then sets them
+    in the worker thread before calling fn. Safe to reuse the wrapped
+    callable across multiple pool.submit() calls.
+    """
+    snapshot = {
+        "force_local": _force_local_ctx.get(),
+        "data_mode": _data_mode_ctx.get(),
+        "entity_id": _entity_id_ctx.get(),
+        "diag_trace": _diag_trace.get(),
+    }
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        _force_local_ctx.set(snapshot["force_local"])
+        _data_mode_ctx.set(snapshot["data_mode"])
+        _entity_id_ctx.set(snapshot["entity_id"])
+        _diag_trace.set(snapshot["diag_trace"])
+        return fn(*args, **kwargs)
+
+    return wrapper
 
 
 def diag(msg: str) -> None:
@@ -1434,7 +1462,7 @@ class DCLSemanticClient:
             # In live mode, this is an error — no silent fallback to fact_base.
             dcl_meta_source = (dcl_body.get("metadata") or {}).get("source", "")
             dcl_data = dcl_body.get("data", [])
-            if dcl_meta_source == "ingest_empty" and not dcl_data:
+            if dcl_meta_source == "no_data_error" and not dcl_data:
                 if data_mode == "demo":
                     diag(f"[NLQ-DIAG] query() DCL returned ingest_empty — falling back to local tenant data (demo mode)")
                     result = self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
@@ -1524,6 +1552,13 @@ class DCLSemanticClient:
         else:
             metadata.setdefault("freshness_display", "")
         normalized["metadata"] = metadata
+
+        # Surface DCL-reported errors at top level so route handlers see them.
+        # Without this, metadata.error is invisible — routes check result.get("error").
+        dcl_error = metadata.get("error")
+        if dcl_error:
+            normalized["error"] = dcl_error
+            normalized["status"] = "error"
 
         # Derive source_systems from provenance[] OR metadata.sources[]
         # DCL may provide either: provenance[].source_system (detailed) or

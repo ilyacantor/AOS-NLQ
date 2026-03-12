@@ -5,14 +5,13 @@ This module routes all data access through DCL's query API.
 NLQ holds no local data - it's a stateless UI layer.
 """
 
-import contextvars
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
 from src.nlq.core.dates import current_year, current_quarter
 
-from src.nlq.services.dcl_semantic_client import get_semantic_client
+from src.nlq.services.dcl_semantic_client import get_semantic_client, propagate_context
 from src.nlq.knowledge.schema import get_metric_unit
 from src.nlq.knowledge.display import get_display_name
 from src.nlq.models.dashboard_schema import (
@@ -102,9 +101,11 @@ class DashboardDataResolver:
                     "status": "resolution_error",
                 }
 
-        ctx = contextvars.copy_context()
         with ThreadPoolExecutor(max_workers=6) as pool:
-            futures = [pool.submit(ctx.run, _resolve_one, w) for w in schema.widgets]
+            futures = [
+                pool.submit(propagate_context(_resolve_one), w)
+                for w in schema.widgets
+            ]
             for future in futures:
                 wid, data = future.result()
                 widget_data[wid] = data
