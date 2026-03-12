@@ -4285,6 +4285,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
                     return NLQResponse(
                         success=False,
                         answer=f"Dashboard refinement failed: {str(e)}. This error is shown because strict mode is enabled.",
+                        confidence=0.0,
                         error_code="REFINEMENT_FAILED",
                         error_details={"exception": str(e), "category": FailureCategory.REFINEMENT.value},
                     )
@@ -4342,6 +4343,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
                     return NLQResponse(
                         success=False,
                         answer=f"Dashboard generation failed: {str(e)}. This error is shown because strict mode is enabled.",
+                        confidence=0.0,
                         error_code="DASHBOARD_GENERATION_FAILED",
                         error_details={"exception": str(e), "category": FailureCategory.SCHEMA_GENERATION.value},
                     )

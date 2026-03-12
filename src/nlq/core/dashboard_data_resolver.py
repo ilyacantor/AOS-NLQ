@@ -5,7 +5,9 @@ This module routes all data access through DCL's query API.
 NLQ holds no local data - it's a stateless UI layer.
 """
 
+import contextvars
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
 from src.nlq.core.dates import current_year, current_quarter
@@ -78,27 +80,34 @@ class DashboardDataResolver:
         widget_data = {}
         filters = active_filters or {}
 
-        for widget in schema.widgets:
+        def _resolve_one(widget: Widget) -> tuple:
+            """Resolve a single widget, returning (widget_id, data_dict)."""
             try:
                 data = self._resolve_widget_data(widget, reference_year, filters)
                 if isinstance(data, dict) and data.get("error"):
                     logger.error(
                         f"Widget {widget.id} data resolution failed: {data['error']}"
                     )
-                    widget_data[widget.id] = {
+                    return widget.id, {
                         "error": data["error"],
                         "widget_id": widget.id,
                         "status": "dcl_error",
                     }
-                    continue
-                widget_data[widget.id] = data
+                return widget.id, data
             except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
                 logger.error(f"Error resolving data for widget {widget.id}: {e}")
-                widget_data[widget.id] = {
+                return widget.id, {
                     "error": str(e),
                     "widget_id": widget.id,
                     "status": "resolution_error",
                 }
+
+        ctx = contextvars.copy_context()
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            futures = [pool.submit(ctx.run, _resolve_one, w) for w in schema.widgets]
+            for future in futures:
+                wid, data = future.result()
+                widget_data[wid] = data
 
         return widget_data
 
