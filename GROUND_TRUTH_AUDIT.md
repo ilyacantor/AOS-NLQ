@@ -2,7 +2,7 @@
 
 ## Critical Finding
 
-**The test harness (`test_30_ground_truth.py`) tests the DCL data layer directly — NOT the NLQ natural language endpoint that users actually interact with.**
+**wrong behavior - The test harness (`test_30_ground_truth.py`) tests the DCL data layer directly — NOT the NLQ natural language endpoint that users actually interact with. YOU MUST TEST NLQ DIRECTLY**
 
 - **DCL endpoint** (`POST /api/dcl/query`): Receives pre-parsed structured JSON like `{"metric": "arr", "persona": "cfo"}` — **bypasses all NLQ parsing**
 - **NLQ endpoint** (`POST /api/v1/query`): Receives natural language like `"What is our current ARR?"` — **what users actually type**
