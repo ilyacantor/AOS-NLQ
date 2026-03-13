@@ -1,0 +1,243 @@
+{
+  "timestamp": "2026-03-09T23:01:35.411523+00:00",
+  "endpoint": "http://localhost:8005/api/v1/query",
+  "assumptions_source": "compiled_defaults (mirrors Assumptions dataclass)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "pass_rate_pct": 100.0
+  },
+  "results": [
+    {
+      "test_id": "MA_001",
+      "query": "Maestra engagement creation returns valid structure",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "engagement"
+      ],
+      "passed": true,
+      "response_time_s": 0.459,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "engagement_id",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "7601822b-6154-4fa3-bf03-b008a1cafeb7",
+          "passed": true,
+          "message": "expected not null, actual='7601822b-6154-4fa3-bf03-b008a1cafeb7'"
+        },
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected not null, actual='prework_complete'"
+        },
+        {
+          "field": "deal_name",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Meridian-Cascadia Integration",
+          "passed": true,
+          "message": "expected not null, actual='Meridian-Cascadia Integration'"
+        },
+        {
+          "field": "workstreams",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 5,
+          "passed": true,
+          "message": "expected > 0, actual=5"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_002",
+      "query": "Give me an overview of where we stand",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "overview"
+      ],
+      "passed": true,
+      "response_time_s": 14.194,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Starting with the cross-sell pipeline, we found 103 qualified opportunities worth $272.5M in potential revenue across both directions. This includes 65 Cascadia clients ready for Meridian's advisory services and 38 Meridian clients positioned for Cascadia's managed services.\n\nFrom the EBITDA bridge analysis, we're looking at combined reported EBITDA of $1.22B, adjusted to $1.45B after normalizations, reaching $1.56B pro forma in Year 1 and $1.68B at steady state after full synergy realization.\n\nThe cross-sell pipeline sustainability shows a Grade B with an overall score of 78.9 \u2014 strong contract quality but some concentration concerns with the top overlapping client representing 5.2% of combined revenue.\n\nVendor consolidation opportunities span 170 overlapping suppliers with $48.8M in estimated annual savings, led by cloud infrastructure, staffing, and professional services consolidation.\n\nCustomer overlap shows 34 shared accounts generating $1.41B in combined revenue, including one concentration threshold crossing that requires attention.",
+          "passed": true,
+          "message": "expected not null, actual=\"Starting with the cross-sell pipeline, we found 103 qualified opportunities worth $272.5M in potential revenue across both directions. This includes 65 Cascadia clients ready for Meridian's advisory services and 38 Meridian clients positioned for Cascadia's managed services.\\n\\nFrom the EBITDA bridge analysis, we're looking at combined reported EBITDA of $1.22B, adjusted to $1.45B after normalizations, reaching $1.56B pro forma in Year 1 and $1.68B at steady state after full synergy realization.\\n\\nThe cross-sell pipeline sustainability shows a Grade B with an overall score of 78.9 \u2014 strong contract quality but some concentration concerns with the top overlapping client representing 5.2% of combined revenue.\\n\\nVendor consolidation opportunities span 170 overlapping suppliers with $48.8M in estimated annual savings, led by cloud infrastructure, staffing, and professional services consolidation.\\n\\nCustomer overlap shows 34 shared accounts generating $1.41B in combined revenue, including one concentration threshold crossing that requires attention.\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "EBITDA",
+          "actual": "Starting with the cross-sell pipeline, we found 103 qualified opportunities worth $272.5M in potential revenue across both directions. This includes 65 Cascadia clients ready for Meridian's advisory services and 38 Meridian clients positioned for Cascadia's managed services.\n\nFrom the EBITDA bridge analysis, we're looking at combined reported EBITDA of $1.22B, adjusted to $1.45B after normalizations, reaching $1.56B pro forma in Year 1 and $1.68B at steady state after full synergy realization.\n\nThe cross-sell pipeline sustainability shows a Grade B with an overall score of 78.9 \u2014 strong contract quality but some concentration concerns with the top overlapping client representing 5.2% of combined revenue.\n\nVendor consolidation opportunities span 170 overlapping suppliers with $48.8M in estimated annual savings, led by cloud infrastructure, staffing, and professional services consolidation.\n\nCustomer overlap shows 34 shared accounts generating $1.41B in combined revenue, including one concentration threshold crossing that requires attention.",
+          "passed": true,
+          "message": "expected to contain 'EBITDA', actual='Starting with the cross-sell pipeline, we found 103 qualified opportunities worth $272.5M in potential revenue across bo'"
+        },
+        {
+          "field": "actions_taken",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "Queried cross_sell engine",
+            "Queried ebitda_bridge engine",
+            "Queried qoe engine",
+            "Queried entity_resolution engine"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['Queried cross_sell engine', 'Queried ebitda_bridge engine', 'Queried qoe engine', 'Queried entity_resolution engine']"
+        },
+        {
+          "field": "suggestions",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "Show me the cross-sell details",
+            "Walk me through the bridge",
+            "What about vendor overlap?"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['Show me the cross-sell details', 'Walk me through the bridge', 'What about vendor overlap?']"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_003",
+      "query": "Walk me through the EBITDA bridge",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "bridge",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 19.602,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Here's the EBITDA bridge from reported to pro forma:\n\nThe EBITDA bridge shows we're moving from $1.22B combined reported to $1.68B at steady state - a $461M improvement. The largest adjustments are Cascadia's delivery center closure ($35M) and Meridian's utilization normalization ($45M). The biggest synergy is bench optimization at $135M from cross-deploying resources between entities.\n\nThe what-if spread ranges from $1.66B to $1.79B at steady state depending on synergy capture rates. Should I walk through the cross-sell pipeline details next?",
+          "passed": true,
+          "message": "expected not null, actual=\"Here's the EBITDA bridge from reported to pro forma:\\n\\nThe EBITDA bridge shows we're moving from $1.22B combined reported to $1.68B at steady state - a $461M improvement. The largest adjustments are Cascadia's delivery center closure ($35M) and Meridian's utilization normalization ($45M). The biggest synergy is bench optimization at $135M from cross-deploying resources between entities.\\n\\nThe what-if spread ranges from $1.66B to $1.79B at steady state depending on synergy capture rates. Should I walk through the cross-sell pipeline details next?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "bridge",
+          "actual": "Here's the EBITDA bridge from reported to pro forma:\n\nThe EBITDA bridge shows we're moving from $1.22B combined reported to $1.68B at steady state - a $461M improvement. The largest adjustments are Cascadia's delivery center closure ($35M) and Meridian's utilization normalization ($45M). The biggest synergy is bench optimization at $135M from cross-deploying resources between entities.\n\nThe what-if spread ranges from $1.66B to $1.79B at steady state depending on synergy capture rates. Should I walk through the cross-sell pipeline details next?",
+          "passed": true,
+          "message": "expected to contain 'bridge', actual='Here's the EBITDA bridge from reported to pro forma:\n\nThe EBITDA bridge shows we're moving from $1.22B combined reported'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "bridge",
+          "actual": "bridge",
+          "passed": true,
+          "message": "expected='bridge', actual='bridge'"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_004",
+      "query": "What cross-sell opportunities do we have?",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "cross_sell",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 20.128,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "The cross-sell pipeline has strong momentum in both directions. The Meridian-to-Cascadia opportunities focus heavily on F&A Outsourcing - clients like Wavecrest Analytics and Quasar Tech have completed multiple strategic projects and show 44+ manual processes ready for automation.\n\nThe Cascadia-to-Meridian flow centers on Strategy Consulting - these BPM clients have high process complexity scores (8.0+/10) indicating they need upstream advisory work. Tidewater BPM 4 is particularly strong at $2.7M with recent M&A activity creating integration needs.\n\nKey concentration risk: The shared financial services clients represent $89.3M of the total pipeline. Should I walk through the vendor consolidation opportunities next?",
+          "passed": true,
+          "message": "expected not null, actual='The cross-sell pipeline has strong momentum in both directions. The Meridian-to-Cascadia opportunities focus heavily on F&A Outsourcing - clients like Wavecrest Analytics and Quasar Tech have completed multiple strategic projects and show 44+ manual processes ready for automation.\\n\\nThe Cascadia-to-Meridian flow centers on Strategy Consulting - these BPM clients have high process complexity scores (8.0+/10) indicating they need upstream advisory work. Tidewater BPM 4 is particularly strong at $2.7M with recent M&A activity creating integration needs.\\n\\nKey concentration risk: The shared financial services clients represent $89.3M of the total pipeline. Should I walk through the vendor consolidation opportunities next?'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "pipeline",
+          "actual": "The cross-sell pipeline has strong momentum in both directions. The Meridian-to-Cascadia opportunities focus heavily on F&A Outsourcing - clients like Wavecrest Analytics and Quasar Tech have completed multiple strategic projects and show 44+ manual processes ready for automation.\n\nThe Cascadia-to-Meridian flow centers on Strategy Consulting - these BPM clients have high process complexity scores (8.0+/10) indicating they need upstream advisory work. Tidewater BPM 4 is particularly strong at $2.7M with recent M&A activity creating integration needs.\n\nKey concentration risk: The shared financial services clients represent $89.3M of the total pipeline. Should I walk through the vendor consolidation opportunities next?",
+          "passed": true,
+          "message": "expected to contain 'pipeline', actual='The cross-sell pipeline has strong momentum in both directions. The Meridian-to-Cascadia opportunities focus heavily on '"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "crosssell",
+          "actual": "crosssell",
+          "passed": true,
+          "message": "expected='crosssell', actual='crosssell'"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_005",
+      "query": "Show me the quality of earnings analysis",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "qoe",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 16.365,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "The quality of earnings sustainability analysis shows a Grade B with an overall score of 78.9 out of 100. Customer concentration scores perfectly at 100 \u2014 no alerts despite the known 40% concentration you mentioned. Contract quality is solid with 31.6% MSAs and 8.2-year average client tenure.\n\nThe weakest area is organic revenue at 25.8, reflecting the 17.2% recurring revenue mix in this project-based business. Margin stability scores well at 90 with consistent trending from 17.8% to 18.5% EBITDA margins over the forecast period.\n\nWorking capital health at 80.0 shows stable DSO at 13.5 days. The portal now shows quarterly tracking plans for all components. Any specific sustainability concerns you want to explore?",
+          "passed": true,
+          "message": "expected not null, actual='The quality of earnings sustainability analysis shows a Grade B with an overall score of 78.9 out of 100. Customer concentration scores perfectly at 100 \u2014 no alerts despite the known 40% concentration you mentioned. Contract quality is solid with 31.6% MSAs and 8.2-year average client tenure.\\n\\nThe weakest area is organic revenue at 25.8, reflecting the 17.2% recurring revenue mix in this project-based business. Margin stability scores well at 90 with consistent trending from 17.8% to 18.5% EBITDA margins over the forecast period.\\n\\nWorking capital health at 80.0 shows stable DSO at 13.5 days. The portal now shows quarterly tracking plans for all components. Any specific sustainability concerns you want to explore?'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "sustainability",
+          "actual": "The quality of earnings sustainability analysis shows a Grade B with an overall score of 78.9 out of 100. Customer concentration scores perfectly at 100 \u2014 no alerts despite the known 40% concentration you mentioned. Contract quality is solid with 31.6% MSAs and 8.2-year average client tenure.\n\nThe weakest area is organic revenue at 25.8, reflecting the 17.2% recurring revenue mix in this project-based business. Margin stability scores well at 90 with consistent trending from 17.8% to 18.5% EBITDA margins over the forecast period.\n\nWorking capital health at 80.0 shows stable DSO at 13.5 days. The portal now shows quarterly tracking plans for all components. Any specific sustainability concerns you want to explore?",
+          "passed": true,
+          "message": "expected to contain 'sustainability', actual='The quality of earnings sustainability analysis shows a Grade B with an overall score of 78.9 out of 100. Customer conce'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "qoe",
+          "actual": "qoe",
+          "passed": true,
+          "message": "expected='qoe', actual='qoe'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": []
+}

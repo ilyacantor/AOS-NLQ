@@ -1,0 +1,333 @@
+ AP 
+ AR 
+ ARR 
+ Avg Deal Size 
+ Bookings 
+ Bookings (TCV) 
+ Burn Multiple 
+ CAC Payback (months) 
+ Cash 
+ COGS 
+ Cost per Employee 
+ CSAT Score 
+ Current Assets 
+ Current Liabilities 
+ Customer Count 
+ Customer Success 
+ Deferred Revenue 
+ Employee Growth Rate 
+ Engineering 
+ Engineering Utilization 
+ Expansion Revenue 
+ First Response Time (hrs) 
+ Function 
+ G&A 
+ G&A Expenses 
+ Gross Margin % 
+ Gross Profit 
+ Gross Revenue Churn 
+ Implementation Time (days) 
+ Logo Churn 
+ LTV/CAC 
+ Magic Number 
+ Marketing 
+ Net Income 
+ Net Margin % 
+ Net Revenue Retention 
+ New Logo Revenue 
+ New Logos 
+ NPS 
+ Operating Margin % 
+ Operating Profit 
+ Pipeline Created 
+ Product 
+ PS Utilization 
+ Qualified Pipeline 
+ Quota Attainment 
+ Quota per Rep 
+ Renewal Revenue 
+ Reps at Quota 
+ Resolution Time (hrs) 
+ Revenue 
+ Revenue 
+ Revenue per Employee 
+ Sales 
+ Sales Cycle (days) 
+ Sales Headcount 
+ Sales Pipeline 
+ Sales Quota (Total) 
+ Selling Expenses 
+ SG&A 
+ Support Ticket Volume 
+ Support Utilization 
+ Time to Value (days) 
+ Total Headcount 
+ Win Rate 
+ Compare NRR 2024 vs 2025 
+ Compare win rate 2024 vs 2025 
+ How did bookings grow from 2024 to 2025? 
+ How did churn change from 2024 to 2025? 
+ How many customers did we have in 2024? 
+ How many new logos in Q4 2025? 
+ How many reps at quota in 2025? 
+ How many sales reps in 2025? 
+ How many total new logos in 2025? 
+ Question 
+ Question 
+ Question 
+ Question 
+ Question 
+ Question 
+ Question 
+ Question 
+ What was ACV in 2025? 
+ What was ARR in 2025? 
+ What was average deal size in 2025? 
+ What was average quarterly bookings in 2025? 
+ What was average quarterly win rate in 2025? 
+ What was customer count in 2025? 
+ What was expansion revenue in 2025? 
+ What was gross churn in 2026 forecast? 
+ What was gross revenue churn in 2024? 
+ What was logo churn in 2025? 
+ What was net revenue retention in 2025? 
+ What was new logo revenue in 2024? 
+ What was NRR last year? 
+ What was our win rate in 2024? 
+ What was Q2 2025 pipeline created? 
+ What was quota attainment in 2024? 
+ What was quota per rep in 2025? 
+ What was renewal revenue in 2025? 
+ What was TCV in 2025? 
+ What was the close rate in 2025? 
+ What was the sales funnel in 2025? 
+ What was the sales pipeline in 2025? 
+ What was the sales quota in 2025? 
+ What was the win rate in Q3 2025? 
+ What was total H1 2025 bookings? 
+ What was total pipeline created in 2025? 
+ What was win rate last quarter? 
+ What was YoY ARR growth in 2025? 
+ What were bookings last year? 
+ What were new business bookings in 2024? 
+ What were Q1 2025 bookings? 
+ What were Q4 2025 bookings? 
+ What were total bookings in 2024? 
+ What's forecast NRR for 2026? 
+ What's our ARR this year? 
+ What's projected win rate in 2026? 
+ What's the 2026 customer count target? 
+ What's the 2026 sales quota? 
+ What's the bookings forecast for 2026? 
+ What's the NRR forecast for 2026? 
+ What's the pipeline this year? 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -442,7 +442,7 @@
     {
       "id": 5,
       "question": "What were bookings in Q4 2025?",
-      "ground_truth": "$48.3M",
+      "ground_truth": "$55.73M",
       "metric": "bookings",
       "period_type": "quarterly",
       "year": 2025,
@@ -462,7 +462,7 @@
     {
       "id": 7,
       "question": "What was net income in 2024?",
-      "ground_truth": "$26.25M",
+      "ground_truth": "$13.0M",
       "metric": "net_income",
       "period_type": "annual",
       "year": 2024,
@@ -525,7 +525,7 @@
     {
       "id": 14,
       "question": "What was our net income last year?",
-      "ground_truth": "$39.38M",
+      "ground_truth": "$28.13M",
       "metric": "net_income",
       "period_type": "annual",
       "relative_period": "last_year",
@@ -543,7 +543,7 @@
     {
       "id": 16,
       "question": "What were bookings in the previous quarter?",
-      "ground_truth": "$48.3M",
+      "ground_truth": "$55.73M",
       "metric": "bookings",
       "period_type": "quarterly",
       "relative_period": "last_quarter",
@@ -579,7 +579,7 @@
     {
       "id": 20,
       "question": "What was net income percentage in 2024?",
-      "ground_truth": "26.2%",
+      "ground_truth": "13.0%",
       "metric": "net_income_pct",
       "period_type": "annual",
       "year": 2024,
@@ -607,7 +607,7 @@
     {
       "id": 23,
       "question": "What is the forecasted net income margin for 2026?",
-      "ground_truth": "26.2%",
+      "ground_truth": "22.5%",
       "metric": "net_income_pct",
       "period_type": "annual",
       "year": 2026,
@@ -784,7 +784,7 @@
     {
       "id": 42,
       "question": "What was the bottom line in 2024?",
-      "ground_truth": "$26.25M",
+      "ground_truth": "$13.0M",
       "metric": "net_income",
       "period_type": "annual",
       "year": 2024,
@@ -793,7 +793,7 @@
     {
       "id": 43,
       "question": "How much profit did we make in 2025?",
-      "ground_truth": "$39.38M",
+      "ground_truth": "$28.13M",
       "metric": "net_income",
       "period_type": "annual",
       "year": 2025,
@@ -894,7 +894,7 @@
     {
       "id": 54,
       "question": "What is the expected net income for 2026?",
-      "ground_truth": "$52.5M",
+      "ground_truth": "$45.0M",
       "metric": "net_income",
       "period_type": "annual",
       "year": 2026,

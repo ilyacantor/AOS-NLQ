@@ -163,3 +163,35 @@ class TestConfidenceCalculator:
         )
 
         assert ambiguous < confident
+
+    def test_confidence_never_exceeds_one_with_extreme_inputs(self, confidence_calculator):
+        """
+        CRITICAL: Prove confidence NEVER exceeds 1.0 even with extreme inputs.
+
+        Per spec: inputs like (1.5, 2.0, 1.8) must still return bounded result.
+        """
+        result = confidence_calculator.calculate(
+            intent_score=1.5,
+            entity_score=2.0,
+            data_score=1.8
+        )
+
+        assert result <= 1.0, f"Confidence {result} exceeded 1.0!"
+        assert result >= 0.0, f"Confidence {result} went below 0.0!"
+        # With all inputs clamped to 1.0, weighted average should be 1.0
+        assert result == 1.0
+
+    def test_confidence_never_goes_negative_with_extreme_inputs(self, confidence_calculator):
+        """
+        CRITICAL: Prove confidence NEVER goes below 0.0 even with extreme negative inputs.
+        """
+        result = confidence_calculator.calculate(
+            intent_score=-5.0,
+            entity_score=-10.0,
+            data_score=-100.0
+        )
+
+        assert result >= 0.0, f"Confidence {result} went below 0.0!"
+        assert result <= 1.0, f"Confidence {result} exceeded 1.0!"
+        # With all inputs clamped to 0.0, weighted average should be 0.0
+        assert result == 0.0

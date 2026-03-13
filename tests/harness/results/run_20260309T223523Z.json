@@ -1,0 +1,242 @@
+{
+  "timestamp": "2026-03-09T22:35:23.587295+00:00",
+  "endpoint": "http://localhost:8005/api/v1/query",
+  "assumptions_source": "compiled_defaults (mirrors Assumptions dataclass)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "pass_rate_pct": 100.0
+  },
+  "results": [
+    {
+      "test_id": "MA_001",
+      "query": "Maestra engagement creation returns valid structure",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "engagement"
+      ],
+      "passed": true,
+      "response_time_s": 0.353,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "engagement_id",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "d1cc562a-b53e-4823-b974-c8ca9bf8db2a",
+          "passed": true,
+          "message": "expected not null, actual='d1cc562a-b53e-4823-b974-c8ca9bf8db2a'"
+        },
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected not null, actual='prework_complete'"
+        },
+        {
+          "field": "deal_name",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Meridian-Cascadia Integration",
+          "passed": true,
+          "message": "expected not null, actual='Meridian-Cascadia Integration'"
+        },
+        {
+          "field": "workstreams",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 5,
+          "passed": true,
+          "message": "expected > 0, actual=5"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_002",
+      "query": "Give me an overview of where we stand",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "overview"
+      ],
+      "passed": true,
+      "response_time_s": 16.217,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Here's where we stand across all areas:\n\n**Cross-Sell Pipeline:** $273M total opportunity with $119M in high-confidence targets (22 accounts). Top prospect is Wavecrest Analytics at $10M F&A Outsourcing.\n\n**EBITDA Bridge:** Combined reported $1.22B \u2192 adjusted $1.45B \u2192 pro forma steady-state $1.68B. Key drivers are bench optimization ($135M) and vendor consolidation ($49M).\n\n**Sustainability Score:** 78.9/100 (B grade) \u2014 strong margin stability and low customer concentration, but short contract duration impacts score.\n\n**Vendor Consolidation:** 170 overlapping vendors creating $49M in consolidation savings.\n\n**People Integration:** 14,400 combined headcount with opportunity for corporate function consolidation worth $27M.\n\n**IT Landscape:** Dual-ERP challenge (SAP vs QuickBooks) with phased integration approach. Both systems continue operating.\n\nThis positions you well for your $215M revenue synergy target and system integration priorities.",
+          "passed": true,
+          "message": "expected not null, actual=\"Here's where we stand across all areas:\\n\\n**Cross-Sell Pipeline:** $273M total opportunity with $119M in high-confidence targets (22 accounts). Top prospect is Wavecrest Analytics at $10M F&A Outsourcing.\\n\\n**EBITDA Bridge:** Combined reported $1.22B \u2192 adjusted $1.45B \u2192 pro forma steady-state $1.68B. Key drivers are bench optimization ($135M) and vendor consolidation ($49M).\\n\\n**Sustainability Score:** 78.9/100 (B grade) \u2014 strong margin stability and low customer concentration, but short contract duration impacts score.\\n\\n**Vendor Consolidation:** 170 overlapping vendors creating $49M in consolidation savings.\\n\\n**People Integration:** 14,400 combined headcount with opportunity for corporate function consolidation worth $27M.\\n\\n**IT Landscape:** Dual-ERP challenge (SAP vs QuickBooks) with phased integration approach. Both systems continue operating.\\n\\nThis positions you well for your $215M revenue synergy target and system integration priorities.\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "EBITDA",
+          "actual": "Here's where we stand across all areas:\n\n**Cross-Sell Pipeline:** $273M total opportunity with $119M in high-confidence targets (22 accounts). Top prospect is Wavecrest Analytics at $10M F&A Outsourcing.\n\n**EBITDA Bridge:** Combined reported $1.22B \u2192 adjusted $1.45B \u2192 pro forma steady-state $1.68B. Key drivers are bench optimization ($135M) and vendor consolidation ($49M).\n\n**Sustainability Score:** 78.9/100 (B grade) \u2014 strong margin stability and low customer concentration, but short contract duration impacts score.\n\n**Vendor Consolidation:** 170 overlapping vendors creating $49M in consolidation savings.\n\n**People Integration:** 14,400 combined headcount with opportunity for corporate function consolidation worth $27M.\n\n**IT Landscape:** Dual-ERP challenge (SAP vs QuickBooks) with phased integration approach. Both systems continue operating.\n\nThis positions you well for your $215M revenue synergy target and system integration priorities.",
+          "passed": true,
+          "message": "expected to contain 'EBITDA', actual='Here's where we stand across all areas:\n\n**Cross-Sell Pipeline:** $273M total opportunity with $119M in high-confidence '"
+        },
+        {
+          "field": "actions_taken",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "Queried cross_sell engine",
+            "Queried ebitda_bridge engine",
+            "Queried qoe engine"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['Queried cross_sell engine', 'Queried ebitda_bridge engine', 'Queried qoe engine']"
+        },
+        {
+          "field": "suggestions",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "Show me the cross-sell details",
+            "Walk me through the bridge",
+            "What about vendor overlap?"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['Show me the cross-sell details', 'Walk me through the bridge', 'What about vendor overlap?']"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_003",
+      "query": "Walk me through the EBITDA bridge",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "bridge",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 17.884,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "The bridge shows a path from $1.22B reported to $1.68B steady-state pro forma EBITDA. The biggest value drivers are bench optimization ($135M) and your corporate function consolidation ($27M).\n\nKey insight: Cascadia's negative EBITDA is due to one-time restructuring costs \u2014 the underlying business adjusts to break-even after normalization.\n\nWhat questions do you have on the bridge mechanics?",
+          "passed": true,
+          "message": "expected not null, actual=\"The bridge shows a path from $1.22B reported to $1.68B steady-state pro forma EBITDA. The biggest value drivers are bench optimization ($135M) and your corporate function consolidation ($27M).\\n\\nKey insight: Cascadia's negative EBITDA is due to one-time restructuring costs \u2014 the underlying business adjusts to break-even after normalization.\\n\\nWhat questions do you have on the bridge mechanics?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "bridge",
+          "actual": "The bridge shows a path from $1.22B reported to $1.68B steady-state pro forma EBITDA. The biggest value drivers are bench optimization ($135M) and your corporate function consolidation ($27M).\n\nKey insight: Cascadia's negative EBITDA is due to one-time restructuring costs \u2014 the underlying business adjusts to break-even after normalization.\n\nWhat questions do you have on the bridge mechanics?",
+          "passed": true,
+          "message": "expected to contain 'bridge', actual='The bridge shows a path from $1.22B reported to $1.68B steady-state pro forma EBITDA. The biggest value drivers are benc'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "bridge",
+          "actual": "bridge",
+          "passed": true,
+          "message": "expected='bridge', actual='bridge'"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_004",
+      "query": "What cross-sell opportunities do we have?",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "cross_sell",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 19.84,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**Key Insights:**\n- **22 high-confidence targets** worth $119M (44% of total pipeline)\n- **Cascadia \u2192 Meridian:** Stronger pipeline ($155M vs $117M) - their advisory clients need F&A Outsourcing\n- **At-risk accounts:** 3 Cascadia customers show M&A activity - priority for retention\n\nAny specific accounts you want to drill into?",
+          "passed": true,
+          "message": "expected not null, actual='**Key Insights:**\\n- **22 high-confidence targets** worth $119M (44% of total pipeline)\\n- **Cascadia \u2192 Meridian:** Stronger pipeline ($155M vs $117M) - their advisory clients need F&A Outsourcing\\n- **At-risk accounts:** 3 Cascadia customers show M&A activity - priority for retention\\n\\nAny specific accounts you want to drill into?'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "pipeline",
+          "actual": "**Key Insights:**\n- **22 high-confidence targets** worth $119M (44% of total pipeline)\n- **Cascadia \u2192 Meridian:** Stronger pipeline ($155M vs $117M) - their advisory clients need F&A Outsourcing\n- **At-risk accounts:** 3 Cascadia customers show M&A activity - priority for retention\n\nAny specific accounts you want to drill into?",
+          "passed": true,
+          "message": "expected to contain 'pipeline', actual='**Key Insights:**\n- **22 high-confidence targets** worth $119M (44% of total pipeline)\n- **Cascadia \u2192 Meridian:** Strong'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "crosssell",
+          "actual": "crosssell",
+          "passed": true,
+          "message": "expected='crosssell', actual='crosssell'"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_005",
+      "query": "Show me the quality of earnings analysis",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "qoe",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 11.189,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**Quality of Earnings Summary:**\n- **Sustainability Score:** 78.9/100 (B grade)\n- **Key Strengths:** Low customer concentration (HHI: 52.6), stable margins, consistent working capital\n- **Key Concerns:** Short contract duration (31.6% MSAs vs 35.1% T&M), limited organic revenue growth\n\n**Contract Quality:** Only 31.6% Master Service Agreements \u2014 most work is project-based, creating revenue volatility risk.\n\n**Customer Concentration:** Strong at 13.84% top-10 concentration \u2014 well below risk thresholds.\n\nThe B grade reflects solid fundamentals but contract duration remains the biggest sustainability risk. Any concerns about the quarterly tracking approach?",
+          "passed": true,
+          "message": "expected not null, actual='**Quality of Earnings Summary:**\\n- **Sustainability Score:** 78.9/100 (B grade)\\n- **Key Strengths:** Low customer concentration (HHI: 52.6), stable margins, consistent working capital\\n- **Key Concerns:** Short contract duration (31.6% MSAs vs 35.1% T&M), limited organic revenue growth\\n\\n**Contract Quality:** Only 31.6% Master Service Agreements \u2014 most work is project-based, creating revenue volatility risk.\\n\\n**Customer Concentration:** Strong at 13.84% top-10 concentration \u2014 well below risk thresholds.\\n\\nThe B grade reflects solid fundamentals but contract duration remains the biggest sustainability risk. Any concerns about the quarterly tracking approach?'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "sustainability",
+          "actual": "**Quality of Earnings Summary:**\n- **Sustainability Score:** 78.9/100 (B grade)\n- **Key Strengths:** Low customer concentration (HHI: 52.6), stable margins, consistent working capital\n- **Key Concerns:** Short contract duration (31.6% MSAs vs 35.1% T&M), limited organic revenue growth\n\n**Contract Quality:** Only 31.6% Master Service Agreements \u2014 most work is project-based, creating revenue volatility risk.\n\n**Customer Concentration:** Strong at 13.84% top-10 concentration \u2014 well below risk thresholds.\n\nThe B grade reflects solid fundamentals but contract duration remains the biggest sustainability risk. Any concerns about the quarterly tracking approach?",
+          "passed": true,
+          "message": "expected to contain 'sustainability', actual='**Quality of Earnings Summary:**\n- **Sustainability Score:** 78.9/100 (B grade)\n- **Key Strengths:** Low customer concen'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "qoe",
+          "actual": "qoe",
+          "passed": true,
+          "message": "expected='qoe', actual='qoe'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": []
+}

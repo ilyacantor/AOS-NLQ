@@ -1,0 +1,138 @@
+{
+  "timestamp": "2026-02-25T19:27:51.578482+00:00",
+  "endpoint": "https://aos-nlq.onrender.com/api/v1/query",
+  "assumptions_source": "AOS-Farm (C:\\Users\\ilyac\\code\\AOS-Farm)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 4,
+    "passed": 3,
+    "failed": 1,
+    "pass_rate_pct": 75.0
+  },
+  "results": [
+    {
+      "test_id": "ALIAS_001",
+      "query": "What is win rate?",
+      "persona": "cro",
+      "tags": [
+        "alias",
+        "cro",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 0.249,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "win_rate_pct",
+          "actual": "win_rate_pct",
+          "passed": true,
+          "message": "expected='win_rate_pct', actual='win_rate_pct'"
+        },
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            25.0,
+            55.0
+          ],
+          "actual": 3.587494,
+          "passed": false,
+          "message": "expected in [25.0, 55.0], actual=3.587494"
+        }
+      ]
+    },
+    {
+      "test_id": "ALIAS_002",
+      "query": "Show quota attainment",
+      "persona": "cro",
+      "tags": [
+        "alias",
+        "cro",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.128,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "quota_attainment_pct",
+          "actual": "quota_attainment_pct",
+          "passed": true,
+          "message": "expected='quota_attainment_pct', actual='quota_attainment_pct'"
+        }
+      ]
+    },
+    {
+      "test_id": "ALIAS_003",
+      "query": "What is gross margin?",
+      "persona": "cfo",
+      "tags": [
+        "alias",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.103,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "gross_margin_pct",
+          "actual": "gross_margin_pct",
+          "passed": true,
+          "message": "expected='gross_margin_pct', actual='gross_margin_pct'"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": "pct",
+          "passed": true,
+          "message": "expected='pct', actual='pct'"
+        }
+      ]
+    },
+    {
+      "test_id": "ALIAS_004",
+      "query": "cloud cost this quarter",
+      "persona": "cto",
+      "tags": [
+        "alias",
+        "cto",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.149,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "cloud_spend",
+          "actual": "cloud_spend",
+          "passed": true,
+          "message": "expected='cloud_spend', actual='cloud_spend'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": [
+    "ALIAS_001: value 3.587494 has 6 decimal places \u2014 possible direct fact_base.json read",
+    "ALIAS_003: value 454914.389989 has 6 decimal places \u2014 possible direct fact_base.json read"
+  ]
+}

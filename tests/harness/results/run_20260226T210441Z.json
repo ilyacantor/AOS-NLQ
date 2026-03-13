@@ -1,0 +1,1251 @@
+{
+  "timestamp": "2026-02-26T21:04:41.187574+00:00",
+  "endpoint": "http://localhost:8005/api/v1/query",
+  "assumptions_source": "AOS-Farm (C:\\Users\\ilyac\\code\\AOS-Farm)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 31,
+    "passed": 29,
+    "failed": 2,
+    "pass_rate_pct": 93.5
+  },
+  "results": [
+    {
+      "test_id": "PL_001",
+      "query": "What is our EBITDA for 2025?",
+      "persona": "cfo",
+      "tags": [
+        "pnl",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 4.111,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            40.0,
+            60.0
+          ],
+          "actual": 49.019999999999996,
+          "passed": true,
+          "message": "expected in [40.0, 60.0], actual=49.019999999999996"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "usd_millions",
+          "actual": "usd_millions",
+          "passed": true,
+          "message": "expected='usd_millions', actual='usd_millions'"
+        },
+        {
+          "field": "period",
+          "operator": "contains",
+          "expected": "2025",
+          "actual": "2025",
+          "passed": true,
+          "message": "expected to contain '2025', actual='2025'"
+        },
+        {
+          "field": "data_source",
+          "operator": "not_equals",
+          "expected": "demo",
+          "actual": "dcl",
+          "passed": true,
+          "message": "must not equal 'demo', actual='dcl'"
+        },
+        {
+          "field": "confidence",
+          "operator": "greater_than",
+          "expected": 0.7,
+          "actual": 0.95,
+          "passed": true,
+          "message": "expected > 0.7, actual=0.95"
+        }
+      ]
+    },
+    {
+      "test_id": "PL_002",
+      "query": "Show me the 2025 P&L",
+      "persona": "cfo",
+      "tags": [
+        "pnl",
+        "cfo",
+        "breakdown"
+      ],
+      "passed": true,
+      "response_time_s": 0.055,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "revenue",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            160.0
+          ],
+          "actual": 124.18,
+          "passed": true,
+          "message": "expected in [100.0, 160.0], actual=124.18"
+        },
+        {
+          "field": "cogs",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 42.25,
+          "passed": true,
+          "message": "expected not null, actual=42.25"
+        },
+        {
+          "field": "gross_profit",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 81.93,
+          "passed": true,
+          "message": "expected not null, actual=81.93"
+        },
+        {
+          "field": "ebitda",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 49.019999999999996,
+          "passed": true,
+          "message": "expected not null, actual=49.019999999999996"
+        },
+        {
+          "field": "net_income",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 33.51,
+          "passed": true,
+          "message": "expected not null, actual=33.51"
+        },
+        {
+          "field": "data_source",
+          "operator": "not_equals",
+          "expected": "demo",
+          "actual": "dcl",
+          "passed": true,
+          "message": "must not equal 'demo', actual='dcl'"
+        }
+      ]
+    },
+    {
+      "test_id": "PL_003",
+      "query": "What was gross margin in Q3 2025?",
+      "persona": "cfo",
+      "tags": [
+        "pnl",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.003,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            60.0,
+            75.0
+          ],
+          "actual": 66.0,
+          "passed": true,
+          "message": "expected in [60.0, 75.0], actual=66.0"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": "pct",
+          "passed": true,
+          "message": "expected='pct', actual='pct'"
+        },
+        {
+          "field": "period",
+          "operator": "equals",
+          "expected": "2025-Q3",
+          "actual": "2025-Q3",
+          "passed": true,
+          "message": "expected='2025-Q3', actual='2025-Q3'"
+        }
+      ]
+    },
+    {
+      "test_id": "PL_004",
+      "query": "What is our net income margin?",
+      "persona": "cfo",
+      "tags": [
+        "pnl",
+        "cfo",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 0.001,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            24.0,
+            32.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [24.0, 32.0]"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": null,
+          "passed": false,
+          "message": "expected='pct', actual=None"
+        },
+        {
+          "field": "confidence",
+          "operator": "greater_than",
+          "expected": 0.6,
+          "actual": 0.0,
+          "passed": false,
+          "message": "expected > 0.6, actual=0.0"
+        }
+      ]
+    },
+    {
+      "test_id": "PERIOD_001",
+      "query": "What is 2025 revenue?",
+      "persona": "cfo",
+      "tags": [
+        "period",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            160.0
+          ],
+          "actual": 124.18,
+          "passed": true,
+          "message": "expected in [100.0, 160.0], actual=124.18"
+        },
+        {
+          "field": "value",
+          "operator": "not_equals",
+          "expected": 450.0,
+          "actual": 124.18,
+          "passed": true,
+          "message": "must not equal 450.0, actual=124.18"
+        },
+        {
+          "field": "period",
+          "operator": "contains",
+          "expected": "2025",
+          "actual": "2025",
+          "passed": true,
+          "message": "expected to contain '2025', actual='2025'"
+        }
+      ]
+    },
+    {
+      "test_id": "PERIOD_002",
+      "query": "What is 2024 revenue?",
+      "persona": "cfo",
+      "tags": [
+        "period",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.003,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            80.0,
+            120.0
+          ],
+          "actual": 96.4,
+          "passed": true,
+          "message": "expected in [80.0, 120.0], actual=96.4"
+        },
+        {
+          "field": "value",
+          "operator": "not_equals",
+          "expected": 450.0,
+          "actual": 96.4,
+          "passed": true,
+          "message": "must not equal 450.0, actual=96.4"
+        },
+        {
+          "field": "period",
+          "operator": "contains",
+          "expected": "2024",
+          "actual": "2024",
+          "passed": true,
+          "message": "expected to contain '2024', actual='2024'"
+        }
+      ]
+    },
+    {
+      "test_id": "PERIOD_003",
+      "query": "Compare 2024 vs 2025 revenue",
+      "persona": "cfo",
+      "tags": [
+        "period",
+        "cfo",
+        "comparison"
+      ],
+      "passed": true,
+      "response_time_s": 0.026,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value_2024",
+          "operator": "in_range",
+          "expected": [
+            80.0,
+            120.0
+          ],
+          "actual": 96.4,
+          "passed": true,
+          "message": "expected in [80.0, 120.0], actual=96.4"
+        },
+        {
+          "field": "value_2025",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            160.0
+          ],
+          "actual": 124.18,
+          "passed": true,
+          "message": "expected in [100.0, 160.0], actual=124.18"
+        }
+      ]
+    },
+    {
+      "test_id": "DIM_001",
+      "query": "Show revenue by region for 2025",
+      "persona": "cfo",
+      "tags": [
+        "dimensional",
+        "cfo",
+        "breakdown"
+      ],
+      "passed": true,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "AMER",
+          "actual": "AMER | EMEA | APAC | Here's revenue by region",
+          "passed": true,
+          "message": "expected to contain 'AMER', actual='AMER | EMEA | APAC | Here's revenue by region'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "EMEA",
+          "actual": "AMER | EMEA | APAC | Here's revenue by region",
+          "passed": true,
+          "message": "expected to contain 'EMEA', actual='AMER | EMEA | APAC | Here's revenue by region'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "APAC",
+          "actual": "AMER | EMEA | APAC | Here's revenue by region",
+          "passed": true,
+          "message": "expected to contain 'APAC', actual='AMER | EMEA | APAC | Here's revenue by region'"
+        },
+        {
+          "field": "amer_value",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 62.1,
+          "passed": true,
+          "message": "expected > 0, actual=62.1"
+        },
+        {
+          "field": "total",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            160.0
+          ],
+          "actual": 124.19,
+          "passed": true,
+          "message": "expected in [100.0, 160.0], actual=124.19"
+        }
+      ]
+    },
+    {
+      "test_id": "DIM_002",
+      "query": "Headcount by department",
+      "persona": "chro",
+      "tags": [
+        "dimensional",
+        "chro",
+        "breakdown"
+      ],
+      "passed": true,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "Engineering",
+          "actual": "Engineering | Product | Sales | Marketing | Customer Success | G&A | Here's headcount by department",
+          "passed": true,
+          "message": "expected to contain 'Engineering', actual='Engineering | Product | Sales | Marketing | Customer Success | G&A | Here's headcount by department'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "Sales",
+          "actual": "Engineering | Product | Sales | Marketing | Customer Success | G&A | Here's headcount by department",
+          "passed": true,
+          "message": "expected to contain 'Sales', actual='Engineering | Product | Sales | Marketing | Customer Success | G&A | Here's headcount by department'"
+        },
+        {
+          "field": "total",
+          "operator": "in_range",
+          "expected": [
+            250,
+            450
+          ],
+          "actual": 333.0,
+          "passed": true,
+          "message": "expected in [250.0, 450.0], actual=333.0"
+        }
+      ]
+    },
+    {
+      "test_id": "DIM_003",
+      "query": "Revenue by segment Q2 2025",
+      "persona": "cro",
+      "tags": [
+        "dimensional",
+        "cro",
+        "breakdown"
+      ],
+      "passed": true,
+      "response_time_s": 0.003,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "Enterprise",
+          "actual": "Enterprise | Mid-Market | SMB | Here's revenue by segment",
+          "passed": true,
+          "message": "expected to contain 'Enterprise', actual='Enterprise | Mid-Market | SMB | Here's revenue by segment'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "Mid-Market",
+          "actual": "Enterprise | Mid-Market | SMB | Here's revenue by segment",
+          "passed": true,
+          "message": "expected to contain 'Mid-Market', actual='Enterprise | Mid-Market | SMB | Here's revenue by segment'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "SMB",
+          "actual": "Enterprise | Mid-Market | SMB | Here's revenue by segment",
+          "passed": true,
+          "message": "expected to contain 'SMB', actual='Enterprise | Mid-Market | SMB | Here's revenue by segment'"
+        },
+        {
+          "field": "period",
+          "operator": "equals",
+          "expected": "2025-Q2",
+          "actual": "2025-Q2",
+          "passed": true,
+          "message": "expected='2025-Q2', actual='2025-Q2'"
+        }
+      ]
+    },
+    {
+      "test_id": "SAAS_001",
+      "query": "What is our burn multiple?",
+      "persona": "cfo",
+      "tags": [
+        "saas",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            -2.5,
+            0.5
+          ],
+          "actual": -1.89,
+          "passed": true,
+          "message": "expected in [-2.5, 0.5], actual=-1.89"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "ratio",
+          "actual": "ratio",
+          "passed": true,
+          "message": "expected='ratio', actual='ratio'"
+        },
+        {
+          "field": "confidence",
+          "operator": "greater_than",
+          "expected": 0.6,
+          "actual": 0.95,
+          "passed": true,
+          "message": "expected > 0.6, actual=0.95"
+        }
+      ]
+    },
+    {
+      "test_id": "SAAS_002",
+      "query": "Show me LTV to CAC ratio",
+      "persona": "cro",
+      "tags": [
+        "saas",
+        "cro",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            7.0,
+            12.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [7.0, 12.0]"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "ratio",
+          "actual": null,
+          "passed": false,
+          "message": "expected='ratio', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "SAAS_003",
+      "query": "What is our rule of 40?",
+      "persona": "cfo",
+      "tags": [
+        "saas",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.008,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            45.0,
+            75.0
+          ],
+          "actual": 57.4,
+          "passed": true,
+          "message": "expected in [45.0, 75.0], actual=57.4"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": "pct",
+          "passed": true,
+          "message": "expected='pct', actual='pct'"
+        }
+      ]
+    },
+    {
+      "test_id": "SAAS_004",
+      "query": "What is NRR?",
+      "persona": "cro",
+      "tags": [
+        "saas",
+        "cro",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            130.0
+          ],
+          "actual": 101.9,
+          "passed": true,
+          "message": "expected in [100.0, 130.0], actual=101.9"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": "pct",
+          "passed": true,
+          "message": "expected='pct', actual='pct'"
+        }
+      ]
+    },
+    {
+      "test_id": "CTO_001",
+      "query": "How many P1 incidents in Q3 2025?",
+      "persona": "cto",
+      "tags": [
+        "cto",
+        "infrastructure",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.009,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 3.0,
+          "passed": true,
+          "message": "expected > 0, actual=3.0"
+        },
+        {
+          "field": "value",
+          "operator": "less_than",
+          "expected": 20,
+          "actual": 3.0,
+          "passed": true,
+          "message": "expected < 20, actual=3.0"
+        },
+        {
+          "field": "period",
+          "operator": "equals",
+          "expected": "2025-Q3",
+          "actual": "2025-Q3",
+          "passed": true,
+          "message": "expected='2025-Q3', actual='2025-Q3'"
+        },
+        {
+          "field": "provenance_source",
+          "operator": "contains",
+          "expected": "datadog",
+          "actual": "datadog",
+          "passed": true,
+          "message": "expected to contain 'datadog', actual='datadog'"
+        }
+      ]
+    },
+    {
+      "test_id": "CTO_002",
+      "query": "What is our uptime?",
+      "persona": "cto",
+      "tags": [
+        "cto",
+        "infrastructure",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "greater_than",
+          "expected": 95.0,
+          "actual": 99.61,
+          "passed": true,
+          "message": "expected > 95.0, actual=99.61"
+        },
+        {
+          "field": "value",
+          "operator": "less_than",
+          "expected": 100.0,
+          "actual": 99.61,
+          "passed": true,
+          "message": "expected < 100.0, actual=99.61"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": "pct",
+          "passed": true,
+          "message": "expected='pct', actual='pct'"
+        }
+      ]
+    },
+    {
+      "test_id": "CTO_003",
+      "query": "Show cloud spend by category",
+      "persona": "cto",
+      "tags": [
+        "cto",
+        "infrastructure",
+        "breakdown"
+      ],
+      "passed": true,
+      "response_time_s": 0.006,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "dimensions",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Compute | Storage | Database | Network | ML/AI | Other | Here's cloud spend by resource_type",
+          "passed": true,
+          "message": "expected not null, actual=\"Compute | Storage | Database | Network | ML/AI | Other | Here's cloud spend by resource_type\""
+        },
+        {
+          "field": "total",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 1.0,
+          "passed": true,
+          "message": "expected > 0, actual=1.0"
+        },
+        {
+          "field": "provenance_source",
+          "operator": "contains",
+          "expected": "aws_cost_explorer",
+          "actual": "aws_cost_explorer",
+          "passed": true,
+          "message": "expected to contain 'aws_cost_explorer', actual='aws_cost_explorer'"
+        }
+      ]
+    },
+    {
+      "test_id": "CHRO_001",
+      "query": "What is our attrition rate?",
+      "persona": "chro",
+      "tags": [
+        "chro",
+        "people",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            5.0,
+            20.0
+          ],
+          "actual": 11.0,
+          "passed": true,
+          "message": "expected in [5.0, 20.0], actual=11.0"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": "pct",
+          "passed": true,
+          "message": "expected='pct', actual='pct'"
+        },
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "attrition_rate_pct",
+          "actual": "attrition_rate_pct",
+          "passed": true,
+          "message": "expected='attrition_rate_pct', actual='attrition_rate_pct'"
+        }
+      ]
+    },
+    {
+      "test_id": "CHRO_002",
+      "query": "How many open roles do we have?",
+      "persona": "chro",
+      "tags": [
+        "chro",
+        "people",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 51.0,
+          "passed": true,
+          "message": "expected > 0, actual=51.0"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "count",
+          "actual": "count",
+          "passed": true,
+          "message": "expected='count', actual='count'"
+        }
+      ]
+    },
+    {
+      "test_id": "ALIAS_001",
+      "query": "What is win rate?",
+      "persona": "cro",
+      "tags": [
+        "alias",
+        "cro",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "win_rate_pct",
+          "actual": "win_rate_pct",
+          "passed": true,
+          "message": "expected='win_rate_pct', actual='win_rate_pct'"
+        },
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            25.0,
+            55.0
+          ],
+          "actual": 40.0,
+          "passed": true,
+          "message": "expected in [25.0, 55.0], actual=40.0"
+        }
+      ]
+    },
+    {
+      "test_id": "ALIAS_002",
+      "query": "Show quota attainment",
+      "persona": "cro",
+      "tags": [
+        "alias",
+        "cro",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "quota_attainment_pct",
+          "actual": "quota_attainment_pct",
+          "passed": true,
+          "message": "expected='quota_attainment_pct', actual='quota_attainment_pct'"
+        }
+      ]
+    },
+    {
+      "test_id": "ALIAS_003",
+      "query": "What is gross margin?",
+      "persona": "cfo",
+      "tags": [
+        "alias",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.004,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "gross_margin_pct",
+          "actual": "gross_margin_pct",
+          "passed": true,
+          "message": "expected='gross_margin_pct', actual='gross_margin_pct'"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": "pct",
+          "passed": true,
+          "message": "expected='pct', actual='pct'"
+        }
+      ]
+    },
+    {
+      "test_id": "ALIAS_004",
+      "query": "cloud cost this quarter",
+      "persona": "cto",
+      "tags": [
+        "alias",
+        "cto",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.006,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "cloud_spend",
+          "actual": "cloud_spend",
+          "passed": true,
+          "message": "expected='cloud_spend', actual='cloud_spend'"
+        }
+      ]
+    },
+    {
+      "test_id": "SUP_001",
+      "query": "Which region has the highest revenue?",
+      "persona": "cfo",
+      "tags": [
+        "superlative",
+        "cfo",
+        "ranking"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 17.79,
+          "passed": true,
+          "message": "expected not null, actual=17.79"
+        },
+        {
+          "field": "dimension_value",
+          "operator": "in",
+          "expected": [
+            "AMER",
+            "EMEA",
+            "APAC"
+          ],
+          "actual": "AMER",
+          "passed": true,
+          "message": "expected in ['AMER', 'EMEA', 'APAC'], actual='AMER'"
+        }
+      ]
+    },
+    {
+      "test_id": "SUP_002",
+      "query": "Who is our top performing sales rep?",
+      "persona": "cro",
+      "tags": [
+        "superlative",
+        "cro",
+        "ranking"
+      ],
+      "passed": true,
+      "response_time_s": 0.007,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "not_null",
+          "expected": null,
+          "actual": 35.57,
+          "passed": true,
+          "message": "expected not null, actual=35.57"
+        },
+        {
+          "field": "confidence",
+          "operator": "greater_than",
+          "expected": 0.5,
+          "actual": 0.95,
+          "passed": true,
+          "message": "expected > 0.5, actual=0.95"
+        }
+      ]
+    },
+    {
+      "test_id": "SUP_003",
+      "query": "Which segment has the lowest churn?",
+      "persona": "cro",
+      "tags": [
+        "superlative",
+        "cro",
+        "ranking"
+      ],
+      "passed": true,
+      "response_time_s": 0.005,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "dimension_value",
+          "operator": "in",
+          "expected": [
+            "Enterprise",
+            "Mid-Market",
+            "SMB"
+          ],
+          "actual": "Enterprise",
+          "passed": true,
+          "message": "expected in ['Enterprise', 'Mid-Market', 'SMB'], actual='Enterprise'"
+        }
+      ]
+    },
+    {
+      "test_id": "CLARIFY_001",
+      "query": "how did we do?",
+      "persona": "cfo",
+      "tags": [
+        "clarification",
+        "cfo",
+        "ambiguous"
+      ],
+      "passed": true,
+      "response_time_s": 0.015,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "response_type",
+          "operator": "equals",
+          "expected": "clarification",
+          "actual": "clarification",
+          "passed": true,
+          "message": "expected='clarification', actual='clarification'"
+        },
+        {
+          "field": "clarification_prompt",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Which metric are you asking about? Revenue, EBITDA, Net Income, Margins, or ARR?",
+          "passed": true,
+          "message": "expected not null, actual='Which metric are you asking about? Revenue, EBITDA, Net Income, Margins, or ARR?'"
+        }
+      ]
+    },
+    {
+      "test_id": "CLARIFY_002",
+      "query": "show me the margin",
+      "persona": "cfo",
+      "tags": [
+        "clarification",
+        "cfo",
+        "ambiguous"
+      ],
+      "passed": true,
+      "response_time_s": 0.014,
+      "error": null,
+      "warnings": [
+        "SUSPICIOUS: success=True but value is null"
+      ],
+      "assertions": [
+        {
+          "field": "response_type",
+          "operator": "equals",
+          "expected": "clarification",
+          "actual": "clarification",
+          "passed": true,
+          "message": "expected='clarification', actual='clarification'"
+        },
+        {
+          "field": "clarification_options",
+          "operator": "contains",
+          "expected": "gross",
+          "actual": "Which margin did you mean? We track: Gross margin, Operating margin, and Net margin. Which margin did you mean? We track: Gross margin, Operating margin, and Net margin.",
+          "passed": true,
+          "message": "expected to contain 'gross', actual='Which margin did you mean? We track: Gross margin, Operating margin, and Net margin. Which margin did you mean? We track'"
+        }
+      ]
+    },
+    {
+      "test_id": "CLARIFY_003",
+      "query": "revenue",
+      "persona": "cfo",
+      "tags": [
+        "clarification",
+        "cfo",
+        "ambiguous"
+      ],
+      "passed": true,
+      "response_time_s": 0.003,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response_type",
+          "operator": "in",
+          "expected": [
+            "clarification",
+            "data"
+          ],
+          "actual": "data",
+          "passed": true,
+          "message": "expected in ['clarification', 'data'], actual='data'"
+        }
+      ]
+    },
+    {
+      "test_id": "PROV_001",
+      "query": "What is revenue for Q1 2025?",
+      "persona": "cfo",
+      "tags": [
+        "provenance",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.003,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "provenance",
+          "operator": "not_null",
+          "expected": null,
+          "actual": {
+            "run_id": null,
+            "tenant_id": "default",
+            "snapshot_name": "Ingest-v5.0",
+            "run_timestamp": "2026-02-26T21:03:25.491688Z",
+            "source_systems": [
+              "salesforce_crm",
+              "netsuite_erp"
+            ],
+            "source_system": "netsuite_erp",
+            "is_sor": true,
+            "freshness": "2026-02-07T00:00:00Z",
+            "quality_score": 1.0,
+            "mode": "Ingest"
+          },
+          "passed": true,
+          "message": "expected not null, actual={'run_id': None, 'tenant_id': 'default', 'snapshot_name': 'Ingest-v5.0', 'run_timestamp': '2026-02-26T21:03:25.491688Z', 'source_systems': ['salesforce_crm', 'netsuite_erp'], 'source_system': 'netsuite_erp', 'is_sor': True, 'freshness': '2026-02-07T00:00:00Z', 'quality_score': 1.0, 'mode': 'Ingest'}"
+        },
+        {
+          "field": "provenance_source",
+          "operator": "contains",
+          "expected": "netsuite",
+          "actual": "netsuite_erp",
+          "passed": true,
+          "message": "expected to contain 'netsuite', actual='netsuite_erp'"
+        },
+        {
+          "field": "provenance_is_sor",
+          "operator": "equals",
+          "expected": true,
+          "actual": true,
+          "passed": true,
+          "message": "expected=True, actual=True"
+        }
+      ]
+    },
+    {
+      "test_id": "PROV_002",
+      "query": "Show me ARR",
+      "persona": "cfo",
+      "tags": [
+        "provenance",
+        "cfo",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.003,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "provenance_source",
+          "operator": "contains",
+          "expected": "chargebee",
+          "actual": "chargebee_billing",
+          "passed": true,
+          "message": "expected to contain 'chargebee', actual='chargebee_billing'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": []
+}

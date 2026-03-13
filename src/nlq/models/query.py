@@ -8,9 +8,15 @@ Contains Pydantic models for:
 
 from datetime import date
 from enum import Enum
-from typing import Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class QueryMode(str, Enum):
+    """Query processing modes."""
+    STATIC = "static"  # Cache-only, no LLM fallback
+    AI = "ai"          # Cache + LLM fallback
 
 
 class QueryIntent(str, Enum):
@@ -45,11 +51,43 @@ class NLQRequest(BaseModel):
         description="Date context for relative references (e.g., 'last quarter'). Defaults to today."
     )
 
+    mode: QueryMode = Field(
+        default=QueryMode.AI,
+        description="Query mode: 'static' for cache-only, 'ai' for cache + LLM fallback"
+    )
+
+    session_id: Optional[str] = Field(
+        default=None,
+        description="Browser session ID for LLM call tracking"
+    )
+
+    data_mode: Optional[str] = Field(
+        default="live",
+        description="Data mode: 'live' for DCL, 'demo' for local fact_base.json"
+    )
+
+    persona: Optional[str] = Field(
+        default=None,
+        description="Active persona (CFO/CRO/COO/CTO/CHRO). Authoritative for dashboard generation."
+    )
+
+    entity_id: Optional[str] = Field(
+        default=None,
+        description="Entity filter: 'meridian', 'cascadia', or 'combined'. Sent by report portal entity selector."
+    )
+
+    consolidate: Optional[bool] = Field(
+        default=None,
+        description="If True, return combined/consolidated entity view. Equivalent to entity_id='combined'."
+    )
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "question": "What was revenue last year?",
-                "reference_date": "2026-01-27"
+                "reference_date": "2026-01-27",
+                "mode": "ai",
+                "session_id": "ses_1234567890_abc123"
             }
         }
     )
@@ -93,7 +131,41 @@ class ParsedQuery(BaseModel):
         description="Second period for comparison queries"
     )
 
+    # Aggregation query fields
+    aggregation_type: Optional[str] = Field(
+        default=None,
+        description="Type of aggregation: 'sum' or 'average'"
+    )
+
+    aggregation_periods: Optional[List[str]] = Field(
+        default=None,
+        description="List of periods to aggregate over"
+    )
+
+    # Trend query fields
+    trend_periods: Optional[List[str]] = Field(
+        default=None,
+        description="List of periods to show in trend (e.g., yearly periods for 'by year' queries)"
+    )
+
+    # Breakdown query fields
+    breakdown_metrics: Optional[List[str]] = Field(
+        default=None,
+        description="List of metrics to show in breakdown"
+    )
+
     raw_metric: Optional[str] = Field(
         default=None,
         description="Original metric term before normalization"
+    )
+
+    # Entity extraction (DCL integration)
+    entity: Optional[str] = Field(
+        default=None,
+        description="Company/customer entity name extracted from query (e.g., 'Acme Corp')"
+    )
+
+    dimension: Optional[str] = Field(
+        default=None,
+        description="Breakdown dimension extracted from query (e.g., 'region', 'segment')"
     )

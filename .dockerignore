@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.venv/
+__pycache__/
+*.pyc
+.git/
+.claude/
+.env
+.env.local
+*.Zone.Identifier

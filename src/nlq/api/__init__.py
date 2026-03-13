@@ -9,6 +9,11 @@ This module provides the REST API endpoints:
 All responses include bounded confidence scores [0.0, 1.0].
 """
 
-from src.nlq.api.routes import router
-
 __all__ = ["router"]
+
+
+def __getattr__(name):
+    if name == "router":
+        from src.nlq.api.routes import router
+        return router
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

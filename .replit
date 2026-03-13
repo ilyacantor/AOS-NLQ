@@ -1,11 +1,12 @@
 modules = ["python-3.11", "nodejs-20"]
 [deployment]
 deploymentTarget = "autoscale"
-run = ["sh", "-c", "uvicorn src.nlq.main:app --host 0.0.0.0 --port 5000 & npm run dev"]
+run = ["sh", "-c", "uvicorn src.nlq.main:app --host 0.0.0.0 --port 5000"]
+build = ["sh", "-c", "npm run build"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["glibcLocales"]
+packages = ["glibcLocales", "libxcrypt"]
 
 [unitTest]
 language = "python3"
@@ -13,7 +14,6 @@ language = "python3"
 [userenv]
 
 [userenv.shared]
-SUPABASE_URL = "postgresql://postgres.yuxrdoamtjmodjzqpeds:UZKbBgI7runK4XvX@aws-1-us-east-2.pooler.supabase.com:5432/postgres"
 
 [workflows]
 runButton = "Project"
@@ -35,6 +35,10 @@ args = "Start Frontend"
 name = "Start Backend"
 author = "agent"
 
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pip install fastapi uvicorn anthropic pydantic python-dotenv && uvicorn src.nlq.main:app --host 0.0.0.0 --port 8000"
+waitForPort = 8000
 
 [[workflows.workflow]]
 name = "Start Frontend"
@@ -52,3 +56,10 @@ outputType = "webview"
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 5001
+externalPort = 3000
+
+[[ports]]
+localPort = 8000
+externalPort = 8000

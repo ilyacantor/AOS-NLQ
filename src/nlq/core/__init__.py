@@ -10,11 +10,6 @@ This module contains:
 All confidence scores are guaranteed to be in the [0.0, 1.0] range.
 """
 
-from src.nlq.core.confidence import ConfidenceCalculator, bounded_confidence
-from src.nlq.core.executor import QueryExecutor
-from src.nlq.core.parser import QueryParser
-from src.nlq.core.resolver import PeriodResolver
-
 __all__ = [
     "QueryParser",
     "PeriodResolver",
@@ -22,3 +17,19 @@ __all__ = [
     "ConfidenceCalculator",
     "bounded_confidence",
 ]
+
+
+def __getattr__(name):
+    if name == "ConfidenceCalculator" or name == "bounded_confidence":
+        from src.nlq.core.confidence import ConfidenceCalculator, bounded_confidence
+        return ConfidenceCalculator if name == "ConfidenceCalculator" else bounded_confidence
+    if name == "QueryExecutor":
+        from src.nlq.core.executor import QueryExecutor
+        return QueryExecutor
+    if name == "QueryParser":
+        from src.nlq.core.parser import QueryParser
+        return QueryParser
+    if name == "PeriodResolver":
+        from src.nlq.core.resolver import PeriodResolver
+        return PeriodResolver
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

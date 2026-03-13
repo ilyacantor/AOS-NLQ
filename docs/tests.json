@@ -1,0 +1,2203 @@
+{
+  "_README": "NLQ Ground Truth v2. Tests resolution + data + units + multi-metric.",
+  "test_cases": [
+    {
+      "_section": "=== METRIC RESOLUTION ==="
+    },
+    {
+      "id": "MR-001",
+      "description": "revenue resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is revenue?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "revenue",
+        "data_must_exist": true,
+        "value_must_be_numeric": true,
+        "metric_must_not_be": "arr"
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CFO"
+      ]
+    },
+    {
+      "id": "MR-002",
+      "description": "ar resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is accounts receivable?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "ar",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CFO"
+      ]
+    },
+    {
+      "id": "MR-003",
+      "description": "ap resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is accounts payable?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "ap",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CFO"
+      ]
+    },
+    {
+      "id": "MR-004",
+      "description": "ebitda resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is EBITDA?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "ebitda",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CFO"
+      ]
+    },
+    {
+      "id": "MR-005",
+      "description": "gross_margin_pct resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is gross margin?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "gross_margin_pct",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CFO"
+      ]
+    },
+    {
+      "id": "MR-006",
+      "description": "net_income resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is net income?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "net_income",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CFO"
+      ]
+    },
+    {
+      "id": "MR-007",
+      "description": "operating_profit resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is operating profit?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "operating_profit",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CFO"
+      ]
+    },
+    {
+      "id": "MR-008",
+      "description": "cogs resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is COGS?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "cogs",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CFO"
+      ]
+    },
+    {
+      "id": "MR-009",
+      "description": "pipeline resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is pipeline?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "pipeline",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CRO"
+      ]
+    },
+    {
+      "id": "MR-010",
+      "description": "arr resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is ARR?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "arr",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CRO"
+      ]
+    },
+    {
+      "id": "MR-011",
+      "description": "nrr resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is NRR?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "nrr",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CRO"
+      ]
+    },
+    {
+      "id": "MR-012",
+      "description": "win_rate_pct resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is win rate?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "win_rate_pct",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CRO"
+      ]
+    },
+    {
+      "id": "MR-013",
+      "description": "quota_attainment_pct resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is quota attainment?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "quota_attainment_pct",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CRO"
+      ]
+    },
+    {
+      "id": "MR-014",
+      "description": "churn_rate_pct resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is churn?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "churn_rate_pct",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CRO"
+      ]
+    },
+    {
+      "id": "MR-015",
+      "description": "headcount resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is headcount?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "headcount",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "COO"
+      ]
+    },
+    {
+      "id": "MR-016",
+      "description": "attrition_rate_pct resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is attrition?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "attrition_rate_pct",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CHRO"
+      ]
+    },
+    {
+      "id": "MR-017",
+      "description": "engagement_score resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is engagement score?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "engagement_score",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CHRO"
+      ]
+    },
+    {
+      "id": "MR-018",
+      "description": "time_to_fill_days resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is time to fill?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "time_to_fill_days",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CHRO"
+      ]
+    },
+    {
+      "id": "MR-019",
+      "description": "cac resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is CAC?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "cac",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "COO"
+      ]
+    },
+    {
+      "id": "MR-020",
+      "description": "ltv_cac resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is LTV/CAC?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "ltv_cac",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "COO"
+      ]
+    },
+    {
+      "id": "MR-021",
+      "description": "magic_number resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is magic number?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "magic_number",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "COO"
+      ]
+    },
+    {
+      "id": "MR-022",
+      "description": "uptime_pct resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is uptime?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "uptime_pct",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CTO"
+      ]
+    },
+    {
+      "id": "MR-023",
+      "description": "p1_incidents resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What are P1 incidents?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "p1_incidents",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CTO"
+      ]
+    },
+    {
+      "id": "MR-024",
+      "description": "deployment_success_pct resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is deployment success?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "deployment_success_pct",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution",
+        "CTO"
+      ]
+    },
+    {
+      "id": "MR-025",
+      "description": "csat resolves correctly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is CSAT?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "csat",
+        "data_must_exist": true,
+        "value_must_be_numeric": true
+      },
+      "tags": [
+        "galaxy",
+        "metric-resolution"
+      ]
+    },
+    {
+      "_section": "=== ALIAS TRAPS ==="
+    },
+    {
+      "id": "AL-001",
+      "description": "top line -> revenue",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is top line?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "revenue",
+        "data_must_exist": true,
+        "metric_must_not_be": "arr"
+      },
+      "tags": [
+        "galaxy",
+        "alias",
+        "trap"
+      ]
+    },
+    {
+      "id": "AL-002",
+      "description": "bottom line -> net_income",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is bottom line?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "net_income",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "alias",
+        "trap"
+      ]
+    },
+    {
+      "id": "AL-003",
+      "description": "recurring revenue -> arr",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is recurring revenue?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "arr",
+        "data_must_exist": true,
+        "metric_must_not_be": "revenue"
+      },
+      "tags": [
+        "galaxy",
+        "alias",
+        "trap"
+      ]
+    },
+    {
+      "id": "AL-004",
+      "description": "sales -> revenue",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What are total sales?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "revenue",
+        "data_must_exist": true,
+        "metric_must_not_be": "pipeline"
+      },
+      "tags": [
+        "galaxy",
+        "alias",
+        "trap"
+      ]
+    },
+    {
+      "id": "AL-005",
+      "description": "receivables -> ar",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What are receivables?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "ar",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "alias",
+        "trap"
+      ]
+    },
+    {
+      "id": "AL-006",
+      "description": "churn rate -> churn_rate_pct",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is churn rate?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "churn_rate_pct",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "alias",
+        "trap"
+      ]
+    },
+    {
+      "id": "AL-007",
+      "description": "turnover -> attrition",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is turnover rate?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "attrition_rate_pct",
+        "data_must_exist": true,
+        "metric_must_not_be": "churn_rate_pct"
+      },
+      "tags": [
+        "galaxy",
+        "alias",
+        "trap"
+      ]
+    },
+    {
+      "id": "AL-008",
+      "description": "ebit -> operating_profit",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is EBIT?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "operating_profit",
+        "data_must_exist": true,
+        "metric_must_not_be": "ebitda"
+      },
+      "tags": [
+        "galaxy",
+        "alias",
+        "trap"
+      ]
+    },
+    {
+      "id": "AL-009",
+      "description": "employees -> headcount",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "How many employees do we have?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "headcount",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "alias",
+        "trap"
+      ]
+    },
+    {
+      "id": "AL-010",
+      "description": "FTE -> headcount",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is FTE count?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "headcount",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "alias",
+        "trap"
+      ]
+    },
+    {
+      "id": "AL-011",
+      "description": "tech debt -> tech_debt_pct",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is tech debt?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "tech_debt_pct",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "alias",
+        "trap"
+      ]
+    },
+    {
+      "id": "AL-012",
+      "description": "cost of goods sold -> cogs",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is cost of goods sold?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "cogs",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "alias",
+        "trap"
+      ]
+    },
+    {
+      "id": "AL-013",
+      "description": "customer satisfaction -> csat",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is customer satisfaction?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "csat",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "alias",
+        "trap"
+      ]
+    },
+    {
+      "id": "AL-014",
+      "description": "sales efficiency -> magic_number",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is sales efficiency?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "magic_number",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "alias",
+        "trap"
+      ]
+    },
+    {
+      "_section": "=== BREAKDOWNS (with data + dimension checks) ==="
+    },
+    {
+      "id": "BD-001",
+      "description": "headcount by department",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show headcount by department"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "headcount",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        },
+        "breakdown_must_include": [
+          "engineering",
+          "sales",
+          "marketing"
+        ],
+        "unit_must_not_be": "usd millions"
+      },
+      "tags": [
+        "galaxy",
+        "breakdown",
+        "BUG-001"
+      ]
+    },
+    {
+      "id": "BD-002",
+      "description": "revenue by region",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show revenue by region"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "revenue",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        },
+        "breakdown_must_include": [
+          "amer",
+          "emea",
+          "apac"
+        ]
+      },
+      "tags": [
+        "galaxy",
+        "breakdown"
+      ]
+    },
+    {
+      "id": "BD-003",
+      "description": "revenue by segment",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show revenue by segment"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "revenue",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        },
+        "breakdown_must_include": [
+          "enterprise",
+          "mid-market",
+          "smb"
+        ]
+      },
+      "tags": [
+        "galaxy",
+        "breakdown"
+      ]
+    },
+    {
+      "id": "BD-004",
+      "description": "pipeline by rep",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show pipeline by rep"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "pipeline",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "breakdown"
+      ]
+    },
+    {
+      "id": "BD-005",
+      "description": "pipeline by stage",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show pipeline by stage"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "pipeline",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "breakdown"
+      ]
+    },
+    {
+      "id": "BD-006",
+      "description": "attrition by department",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show attrition by department"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "attrition_rate_pct",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "breakdown"
+      ]
+    },
+    {
+      "id": "BD-007",
+      "description": "ARR by region",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show ARR by region"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "arr",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        },
+        "breakdown_must_include": [
+          "amer",
+          "emea",
+          "apac"
+        ]
+      },
+      "tags": [
+        "galaxy",
+        "breakdown"
+      ]
+    },
+    {
+      "id": "BD-008",
+      "description": "headcount by cost center",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show headcount by cost center"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "headcount",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "breakdown",
+        "detect-complexity"
+      ]
+    },
+    {
+      "id": "BD-009",
+      "description": "headcount by service",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show headcount by service"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "headcount",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "breakdown",
+        "detect-complexity"
+      ]
+    },
+    {
+      "id": "BD-010",
+      "description": "win rate by rep",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show win rate by rep"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "win_rate_pct",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "breakdown"
+      ]
+    },
+    {
+      "id": "BD-011",
+      "description": "churn by segment",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show churn by segment"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "churn_rate_pct",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        },
+        "breakdown_must_include": [
+          "enterprise",
+          "mid-market",
+          "smb"
+        ]
+      },
+      "tags": [
+        "galaxy",
+        "breakdown"
+      ]
+    },
+    {
+      "id": "BD-012",
+      "description": "engagement by department",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show engagement by department"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "engagement_score",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "breakdown"
+      ]
+    },
+    {
+      "id": "BD-013",
+      "description": "quota by rep",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show quota by rep"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "quota_attainment_pct",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "breakdown"
+      ]
+    },
+    {
+      "id": "BD-014",
+      "description": "headcount by role",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show headcount by role"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "headcount",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "breakdown",
+        "detect-complexity"
+      ]
+    },
+    {
+      "id": "BD-015",
+      "description": "headcount by location",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show headcount by location"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "headcount",
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "BREAKDOWN",
+            "breakdown",
+            "breakdown_query"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "breakdown",
+        "detect-complexity"
+      ]
+    },
+    {
+      "_section": "=== TEMPORAL ==="
+    },
+    {
+      "id": "TM-001",
+      "description": "revenue by quarter",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "revenue by quarter"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "revenue",
+        "data_must_exist": true,
+        "metric_must_not_be": "arr"
+      },
+      "tags": [
+        "galaxy",
+        "temporal",
+        "BUG-002"
+      ]
+    },
+    {
+      "id": "TM-002",
+      "description": "headcount by quarter",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "headcount by quarter"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "headcount",
+        "data_must_exist": true,
+        "metric_must_not_be": "ar"
+      },
+      "tags": [
+        "galaxy",
+        "temporal"
+      ]
+    },
+    {
+      "id": "TM-003",
+      "description": "EBITDA over time",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show EBITDA over time"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "ebitda",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "temporal"
+      ]
+    },
+    {
+      "id": "TM-004",
+      "description": "ARR by quarter",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "ARR by quarter"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "arr",
+        "data_must_exist": true,
+        "metric_must_not_be": "revenue"
+      },
+      "tags": [
+        "galaxy",
+        "temporal"
+      ]
+    },
+    {
+      "id": "TM-005",
+      "description": "pipeline over time",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "pipeline over time"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "pipeline",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "temporal"
+      ]
+    },
+    {
+      "id": "TM-006",
+      "description": "churn trend quarterly",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show churn trend quarterly"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "churn_rate_pct",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "temporal"
+      ]
+    },
+    {
+      "id": "TM-007",
+      "description": "net income by year",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "net income by year"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "net_income",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "temporal"
+      ]
+    },
+    {
+      "id": "TM-008",
+      "description": "COGS over time",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show COGS over time"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "cogs",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "temporal"
+      ]
+    },
+    {
+      "_section": "=== STANDARD ENDPOINT ==="
+    },
+    {
+      "id": "STD-001",
+      "description": "headcount by dept /query",
+      "endpoint": "/api/v1/query",
+      "payload": {
+        "question": "Show headcount by department"
+      },
+      "expect": {
+        "status": 200,
+        "response_must_contain": [
+          "headcount"
+        ]
+      },
+      "tags": [
+        "standard",
+        "regression"
+      ]
+    },
+    {
+      "id": "STD-002",
+      "description": "revenue by quarter /query",
+      "endpoint": "/api/v1/query",
+      "payload": {
+        "question": "revenue by quarter"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "revenue",
+        "metric_must_not_be": "arr"
+      },
+      "tags": [
+        "standard",
+        "regression"
+      ]
+    },
+    {
+      "id": "STD-003",
+      "description": "revenue by region /query",
+      "endpoint": "/api/v1/query",
+      "payload": {
+        "question": "Show revenue by region"
+      },
+      "expect": {
+        "status": 200,
+        "response_must_contain": [
+          "revenue"
+        ]
+      },
+      "tags": [
+        "standard",
+        "regression"
+      ]
+    },
+    {
+      "id": "STD-004",
+      "description": "pipeline by stage /query",
+      "endpoint": "/api/v1/query",
+      "payload": {
+        "question": "Show pipeline by stage"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "pipeline"
+      },
+      "tags": [
+        "standard",
+        "regression"
+      ]
+    },
+    {
+      "id": "STD-005",
+      "description": "EBITDA /query",
+      "endpoint": "/api/v1/query",
+      "payload": {
+        "question": "What is EBITDA?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "ebitda"
+      },
+      "tags": [
+        "standard",
+        "regression"
+      ]
+    },
+    {
+      "_section": "=== DASHBOARD BUILD (v2: data + unit integrity) ==="
+    },
+    {
+      "id": "DB-001",
+      "description": "revenue over time",
+      "endpoint": "/api/v1/query/dashboard",
+      "payload": {
+        "question": "Show me revenue over time"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "revenue",
+        "data_must_exist": true,
+        "metric_must_not_be": "arr"
+      },
+      "tags": [
+        "dashboard",
+        "build",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "id": "DB-002",
+      "description": "EBITDA box",
+      "endpoint": "/api/v1/query/dashboard",
+      "payload": {
+        "question": "Add an EBITDA box"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "ebitda",
+        "data_must_exist": true
+      },
+      "tags": [
+        "dashboard",
+        "build",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "id": "DB-003",
+      "description": "headcount by dept chart",
+      "endpoint": "/api/v1/query/dashboard",
+      "payload": {
+        "question": "Add a headcount by department chart"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "headcount",
+        "data_must_exist": true,
+        "unit_must_not_be": "usd millions"
+      },
+      "tags": [
+        "dashboard",
+        "build",
+        "dashboard-v2",
+        "breakdown"
+      ]
+    },
+    {
+      "id": "DB-004",
+      "description": "pipeline by stage",
+      "endpoint": "/api/v1/query/dashboard",
+      "payload": {
+        "question": "Show pipeline by stage"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "pipeline",
+        "data_must_exist": true
+      },
+      "tags": [
+        "dashboard",
+        "build",
+        "dashboard-v2",
+        "breakdown"
+      ]
+    },
+    {
+      "id": "DB-005",
+      "description": "ARR trend",
+      "endpoint": "/api/v1/query/dashboard",
+      "payload": {
+        "question": "Add an ARR trend chart"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "arr",
+        "data_must_exist": true,
+        "metric_must_not_be": "revenue"
+      },
+      "tags": [
+        "dashboard",
+        "build",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "id": "DB-006",
+      "description": "churn by segment",
+      "endpoint": "/api/v1/query/dashboard",
+      "payload": {
+        "question": "Show churn by segment"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "churn_rate_pct",
+        "data_must_exist": true
+      },
+      "tags": [
+        "dashboard",
+        "build",
+        "dashboard-v2",
+        "breakdown"
+      ]
+    },
+    {
+      "id": "DB-007",
+      "description": "win rate box",
+      "endpoint": "/api/v1/query/dashboard",
+      "payload": {
+        "question": "Add win rate"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "win_rate_pct",
+        "data_must_exist": true
+      },
+      "tags": [
+        "dashboard",
+        "build",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "id": "DB-008",
+      "description": "attrition over time",
+      "endpoint": "/api/v1/query/dashboard",
+      "payload": {
+        "question": "Show attrition over time"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "attrition_rate_pct",
+        "data_must_exist": true
+      },
+      "tags": [
+        "dashboard",
+        "build",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "id": "DB-009",
+      "description": "revenue by region",
+      "endpoint": "/api/v1/query/dashboard",
+      "payload": {
+        "question": "Add revenue by region"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "revenue",
+        "data_must_exist": true,
+        "metric_must_not_be": "arr"
+      },
+      "tags": [
+        "dashboard",
+        "build",
+        "dashboard-v2",
+        "breakdown"
+      ]
+    },
+    {
+      "id": "DB-010",
+      "description": "gross margin box",
+      "endpoint": "/api/v1/query/dashboard",
+      "payload": {
+        "question": "Add a gross margin box"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "gross_margin_pct",
+        "data_must_exist": true
+      },
+      "tags": [
+        "dashboard",
+        "build",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "id": "DB-011",
+      "description": "P1 incidents over time",
+      "endpoint": "/api/v1/query/dashboard",
+      "payload": {
+        "question": "Show P1 incidents over time"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "p1_incidents",
+        "data_must_exist": true
+      },
+      "tags": [
+        "dashboard",
+        "build",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "id": "DB-012",
+      "description": "uptime metric",
+      "endpoint": "/api/v1/query/dashboard",
+      "payload": {
+        "question": "Add uptime"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "uptime_pct",
+        "data_must_exist": true
+      },
+      "tags": [
+        "dashboard",
+        "build",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "_section": "=== UNIT INTEGRITY ==="
+    },
+    {
+      "id": "UI-001",
+      "description": "headcount unit is people",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is headcount?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "headcount",
+        "unit_must_be": "people",
+        "unit_must_not_be": "usd"
+      },
+      "tags": [
+        "galaxy",
+        "unit-integrity"
+      ]
+    },
+    {
+      "id": "UI-002",
+      "description": "attrition unit is %",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is attrition?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "attrition_rate_pct",
+        "unit_must_be": "%"
+      },
+      "tags": [
+        "galaxy",
+        "unit-integrity"
+      ]
+    },
+    {
+      "id": "UI-003",
+      "description": "revenue unit is USD",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is revenue?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "revenue",
+        "unit_must_be": "usd"
+      },
+      "tags": [
+        "galaxy",
+        "unit-integrity"
+      ]
+    },
+    {
+      "id": "UI-004",
+      "description": "win rate unit is %",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is win rate?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "win_rate_pct",
+        "unit_must_be": "%"
+      },
+      "tags": [
+        "galaxy",
+        "unit-integrity"
+      ]
+    },
+    {
+      "id": "UI-005",
+      "description": "headcount by dept not dollars",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show headcount by department"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "headcount",
+        "unit_must_be": "people",
+        "unit_must_not_be": "usd"
+      },
+      "tags": [
+        "galaxy",
+        "unit-integrity"
+      ]
+    },
+    {
+      "id": "UI-006",
+      "description": "engagement score not dollars",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is engagement score?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "engagement_score",
+        "unit_must_not_be": "usd"
+      },
+      "tags": [
+        "galaxy",
+        "unit-integrity"
+      ]
+    },
+    {
+      "id": "UI-007",
+      "description": "p1 incidents unit is count",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What are P1 incidents?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "p1_incidents",
+        "unit_must_be": "count",
+        "unit_must_not_be": "usd"
+      },
+      "tags": [
+        "galaxy",
+        "unit-integrity"
+      ]
+    },
+    {
+      "id": "UI-008",
+      "description": "time to fill unit is days",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is time to fill?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "time_to_fill_days",
+        "unit_must_be": "days",
+        "unit_must_not_be": "usd"
+      },
+      "tags": [
+        "galaxy",
+        "unit-integrity"
+      ]
+    },
+    {
+      "_section": "=== PERSONA DASHBOARDS (multi-metric) ==="
+    },
+    {
+      "id": "PD-001",
+      "description": "CFO dashboard",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show me a CFO dashboard"
+      },
+      "expect": {
+        "status": 200,
+        "data_must_exist": true,
+        "metrics_must_include_any": [
+          "revenue",
+          "ebitda",
+          "gross_margin_pct",
+          "net_income",
+          "cogs",
+          "ar",
+          "ap"
+        ],
+        "field_checks": {
+          "query_type_in": [
+            "DASHBOARD",
+            "dashboard",
+            "DASHBOARD_BUILD",
+            "dashboard_build"
+          ]
+        },
+        "data_count_min": 3
+      },
+      "tags": [
+        "galaxy",
+        "persona",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "id": "PD-002",
+      "description": "CRO dashboard",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show me a CRO dashboard"
+      },
+      "expect": {
+        "status": 200,
+        "data_must_exist": true,
+        "metrics_must_include_any": [
+          "arr",
+          "pipeline",
+          "win_rate_pct",
+          "nrr",
+          "churn_rate_pct",
+          "quota_attainment_pct"
+        ],
+        "field_checks": {
+          "query_type_in": [
+            "DASHBOARD",
+            "dashboard",
+            "DASHBOARD_BUILD",
+            "dashboard_build"
+          ]
+        },
+        "data_count_min": 2
+      },
+      "tags": [
+        "galaxy",
+        "persona",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "id": "PD-003",
+      "description": "CHRO dashboard",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show me a CHRO dashboard"
+      },
+      "expect": {
+        "status": 200,
+        "data_must_exist": true,
+        "metrics_must_include_any": [
+          "headcount",
+          "attrition_rate_pct",
+          "engagement_score",
+          "time_to_fill_days"
+        ],
+        "field_checks": {
+          "query_type_in": [
+            "DASHBOARD",
+            "dashboard",
+            "DASHBOARD_BUILD",
+            "dashboard_build"
+          ]
+        },
+        "data_count_min": 2
+      },
+      "tags": [
+        "galaxy",
+        "persona",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "id": "PD-004",
+      "description": "CTO dashboard",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show me a CTO dashboard"
+      },
+      "expect": {
+        "status": 200,
+        "data_must_exist": true,
+        "metrics_must_include_any": [
+          "uptime_pct",
+          "p1_incidents",
+          "tech_debt_pct"
+        ],
+        "field_checks": {
+          "query_type_in": [
+            "DASHBOARD",
+            "dashboard",
+            "DASHBOARD_BUILD",
+            "dashboard_build"
+          ]
+        },
+        "data_count_min": 2
+      },
+      "tags": [
+        "galaxy",
+        "persona",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "id": "PD-005",
+      "description": "revenue dashboard",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Build me a revenue dashboard"
+      },
+      "expect": {
+        "status": 200,
+        "data_must_exist": true,
+        "metrics_must_include_any": [
+          "revenue"
+        ],
+        "field_checks": {
+          "query_type_in": [
+            "DASHBOARD",
+            "dashboard",
+            "DASHBOARD_BUILD",
+            "dashboard_build"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "persona",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "_section": "=== DASHBOARD REFINE (needs dashboard_id) ==="
+    },
+    {
+      "id": "DR-001",
+      "description": "change to quarterly",
+      "endpoint": "/api/v1/dashboard/refine",
+      "payload": {
+        "question": "Change this to quarterly"
+      },
+      "expect": {
+        "status": 200
+      },
+      "skip": true,
+      "skip_reason": "Needs dashboard_id from prior DB call",
+      "tags": [
+        "dashboard",
+        "refine"
+      ]
+    },
+    {
+      "id": "DR-002",
+      "description": "filter to AMER",
+      "endpoint": "/api/v1/dashboard/refine",
+      "payload": {
+        "question": "Filter to AMER only"
+      },
+      "expect": {
+        "status": 200
+      },
+      "skip": true,
+      "skip_reason": "Needs dashboard_id from prior DB call",
+      "tags": [
+        "dashboard",
+        "refine"
+      ]
+    },
+    {
+      "id": "DR-003",
+      "description": "switch to ARR",
+      "endpoint": "/api/v1/dashboard/refine",
+      "payload": {
+        "question": "Switch this to ARR instead"
+      },
+      "expect": {
+        "status": 200
+      },
+      "skip": true,
+      "skip_reason": "Needs dashboard_id from prior DB call",
+      "tags": [
+        "dashboard",
+        "refine"
+      ]
+    },
+    {
+      "id": "DR-004",
+      "description": "break down by segment",
+      "endpoint": "/api/v1/dashboard/refine",
+      "payload": {
+        "question": "Break this down by segment"
+      },
+      "expect": {
+        "status": 200
+      },
+      "skip": true,
+      "skip_reason": "Needs dashboard_id from prior DB call",
+      "tags": [
+        "dashboard",
+        "refine"
+      ]
+    },
+    {
+      "id": "DR-005",
+      "description": "Enterprise only",
+      "endpoint": "/api/v1/dashboard/refine",
+      "payload": {
+        "question": "Show Enterprise segment only"
+      },
+      "expect": {
+        "status": 200
+      },
+      "skip": true,
+      "skip_reason": "Needs dashboard_id from prior DB call",
+      "tags": [
+        "dashboard",
+        "refine"
+      ]
+    },
+    {
+      "_section": "=== GALAXY -> DASHBOARD ROUTING ==="
+    },
+    {
+      "id": "GD-001",
+      "description": "build revenue dashboard",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Build me a revenue dashboard"
+      },
+      "expect": {
+        "status": 200,
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "DASHBOARD",
+            "dashboard",
+            "DASHBOARD_BUILD",
+            "dashboard_build"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "routing",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "id": "GD-002",
+      "description": "CFO dashboard",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show me a CFO dashboard"
+      },
+      "expect": {
+        "status": 200,
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "DASHBOARD",
+            "dashboard",
+            "DASHBOARD_BUILD",
+            "dashboard_build"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "routing",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "id": "GD-003",
+      "description": "add revenue to dashboard",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Add revenue over time to my dashboard"
+      },
+      "expect": {
+        "status": 200,
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "DASHBOARD",
+            "dashboard",
+            "DASHBOARD_BUILD",
+            "dashboard_build"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "routing",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "id": "GD-004",
+      "description": "sales performance dashboard",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Create a sales performance dashboard"
+      },
+      "expect": {
+        "status": 200,
+        "data_must_exist": true,
+        "field_checks": {
+          "query_type_in": [
+            "DASHBOARD",
+            "dashboard",
+            "DASHBOARD_BUILD",
+            "dashboard_build"
+          ]
+        }
+      },
+      "tags": [
+        "galaxy",
+        "routing",
+        "dashboard-v2"
+      ]
+    },
+    {
+      "_section": "=== GUARDRAILS ==="
+    },
+    {
+      "id": "NG-001",
+      "description": "revenue != ar",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show revenue"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "revenue",
+        "metric_must_not_be": "ar",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "guardrail"
+      ]
+    },
+    {
+      "id": "NG-002",
+      "description": "headcount != ar",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show headcount"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "headcount",
+        "metric_must_not_be": "ar",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "guardrail"
+      ]
+    },
+    {
+      "id": "NG-003",
+      "description": "pipeline != revenue",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is pipeline?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "pipeline",
+        "metric_must_not_be": "revenue",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "guardrail"
+      ]
+    },
+    {
+      "id": "NG-004",
+      "description": "arr != revenue",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "What is ARR?"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "arr",
+        "metric_must_not_be": "revenue",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "guardrail"
+      ]
+    },
+    {
+      "id": "NG-005",
+      "description": "net_income != revenue",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show net income"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "net_income",
+        "metric_must_not_be": "revenue",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "guardrail"
+      ]
+    },
+    {
+      "id": "NG-006",
+      "description": "operating_profit != ebitda",
+      "endpoint": "/api/v1/query/galaxy",
+      "payload": {
+        "question": "Show operating profit"
+      },
+      "expect": {
+        "status": 200,
+        "metric_must_be": "operating_profit",
+        "metric_must_not_be": "ebitda",
+        "data_must_exist": true
+      },
+      "tags": [
+        "galaxy",
+        "guardrail"
+      ]
+    }
+  ]
+}

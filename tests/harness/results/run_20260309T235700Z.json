@@ -1,0 +1,243 @@
+{
+  "timestamp": "2026-03-09T23:57:00.945646+00:00",
+  "endpoint": "http://localhost:8005/api/v1/query",
+  "assumptions_source": "compiled_defaults (mirrors Assumptions dataclass)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "pass_rate_pct": 100.0
+  },
+  "results": [
+    {
+      "test_id": "MA_001",
+      "query": "Maestra engagement creation returns valid structure",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "engagement"
+      ],
+      "passed": true,
+      "response_time_s": 0.456,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "engagement_id",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "92f7997e-4620-426b-aa69-65db83045371",
+          "passed": true,
+          "message": "expected not null, actual='92f7997e-4620-426b-aa69-65db83045371'"
+        },
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected not null, actual='prework_complete'"
+        },
+        {
+          "field": "deal_name",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Meridian-Cascadia Integration",
+          "passed": true,
+          "message": "expected not null, actual='Meridian-Cascadia Integration'"
+        },
+        {
+          "field": "workstreams",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 5,
+          "passed": true,
+          "message": "expected > 0, actual=5"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_002",
+      "query": "Give me an overview of where we stand",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "overview"
+      ],
+      "passed": true,
+      "response_time_s": 19.43,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Here's where we stand across all areas:\n\n**Cross-Sell Pipeline: $272.5M** \nYour biggest opportunity is selling Cascadia's BPO services to Meridian's consulting clients \u2014 $155.1M pipeline with 18 high-confidence prospects. Strong demand for outsourcing F&A and analytics work to proven delivery teams.\n\n**EBITDA Bridge: $1.68B Pro Forma**\nFrom $1.22B reported to $1.68B steady-state pro forma. Major adjustments: $110M in transaction costs/one-time charges, $135M in bench optimization synergies, $49M vendor consolidation savings. Year 1 integration costs of $100M.\n\n**Vendor Consolidation: $48.8M Savings**\n170 overlapping vendors with highest savings in cloud (AWS, Azure: $17.9M), staffing agencies (Robert Half, Randstad: $8.3M), and facilities management (CBRE, JLL: $5.4M). Consolidation rate of 65%.\n\n**Customer Overlap: 34 Shared Clients** \nCombined revenue of $1.97B from overlapping accounts. Largest concentration risk: MegaCorp Global at $310M (5.2% of combined revenue). Strong expansion opportunities in financial services vertical.\n\n**IT Landscape: Dual-Stack Integration** \nMeridian's SAP/NetSuite alongside Cascadia's QuickBooks. Key message: both systems continue operating while intelligence layer reads both. Migration phased over 18 months to minimize disruption.\n\n**Quality of Earnings: 78.9 Sustainability Score (B Grade)**\nStrong contract duration and low concentration risk offset by high transaction revenue (83% non-recurring). Working capital trending stable, margins improving.\n\nThe deal fundamentals are solid. Your cross-sell pipeline alone could deliver 4x the revenue synergy targets. Any specific area you'd like to explore further?",
+          "passed": true,
+          "message": "expected not null, actual=\"Here's where we stand across all areas:\\n\\n**Cross-Sell Pipeline: $272.5M** \\nYour biggest opportunity is selling Cascadia's BPO services to Meridian's consulting clients \u2014 $155.1M pipeline with 18 high-confidence prospects. Strong demand for outsourcing F&A and analytics work to proven delivery teams.\\n\\n**EBITDA Bridge: $1.68B Pro Forma**\\nFrom $1.22B reported to $1.68B steady-state pro forma. Major adjustments: $110M in transaction costs/one-time charges, $135M in bench optimization synergies, $49M vendor consolidation savings. Year 1 integration costs of $100M.\\n\\n**Vendor Consolidation: $48.8M Savings**\\n170 overlapping vendors with highest savings in cloud (AWS, Azure: $17.9M), staffing agencies (Robert Half, Randstad: $8.3M), and facilities management (CBRE, JLL: $5.4M). Consolidation rate of 65%.\\n\\n**Customer Overlap: 34 Shared Clients** \\nCombined revenue of $1.97B from overlapping accounts. Largest concentration risk: MegaCorp Global at $310M (5.2% of combined revenue). Strong expansion opportunities in financial services vertical.\\n\\n**IT Landscape: Dual-Stack Integration** \\nMeridian's SAP/NetSuite alongside Cascadia's QuickBooks. Key message: both systems continue operating while intelligence layer reads both. Migration phased over 18 months to minimize disruption.\\n\\n**Quality of Earnings: 78.9 Sustainability Score (B Grade)**\\nStrong contract duration and low concentration risk offset by high transaction revenue (83% non-recurring). Working capital trending stable, margins improving.\\n\\nThe deal fundamentals are solid. Your cross-sell pipeline alone could deliver 4x the revenue synergy targets. Any specific area you'd like to explore further?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "EBITDA",
+          "actual": "Here's where we stand across all areas:\n\n**Cross-Sell Pipeline: $272.5M** \nYour biggest opportunity is selling Cascadia's BPO services to Meridian's consulting clients \u2014 $155.1M pipeline with 18 high-confidence prospects. Strong demand for outsourcing F&A and analytics work to proven delivery teams.\n\n**EBITDA Bridge: $1.68B Pro Forma**\nFrom $1.22B reported to $1.68B steady-state pro forma. Major adjustments: $110M in transaction costs/one-time charges, $135M in bench optimization synergies, $49M vendor consolidation savings. Year 1 integration costs of $100M.\n\n**Vendor Consolidation: $48.8M Savings**\n170 overlapping vendors with highest savings in cloud (AWS, Azure: $17.9M), staffing agencies (Robert Half, Randstad: $8.3M), and facilities management (CBRE, JLL: $5.4M). Consolidation rate of 65%.\n\n**Customer Overlap: 34 Shared Clients** \nCombined revenue of $1.97B from overlapping accounts. Largest concentration risk: MegaCorp Global at $310M (5.2% of combined revenue). Strong expansion opportunities in financial services vertical.\n\n**IT Landscape: Dual-Stack Integration** \nMeridian's SAP/NetSuite alongside Cascadia's QuickBooks. Key message: both systems continue operating while intelligence layer reads both. Migration phased over 18 months to minimize disruption.\n\n**Quality of Earnings: 78.9 Sustainability Score (B Grade)**\nStrong contract duration and low concentration risk offset by high transaction revenue (83% non-recurring). Working capital trending stable, margins improving.\n\nThe deal fundamentals are solid. Your cross-sell pipeline alone could deliver 4x the revenue synergy targets. Any specific area you'd like to explore further?",
+          "passed": true,
+          "message": "expected to contain 'EBITDA', actual='Here's where we stand across all areas:\n\n**Cross-Sell Pipeline: $272.5M** \nYour biggest opportunity is selling Cascadia''"
+        },
+        {
+          "field": "actions_taken",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "Queried cross_sell engine",
+            "Queried ebitda_bridge engine",
+            "Queried qoe engine",
+            "Queried entity_resolution engine"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['Queried cross_sell engine', 'Queried ebitda_bridge engine', 'Queried qoe engine', 'Queried entity_resolution engine']"
+        },
+        {
+          "field": "suggestions",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "Show me the cross-sell details",
+            "Walk me through the bridge",
+            "What about vendor overlap?"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['Show me the cross-sell details', 'Walk me through the bridge', 'What about vendor overlap?']"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_003",
+      "query": "Walk me through the EBITDA bridge",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "bridge",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 24.269,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Here's your EBITDA bridge from reported to pro forma:\n\nThe key story: you're going from $1.22B reported to $1.68B steady-state pro forma \u2014 a $460M uplift.\n\n**Biggest movers:**\n- $135M in bench optimization synergies \u2014 your largest opportunity is cross-deploying idle consultants\n- $110M in one-time charges and transaction costs that wash out\n- $49M vendor consolidation savings from 170 overlapping vendors\n\n**Year 1 reality check:** $100M integration costs bring you to $1.56B in Year 1, then you hit the full $1.68B steady-state.\n\nThe what-if spread shows $1.66B to $1.79B depending on execution \u2014 conservative vs aggressive assumptions on bench deployment and cross-sell capture.\n\nAny specific adjustments you want to challenge or dig into?",
+          "passed": true,
+          "message": "expected not null, actual=\"Here's your EBITDA bridge from reported to pro forma:\\n\\nThe key story: you're going from $1.22B reported to $1.68B steady-state pro forma \u2014 a $460M uplift.\\n\\n**Biggest movers:**\\n- $135M in bench optimization synergies \u2014 your largest opportunity is cross-deploying idle consultants\\n- $110M in one-time charges and transaction costs that wash out\\n- $49M vendor consolidation savings from 170 overlapping vendors\\n\\n**Year 1 reality check:** $100M integration costs bring you to $1.56B in Year 1, then you hit the full $1.68B steady-state.\\n\\nThe what-if spread shows $1.66B to $1.79B depending on execution \u2014 conservative vs aggressive assumptions on bench deployment and cross-sell capture.\\n\\nAny specific adjustments you want to challenge or dig into?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "bridge",
+          "actual": "Here's your EBITDA bridge from reported to pro forma:\n\nThe key story: you're going from $1.22B reported to $1.68B steady-state pro forma \u2014 a $460M uplift.\n\n**Biggest movers:**\n- $135M in bench optimization synergies \u2014 your largest opportunity is cross-deploying idle consultants\n- $110M in one-time charges and transaction costs that wash out\n- $49M vendor consolidation savings from 170 overlapping vendors\n\n**Year 1 reality check:** $100M integration costs bring you to $1.56B in Year 1, then you hit the full $1.68B steady-state.\n\nThe what-if spread shows $1.66B to $1.79B depending on execution \u2014 conservative vs aggressive assumptions on bench deployment and cross-sell capture.\n\nAny specific adjustments you want to challenge or dig into?",
+          "passed": true,
+          "message": "expected to contain 'bridge', actual='Here's your EBITDA bridge from reported to pro forma:\n\nThe key story: you're going from $1.22B reported to $1.68B steady'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "bridge",
+          "actual": "bridge",
+          "passed": true,
+          "message": "expected='bridge', actual='bridge'"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_004",
+      "query": "What cross-sell opportunities do we have?",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "cross_sell",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 24.351,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Your cross-sell pipeline shows $272.5M in total opportunities across 103 named accounts. The standout is selling Cascadia's BPO services to your existing consulting clients \u2014 $155.1M pipeline with 18 high-confidence prospects.\n\n**Key insight:** These clients already completed Strategy projects with you and have high manual process counts. Natural handoff to Cascadia's managed services teams.\n\n**At-risk accounts:** 34 shared customers worth $1.97B combined revenue. Concentration risk is real \u2014 MegaCorp Global represents 5.2% of combined revenue.\n\nShould we look at the EBITDA bridge next, or do you want to drill into any specific cross-sell opportunities?",
+          "passed": true,
+          "message": "expected not null, actual=\"Your cross-sell pipeline shows $272.5M in total opportunities across 103 named accounts. The standout is selling Cascadia's BPO services to your existing consulting clients \u2014 $155.1M pipeline with 18 high-confidence prospects.\\n\\n**Key insight:** These clients already completed Strategy projects with you and have high manual process counts. Natural handoff to Cascadia's managed services teams.\\n\\n**At-risk accounts:** 34 shared customers worth $1.97B combined revenue. Concentration risk is real \u2014 MegaCorp Global represents 5.2% of combined revenue.\\n\\nShould we look at the EBITDA bridge next, or do you want to drill into any specific cross-sell opportunities?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "pipeline",
+          "actual": "Your cross-sell pipeline shows $272.5M in total opportunities across 103 named accounts. The standout is selling Cascadia's BPO services to your existing consulting clients \u2014 $155.1M pipeline with 18 high-confidence prospects.\n\n**Key insight:** These clients already completed Strategy projects with you and have high manual process counts. Natural handoff to Cascadia's managed services teams.\n\n**At-risk accounts:** 34 shared customers worth $1.97B combined revenue. Concentration risk is real \u2014 MegaCorp Global represents 5.2% of combined revenue.\n\nShould we look at the EBITDA bridge next, or do you want to drill into any specific cross-sell opportunities?",
+          "passed": true,
+          "message": "expected to contain 'pipeline', actual='Your cross-sell pipeline shows $272.5M in total opportunities across 103 named accounts. The standout is selling Cascadi'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "crosssell",
+          "actual": "crosssell",
+          "passed": true,
+          "message": "expected='crosssell', actual='crosssell'"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_005",
+      "query": "Show me the quality of earnings analysis",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "qoe",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 12.895,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Here's your quality of earnings analysis:\n\n**Sustainability Score: 78.9 (B Grade)**\n\nThe score breaks down across six components:\n- **Customer Concentration: 100/100** \u2014 Strong diversification, no concentration risk\n- **Adjustment Stability: 100/100** \u2014 Clean adjustments, no red flags  \n- **Margin Stability: 90/100** \u2014 EBITDA margins improving from 17.8% to 18.5%\n- **Working Capital Health: 80/100** \u2014 Stable DSO at 13.5 days, trending well\n- **Contract Duration: 63/100** \u2014 Average 8.2 years client tenure, decent MSA coverage at 31.6%\n- **Organic Revenue: 26/100** \u2014 Major weakness here \u2014 83% non-recurring revenue\n\n**Key insight:** The sustainability challenge is revenue mix. Most work is project-based consulting rather than recurring managed services. However, the 8.2-year average client tenure shows strong repeat business patterns.\n\n**Working capital trending stable** \u2014 DSO holding at 13.5 days, margins expanding quarterly.\n\nThe B grade reflects solid fundamentals with execution risk on the high transaction revenue component. Any concerns about the sustainability profile?",
+          "passed": true,
+          "message": "expected not null, actual=\"Here's your quality of earnings analysis:\\n\\n**Sustainability Score: 78.9 (B Grade)**\\n\\nThe score breaks down across six components:\\n- **Customer Concentration: 100/100** \u2014 Strong diversification, no concentration risk\\n- **Adjustment Stability: 100/100** \u2014 Clean adjustments, no red flags  \\n- **Margin Stability: 90/100** \u2014 EBITDA margins improving from 17.8% to 18.5%\\n- **Working Capital Health: 80/100** \u2014 Stable DSO at 13.5 days, trending well\\n- **Contract Duration: 63/100** \u2014 Average 8.2 years client tenure, decent MSA coverage at 31.6%\\n- **Organic Revenue: 26/100** \u2014 Major weakness here \u2014 83% non-recurring revenue\\n\\n**Key insight:** The sustainability challenge is revenue mix. Most work is project-based consulting rather than recurring managed services. However, the 8.2-year average client tenure shows strong repeat business patterns.\\n\\n**Working capital trending stable** \u2014 DSO holding at 13.5 days, margins expanding quarterly.\\n\\nThe B grade reflects solid fundamentals with execution risk on the high transaction revenue component. Any concerns about the sustainability profile?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "sustainability",
+          "actual": "Here's your quality of earnings analysis:\n\n**Sustainability Score: 78.9 (B Grade)**\n\nThe score breaks down across six components:\n- **Customer Concentration: 100/100** \u2014 Strong diversification, no concentration risk\n- **Adjustment Stability: 100/100** \u2014 Clean adjustments, no red flags  \n- **Margin Stability: 90/100** \u2014 EBITDA margins improving from 17.8% to 18.5%\n- **Working Capital Health: 80/100** \u2014 Stable DSO at 13.5 days, trending well\n- **Contract Duration: 63/100** \u2014 Average 8.2 years client tenure, decent MSA coverage at 31.6%\n- **Organic Revenue: 26/100** \u2014 Major weakness here \u2014 83% non-recurring revenue\n\n**Key insight:** The sustainability challenge is revenue mix. Most work is project-based consulting rather than recurring managed services. However, the 8.2-year average client tenure shows strong repeat business patterns.\n\n**Working capital trending stable** \u2014 DSO holding at 13.5 days, margins expanding quarterly.\n\nThe B grade reflects solid fundamentals with execution risk on the high transaction revenue component. Any concerns about the sustainability profile?",
+          "passed": true,
+          "message": "expected to contain 'sustainability', actual='Here's your quality of earnings analysis:\n\n**Sustainability Score: 78.9 (B Grade)**\n\nThe score breaks down across six co'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "qoe",
+          "actual": "qoe",
+          "passed": true,
+          "message": "expected='qoe', actual='qoe'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": []
+}

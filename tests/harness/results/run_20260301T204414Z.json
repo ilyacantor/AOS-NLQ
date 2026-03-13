@@ -1,0 +1,1125 @@
+{
+  "timestamp": "2026-03-01T20:44:14.547292+00:00",
+  "endpoint": "http://localhost:8005/api/v1/query",
+  "assumptions_source": "AOS-Farm (C:\\Users\\ilyac\\code\\AOS-Farm)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 31,
+    "passed": 1,
+    "failed": 30,
+    "pass_rate_pct": 3.2
+  },
+  "results": [
+    {
+      "test_id": "PL_001",
+      "query": "What is our EBITDA for 2025?",
+      "persona": "cfo",
+      "tags": [
+        "pnl",
+        "cfo",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 23.273,
+      "error": null,
+      "warnings": [
+        "response time 23.3s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            40.0,
+            60.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [40.0, 60.0]"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "usd_millions",
+          "actual": null,
+          "passed": false,
+          "message": "expected='usd_millions', actual=None"
+        },
+        {
+          "field": "period",
+          "operator": "contains",
+          "expected": "2025",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain '2025'"
+        },
+        {
+          "field": "data_source",
+          "operator": "not_equals",
+          "expected": "demo",
+          "actual": null,
+          "passed": true,
+          "message": "must not equal 'demo', actual=None"
+        },
+        {
+          "field": "confidence",
+          "operator": "greater_than",
+          "expected": 0.7,
+          "actual": 0.0,
+          "passed": false,
+          "message": "expected > 0.7, actual=0.0"
+        }
+      ]
+    },
+    {
+      "test_id": "PL_002",
+      "query": "Show me the 2025 P&L",
+      "persona": "cfo",
+      "tags": [
+        "pnl",
+        "cfo",
+        "breakdown"
+      ],
+      "passed": false,
+      "response_time_s": 45.0,
+      "error": "TIMEOUT",
+      "warnings": [],
+      "assertions": []
+    },
+    {
+      "test_id": "PL_003",
+      "query": "What was gross margin in Q3 2025?",
+      "persona": "cfo",
+      "tags": [
+        "pnl",
+        "cfo",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 23.226,
+      "error": null,
+      "warnings": [
+        "response time 23.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            60.0,
+            75.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [60.0, 75.0]"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": null,
+          "passed": false,
+          "message": "expected='pct', actual=None"
+        },
+        {
+          "field": "period",
+          "operator": "equals",
+          "expected": "2025-Q3",
+          "actual": null,
+          "passed": false,
+          "message": "expected='2025-Q3', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "PL_004",
+      "query": "What is our net income margin?",
+      "persona": "cfo",
+      "tags": [
+        "pnl",
+        "cfo",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 21.18,
+      "error": null,
+      "warnings": [
+        "response time 21.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            24.0,
+            32.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [24.0, 32.0]"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": null,
+          "passed": false,
+          "message": "expected='pct', actual=None"
+        },
+        {
+          "field": "confidence",
+          "operator": "greater_than",
+          "expected": 0.6,
+          "actual": 0.0,
+          "passed": false,
+          "message": "expected > 0.6, actual=0.0"
+        }
+      ]
+    },
+    {
+      "test_id": "PERIOD_001",
+      "query": "What is 2025 revenue?",
+      "persona": "cfo",
+      "tags": [
+        "period",
+        "cfo",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 21.18,
+      "error": null,
+      "warnings": [
+        "response time 21.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            160.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [100.0, 160.0]"
+        },
+        {
+          "field": "value",
+          "operator": "not_equals",
+          "expected": 450.0,
+          "actual": null,
+          "passed": true,
+          "message": "must not equal 450.0, actual=None"
+        },
+        {
+          "field": "period",
+          "operator": "contains",
+          "expected": "2025",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain '2025'"
+        }
+      ]
+    },
+    {
+      "test_id": "PERIOD_002",
+      "query": "What is 2024 revenue?",
+      "persona": "cfo",
+      "tags": [
+        "period",
+        "cfo",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 21.212,
+      "error": null,
+      "warnings": [
+        "response time 21.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            80.0,
+            120.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [80.0, 120.0]"
+        },
+        {
+          "field": "value",
+          "operator": "not_equals",
+          "expected": 450.0,
+          "actual": null,
+          "passed": true,
+          "message": "must not equal 450.0, actual=None"
+        },
+        {
+          "field": "period",
+          "operator": "contains",
+          "expected": "2024",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain '2024'"
+        }
+      ]
+    },
+    {
+      "test_id": "PERIOD_003",
+      "query": "Compare 2024 vs 2025 revenue",
+      "persona": "cfo",
+      "tags": [
+        "period",
+        "cfo",
+        "comparison"
+      ],
+      "passed": false,
+      "response_time_s": 21.166,
+      "error": null,
+      "warnings": [
+        "response time 21.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "value_2024",
+          "operator": "in_range",
+          "expected": [
+            80.0,
+            120.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [80.0, 120.0]"
+        },
+        {
+          "field": "value_2025",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            160.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [100.0, 160.0]"
+        }
+      ]
+    },
+    {
+      "test_id": "DIM_001",
+      "query": "Show revenue by region for 2025",
+      "persona": "cfo",
+      "tags": [
+        "dimensional",
+        "cfo",
+        "breakdown"
+      ],
+      "passed": false,
+      "response_time_s": 21.167,
+      "error": null,
+      "warnings": [
+        "response time 21.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "AMER",
+          "actual": "LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine actively refused it. Cannot fall back to fact_base.json in live mode. Check DCL_API_URL or DCL service health.",
+          "passed": false,
+          "message": "expected to contain 'AMER', actual='LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine act'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "EMEA",
+          "actual": "LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine actively refused it. Cannot fall back to fact_base.json in live mode. Check DCL_API_URL or DCL service health.",
+          "passed": false,
+          "message": "expected to contain 'EMEA', actual='LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine act'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "APAC",
+          "actual": "LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine actively refused it. Cannot fall back to fact_base.json in live mode. Check DCL_API_URL or DCL service health.",
+          "passed": false,
+          "message": "expected to contain 'APAC', actual='LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine act'"
+        },
+        {
+          "field": "amer_value",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected > 0"
+        },
+        {
+          "field": "total",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            160.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [100.0, 160.0]"
+        }
+      ]
+    },
+    {
+      "test_id": "DIM_002",
+      "query": "Headcount by department",
+      "persona": "chro",
+      "tags": [
+        "dimensional",
+        "chro",
+        "breakdown"
+      ],
+      "passed": false,
+      "response_time_s": 21.149,
+      "error": null,
+      "warnings": [
+        "response time 21.1s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "Engineering",
+          "actual": "LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine actively refused it. Cannot fall back to fact_base.json in live mode. Check DCL_API_URL or DCL service health.",
+          "passed": false,
+          "message": "expected to contain 'Engineering', actual='LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine act'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "Sales",
+          "actual": "LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine actively refused it. Cannot fall back to fact_base.json in live mode. Check DCL_API_URL or DCL service health.",
+          "passed": false,
+          "message": "expected to contain 'Sales', actual='LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine act'"
+        },
+        {
+          "field": "total",
+          "operator": "in_range",
+          "expected": [
+            250,
+            450
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [250, 450]"
+        }
+      ]
+    },
+    {
+      "test_id": "DIM_003",
+      "query": "Revenue by segment Q2 2025",
+      "persona": "cro",
+      "tags": [
+        "dimensional",
+        "cro",
+        "breakdown"
+      ],
+      "passed": false,
+      "response_time_s": 21.175,
+      "error": null,
+      "warnings": [
+        "response time 21.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "Enterprise",
+          "actual": "LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine actively refused it. Cannot fall back to fact_base.json in live mode. Check DCL_API_URL or DCL service health.",
+          "passed": false,
+          "message": "expected to contain 'Enterprise', actual='LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine act'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "Mid-Market",
+          "actual": "LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine actively refused it. Cannot fall back to fact_base.json in live mode. Check DCL_API_URL or DCL service health.",
+          "passed": false,
+          "message": "expected to contain 'Mid-Market', actual='LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine act'"
+        },
+        {
+          "field": "dimensions",
+          "operator": "contains",
+          "expected": "SMB",
+          "actual": "LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine actively refused it. Cannot fall back to fact_base.json in live mode. Check DCL_API_URL or DCL service health.",
+          "passed": false,
+          "message": "expected to contain 'SMB', actual='LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine act'"
+        },
+        {
+          "field": "period",
+          "operator": "equals",
+          "expected": "2025-Q2",
+          "actual": null,
+          "passed": false,
+          "message": "expected='2025-Q2', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "SAAS_001",
+      "query": "What is our burn multiple?",
+      "persona": "cfo",
+      "tags": [
+        "saas",
+        "cfo",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 21.138,
+      "error": null,
+      "warnings": [
+        "response time 21.1s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            -2.5,
+            0.5
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [-2.5, 0.5]"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "ratio",
+          "actual": null,
+          "passed": false,
+          "message": "expected='ratio', actual=None"
+        },
+        {
+          "field": "confidence",
+          "operator": "greater_than",
+          "expected": 0.6,
+          "actual": 0.0,
+          "passed": false,
+          "message": "expected > 0.6, actual=0.0"
+        }
+      ]
+    },
+    {
+      "test_id": "SAAS_002",
+      "query": "Show me LTV to CAC ratio",
+      "persona": "cro",
+      "tags": [
+        "saas",
+        "cro",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 21.196,
+      "error": null,
+      "warnings": [
+        "response time 21.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            7.0,
+            12.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [7.0, 12.0]"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "ratio",
+          "actual": null,
+          "passed": false,
+          "message": "expected='ratio', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "SAAS_003",
+      "query": "What is our rule of 40?",
+      "persona": "cfo",
+      "tags": [
+        "saas",
+        "cfo",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 45.0,
+      "error": "TIMEOUT",
+      "warnings": [],
+      "assertions": []
+    },
+    {
+      "test_id": "SAAS_004",
+      "query": "What is NRR?",
+      "persona": "cro",
+      "tags": [
+        "saas",
+        "cro",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 23.236,
+      "error": null,
+      "warnings": [
+        "response time 23.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            100.0,
+            130.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [100.0, 130.0]"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": null,
+          "passed": false,
+          "message": "expected='pct', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "CTO_001",
+      "query": "How many P1 incidents in Q3 2025?",
+      "persona": "cto",
+      "tags": [
+        "cto",
+        "infrastructure",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 45.0,
+      "error": "TIMEOUT",
+      "warnings": [],
+      "assertions": []
+    },
+    {
+      "test_id": "CTO_002",
+      "query": "What is our uptime?",
+      "persona": "cto",
+      "tags": [
+        "cto",
+        "infrastructure",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 23.36,
+      "error": null,
+      "warnings": [
+        "response time 23.4s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "greater_than",
+          "expected": 95.0,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected > 95.0"
+        },
+        {
+          "field": "value",
+          "operator": "less_than",
+          "expected": 100.0,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected < 100.0"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": null,
+          "passed": false,
+          "message": "expected='pct', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "CTO_003",
+      "query": "Show cloud spend by category",
+      "persona": "cto",
+      "tags": [
+        "cto",
+        "infrastructure",
+        "breakdown"
+      ],
+      "passed": false,
+      "response_time_s": 45.0,
+      "error": "TIMEOUT",
+      "warnings": [],
+      "assertions": []
+    },
+    {
+      "test_id": "CHRO_001",
+      "query": "What is our attrition rate?",
+      "persona": "chro",
+      "tags": [
+        "chro",
+        "people",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 23.201,
+      "error": null,
+      "warnings": [
+        "response time 23.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            5.0,
+            20.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [5.0, 20.0]"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": null,
+          "passed": false,
+          "message": "expected='pct', actual=None"
+        },
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "attrition_rate_pct",
+          "actual": null,
+          "passed": false,
+          "message": "expected='attrition_rate_pct', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "CHRO_002",
+      "query": "How many open roles do we have?",
+      "persona": "chro",
+      "tags": [
+        "chro",
+        "people",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 21.151,
+      "error": null,
+      "warnings": [
+        "response time 21.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected > 0"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "count",
+          "actual": null,
+          "passed": false,
+          "message": "expected='count', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "ALIAS_001",
+      "query": "What is win rate?",
+      "persona": "cro",
+      "tags": [
+        "alias",
+        "cro",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 21.189,
+      "error": null,
+      "warnings": [
+        "response time 21.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "win_rate_pct",
+          "actual": null,
+          "passed": false,
+          "message": "expected='win_rate_pct', actual=None"
+        },
+        {
+          "field": "value",
+          "operator": "in_range",
+          "expected": [
+            25.0,
+            55.0
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in range [25.0, 55.0]"
+        }
+      ]
+    },
+    {
+      "test_id": "ALIAS_002",
+      "query": "Show quota attainment",
+      "persona": "cro",
+      "tags": [
+        "alias",
+        "cro",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 45.0,
+      "error": "TIMEOUT",
+      "warnings": [],
+      "assertions": []
+    },
+    {
+      "test_id": "ALIAS_003",
+      "query": "What is gross margin?",
+      "persona": "cfo",
+      "tags": [
+        "alias",
+        "cfo",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 23.301,
+      "error": null,
+      "warnings": [
+        "response time 23.3s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "metric_id",
+          "operator": "equals",
+          "expected": "gross_margin_pct",
+          "actual": null,
+          "passed": false,
+          "message": "expected='gross_margin_pct', actual=None"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "pct",
+          "actual": null,
+          "passed": false,
+          "message": "expected='pct', actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "ALIAS_004",
+      "query": "cloud cost this quarter",
+      "persona": "cto",
+      "tags": [
+        "alias",
+        "cto",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 45.0,
+      "error": "TIMEOUT",
+      "warnings": [],
+      "assertions": []
+    },
+    {
+      "test_id": "SUP_001",
+      "query": "Which region has the highest revenue?",
+      "persona": "cfo",
+      "tags": [
+        "superlative",
+        "cfo",
+        "ranking"
+      ],
+      "passed": false,
+      "response_time_s": 23.301,
+      "error": null,
+      "warnings": [
+        "response time 23.3s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "not_null",
+          "expected": null,
+          "actual": null,
+          "passed": false,
+          "message": "expected not null, actual=None"
+        },
+        {
+          "field": "dimension_value",
+          "operator": "in",
+          "expected": [
+            "AMER",
+            "EMEA",
+            "APAC"
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in ['AMER', 'EMEA', 'APAC']"
+        }
+      ]
+    },
+    {
+      "test_id": "SUP_002",
+      "query": "Who is our top performing sales rep?",
+      "persona": "cro",
+      "tags": [
+        "superlative",
+        "cro",
+        "ranking"
+      ],
+      "passed": false,
+      "response_time_s": 21.2,
+      "error": null,
+      "warnings": [
+        "response time 21.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "not_null",
+          "expected": null,
+          "actual": null,
+          "passed": false,
+          "message": "expected not null, actual=None"
+        },
+        {
+          "field": "confidence",
+          "operator": "greater_than",
+          "expected": 0.5,
+          "actual": 0.0,
+          "passed": false,
+          "message": "expected > 0.5, actual=0.0"
+        }
+      ]
+    },
+    {
+      "test_id": "SUP_003",
+      "query": "Which segment has the lowest churn?",
+      "persona": "cro",
+      "tags": [
+        "superlative",
+        "cro",
+        "ranking"
+      ],
+      "passed": false,
+      "response_time_s": 21.237,
+      "error": null,
+      "warnings": [
+        "response time 21.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "dimension_value",
+          "operator": "in",
+          "expected": [
+            "Enterprise",
+            "Mid-Market",
+            "SMB"
+          ],
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected in ['Enterprise', 'Mid-Market', 'SMB']"
+        }
+      ]
+    },
+    {
+      "test_id": "CLARIFY_001",
+      "query": "how did we do?",
+      "persona": "cfo",
+      "tags": [
+        "clarification",
+        "cfo",
+        "ambiguous"
+      ],
+      "passed": false,
+      "response_time_s": 21.265,
+      "error": null,
+      "warnings": [
+        "response time 21.3s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "response_type",
+          "operator": "equals",
+          "expected": "clarification",
+          "actual": "data",
+          "passed": false,
+          "message": "expected='clarification', actual='data'"
+        },
+        {
+          "field": "clarification_prompt",
+          "operator": "not_null",
+          "expected": null,
+          "actual": null,
+          "passed": false,
+          "message": "expected not null, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "CLARIFY_002",
+      "query": "show me the margin",
+      "persona": "cfo",
+      "tags": [
+        "clarification",
+        "cfo",
+        "ambiguous"
+      ],
+      "passed": false,
+      "response_time_s": 21.287,
+      "error": null,
+      "warnings": [
+        "response time 21.3s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "response_type",
+          "operator": "equals",
+          "expected": "clarification",
+          "actual": "data",
+          "passed": false,
+          "message": "expected='clarification', actual='data'"
+        },
+        {
+          "field": "clarification_options",
+          "operator": "contains",
+          "expected": "gross",
+          "actual": "LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine actively refused it. Cannot fall back to fact_base.json in live mode. Check DCL_API_URL or DCL service health.",
+          "passed": false,
+          "message": "expected to contain 'gross', actual='LIVE MODE FAILURE: DCL catalog fetch failed: [WinError 10061] No connection could be made because the target machine act'"
+        }
+      ]
+    },
+    {
+      "test_id": "CLARIFY_003",
+      "query": "revenue",
+      "persona": "cfo",
+      "tags": [
+        "clarification",
+        "cfo",
+        "ambiguous"
+      ],
+      "passed": true,
+      "response_time_s": 21.321,
+      "error": null,
+      "warnings": [
+        "response time 21.3s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "response_type",
+          "operator": "in",
+          "expected": [
+            "clarification",
+            "data"
+          ],
+          "actual": "data",
+          "passed": true,
+          "message": "expected in ['clarification', 'data'], actual='data'"
+        }
+      ]
+    },
+    {
+      "test_id": "PROV_001",
+      "query": "What is revenue for Q1 2025?",
+      "persona": "cfo",
+      "tags": [
+        "provenance",
+        "cfo",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 21.218,
+      "error": null,
+      "warnings": [
+        "response time 21.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "provenance",
+          "operator": "not_null",
+          "expected": null,
+          "actual": null,
+          "passed": false,
+          "message": "expected not null, actual=None"
+        },
+        {
+          "field": "provenance_source",
+          "operator": "contains",
+          "expected": "netsuite",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain 'netsuite'"
+        },
+        {
+          "field": "provenance_is_sor",
+          "operator": "equals",
+          "expected": true,
+          "actual": null,
+          "passed": false,
+          "message": "expected=True, actual=None"
+        }
+      ]
+    },
+    {
+      "test_id": "PROV_002",
+      "query": "Show me ARR",
+      "persona": "cfo",
+      "tags": [
+        "provenance",
+        "cfo",
+        "point"
+      ],
+      "passed": false,
+      "response_time_s": 21.24,
+      "error": null,
+      "warnings": [
+        "response time 21.2s (threshold 10.0s)"
+      ],
+      "assertions": [
+        {
+          "field": "provenance_source",
+          "operator": "contains",
+          "expected": "chargebee",
+          "actual": null,
+          "passed": false,
+          "message": "actual is None, expected to contain 'chargebee'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": []
+}

@@ -1,0 +1,117 @@
+{
+  "_comment": "Ground truth extracted from fact_base.json. Honor system: never modify to make tests pass.",
+  "_source": "fact_base_v3_1769895462776.json",
+  "_last_verified": "2026-02-02",
+  "_note": "All monetary values are in MILLIONS USD per metadata.unit",
+
+  "current_period": "2026-Q4",
+
+  "point_values": {
+    "revenue": 50.0,
+    "arr": 47.5,
+    "pipeline": 143.75,
+    "headcount": 430,
+    "win_rate_pct": 45.5,
+    "enps": 40,
+    "engagement_score": 86,
+    "attrition_rate_pct": 1.2,
+    "cloud_spend": 0.94,
+    "nps": 56,
+    "churn_pct": 5.9,
+    "churn_rate_pct": 5.9,
+    "nrr": 121.5,
+    "ar": 24.5,
+    "ap": 5.75,
+    "cash": 49.0,
+    "gross_margin_pct": 67.0,
+    "operating_margin_pct": 41.0,
+    "net_income": 15.38,
+    "ebitda": 22.25,
+    "bookings": 60.0,
+    "quota_attainment_pct": 102.8,
+    "sales_cycle_days": 78,
+    "uptime_pct": 99.82,
+    "deploys_per_week": 16,
+    "sprint_velocity": 60,
+    "tech_debt_pct": 23,
+    "code_coverage_pct": 79,
+    "mttr_p1_hours": 1.5,
+    "time_to_fill_days": 34,
+    "offer_acceptance_rate_pct": 93,
+    "csat": 4.46,
+    "magic_number": 1.08,
+    "ltv_cac": 4.6,
+    "cac_payback_months": 11.5
+  },
+
+  "by_dimension": {
+    "revenue_by_region": {
+      "AMER": 25.0,
+      "EMEA": 15.0,
+      "APAC": 10.0
+    },
+    "revenue_by_segment": {
+      "Enterprise": 27.5,
+      "Mid-Market": 15.0,
+      "SMB": 7.5
+    },
+    "pipeline_by_stage": {
+      "Lead": 28.75,
+      "Qualified": 43.12,
+      "Proposal": 35.94,
+      "Negotiation": 21.56,
+      "Closed-Won": 14.38
+    },
+    "pipeline_by_region": {
+      "AMER": 71.88,
+      "EMEA": 43.12,
+      "APAC": 28.75
+    },
+    "headcount_by_department": {
+      "Engineering": 145,
+      "Sales": 80,
+      "Marketing": 43,
+      "Product": 34,
+      "Customer Success": 60,
+      "People": 22,
+      "Finance": 22,
+      "G&A": 24
+    },
+    "engagement_by_department": {
+      "Engineering": 88,
+      "Sales": 84,
+      "Marketing": 86,
+      "Product": 90,
+      "Customer Success": 85,
+      "People": 92,
+      "Finance": 87,
+      "G&A": 83
+    },
+    "attrition_by_department": {
+      "Engineering": 2,
+      "Sales": 1,
+      "Marketing": 1,
+      "Product": 0,
+      "Customer Success": 1,
+      "People": 0,
+      "Finance": 0,
+      "G&A": 0
+    },
+    "time_to_fill_by_department": {
+      "Engineering": 41,
+      "Sales": 27,
+      "Marketing": 31,
+      "Product": 37,
+      "Customer Success": 24,
+      "People": 29,
+      "Finance": 34,
+      "G&A": 21
+    }
+  },
+
+  "annual": {
+    "2024": {"revenue": 100, "arr": 26.6, "headcount": 256},
+    "2025": {"revenue": 150, "arr": 42.75, "headcount": 350},
+    "2026": {"revenue": 200, "arr": 47.5, "headcount": 430}
+  }
+}

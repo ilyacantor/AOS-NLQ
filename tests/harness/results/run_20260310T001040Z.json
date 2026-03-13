@@ -1,0 +1,393 @@
+{
+  "timestamp": "2026-03-10T00:10:40.956027+00:00",
+  "endpoint": "http://localhost:8005/api/v1/query",
+  "assumptions_source": "compiled_defaults (mirrors Assumptions dataclass)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 10,
+    "passed": 10,
+    "failed": 0,
+    "pass_rate_pct": 100.0
+  },
+  "results": [
+    {
+      "test_id": "PD_001",
+      "query": "Engagement creation triggers prework",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "prework"
+      ],
+      "passed": true,
+      "response_time_s": 0.416,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "engagement_id",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "c07dc7ae-a5f4-4657-aa69-ca3b3e5392d6",
+          "passed": true,
+          "message": "expected not null, actual='c07dc7ae-a5f4-4657-aa69-ca3b3e5392d6'"
+        },
+        {
+          "field": "phase",
+          "operator": "equals",
+          "expected": "prework_complete",
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected='prework_complete', actual='prework_complete'"
+        },
+        {
+          "field": "prework_complete",
+          "operator": "equals",
+          "expected": true,
+          "actual": true,
+          "passed": true,
+          "message": "expected=True, actual=True"
+        },
+        {
+          "field": "mode",
+          "operator": "equals",
+          "expected": "pre_deal",
+          "actual": "pre_deal",
+          "passed": true,
+          "message": "expected='pre_deal', actual='pre_deal'"
+        },
+        {
+          "field": "session_ids",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "a7567870-b6d3-4221-99d5-b8785e151a8f"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['a7567870-b6d3-4221-99d5-b8785e151a8f']"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_002",
+      "query": "What do you know about the two companies?",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "prework",
+        "entities"
+      ],
+      "passed": true,
+      "response_time_s": 5.823,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Based on our prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022. They recently acquired Apex Consulting in Q3 2025, and there's an Oracle ERP integration still pending from that deal.\n\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded in 2015, bootstrapped until this Meridian acquisition. They have some revenue concentration risk with their top 3 customers representing 35% of revenue.\n\nThis is a PE-backed acquisition with Crestview Capital as the sponsor. The combined entity will have $6B in revenue across 19 legal entities and 20 systems.\n\nIs this structure correct \u2014 Meridian acquiring Cascadia under Crestview's backing?",
+          "passed": true,
+          "message": "expected not null, actual=\"Based on our prework, here's what I found:\\n\\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022. They recently acquired Apex Consulting in Q3 2025, and there's an Oracle ERP integration still pending from that deal.\\n\\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded in 2015, bootstrapped until this Meridian acquisition. They have some revenue concentration risk with their top 3 customers representing 35% of revenue.\\n\\nThis is a PE-backed acquisition with Crestview Capital as the sponsor. The combined entity will have $6B in revenue across 19 legal entities and 20 systems.\\n\\nIs this structure correct \u2014 Meridian acquiring Cascadia under Crestview's backing?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "Meridian",
+          "actual": "Based on our prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022. They recently acquired Apex Consulting in Q3 2025, and there's an Oracle ERP integration still pending from that deal.\n\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded in 2015, bootstrapped until this Meridian acquisition. They have some revenue concentration risk with their top 3 customers representing 35% of revenue.\n\nThis is a PE-backed acquisition with Crestview Capital as the sponsor. The combined entity will have $6B in revenue across 19 legal entities and 20 systems.\n\nIs this structure correct \u2014 Meridian acquiring Cascadia under Crestview's backing?",
+          "passed": true,
+          "message": "expected to contain 'Meridian', actual='Based on our prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company w'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "Cascadia",
+          "actual": "Based on our prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022. They recently acquired Apex Consulting in Q3 2025, and there's an Oracle ERP integration still pending from that deal.\n\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded in 2015, bootstrapped until this Meridian acquisition. They have some revenue concentration risk with their top 3 customers representing 35% of revenue.\n\nThis is a PE-backed acquisition with Crestview Capital as the sponsor. The combined entity will have $6B in revenue across 19 legal entities and 20 systems.\n\nIs this structure correct \u2014 Meridian acquiring Cascadia under Crestview's backing?",
+          "passed": true,
+          "message": "expected to contain 'Cascadia', actual='Based on our prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company w'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_003",
+      "query": "Tell me about Meridian",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "acquirer"
+      ],
+      "passed": true,
+      "response_time_s": 4.891,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\n\nTheir systems landscape includes SAP S/4HANA as their primary ERP, plus NetSuite for subsidiaries, Oracle from the Apex acquisition, Workday for HCM, Salesforce for CRM, and ADP for payroll.\n\nThey recently acquired Apex Consulting in Q3 2025, but the Oracle ERP integration from that deal is still pending. Crestview Capital is actively evaluating add-on acquisitions. One operational challenge they're facing is that consolidated P&L takes 3 weeks due to running dual ERPs - SAP versus Oracle.\n\nDoes this match what you know about Meridian's current state?",
+          "passed": true,
+          "message": "expected not null, actual=\"**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\\n\\nTheir systems landscape includes SAP S/4HANA as their primary ERP, plus NetSuite for subsidiaries, Oracle from the Apex acquisition, Workday for HCM, Salesforce for CRM, and ADP for payroll.\\n\\nThey recently acquired Apex Consulting in Q3 2025, but the Oracle ERP integration from that deal is still pending. Crestview Capital is actively evaluating add-on acquisitions. One operational challenge they're facing is that consolidated P&L takes 3 weeks due to running dual ERPs - SAP versus Oracle.\\n\\nDoes this match what you know about Meridian's current state?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "division",
+          "actual": "**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\n\nTheir systems landscape includes SAP S/4HANA as their primary ERP, plus NetSuite for subsidiaries, Oracle from the Apex acquisition, Workday for HCM, Salesforce for CRM, and ADP for payroll.\n\nThey recently acquired Apex Consulting in Q3 2025, but the Oracle ERP integration from that deal is still pending. Crestview Capital is actively evaluating add-on acquisitions. One operational challenge they're facing is that consolidated P&L takes 3 weeks due to running dual ERPs - SAP versus Oracle.\n\nDoes this match what you know about Meridian's current state?",
+          "passed": true,
+          "message": "expected to contain 'division', actual='**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal en'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "system",
+          "actual": "**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022.\n\nTheir systems landscape includes SAP S/4HANA as their primary ERP, plus NetSuite for subsidiaries, Oracle from the Apex acquisition, Workday for HCM, Salesforce for CRM, and ADP for payroll.\n\nThey recently acquired Apex Consulting in Q3 2025, but the Oracle ERP integration from that deal is still pending. Crestview Capital is actively evaluating add-on acquisitions. One operational challenge they're facing is that consolidated P&L takes 3 weeks due to running dual ERPs - SAP versus Oracle.\n\nDoes this match what you know about Meridian's current state?",
+          "passed": true,
+          "message": "expected to contain 'system', actual='**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal en'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_004",
+      "query": "Maestra scoping interview advances through sections",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "state_machine"
+      ],
+      "passed": true,
+      "response_time_s": 0.0,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "sections",
+          "operator": "sections_advance",
+          "expected": [
+            "PDC",
+            "PDA",
+            "PDT",
+            "PDS",
+            "PDR",
+            "PDF"
+          ],
+          "actual": [
+            "PDC",
+            "PDA",
+            "PDT",
+            "PDS",
+            "PDR",
+            "PDF"
+          ],
+          "passed": true,
+          "message": "sections defined: ['PDC', 'PDA', 'PDT', 'PDS', 'PDR', 'PDF']"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_005",
+      "query": "DD scope configuration captures selections",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "scope"
+      ],
+      "passed": true,
+      "response_time_s": 0.379,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected not null, actual='prework_complete'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_006",
+      "query": "Analysis runs after scope confirmation",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "analysis"
+      ],
+      "passed": true,
+      "response_time_s": 0.0,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "section",
+          "operator": "section_reached",
+          "expected": "PDR",
+          "actual": "PDR",
+          "passed": true,
+          "message": "target=PDR, reached=True"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_007",
+      "query": "Walk me through what you found",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "findings"
+      ],
+      "passed": true,
+      "response_time_s": 53.187,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Starting with the cross-sell pipeline, I found **103 named accounts** with a total pipeline value of **$272.5M**. The strongest direction is Cascadia to Meridian - your BPM clients transitioning to F&A Outsourcing and Data & Analytics services.\n\n**34 customers overlap** between both companies, representing $724M in combined revenue (12% concentration in the top shared client). The cross-sell opportunity is particularly strong in the Meridian-to-Cascadia direction, where consulting clients with high manual process counts are prime candidates for outsourcing services.\n\nLet me show you the EBITDA bridge next.\n\n**EBITDA Bridge** shows the path from $1.2B combined reported EBITDA to $1.7B steady-state pro forma. Key drivers are bench optimization ($135M), vendor consolidation ($49M), and corporate function consolidation ($27M). Year 1 includes $100M integration costs, but steady state reaches $1.68B.\n\nNow let me show you the vendor consolidation opportunities.\n\n**170 overlapping vendors** with combined spend of $324M. The biggest consolidation opportunities are in cloud infrastructure (AWS, Azure, GCP) and professional services (staffing, consulting, facilities). Total estimated savings: $48.8M annually.\n\nLet me show you the people overlap next.\n\n**2,280 combined corporate headcount** across Finance, HR, IT, and Legal. The consolidation approach retains dual leadership at the C-level but consolidates VP and director roles. Estimated savings: $27M annually.\n\nNow let me show you the technology integration plan.",
+          "passed": true,
+          "message": "expected not null, actual='Starting with the cross-sell pipeline, I found **103 named accounts** with a total pipeline value of **$272.5M**. The strongest direction is Cascadia to Meridian - your BPM clients transitioning to F&A Outsourcing and Data & Analytics services.\\n\\n**34 customers overlap** between both companies, representing $724M in combined revenue (12% concentration in the top shared client). The cross-sell opportunity is particularly strong in the Meridian-to-Cascadia direction, where consulting clients with high manual process counts are prime candidates for outsourcing services.\\n\\nLet me show you the EBITDA bridge next.\\n\\n**EBITDA Bridge** shows the path from $1.2B combined reported EBITDA to $1.7B steady-state pro forma. Key drivers are bench optimization ($135M), vendor consolidation ($49M), and corporate function consolidation ($27M). Year 1 includes $100M integration costs, but steady state reaches $1.68B.\\n\\nNow let me show you the vendor consolidation opportunities.\\n\\n**170 overlapping vendors** with combined spend of $324M. The biggest consolidation opportunities are in cloud infrastructure (AWS, Azure, GCP) and professional services (staffing, consulting, facilities). Total estimated savings: $48.8M annually.\\n\\nLet me show you the people overlap next.\\n\\n**2,280 combined corporate headcount** across Finance, HR, IT, and Legal. The consolidation approach retains dual leadership at the C-level but consolidates VP and director roles. Estimated savings: $27M annually.\\n\\nNow let me show you the technology integration plan.'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "cross-sell",
+          "actual": "Starting with the cross-sell pipeline, I found **103 named accounts** with a total pipeline value of **$272.5M**. The strongest direction is Cascadia to Meridian - your BPM clients transitioning to F&A Outsourcing and Data & Analytics services.\n\n**34 customers overlap** between both companies, representing $724M in combined revenue (12% concentration in the top shared client). The cross-sell opportunity is particularly strong in the Meridian-to-Cascadia direction, where consulting clients with high manual process counts are prime candidates for outsourcing services.\n\nLet me show you the EBITDA bridge next.\n\n**EBITDA Bridge** shows the path from $1.2B combined reported EBITDA to $1.7B steady-state pro forma. Key drivers are bench optimization ($135M), vendor consolidation ($49M), and corporate function consolidation ($27M). Year 1 includes $100M integration costs, but steady state reaches $1.68B.\n\nNow let me show you the vendor consolidation opportunities.\n\n**170 overlapping vendors** with combined spend of $324M. The biggest consolidation opportunities are in cloud infrastructure (AWS, Azure, GCP) and professional services (staffing, consulting, facilities). Total estimated savings: $48.8M annually.\n\nLet me show you the people overlap next.\n\n**2,280 combined corporate headcount** across Finance, HR, IT, and Legal. The consolidation approach retains dual leadership at the C-level but consolidates VP and director roles. Estimated savings: $27M annually.\n\nNow let me show you the technology integration plan.",
+          "passed": true,
+          "message": "expected to contain 'cross-sell', actual='Starting with the cross-sell pipeline, I found **103 named accounts** with a total pipeline value of **$272.5M**. The st'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "pipeline",
+          "actual": "Starting with the cross-sell pipeline, I found **103 named accounts** with a total pipeline value of **$272.5M**. The strongest direction is Cascadia to Meridian - your BPM clients transitioning to F&A Outsourcing and Data & Analytics services.\n\n**34 customers overlap** between both companies, representing $724M in combined revenue (12% concentration in the top shared client). The cross-sell opportunity is particularly strong in the Meridian-to-Cascadia direction, where consulting clients with high manual process counts are prime candidates for outsourcing services.\n\nLet me show you the EBITDA bridge next.\n\n**EBITDA Bridge** shows the path from $1.2B combined reported EBITDA to $1.7B steady-state pro forma. Key drivers are bench optimization ($135M), vendor consolidation ($49M), and corporate function consolidation ($27M). Year 1 includes $100M integration costs, but steady state reaches $1.68B.\n\nNow let me show you the vendor consolidation opportunities.\n\n**170 overlapping vendors** with combined spend of $324M. The biggest consolidation opportunities are in cloud infrastructure (AWS, Azure, GCP) and professional services (staffing, consulting, facilities). Total estimated savings: $48.8M annually.\n\nLet me show you the people overlap next.\n\n**2,280 combined corporate headcount** across Finance, HR, IT, and Legal. The consolidation approach retains dual leadership at the C-level but consolidates VP and director roles. Estimated savings: $27M annually.\n\nNow let me show you the technology integration plan.",
+          "passed": true,
+          "message": "expected to contain 'pipeline', actual='Starting with the cross-sell pipeline, I found **103 named accounts** with a total pipeline value of **$272.5M**. The st'"
+        },
+        {
+          "field": "actions_taken",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "Queried cross_sell engine",
+            "Queried entity_resolution engine",
+            "Displayed table: Cross-Sell Pipeline: Top 10 Candidates",
+            "Navigated to crosssell",
+            "Queried ebitda_bridge engine",
+            "Displayed table: EBITDA Bridge: Reported to Pro Forma",
+            "Navigated to bridge",
+            "Displayed table: Vendor Consolidation: Top Savings Opportunities",
+            "Displayed table: People Overlap: Corporate Functions",
+            "Queried cofa_mapping engine"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['Queried cross_sell engine', 'Queried entity_resolution engine', 'Displayed table: Cross-Sell Pipeline: Top 10 Candidates', 'Navigated to crosssell', 'Queried ebitda_bridge engine', 'Displayed table: EBITDA Bridge: Reported to Pro Forma', 'Navigated to bridge', 'Displayed table: Vendor Consolidation: Top Savings Opportunities', 'Displayed table: People Overlap: Corporate Functions', 'Queried cofa_mapping engine']"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_008",
+      "query": "Maestra never uses internal terminology",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "vocabulary"
+      ],
+      "passed": true,
+      "response_time_s": 0.0,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "vocabulary",
+          "operator": "does_not_contain",
+          "expected": "no banned terms",
+          "actual": "clean",
+          "passed": true,
+          "message": "No banned terms found in 8 messages"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_009",
+      "query": "Portal shows engagement context after creation",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "portal"
+      ],
+      "passed": true,
+      "response_time_s": 0.383,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "deal_name",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Meridian-Cascadia Integration",
+          "passed": true,
+          "message": "expected not null, actual='Meridian-Cascadia Integration'"
+        },
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "findings",
+          "passed": true,
+          "message": "expected not null, actual='findings'"
+        },
+        {
+          "field": "entity_completeness",
+          "operator": "not_null",
+          "expected": null,
+          "actual": {
+            "combined": 39
+          },
+          "passed": true,
+          "message": "expected not null, actual={'combined': 39}"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_010",
+      "query": "Show me the cross-sell details",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "findings",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 25.023,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "The strongest cross-sell pipeline opportunity is **Meridian-to-Cascadia direction at $155M** across 38 candidates. These are Meridian's consulting clients who have completed transformation projects and now have high manual process counts - perfect candidates for Cascadia's BPM services.\n\n**Key at-risk accounts**: We identified 34 overlapping customers representing $724M in combined revenue. The top shared client alone represents 12% concentration risk.\n\nThe cross-sell portal is now showing the detailed scoring and contact mapping for each candidate. Should I continue with the EBITDA bridge next?",
+          "passed": true,
+          "message": "expected not null, actual=\"The strongest cross-sell pipeline opportunity is **Meridian-to-Cascadia direction at $155M** across 38 candidates. These are Meridian's consulting clients who have completed transformation projects and now have high manual process counts - perfect candidates for Cascadia's BPM services.\\n\\n**Key at-risk accounts**: We identified 34 overlapping customers representing $724M in combined revenue. The top shared client alone represents 12% concentration risk.\\n\\nThe cross-sell portal is now showing the detailed scoring and contact mapping for each candidate. Should I continue with the EBITDA bridge next?\""
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "crosssell",
+          "actual": "crosssell",
+          "passed": true,
+          "message": "expected='crosssell', actual='crosssell'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": []
+}

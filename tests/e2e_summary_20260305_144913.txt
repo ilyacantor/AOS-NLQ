@@ -1,0 +1,161 @@
+NLQ E2E Test Results - 20260305_144913
+Endpoint: https://aos-nlq.onrender.com/api/v1/query
+============================================================
+TOTAL: 100 | PASSED: 85 | FAILED: 15
+Pass rate: 85.0%
+============================================================
+
+
+--- A: Known Bugs (15/15 passed) ---
+  [PASS] A1: 'why did rev incr' (CFO)
+  [PASS] A2: 'why did revenue increase' (CFO)
+  [PASS] A3: 'whats the margin' (CFO)
+  [PASS] A4: 'are we profitable' (CFO)
+  [PASS] A5: 'build me a dashboard' (CRO)
+  [PASS] A6: 'build me a dashboard' (CFO)
+  [PASS] A7: 'build me a dashboard' (COO)
+  [PASS] A8: 'how are we doing' (CRO)
+  [PASS] A9: 'how are we doing' (CFO)
+  [PASS] A10: 'how are we doing' (COO)
+  [PASS] A11: 'how's the business' (CRO)
+  [PASS] A12: '2025 KPIs in dash' (CFO)
+  [PASS] A13: 'platform stable?' (CTO)
+  [PASS] A14: 'what's our headcount' (COO)
+  [PASS] A15: 'show me attrition trends' (CHRO)
+
+--- B: Hard Queries (18/20 passed) ---
+  [PASS] B1: churn rate by segment (CRO)
+  [PASS] B2: P1 incidents last quarter (CTO)
+  [PASS] B3: churn vs NRR 3 years (CRO)
+  [PASS] B4: worst churn segment (CRO)
+  [PASS] B5: full P&L 2025 (CFO)
+  [FAIL] B6: opex drivers (CFO) -- Failed: references_opex
+         Actual answer: I'm stumped! But I can definitely help with:
+• Financial metrics (revenue, margin, profit)
+• Sales metrics (pipeline, bookings, win rate)
+• Or try 'show me KPIs'
+
+⚠️ Possible insufficient data conditi
+  [PASS] B7: revenue by region (CRO)
+  [PASS] B8: YoY revenue growth (CFO)
+  [PASS] B9: top 5 customers by ARR (CRO)
+  [PASS] B10: burn rate (CFO)
+  [PASS] B11: pipeline next quarter (CRO)
+  [PASS] B12: hitting quota (CRO)
+  [PASS] B13: customer satisfaction trend (COO)
+  [PASS] B14: engineering velocity (CTO)
+  [PASS] B15: compare Q1 vs Q2 revenue (CFO)
+  [PASS] B16: gross margin trend (CFO)
+  [PASS] B17: hiring metrics (CHRO)
+  [PASS] B18: revenue per employee (COO)
+  [FAIL] B19: what did we close last month (CRO) -- Failed: references_closed
+         Actual answer: Win Rate Pct for 2026-Q1 is 40.0%
+  [PASS] B20: cost of revenue breakdown (CFO)
+
+--- C: Persona Fidelity (12/15 passed) ---
+  [PASS] C1: 'give me an overview' (CFO)
+  [PASS] C2: 'give me an overview' (CRO)
+  [PASS] C3: 'give me an overview' (COO)
+  [PASS] C4: 'give me an overview' (CTO)
+  [PASS] C5: 'give me an overview' (CHRO)
+  [PASS] C6: 'what should I worry about?' (CFO)
+  [PASS] C7: 'what should I worry about?' (CRO)
+  [FAIL] C8: 'what should I worry about?' (CTO) -- Failed: references_tech
+         Actual answer: I'm stumped! But I can definitely help with:
+• Financial metrics (revenue, margin, profit)
+• Sales metrics (pipeline, bookings, win rate)
+• Or try 'show me KPIs'
+
+⚠️ Possible insufficient data conditi
+  [FAIL] C9: 'how did we do last quarter?' (CFO) -- Failed: has_quarter
+         Actual answer: Which metric are you asking about? Revenue, EBITDA, Net Income, Margins, or ARR?
+  [PASS] C10: 'how did we do last quarter?' (CRO)
+  [FAIL] C11: 'how did we do last quarter?' (COO) -- Failed: references_ops
+         Actual answer: Which metric are you asking about? Revenue, EBITDA, Net Income, Margins, or ARR?
+  [PASS] C12: 'build me a CHRO dashboard' (CHRO)
+  [PASS] C13: 'build me a CTO dashboard' (CTO)
+  [PASS] C14: 'what are our KPIs?' (CFO)
+  [PASS] C15: 'what are our KPIs?' (CRO)
+
+--- D: Point Queries (15/15 passed) ---
+  [PASS] D1: 'what's our revenue?' (CFO)
+  [PASS] D2: 'what's our ARR?' (CFO)
+  [PASS] D3: 'gross margin' (CFO)
+  [PASS] D4: 'operating margin' (CFO)
+  [PASS] D5: 'net margin' (CFO)
+  [PASS] D6: 'what's EBITDA?' (CFO)
+  [PASS] D7: 'cash position' (CFO)
+  [PASS] D8: 'what's NRR?' (CRO)
+  [PASS] D9: 'pipeline value' (CRO)
+  [PASS] D10: 'win rate' (CRO)
+  [PASS] D11: 'quota attainment' (CRO)
+  [PASS] D12: 'sales cycle days' (CRO)
+  [PASS] D13: 'what's our churn rate?' (CRO)
+  [PASS] D14: 'customer count' (CRO)
+  [PASS] D15: 'what's net income?' (CFO)
+
+--- E: Comparison/Temporal (6/10 passed) ---
+  [PASS] E1: compare Q1 vs Q2 2025 revenue (CFO)
+  [PASS] E2: revenue trend last 4 quarters (CFO)
+  [FAIL] E3: pipeline change this year (CRO) -- Failed: references_change
+         Actual answer: I'm not sure what you mean, but here are some things I'm great at:
+• 'What's revenue?'
+• 'How's pipeline looking?'
+• 'Show me the CFO dashboard'
+
+⚠️ Possible insufficient data condition (50% confidenc
+  [FAIL] E4: margin this quarter vs last (CFO) -- Failed: references_comparison
+         Actual answer: Query interpreted with multiple possibilities.
+  [PASS] E5: YoY growth in ARR (CFO)
+  [FAIL] E6: churn rate last 3 quarters (CRO) -- Failed: references_churn
+         Actual answer: Accounts Receivable for 2026-Q1 is $17.0M
+  [FAIL] E7: is revenue going up or down (CFO) -- Failed: indicates_direction
+         Actual answer: $42.0M
+  [PASS] E8: pipeline trend since January (CRO)
+  [PASS] E9: compare gross vs net margin (CFO)
+  [PASS] E10: bookings this year vs last (CRO)
+
+--- F: Edge Cases (7/10 passed) ---
+  [PASS] F1: 'hi' (no persona)
+  [PASS] F2: 'what's the weather?' (no persona)
+  [FAIL] F3: 'asdfghjkl' (no persona) -- Failed: success
+         Actual answer: None
+  [PASS] F4: 'tell me everything' (CFO)
+  [FAIL] F5: 'rev' (CFO) -- Failed: references_revenue
+         Actual answer: Arr for 2026-Q1 is $145.5M
+  [PASS] F6: '$' (no persona)
+  [PASS] F7: empty string (no persona)
+  [PASS] F8: 'show me the data' (CFO)
+  [FAIL] F9: 'more detail' (CFO) -- Failed: success
+         Actual answer: None
+  [PASS] F10: 'thanks' (no persona)
+
+--- G: Composite Queries (8/10 passed) ---
+  [PASS] G1: full P&L 2025 (CFO)
+  [PASS] G2: executive summary (CFO)
+  [FAIL] G3: financial health (CFO) -- Failed: multiple_indicators
+         Actual answer: Span Of Control for 2026-Q1 is 6.8
+  [PASS] G4: sales performance scorecard (CRO)
+  [PASS] G5: operational efficiency report (COO)
+  [FAIL] G6: show me all the margins (CFO) -- Failed: references_gross, references_operating
+         Actual answer: Accounts Receivable for 2026-Q1 is $17.0M
+  [PASS] G7: revenue and EBITDA trend (CFO)
+  [PASS] G8: customer health overview (CRO)
+  [PASS] G9: unit economics (CFO)
+  [PASS] G10: board deck metrics (CFO)
+
+--- H: Superlatives (4/5 passed) ---
+  [PASS] H1: worst churn segment (CRO)
+  [PASS] H2: best performing region (CRO)
+  [FAIL] H3: biggest expense (CFO) -- Failed: identifies_expense
+         Actual answer: Quota Attainment data ranked by rep is not available in the current data connection. This ranking requires dimensional data that has not been materialized in DCL.
+  [PASS] H4: largest customer (CRO)
+  [PASS] H5: lowest margin product (CFO)
+
+============================================================
+TIMING STATS
+  Min: 341ms
+  Max: 4547ms
+  Avg: 1692ms
+  Median: 1461ms
+  Over 10s: 0

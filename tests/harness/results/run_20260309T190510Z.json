@@ -1,0 +1,366 @@
+{
+  "timestamp": "2026-03-09T19:05:10.242556+00:00",
+  "endpoint": "http://localhost:8005/api/v1/query",
+  "assumptions_source": "compiled_defaults (mirrors Assumptions dataclass)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 10,
+    "passed": 10,
+    "failed": 0,
+    "pass_rate_pct": 100.0
+  },
+  "results": [
+    {
+      "test_id": "PD_001",
+      "query": "Engagement creation triggers prework",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "prework"
+      ],
+      "passed": true,
+      "response_time_s": 0.455,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "engagement_id",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "3868941a-4887-43ae-869d-8e1a5bdfb0fd",
+          "passed": true,
+          "message": "expected not null, actual='3868941a-4887-43ae-869d-8e1a5bdfb0fd'"
+        },
+        {
+          "field": "phase",
+          "operator": "equals",
+          "expected": "prework_complete",
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected='prework_complete', actual='prework_complete'"
+        },
+        {
+          "field": "prework_complete",
+          "operator": "equals",
+          "expected": true,
+          "actual": true,
+          "passed": true,
+          "message": "expected=True, actual=True"
+        },
+        {
+          "field": "mode",
+          "operator": "equals",
+          "expected": "pre_deal",
+          "actual": "pre_deal",
+          "passed": true,
+          "message": "expected='pre_deal', actual='pre_deal'"
+        },
+        {
+          "field": "session_ids",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "1aa9c2eb-d955-47a6-8c6a-2f5b4fdb68ac"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['1aa9c2eb-d955-47a6-8c6a-2f5b4fdb68ac']"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_002",
+      "query": "What do you know about the two companies?",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "prework",
+        "entities"
+      ],
+      "passed": true,
+      "response_time_s": 5.135,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Based on the prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022. They recently acquired Apex Consulting in Q3 2025, and there's still an Oracle ERP integration pending from that deal.\n\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded in 2015, bootstrapped until this Meridian acquisition. They have some revenue concentration risk with their top 3 customers representing 35% of revenue.\n\nThis is a PE-backed acquisition with Crestview Capital as the sponsor. The combined entity will have $6B in revenue across 19 legal entities.\n\nIs that correct \u2014 Meridian acquiring Cascadia?",
+          "passed": true,
+          "message": "expected not null, actual=\"Based on the prework, here's what I found:\\n\\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022. They recently acquired Apex Consulting in Q3 2025, and there's still an Oracle ERP integration pending from that deal.\\n\\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded in 2015, bootstrapped until this Meridian acquisition. They have some revenue concentration risk with their top 3 customers representing 35% of revenue.\\n\\nThis is a PE-backed acquisition with Crestview Capital as the sponsor. The combined entity will have $6B in revenue across 19 legal entities.\\n\\nIs that correct \u2014 Meridian acquiring Cascadia?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "Meridian",
+          "actual": "Based on the prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022. They recently acquired Apex Consulting in Q3 2025, and there's still an Oracle ERP integration pending from that deal.\n\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded in 2015, bootstrapped until this Meridian acquisition. They have some revenue concentration risk with their top 3 customers representing 35% of revenue.\n\nThis is a PE-backed acquisition with Crestview Capital as the sponsor. The combined entity will have $6B in revenue across 19 legal entities.\n\nIs that correct \u2014 Meridian acquiring Cascadia?",
+          "passed": true,
+          "message": "expected to contain 'Meridian', actual='Based on the prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company w'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "Cascadia",
+          "actual": "Based on the prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. Headquartered in Chicago, IL. Backed by Crestview Capital since 2022. They recently acquired Apex Consulting in Q3 2025, and there's still an Oracle ERP integration pending from that deal.\n\n**Cascadia Advisory** is a boutique management consulting firm with $1B in annual revenue, 5 legal entities, and 2 divisions: Advisory and Managed Services. Headquartered in Seattle, WA. Founded in 2015, bootstrapped until this Meridian acquisition. They have some revenue concentration risk with their top 3 customers representing 35% of revenue.\n\nThis is a PE-backed acquisition with Crestview Capital as the sponsor. The combined entity will have $6B in revenue across 19 legal entities.\n\nIs that correct \u2014 Meridian acquiring Cascadia?",
+          "passed": true,
+          "message": "expected to contain 'Cascadia', actual='Based on the prework, here's what I found:\n\n**Meridian Partners** is a PE-backed professional services holding company w'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_003",
+      "query": "Tell me about Meridian",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "acquirer"
+      ],
+      "passed": true,
+      "response_time_s": 6.594,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. They're headquartered in Chicago, IL and have been backed by Crestview Capital since 2022.\n\nOn the systems side, they run SAP S/4HANA as their primary ERP, with NetSuite for subsidiaries. They also have Workday for HR, Salesforce for CRM, and ADP for payroll. There's some complexity right now because they acquired Apex Consulting in Q3 2025, which runs on Oracle ERP and is still being integrated. This dual-ERP situation is causing their consolidated P&L to take 3 weeks instead of the usual timeline.\n\nCrestview Capital is actively evaluating add-on acquisitions, which is why we're here for Cascadia.\n\nDoes that match what you know about Meridian's current state?",
+          "passed": true,
+          "message": "expected not null, actual=\"**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. They're headquartered in Chicago, IL and have been backed by Crestview Capital since 2022.\\n\\nOn the systems side, they run SAP S/4HANA as their primary ERP, with NetSuite for subsidiaries. They also have Workday for HR, Salesforce for CRM, and ADP for payroll. There's some complexity right now because they acquired Apex Consulting in Q3 2025, which runs on Oracle ERP and is still being integrated. This dual-ERP situation is causing their consolidated P&L to take 3 weeks instead of the usual timeline.\\n\\nCrestview Capital is actively evaluating add-on acquisitions, which is why we're here for Cascadia.\\n\\nDoes that match what you know about Meridian's current state?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "division",
+          "actual": "**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. They're headquartered in Chicago, IL and have been backed by Crestview Capital since 2022.\n\nOn the systems side, they run SAP S/4HANA as their primary ERP, with NetSuite for subsidiaries. They also have Workday for HR, Salesforce for CRM, and ADP for payroll. There's some complexity right now because they acquired Apex Consulting in Q3 2025, which runs on Oracle ERP and is still being integrated. This dual-ERP situation is causing their consolidated P&L to take 3 weeks instead of the usual timeline.\n\nCrestview Capital is actively evaluating add-on acquisitions, which is why we're here for Cascadia.\n\nDoes that match what you know about Meridian's current state?",
+          "passed": true,
+          "message": "expected to contain 'division', actual='**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal en'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "system",
+          "actual": "**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal entities and 3 divisions: Strategy, Operations, and Technology. They're headquartered in Chicago, IL and have been backed by Crestview Capital since 2022.\n\nOn the systems side, they run SAP S/4HANA as their primary ERP, with NetSuite for subsidiaries. They also have Workday for HR, Salesforce for CRM, and ADP for payroll. There's some complexity right now because they acquired Apex Consulting in Q3 2025, which runs on Oracle ERP and is still being integrated. This dual-ERP situation is causing their consolidated P&L to take 3 weeks instead of the usual timeline.\n\nCrestview Capital is actively evaluating add-on acquisitions, which is why we're here for Cascadia.\n\nDoes that match what you know about Meridian's current state?",
+          "passed": true,
+          "message": "expected to contain 'system', actual='**Meridian Partners** is a PE-backed professional services holding company with $5B in annual revenue across 14 legal en'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_004",
+      "query": "Maestra scoping interview advances through sections",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "state_machine"
+      ],
+      "passed": true,
+      "response_time_s": 0.0,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "sections",
+          "operator": "sections_advance",
+          "expected": [
+            "PDC",
+            "PDA",
+            "PDT",
+            "PDS",
+            "PDR",
+            "PDF"
+          ],
+          "actual": [
+            "PDC",
+            "PDA",
+            "PDT",
+            "PDS",
+            "PDR",
+            "PDF"
+          ],
+          "passed": true,
+          "message": "sections defined: ['PDC', 'PDA', 'PDT', 'PDS', 'PDR', 'PDF']"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_005",
+      "query": "DD scope configuration captures selections",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "scope"
+      ],
+      "passed": true,
+      "response_time_s": 0.37,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected not null, actual='prework_complete'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_006",
+      "query": "Analysis runs after scope confirmation",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "analysis"
+      ],
+      "passed": true,
+      "response_time_s": 0.0,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "section",
+          "operator": "section_reached",
+          "expected": "PDR",
+          "actual": "PDR",
+          "passed": true,
+          "message": "target=PDR, reached=True"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_007",
+      "query": "Walk me through what you found",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "findings"
+      ],
+      "passed": true,
+      "response_time_s": 17.143,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "The big concern is customer retention \u2014 14 accounts worth $89M are at risk, including Northwind Financial where a key relationship holder is departing.\n\nShould I continue with the combined pipeline or do you want to drill into the customer intelligence?",
+          "passed": true,
+          "message": "expected not null, actual='The big concern is customer retention \u2014 14 accounts worth $89M are at risk, including Northwind Financial where a key relationship holder is departing.\\n\\nShould I continue with the combined pipeline or do you want to drill into the customer intelligence?'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "$",
+          "actual": "The big concern is customer retention \u2014 14 accounts worth $89M are at risk, including Northwind Financial where a key relationship holder is departing.\n\nShould I continue with the combined pipeline or do you want to drill into the customer intelligence?",
+          "passed": true,
+          "message": "expected to contain '$', actual='The big concern is customer retention \u2014 14 accounts worth $89M are at risk, including Northwind Financial where a key re'"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_008",
+      "query": "Maestra never uses internal terminology",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "vocabulary"
+      ],
+      "passed": true,
+      "response_time_s": 0.0,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "vocabulary",
+          "operator": "does_not_contain",
+          "expected": "no banned terms",
+          "actual": "clean",
+          "passed": true,
+          "message": "No banned terms found in 8 messages"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_009",
+      "query": "Portal shows engagement context after creation",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "portal"
+      ],
+      "passed": true,
+      "response_time_s": 0.396,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "deal_name",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Meridian-Cascadia Integration",
+          "passed": true,
+          "message": "expected not null, actual='Meridian-Cascadia Integration'"
+        },
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "findings",
+          "passed": true,
+          "message": "expected not null, actual='findings'"
+        },
+        {
+          "field": "entity_completeness",
+          "operator": "not_null",
+          "expected": null,
+          "actual": {
+            "combined": 45
+          },
+          "passed": true,
+          "message": "expected not null, actual={'combined': 45}"
+        }
+      ]
+    },
+    {
+      "test_id": "PD_010",
+      "query": "Show me the cross-sell details",
+      "persona": "cfo",
+      "tags": [
+        "pre_deal",
+        "findings",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 17.112,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Here's the cross-sell pipeline: **103 candidates totaling $260M in estimated ACV**. The top 27 high-propensity accounts represent $94M.\n\nThe biggest opportunity is Northwind Financial \u2014 Cascadia's current customer with 94% propensity for Meridian's Technology Strategy services, worth $8.2M. But this is also the account at highest risk due to the relationship holder departure.\n\nThe pipeline flows both directions: Cascadia customers buying Meridian services, and Meridian customers buying Cascadia's managed services.\n\nShould I show you the at-risk accounts in more detail, or move to the combined pipeline?",
+          "passed": true,
+          "message": "expected not null, actual=\"Here's the cross-sell pipeline: **103 candidates totaling $260M in estimated ACV**. The top 27 high-propensity accounts represent $94M.\\n\\nThe biggest opportunity is Northwind Financial \u2014 Cascadia's current customer with 94% propensity for Meridian's Technology Strategy services, worth $8.2M. But this is also the account at highest risk due to the relationship holder departure.\\n\\nThe pipeline flows both directions: Cascadia customers buying Meridian services, and Meridian customers buying Cascadia's managed services.\\n\\nShould I show you the at-risk accounts in more detail, or move to the combined pipeline?\""
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "cross_sell",
+          "actual": "cross_sell",
+          "passed": true,
+          "message": "expected='cross_sell', actual='cross_sell'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": []
+}

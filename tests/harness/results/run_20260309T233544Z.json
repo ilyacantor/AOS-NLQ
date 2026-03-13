@@ -1,0 +1,243 @@
+{
+  "timestamp": "2026-03-09T23:35:44.765019+00:00",
+  "endpoint": "http://localhost:8005/api/v1/query",
+  "assumptions_source": "compiled_defaults (mirrors Assumptions dataclass)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "pass_rate_pct": 100.0
+  },
+  "results": [
+    {
+      "test_id": "MA_001",
+      "query": "Maestra engagement creation returns valid structure",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "engagement"
+      ],
+      "passed": true,
+      "response_time_s": 0.464,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "engagement_id",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "9e6c586c-eede-4bc9-ad04-f4602b18a962",
+          "passed": true,
+          "message": "expected not null, actual='9e6c586c-eede-4bc9-ad04-f4602b18a962'"
+        },
+        {
+          "field": "phase",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "prework_complete",
+          "passed": true,
+          "message": "expected not null, actual='prework_complete'"
+        },
+        {
+          "field": "deal_name",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Meridian-Cascadia Integration",
+          "passed": true,
+          "message": "expected not null, actual='Meridian-Cascadia Integration'"
+        },
+        {
+          "field": "workstreams",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 5,
+          "passed": true,
+          "message": "expected > 0, actual=5"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_002",
+      "query": "Give me an overview of where we stand",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "overview"
+      ],
+      "passed": true,
+      "response_time_s": 20.138,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Here's where we stand across all key areas:\n\nStarting with the cross-sell pipeline \u2014 I found 103 candidates worth $272.5 million in total ACV. Your biggest opportunities are Cascadia introducing Meridian's managed services to their consulting clients. High-confidence candidates include Tidewater BPM ($2.7M), Mukilteo Systems ($3.5M), and Whidbey Group ($3.2M). You also have 34 overlapping customers representing $730M in combined revenue, with MegaCorp Global as your largest shared client at $310M.\n\nOn the EBITDA bridge, we're building from $1.22 billion reported to $1.68 billion steady-state pro forma. Key adjustments include $26M in exec compensation normalization, $106M in one-time items, and $233M in combination synergies. The sustainability score is 78.9 (B grade) driven by strong customer concentration metrics and stable adjustments.\n\nFor vendor consolidation, I found 170 overlapping vendors with $48.8M in estimated savings. Top consolidation opportunities are AWS ($8.8M savings), Microsoft Azure ($6.5M), and your staffing vendors like Robert Half and Randstad ($5.3M combined).\n\nYour combined organization will have 19,500+ employees across corporate functions, with significant overlap in Finance (750 people), IT (880), HR (450), and Legal (200). The cross-deployment of Meridian's bench consultants onto Cascadia delivery represents your largest cost synergy at $135M.\n\nIntegration complexity centers on your dual ERP landscape \u2014 SAP/Oracle on Meridian's side, QuickBooks on Cascadia's. Both systems continue running with an intelligence layer providing unified reporting.\n\nAny specific area you'd like to drill deeper into?",
+          "passed": true,
+          "message": "expected not null, actual=\"Here's where we stand across all key areas:\\n\\nStarting with the cross-sell pipeline \u2014 I found 103 candidates worth $272.5 million in total ACV. Your biggest opportunities are Cascadia introducing Meridian's managed services to their consulting clients. High-confidence candidates include Tidewater BPM ($2.7M), Mukilteo Systems ($3.5M), and Whidbey Group ($3.2M). You also have 34 overlapping customers representing $730M in combined revenue, with MegaCorp Global as your largest shared client at $310M.\\n\\nOn the EBITDA bridge, we're building from $1.22 billion reported to $1.68 billion steady-state pro forma. Key adjustments include $26M in exec compensation normalization, $106M in one-time items, and $233M in combination synergies. The sustainability score is 78.9 (B grade) driven by strong customer concentration metrics and stable adjustments.\\n\\nFor vendor consolidation, I found 170 overlapping vendors with $48.8M in estimated savings. Top consolidation opportunities are AWS ($8.8M savings), Microsoft Azure ($6.5M), and your staffing vendors like Robert Half and Randstad ($5.3M combined).\\n\\nYour combined organization will have 19,500+ employees across corporate functions, with significant overlap in Finance (750 people), IT (880), HR (450), and Legal (200). The cross-deployment of Meridian's bench consultants onto Cascadia delivery represents your largest cost synergy at $135M.\\n\\nIntegration complexity centers on your dual ERP landscape \u2014 SAP/Oracle on Meridian's side, QuickBooks on Cascadia's. Both systems continue running with an intelligence layer providing unified reporting.\\n\\nAny specific area you'd like to drill deeper into?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "EBITDA",
+          "actual": "Here's where we stand across all key areas:\n\nStarting with the cross-sell pipeline \u2014 I found 103 candidates worth $272.5 million in total ACV. Your biggest opportunities are Cascadia introducing Meridian's managed services to their consulting clients. High-confidence candidates include Tidewater BPM ($2.7M), Mukilteo Systems ($3.5M), and Whidbey Group ($3.2M). You also have 34 overlapping customers representing $730M in combined revenue, with MegaCorp Global as your largest shared client at $310M.\n\nOn the EBITDA bridge, we're building from $1.22 billion reported to $1.68 billion steady-state pro forma. Key adjustments include $26M in exec compensation normalization, $106M in one-time items, and $233M in combination synergies. The sustainability score is 78.9 (B grade) driven by strong customer concentration metrics and stable adjustments.\n\nFor vendor consolidation, I found 170 overlapping vendors with $48.8M in estimated savings. Top consolidation opportunities are AWS ($8.8M savings), Microsoft Azure ($6.5M), and your staffing vendors like Robert Half and Randstad ($5.3M combined).\n\nYour combined organization will have 19,500+ employees across corporate functions, with significant overlap in Finance (750 people), IT (880), HR (450), and Legal (200). The cross-deployment of Meridian's bench consultants onto Cascadia delivery represents your largest cost synergy at $135M.\n\nIntegration complexity centers on your dual ERP landscape \u2014 SAP/Oracle on Meridian's side, QuickBooks on Cascadia's. Both systems continue running with an intelligence layer providing unified reporting.\n\nAny specific area you'd like to drill deeper into?",
+          "passed": true,
+          "message": "expected to contain 'EBITDA', actual='Here's where we stand across all key areas:\n\nStarting with the cross-sell pipeline \u2014 I found 103 candidates worth $272.5'"
+        },
+        {
+          "field": "actions_taken",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "Queried cross_sell engine",
+            "Queried ebitda_bridge engine",
+            "Queried qoe engine",
+            "Queried entity_resolution engine"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['Queried cross_sell engine', 'Queried ebitda_bridge engine', 'Queried qoe engine', 'Queried entity_resolution engine']"
+        },
+        {
+          "field": "suggestions",
+          "operator": "not_null",
+          "expected": null,
+          "actual": [
+            "Show me the cross-sell details",
+            "Walk me through the bridge",
+            "What about vendor overlap?"
+          ],
+          "passed": true,
+          "message": "expected not null, actual=['Show me the cross-sell details', 'Walk me through the bridge', 'What about vendor overlap?']"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_003",
+      "query": "Walk me through the EBITDA bridge",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "bridge",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 19.267,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Here's your EBITDA bridge walkthrough. We start from $1.22 billion in combined reported EBITDA and build to $1.68 billion steady-state pro forma.\n\nThe biggest adjustments are your combination synergies at $233 million total. Your largest cost synergy is bench optimization \u2014 cross-deploying Meridian's 4,500 consultants onto Cascadia delivery saves $135 million annually. Corporate function consolidation adds another $27 million through Finance, HR, IT, and Legal overlap reduction.\n\nYour entity adjustments total $228 million, led by $106 million in one-time items including Meridian's litigation reserve and Cascadia's delivery center closure. Executive compensation normalization adds $26 million \u2014 both companies running above market benchmarks.\n\nYear 1 pro forma lands at $1.56 billion after $125 million in integration costs. Steady-state reaches $1.68 billion once integration is complete and all synergies are captured.\n\nThe conservative-to-aggressive spread shows Year 1 between $1.5-1.7 billion and steady-state between $1.7-1.8 billion depending on synergy execution.\n\nWant to see the vendor consolidation opportunities that drive $48.8 million of those cost synergies?",
+          "passed": true,
+          "message": "expected not null, actual=\"Here's your EBITDA bridge walkthrough. We start from $1.22 billion in combined reported EBITDA and build to $1.68 billion steady-state pro forma.\\n\\nThe biggest adjustments are your combination synergies at $233 million total. Your largest cost synergy is bench optimization \u2014 cross-deploying Meridian's 4,500 consultants onto Cascadia delivery saves $135 million annually. Corporate function consolidation adds another $27 million through Finance, HR, IT, and Legal overlap reduction.\\n\\nYour entity adjustments total $228 million, led by $106 million in one-time items including Meridian's litigation reserve and Cascadia's delivery center closure. Executive compensation normalization adds $26 million \u2014 both companies running above market benchmarks.\\n\\nYear 1 pro forma lands at $1.56 billion after $125 million in integration costs. Steady-state reaches $1.68 billion once integration is complete and all synergies are captured.\\n\\nThe conservative-to-aggressive spread shows Year 1 between $1.5-1.7 billion and steady-state between $1.7-1.8 billion depending on synergy execution.\\n\\nWant to see the vendor consolidation opportunities that drive $48.8 million of those cost synergies?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "bridge",
+          "actual": "Here's your EBITDA bridge walkthrough. We start from $1.22 billion in combined reported EBITDA and build to $1.68 billion steady-state pro forma.\n\nThe biggest adjustments are your combination synergies at $233 million total. Your largest cost synergy is bench optimization \u2014 cross-deploying Meridian's 4,500 consultants onto Cascadia delivery saves $135 million annually. Corporate function consolidation adds another $27 million through Finance, HR, IT, and Legal overlap reduction.\n\nYour entity adjustments total $228 million, led by $106 million in one-time items including Meridian's litigation reserve and Cascadia's delivery center closure. Executive compensation normalization adds $26 million \u2014 both companies running above market benchmarks.\n\nYear 1 pro forma lands at $1.56 billion after $125 million in integration costs. Steady-state reaches $1.68 billion once integration is complete and all synergies are captured.\n\nThe conservative-to-aggressive spread shows Year 1 between $1.5-1.7 billion and steady-state between $1.7-1.8 billion depending on synergy execution.\n\nWant to see the vendor consolidation opportunities that drive $48.8 million of those cost synergies?",
+          "passed": true,
+          "message": "expected to contain 'bridge', actual='Here's your EBITDA bridge walkthrough. We start from $1.22 billion in combined reported EBITDA and build to $1.68 billio'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "bridge",
+          "actual": "bridge",
+          "passed": true,
+          "message": "expected='bridge', actual='bridge'"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_004",
+      "query": "What cross-sell opportunities do we have?",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "cross_sell",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 34.581,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "The cross-sell pipeline shows your largest opportunities are Meridian consulting clients ready for Cascadia's managed services. Your top candidate is Wavecrest Analytics with a $10 million F&A Outsourcing opportunity \u2014 they have 39 manual processes and 4.9/5 outsourcing readiness.\n\nGoing the other direction, Cascadia's established BPM clients are prime candidates for Meridian's strategy and operations advisory services. Tidewater BPM leads at $2.7 million with 88% propensity based on their high process complexity.\n\nYou also have 34 overlapping customers representing $730 million in combined revenue, with concentration risk around MegaCorp Global at $310 million. Should I walk you through the combined pipeline opportunities next?",
+          "passed": true,
+          "message": "expected not null, actual=\"The cross-sell pipeline shows your largest opportunities are Meridian consulting clients ready for Cascadia's managed services. Your top candidate is Wavecrest Analytics with a $10 million F&A Outsourcing opportunity \u2014 they have 39 manual processes and 4.9/5 outsourcing readiness.\\n\\nGoing the other direction, Cascadia's established BPM clients are prime candidates for Meridian's strategy and operations advisory services. Tidewater BPM leads at $2.7 million with 88% propensity based on their high process complexity.\\n\\nYou also have 34 overlapping customers representing $730 million in combined revenue, with concentration risk around MegaCorp Global at $310 million. Should I walk you through the combined pipeline opportunities next?\""
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "pipeline",
+          "actual": "The cross-sell pipeline shows your largest opportunities are Meridian consulting clients ready for Cascadia's managed services. Your top candidate is Wavecrest Analytics with a $10 million F&A Outsourcing opportunity \u2014 they have 39 manual processes and 4.9/5 outsourcing readiness.\n\nGoing the other direction, Cascadia's established BPM clients are prime candidates for Meridian's strategy and operations advisory services. Tidewater BPM leads at $2.7 million with 88% propensity based on their high process complexity.\n\nYou also have 34 overlapping customers representing $730 million in combined revenue, with concentration risk around MegaCorp Global at $310 million. Should I walk you through the combined pipeline opportunities next?",
+          "passed": true,
+          "message": "expected to contain 'pipeline', actual='The cross-sell pipeline shows your largest opportunities are Meridian consulting clients ready for Cascadia's managed se'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "crosssell",
+          "actual": "crosssell",
+          "passed": true,
+          "message": "expected='crosssell', actual='crosssell'"
+        }
+      ]
+    },
+    {
+      "test_id": "MA_005",
+      "query": "Show me the quality of earnings analysis",
+      "persona": "cfo",
+      "tags": [
+        "maestra",
+        "qoe",
+        "navigation"
+      ],
+      "passed": true,
+      "response_time_s": 18.675,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "response",
+          "operator": "not_null",
+          "expected": null,
+          "actual": "Your sustainability score is **78.9 (B grade)**. Strong performance across most metrics, with customer concentration and adjustment stability both scoring perfect 100s. \n\nYour customer concentration is healthy \u2014 HHI of 52.6 with top 10 customers representing only 13.8% of revenue, well below concentration risk thresholds. Adjustment stability is excellent with all 20 adjustments classified as ongoing and predictable.\n\nThe weak spot is organic revenue at 25.8, reflecting the high proportion of project-based work versus recurring revenue streams. Only 17.2% of your combined revenue is recurring, with 82.8% non-recurring consulting engagements.\n\nMargin trends are positive, with EBITDA margins improving from 17.8% to 18.5% over the forecast period. Working capital remains stable at 7.6% of revenue with consistent 13.5-day DSO.\n\nWant to dive into the quarterly tracking plan, or shall I show you the IT landscape next?",
+          "passed": true,
+          "message": "expected not null, actual='Your sustainability score is **78.9 (B grade)**. Strong performance across most metrics, with customer concentration and adjustment stability both scoring perfect 100s. \\n\\nYour customer concentration is healthy \u2014 HHI of 52.6 with top 10 customers representing only 13.8% of revenue, well below concentration risk thresholds. Adjustment stability is excellent with all 20 adjustments classified as ongoing and predictable.\\n\\nThe weak spot is organic revenue at 25.8, reflecting the high proportion of project-based work versus recurring revenue streams. Only 17.2% of your combined revenue is recurring, with 82.8% non-recurring consulting engagements.\\n\\nMargin trends are positive, with EBITDA margins improving from 17.8% to 18.5% over the forecast period. Working capital remains stable at 7.6% of revenue with consistent 13.5-day DSO.\\n\\nWant to dive into the quarterly tracking plan, or shall I show you the IT landscape next?'"
+        },
+        {
+          "field": "response",
+          "operator": "contains",
+          "expected": "sustainability",
+          "actual": "Your sustainability score is **78.9 (B grade)**. Strong performance across most metrics, with customer concentration and adjustment stability both scoring perfect 100s. \n\nYour customer concentration is healthy \u2014 HHI of 52.6 with top 10 customers representing only 13.8% of revenue, well below concentration risk thresholds. Adjustment stability is excellent with all 20 adjustments classified as ongoing and predictable.\n\nThe weak spot is organic revenue at 25.8, reflecting the high proportion of project-based work versus recurring revenue streams. Only 17.2% of your combined revenue is recurring, with 82.8% non-recurring consulting engagements.\n\nMargin trends are positive, with EBITDA margins improving from 17.8% to 18.5% over the forecast period. Working capital remains stable at 7.6% of revenue with consistent 13.5-day DSO.\n\nWant to dive into the quarterly tracking plan, or shall I show you the IT landscape next?",
+          "passed": true,
+          "message": "expected to contain 'sustainability', actual='Your sustainability score is **78.9 (B grade)**. Strong performance across most metrics, with customer concentration and'"
+        },
+        {
+          "field": "navigation.tab",
+          "operator": "equals",
+          "expected": "qoe",
+          "actual": "qoe",
+          "passed": true,
+          "message": "expected='qoe', actual='qoe'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": []
+}

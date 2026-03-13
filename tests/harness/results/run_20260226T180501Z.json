@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-02-26T18:05:01.017751+00:00",
+  "endpoint": "https://aos-nlq.onrender.com/api/v1/query",
+  "assumptions_source": "AOS-Farm (C:\\Users\\ilyac\\code\\AOS-Farm)",
+  "rules_enforced": [
+    "Rule 1: No fact_base.json imports or reads",
+    "Rule 2: data_source must be dcl or live (demo = FAIL)",
+    "Rule 3: No environmental excuses \u2014 every test runs",
+    "Rule 4: HTTP only \u2014 no internal function calls"
+  ],
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "pass_rate_pct": 100.0
+  },
+  "results": [
+    {
+      "test_id": "CHRO_002",
+      "query": "How many open roles do we have?",
+      "persona": "chro",
+      "tags": [
+        "chro",
+        "people",
+        "point"
+      ],
+      "passed": true,
+      "response_time_s": 0.496,
+      "error": null,
+      "warnings": [],
+      "assertions": [
+        {
+          "field": "value",
+          "operator": "greater_than",
+          "expected": 0,
+          "actual": 51.0,
+          "passed": true,
+          "message": "expected > 0, actual=51.0"
+        },
+        {
+          "field": "unit",
+          "operator": "equals",
+          "expected": "count",
+          "actual": "count",
+          "passed": true,
+          "message": "expected='count', actual='count'"
+        }
+      ]
+    }
+  ],
+  "cheat_warnings": []
+}

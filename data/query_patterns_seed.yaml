@@ -1,0 +1,141 @@
+metadata:
+  version: 1.0
+  description: Curated NL→semantic query pairs seeded at startup
+  personas: [cfo, cro, coo, cto, chro]
+  total_pairs: 125
+
+patterns:
+  cfo:
+    - {nl: "What is our revenue for 2025?", canonical_metric: revenue, period_type: annual, tags: [revenue, period]}
+    - {nl: "Show me the 2025 P&L", canonical_metric: pl_statement, period_type: annual, tags: [composite, pl]}
+    - {nl: "What is EBITDA this year?", canonical_metric: ebitda, period_type: annual, tags: [pl, profitability]}
+    - {nl: "What is our EBITDA margin?", canonical_metric: ebitda_margin_pct, period_type: current, tags: [pl, margin]}
+    - {nl: "Show me gross margin", canonical_metric: gross_margin_pct, period_type: current, tags: [pl, margin]}
+    - {nl: "What is gross margin by product?", canonical_metric: gross_margin_pct, period_type: current, dimension: product, tags: [pl, margin, dimensional]}
+    - {nl: "What was net income in Q3 2025?", canonical_metric: net_income, period_type: quarter, tags: [pl, profitability]}
+    - {nl: "Show me revenue by region", canonical_metric: revenue, period_type: current, dimension: region, tags: [revenue, dimensional]}
+    - {nl: "What is our burn multiple?", canonical_metric: burn_multiple, period_type: current, tags: [saas, efficiency]}
+    - {nl: "What is the rule of 40?", canonical_metric: rule_of_40, period_type: current, tags: [saas, efficiency]}
+    - {nl: "Show me ARR", canonical_metric: arr, period_type: current, tags: [saas, arr]}
+    - {nl: "What is ARR growth?", canonical_metric: arr, period_type: annual, tags: [saas, arr, growth]}
+    - {nl: "What is our free cash flow?", canonical_metric: fcf, period_type: current, tags: [cashflow]}
+    - {nl: "Show me the ARR waterfall for 2025", canonical_metric: beginning_arr, period_type: annual, tags: [saas, arr, waterfall]}
+    - {nl: "What is net revenue retention?", canonical_metric: nrr, period_type: current, tags: [saas, retention]}
+    - {nl: "What is our operating margin?", canonical_metric: operating_margin_pct, period_type: current, tags: [pl, margin]}
+    - {nl: "Show me cash on hand", canonical_metric: cash, period_type: current, tags: [balance_sheet]}
+    - {nl: "What is deferred revenue?", canonical_metric: deferred_revenue, period_type: current, tags: [balance_sheet]}
+    - {nl: "Show me revenue by segment", canonical_metric: revenue, period_type: current, dimension: segment, tags: [revenue, dimensional]}
+    - {nl: "Compare 2024 vs 2025 revenue", canonical_metric: revenue, period_type: comparison, tags: [revenue, comparison]}
+    - {nl: "What is our LTV to CAC ratio?", canonical_metric: ltv_cac_ratio, period_type: current, tags: [saas, efficiency]}
+    - {nl: "What is CAC payback period?", canonical_metric: cac_payback, period_type: current, tags: [saas, efficiency]}
+    - {nl: "Show me operating expenses", canonical_metric: opex, period_type: current, tags: [pl, opex]}
+    - {nl: "What is revenue per employee?", canonical_metric: revenue_per_employee, period_type: current, tags: [efficiency]}
+    - {nl: "What is our gross churn?", canonical_metric: churn_rate_pct, period_type: current, tags: [saas, churn]}
+
+  cro:
+    - {nl: "What is our pipeline?", canonical_metric: pipeline, period_type: current, tags: [pipeline]}
+    - {nl: "Show me pipeline by region", canonical_metric: pipeline, period_type: current, dimension: region, tags: [pipeline, dimensional]}
+    - {nl: "What is win rate?", canonical_metric: win_rate_pct, period_type: current, tags: [sales, conversion]}
+    - {nl: "Show me win rate by region", canonical_metric: win_rate_pct, period_type: current, dimension: region, tags: [sales, dimensional]}
+    - {nl: "What is quota attainment?", canonical_metric: quota_attainment_pct, period_type: current, tags: [sales, quota]}
+    - {nl: "Who is our top performing sales rep?", canonical_metric: quota_attainment_pct, period_type: current, dimension: rep, tags: [sales, superlative]}
+    - {nl: "What is average deal size?", canonical_metric: avg_deal_size, period_type: current, tags: [sales, deals]}
+    - {nl: "Show me new logo revenue", canonical_metric: new_logo_revenue, period_type: current, tags: [revenue, new_logo]}
+    - {nl: "What is expansion revenue?", canonical_metric: expansion_revenue, period_type: current, tags: [revenue, expansion]}
+    - {nl: "What is NRR?", canonical_metric: nrr, period_type: current, tags: [saas, retention]}
+    - {nl: "Show me NRR by product", canonical_metric: nrr, period_type: current, dimension: product, tags: [saas, retention, dimensional]}
+    - {nl: "What is churn rate?", canonical_metric: churn_rate_pct, period_type: current, tags: [saas, churn]}
+    - {nl: "Show me churn by segment", canonical_metric: churn_rate_pct, period_type: current, dimension: segment, tags: [saas, churn, dimensional]}
+    - {nl: "What is our sales cycle?", canonical_metric: sales_cycle_days, period_type: current, tags: [sales, velocity]}
+    - {nl: "How many new customers this quarter?", canonical_metric: new_customers, period_type: current, tags: [customers]}
+    - {nl: "What is our customer count?", canonical_metric: customer_count, period_type: current, tags: [customers]}
+    - {nl: "Show me pipeline by stage", canonical_metric: pipeline, period_type: current, dimension: pipeline_stage, tags: [pipeline, dimensional]}
+    - {nl: "Which segment has the highest win rate?", canonical_metric: win_rate_pct, period_type: current, dimension: segment, tags: [sales, superlative]}
+    - {nl: "What is qualified pipeline?", canonical_metric: qualified_pipeline, period_type: current, tags: [pipeline]}
+    - {nl: "Show me bookings for 2025", canonical_metric: bookings, period_type: annual, tags: [revenue, bookings]}
+    - {nl: "What is our magic number?", canonical_metric: magic_number, period_type: current, tags: [saas, efficiency]}
+    - {nl: "What is LTV?", canonical_metric: ltv, period_type: current, tags: [saas, customers]}
+    - {nl: "What percent of reps are at quota?", canonical_metric: reps_at_quota_pct, period_type: current, tags: [sales, quota]}
+    - {nl: "Show me renewal revenue", canonical_metric: renewal_revenue, period_type: current, tags: [revenue, renewal]}
+    - {nl: "Which region has the highest pipeline?", canonical_metric: pipeline, period_type: current, dimension: region, tags: [pipeline, superlative]}
+
+  coo:
+    - {nl: "What is customer satisfaction?", canonical_metric: csat, period_type: current, tags: [support, satisfaction]}
+    - {nl: "Show me CSAT by segment", canonical_metric: csat, period_type: current, dimension: segment, tags: [support, dimensional]}
+    - {nl: "What is our NPS?", canonical_metric: nps, period_type: current, tags: [support, satisfaction]}
+    - {nl: "How many support tickets this quarter?", canonical_metric: support_tickets, period_type: current, tags: [support, volume]}
+    - {nl: "What is first response time?", canonical_metric: first_response_hours, period_type: current, tags: [support, sla]}
+    - {nl: "What is resolution time?", canonical_metric: resolution_hours, period_type: current, tags: [support, sla]}
+    - {nl: "Show me support tickets by tier", canonical_metric: support_tickets, period_type: current, dimension: sla_type, tags: [support, dimensional]}
+    - {nl: "What is our headcount?", canonical_metric: headcount, period_type: current, tags: [people]}
+    - {nl: "Show me headcount by department", canonical_metric: headcount, period_type: current, dimension: department, tags: [people, dimensional]}
+    - {nl: "What is time to fill?", canonical_metric: time_to_fill_days, period_type: current, tags: [recruiting]}
+    - {nl: "What is SLA compliance?", canonical_metric: sla_compliance_pct, period_type: current, tags: [support, sla]}
+    - {nl: "Show me implementation days by segment", canonical_metric: csat, period_type: current, dimension: segment, tags: [support, dimensional]}
+    - {nl: "What is our revenue per employee?", canonical_metric: revenue_per_employee, period_type: current, tags: [efficiency]}
+    - {nl: "How many open roles?", canonical_metric: open_roles, period_type: current, tags: [recruiting]}
+    - {nl: "What is our attrition rate?", canonical_metric: attrition_rate_pct, period_type: current, tags: [people, attrition]}
+    - {nl: "Show me attrition by department", canonical_metric: attrition_rate_pct, period_type: current, dimension: department, tags: [people, dimensional]}
+    - {nl: "What is employee engagement?", canonical_metric: engagement_score, period_type: current, tags: [people, engagement]}
+    - {nl: "What is our DSO?", canonical_metric: dso, period_type: current, tags: [finance, ar]}
+    - {nl: "Show me AR aging", canonical_metric: ar, period_type: current, tags: [finance, ar]}
+    - {nl: "What is span of control?", canonical_metric: span_of_control, period_type: current, tags: [people, org]}
+    - {nl: "Which department has the highest attrition?", canonical_metric: attrition_rate_pct, period_type: current, dimension: department, tags: [people, superlative]}
+    - {nl: "What is our burn rate?", canonical_metric: burn_rate, period_type: current, tags: [finance, cashflow]}
+    - {nl: "Show me MRR by segment", canonical_metric: mrr, period_type: current, dimension: segment, tags: [saas, dimensional]}
+    - {nl: "What is CSAT trend for 2025?", canonical_metric: csat, period_type: annual, tags: [support, trend]}
+    - {nl: "How many new hires this quarter?", canonical_metric: new_hires, period_type: current, tags: [people, recruiting]}
+
+  cto:
+    - {nl: "How many P1 incidents this quarter?", canonical_metric: p1_incidents, period_type: current, tags: [incidents, severity]}
+    - {nl: "What is our uptime?", canonical_metric: uptime_pct, period_type: current, tags: [reliability]}
+    - {nl: "Show me uptime by service", canonical_metric: uptime_pct, period_type: current, dimension: service, tags: [reliability, dimensional]}
+    - {nl: "What is MTTR for P1 incidents?", canonical_metric: mttr_p1_hours, period_type: current, tags: [incidents, mttr]}
+    - {nl: "What is our cloud spend?", canonical_metric: cloud_spend, period_type: current, tags: [cloud, cost]}
+    - {nl: "Show me cloud spend by category", canonical_metric: cloud_spend, period_type: current, dimension: resource_type, tags: [cloud, dimensional]}
+    - {nl: "What is cloud spend as percent of revenue?", canonical_metric: cloud_spend_pct_revenue, period_type: current, tags: [cloud, efficiency]}
+    - {nl: "What is sprint velocity?", canonical_metric: sprint_velocity, period_type: current, tags: [engineering, agile]}
+    - {nl: "Show me velocity by team", canonical_metric: sprint_velocity, period_type: current, dimension: team, tags: [engineering, dimensional]}
+    - {nl: "How many features shipped this quarter?", canonical_metric: features_shipped, period_type: current, tags: [engineering, output]}
+    - {nl: "What is our tech debt?", canonical_metric: tech_debt_pct, period_type: current, tags: [engineering, quality]}
+    - {nl: "What is deployment success rate?", canonical_metric: deployment_success_pct, period_type: current, tags: [engineering, deployments]}
+    - {nl: "What is our lead time?", canonical_metric: lead_time_days, period_type: current, tags: [engineering, dora]}
+    - {nl: "What is change failure rate?", canonical_metric: change_failure_rate, period_type: current, tags: [engineering, dora]}
+    - {nl: "How many P2 incidents?", canonical_metric: p2_incidents, period_type: current, tags: [incidents, severity]}
+    - {nl: "Show me incidents by service", canonical_metric: p1_incidents, period_type: current, dimension: service, tags: [incidents, dimensional]}
+    - {nl: "What is SLO attainment?", canonical_metric: slo_attainment_pct, period_type: current, tags: [reliability, slo]}
+    - {nl: "Show me SLO attainment by service", canonical_metric: slo_attainment_pct, period_type: current, dimension: service, tags: [reliability, dimensional]}
+    - {nl: "What is our engineering headcount?", canonical_metric: engineering_headcount, period_type: current, tags: [people, engineering]}
+    - {nl: "Show me headcount by team", canonical_metric: engineering_headcount, period_type: current, dimension: team, tags: [people, dimensional]}
+    - {nl: "What is our bug escape rate?", canonical_metric: bug_escape_rate, period_type: current, tags: [engineering, quality]}
+    - {nl: "Which service has the most incidents?", canonical_metric: p1_incidents, period_type: current, dimension: service, tags: [incidents, superlative]}
+    - {nl: "What is downtime this quarter?", canonical_metric: downtime_hours, period_type: current, tags: [reliability]}
+    - {nl: "What is engineering utilization?", canonical_metric: engineering_utilization, period_type: current, tags: [engineering, efficiency]}
+    - {nl: "Show me deploy frequency by service", canonical_metric: deploy_frequency, period_type: current, dimension: service, tags: [engineering, dora, dimensional]}
+
+  chro:
+    - {nl: "What is our attrition rate?", canonical_metric: attrition_rate_pct, period_type: current, tags: [people, attrition]}
+    - {nl: "Show me attrition by department", canonical_metric: attrition_rate_pct, period_type: current, dimension: department, tags: [people, dimensional]}
+    - {nl: "What is employee engagement?", canonical_metric: engagement_score, period_type: current, tags: [people, engagement]}
+    - {nl: "Show me engagement by department", canonical_metric: engagement_score, period_type: current, dimension: department, tags: [people, dimensional]}
+    - {nl: "What is our eNPS?", canonical_metric: enps, period_type: current, tags: [people, satisfaction]}
+    - {nl: "How many open roles?", canonical_metric: open_roles, period_type: current, tags: [recruiting]}
+    - {nl: "What is time to fill?", canonical_metric: time_to_fill_days, period_type: current, tags: [recruiting, velocity]}
+    - {nl: "Show me time to fill by department", canonical_metric: time_to_fill_days, period_type: current, dimension: department, tags: [recruiting, dimensional]}
+    - {nl: "What is our offer acceptance rate?", canonical_metric: offer_acceptance_rate_pct, period_type: current, tags: [recruiting, quality]}
+    - {nl: "What is total headcount?", canonical_metric: headcount, period_type: current, tags: [people]}
+    - {nl: "Show me headcount by department", canonical_metric: headcount, period_type: current, dimension: department, tags: [people, dimensional]}
+    - {nl: "How many new hires this quarter?", canonical_metric: new_hires, period_type: current, tags: [recruiting]}
+    - {nl: "What is our internal mobility rate?", canonical_metric: internal_mobility_rate_pct, period_type: current, tags: [people, development]}
+    - {nl: "What is training hours per employee?", canonical_metric: training_hours_per_employee, period_type: current, tags: [development]}
+    - {nl: "What is our diversity index?", canonical_metric: diversity_index, period_type: current, tags: [diversity]}
+    - {nl: "What is compensation ratio?", canonical_metric: compensation_ratio, period_type: current, tags: [compensation]}
+    - {nl: "What is cost per employee?", canonical_metric: cost_per_employee, period_type: current, tags: [compensation, efficiency]}
+    - {nl: "Show me attrition trend for 2025", canonical_metric: attrition_rate_pct, period_type: annual, tags: [people, trend]}
+    - {nl: "Which department has the lowest engagement?", canonical_metric: engagement_score, period_type: current, dimension: department, tags: [people, superlative]}
+    - {nl: "What is our promotion rate?", canonical_metric: promotion_rate_pct, period_type: current, tags: [people, development]}
+    - {nl: "How many terminations this quarter?", canonical_metric: terminations, period_type: current, tags: [people, attrition]}
+    - {nl: "What is span of control?", canonical_metric: span_of_control, period_type: current, tags: [people, org]}
+    - {nl: "Show me headcount growth 2024 vs 2025", canonical_metric: headcount, period_type: comparison, tags: [people, comparison]}
+    - {nl: "What is our sales headcount?", canonical_metric: sales_headcount, period_type: current, tags: [people, sales]}
+    - {nl: "Which department has the highest time to fill?", canonical_metric: time_to_fill_days, period_type: current, dimension: department, tags: [recruiting, superlative]}
