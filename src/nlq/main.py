@@ -25,7 +25,7 @@ from src.nlq.api.health import router as health_router
 from src.nlq.api.eval import router as eval_router
 from src.nlq.api.export_routes import router as export_router
 from src.nlq.api.dcl_proxy import router as dcl_proxy_router
-from src.nlq.maestra.routes import router as maestra_router
+from src.nlq.maestra.engagement_router import router as engagement_router
 from src.nlq.services.query_cache_service import init_cache_service_from_env, get_cache_service
 from src.nlq.services.llm_call_counter import init_call_counter, get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log
@@ -73,9 +73,10 @@ app.include_router(rag_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")
 
-# Maestra routes — native NLQ endpoints for engagement lifecycle.
-# Mounted BEFORE the DCL proxy so /api/reports/maestra/* is handled here.
-app.include_router(maestra_router)
+# Maestra engagement API — sessions 2-5 endpoints for engagement persistence,
+# context assembly, action dispatch, chat, and stats.
+# Mounted BEFORE the DCL proxy so /maestra/* is handled here.
+app.include_router(engagement_router)
 
 # DCL report proxy — forwards /api/reports/* to DCL backend for combining
 # statements and entity overlap data (portal uses these endpoints).

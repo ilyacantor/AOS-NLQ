@@ -69,6 +69,11 @@ class QueryExecutor:
             entity_id=self.entity_id,
         )
 
+        # DCL store is completely empty — propagate distinct signal
+        if result.get("store_empty"):
+            self._last_data_source = None
+            return "STORE_EMPTY"
+
         if result.get("error") or result.get("status") == "error":
             logger.debug(f"DCL query failed for {metric}/{period}: {result.get('error')}")
             self._last_data_source = None
@@ -114,6 +119,16 @@ class QueryExecutor:
             return data
 
         return None
+
+    @staticmethod
+    def _store_empty_result() -> QueryResult:
+        """Return a QueryResult signaling DCL's data store is completely empty."""
+        return QueryResult(
+            success=False,
+            error="STORE_EMPTY",
+            message="No data available. Run a new snapshot or initiate an enterprise scan.",
+            confidence=0.0,
+        )
 
     def _smart_query(self, metric: str, period: str) -> Any:
         """
@@ -330,7 +345,11 @@ class QueryExecutor:
             parsed_query.resolved_period
         )
 
-        # Check 3: Verify non-empty result
+        # Check 3: DCL store completely empty
+        if result == "STORE_EMPTY":
+            return self._store_empty_result()
+
+        # Check 4: Verify non-empty result
         if result is None:
             return QueryResult(
                 success=False,
@@ -368,6 +387,8 @@ class QueryExecutor:
             parsed_query.metric,
             parsed_query.resolved_period
         )
+        if value1 == "STORE_EMPTY":
+            return self._store_empty_result()
 
         if not parsed_query.comparison_period:
             return QueryResult(
@@ -381,6 +402,8 @@ class QueryExecutor:
             parsed_query.metric,
             parsed_query.comparison_period
         )
+        if value2 == "STORE_EMPTY":
+            return self._store_empty_result()
 
         if value1 is None or value2 is None:
             return QueryResult(
@@ -433,6 +456,8 @@ class QueryExecutor:
         trend_data = []
         for period in periods:
             value = self._query_dcl(metric, period)
+            if value == "STORE_EMPTY":
+                return self._store_empty_result()
             if value is not None:
                 trend_data.append({
                     "period": period,
@@ -489,6 +514,8 @@ class QueryExecutor:
         values = []
         for period in parsed_query.aggregation_periods:
             value = self._query_dcl(parsed_query.metric, period)
+            if value == "STORE_EMPTY":
+                return self._store_empty_result()
             if value is not None:
                 values.append((period, value))
 
@@ -550,6 +577,8 @@ class QueryExecutor:
         breakdown = {}
         for metric in breakdown_metrics:
             value = self._smart_query(metric, period)
+            if value == "STORE_EMPTY":
+                return self._store_empty_result()
             if value is not None:
                 breakdown[metric] = value
 
@@ -557,6 +586,8 @@ class QueryExecutor:
         # (the metric the user actually asked about — NOT a substitution)
         if not breakdown and parsed_query.metric:
             value = self._smart_query(parsed_query.metric, period)
+            if value == "STORE_EMPTY":
+                return self._store_empty_result()
             if value is not None:
                 breakdown[parsed_query.metric] = value
 

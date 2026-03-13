@@ -4591,11 +4591,19 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
         if not result.success:
             # Execution failed — do NOT cache the LLM parse (it leads to failure)
             logger.info(f"Skipping cache write — execution failed: {request.question[:80]}")
-            stumped_msg = get_stumped_response(include_suggestions=True)
+
+            if result.error == "STORE_EMPTY":
+                # DCL has no data at all — actionable message, not "I'm stumped"
+                answer = result.message
+                confidence = 0.0
+            else:
+                answer = get_stumped_response(include_suggestions=True)
+                confidence = 0.5
+
             response = NLQResponse(
                 success=True,
-                answer=stumped_msg,
-                confidence=0.5,
+                answer=answer,
+                confidence=confidence,
                 parsed_intent=parsed.intent.value,
                 resolved_metric=parsed.metric,
                 resolved_period=parsed.resolved_period,

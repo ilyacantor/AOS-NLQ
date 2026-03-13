@@ -1461,9 +1461,21 @@ class DCLSemanticClient:
             # When DCL explicitly reports ingest_empty (no ingested data for
             # this tenant/metric), only fall back to local data in demo mode.
             # In live mode, this is an error — no silent fallback to fact_base.
-            dcl_meta_source = (dcl_body.get("metadata") or {}).get("source", "")
+            dcl_meta = dcl_body.get("metadata") or {}
+            dcl_meta_source = dcl_meta.get("source", "")
             dcl_data = dcl_body.get("data", [])
-            if dcl_meta_source == "no_data_error" and not dcl_data:
+
+            # DCL store is completely empty (flushed, no data ingested yet)
+            if dcl_meta_source == "STORE_EMPTY" and not dcl_data:
+                return {
+                    "data": [],
+                    "error": None,
+                    "data_source": "dcl_empty",
+                    "data_source_reason": dcl_meta.get("error", "DCL data store is empty"),
+                    "store_empty": True,
+                }
+
+            if dcl_meta_source == "NO_DATA_FOR_METRIC" and not dcl_data:
                 if data_mode == "demo":
                     diag(f"[NLQ-DIAG] query() DCL returned ingest_empty — falling back to local tenant data (demo mode)")
                     result = self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)

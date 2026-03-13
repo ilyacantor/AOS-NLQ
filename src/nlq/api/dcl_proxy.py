@@ -137,6 +137,9 @@ async def revenue_by_customer(
 @router.get("/api/reports/{path:path}")
 async def proxy_dcl_report_get(path: str, request: Request):
     """Forward GET /api/reports/* to DCL backend."""
+    # Maestra is now native to NLQ — do not proxy to DCL
+    if path.startswith("maestra"):
+        raise HTTPException(status_code=404, detail="Maestra routes have moved to /maestra/*")
     if not DCL_BASE_URL:
         raise HTTPException(
             status_code=503,
@@ -174,7 +177,10 @@ async def proxy_dcl_report_get(path: str, request: Request):
 
 @router.post("/api/reports/{path:path}")
 async def proxy_dcl_report_post(path: str, request: Request):
-    """Forward POST /api/reports/* to DCL backend (what-if, maestra)."""
+    """Forward POST /api/reports/* to DCL backend."""
+    # Maestra is now native to NLQ — do not proxy to DCL
+    if path.startswith("maestra"):
+        raise HTTPException(status_code=404, detail="Maestra routes have moved to /maestra/*")
     if not DCL_BASE_URL:
         raise HTTPException(
             status_code=503,
