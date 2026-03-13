@@ -30,7 +30,6 @@ import {
 } from '../../types/generated-dashboard';
 import { WidgetRenderer } from './WidgetRenderer';
 import { ScenarioModelingPanel } from './ScenarioModelingPanel';
-import { generateMockWidgetData } from './mockData';
 
 interface PersonaOption {
   label: string;
@@ -127,7 +126,7 @@ export function DashboardRenderer({
       return next ? normalizeSchema(next) : next;
     });
   }, []);
-  // Use pre-resolved data from backend if available, otherwise empty (will fetch mock)
+  // Use pre-resolved data from backend if available
   const [widgetData, setWidgetData] = useState<Record<string, WidgetData>>(initialWidgetData || {});
   // Store the default (initial) schema and data for reset-to-default
   const defaultSchemaRef = useRef<DashboardSchema | null>(initialSchema ? normalizeSchema(initialSchema) : null);
@@ -223,19 +222,21 @@ export function DashboardRenderer({
     handleAutoArrange,
   } = useDashboardLayout({ schema, setSchema });
 
-  // Fetch data for all widgets (uses pre-resolved data if available, otherwise mock)
+  // Populate widget data from pre-resolved backend data.
+  // Widgets without backend data show an explicit error — no mock data substitution.
   const fetchWidgetData = useCallback(async (
     dashboard: DashboardSchema,
     preResolvedData?: Record<string, WidgetData>
   ) => {
     const newData: Record<string, WidgetData> = {};
     for (const widget of dashboard.widgets) {
-      // Use pre-resolved data from backend if available
       if (preResolvedData && preResolvedData[widget.id]) {
         newData[widget.id] = preResolvedData[widget.id];
       } else {
-        // Fall back to mock data generation
-        newData[widget.id] = await generateMockWidgetData(widget);
+        newData[widget.id] = {
+          loading: false,
+          error: `Data unavailable for ${widget.title || widget.data.metrics[0]?.metric || widget.id}`,
+        };
       }
     }
     setWidgetData(newData);
