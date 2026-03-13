@@ -339,7 +339,7 @@ class ReportGenerator:
         Returns:
             Dict mapping metric_id -> aggregated value.
         """
-        from src.nlq.knowledge.schema import is_additive_metric
+        from src.nlq.knowledge.schema import is_additive_metric, is_point_in_time_metric
 
         if not periods:
             return {}
@@ -387,8 +387,13 @@ class ReportGenerator:
                 if len(periods) > 1:
                     if is_additive_metric(metric_id):
                         aggregated[metric_id] = round(sum(values_for_periods), 2)
-                    else:
+                    elif is_point_in_time_metric(metric_id):
                         aggregated[metric_id] = round(values_for_periods[-1], 2)
+                    else:
+                        # Percentages, ratios, scores — average across periods
+                        aggregated[metric_id] = round(
+                            sum(values_for_periods) / len(values_for_periods), 2
+                        )
                 else:
                     aggregated[metric_id] = round(values_for_periods[0], 2)
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { fetchReport, fetchDrillThrough, fetchReconciliation, fetchCombiningStatement, fetchOverlapData, fetchCrossSell, fetchRevenueByCustomer, fetchEBITDABridge, fetchWhatIf, fetchQofE, fetchDashboard, createMaestraEngagement, sendMaestraMessage, fetchMaestraStatus } from "./api";
+import { fetchReport, fetchDrillThrough, fetchReconciliation, fetchCombiningStatement, fetchOverlapData, fetchCrossSell, fetchRevenueByCustomer, fetchEBITDABridge, fetchWhatIf, fetchQofE, fetchDashboard, createMaestraEngagement, sendMaestraMessage, fetchMaestraStatus, fetchReportDimensions } from "./api";
+import type { PeriodDimension } from "./api";
 import React from "react";
 import type { ReportData, ReconReport, ReconCheck, DrillThroughItem, ReportVariant, EntitySelection, CombiningStatementData, OverlapData, CrossSellData, RevenueByCustomerData, EBITDABridgeData, BridgeAdjustment, WhatIfResult, QofEData, DashboardData, DashboardPersona, MaestraStatus, FinancialStatementData, FinancialStatementLineItem } from "./types";
 
@@ -54,19 +55,10 @@ function confidenceColor(c: string): string {
 // ============================================================
 // CONSTANTS
 // ============================================================
-const QUARTERS = [
-  "2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4",
-  "2025-Q1", "2025-Q2", "2025-Q3", "2025-Q4",
-  "2026-Q1", "2026-Q2", "2026-Q3", "2026-Q4",
-];
-const SEGMENTS = ["Strategy", "Operations", "Technology", "Risk", "Digital/AI", "Commercial"];
+// QUARTERS and SEGMENTS are now fetched dynamically from /api/v1/report-dimensions
+const SEGMENTS_FALLBACK = ["Strategy", "Operations", "Technology", "Risk", "Digital/AI", "Commercial"];
 
 function wallClockDate() { return new Date(); }
-function isActual(q: string) {
-  const [y, qn] = q.split("-");
-  const qEnd = new Date(parseInt(y), parseInt(qn.replace("Q", "")) * 3, 0);
-  return qEnd < wallClockDate();
-}
 
 const COLORS = {
   bg: "#0F1117",
@@ -2986,6 +2978,30 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
   const [quarter, setQuarter] = useState("2025-Q3");
   const [segment, setSegment] = useState("all");
 
+  // Dimension state — fetched from API on mount
+  const [dimensions, setDimensions] = useState<{ periods: PeriodDimension[]; segments: string[] } | null>(null);
+  const [dimensionsError, setDimensionsError] = useState<string | null>(null);
+  const [dimensionsLoading, setDimensionsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDimensionsLoading(true);
+    fetchReportDimensions()
+      .then((dims) => {
+        if (!cancelled) {
+          setDimensions(dims);
+          setDimensionsError(null);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setDimensionsError(err.message || "Failed to load report dimensions");
+        }
+      })
+      .finally(() => { if (!cancelled) setDimensionsLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
   // Data states
   const [currentData, setCurrentData] = useState<ReportData | null>(null);
   const [pyData, setPyData] = useState<ReportData | null>(null);
@@ -3006,8 +3022,26 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
   const [overlapLoading, setOverlapLoading] = useState(false);
   const [overlapError, setOverlapError] = useState<string | null>(null);
 
-  const actQuarters = useMemo(() => QUARTERS.filter(isActual), []);
-  const cfQuarters = useMemo(() => QUARTERS.filter((q) => !isActual(q) && q.startsWith(String(wallClockDate().getFullYear()))), []);
+  // Derive available quarters from API dimensions, filtering by entity data availability
+  const entityKey = entity === "combined" ? null : entity;
+  const actQuarters = useMemo(() => {
+    if (!dimensions) return [];
+    return dimensions.periods
+      .filter((p) => {
+        if (p.period_type !== "actual") return false;
+        if (!entityKey) return Object.values(p.has_data).some(Boolean);
+        return p.has_data[entityKey];
+      })
+      .map((p) => p.label);
+  }, [dimensions, entityKey]);
+  const cfQuarters = useMemo(() => {
+    if (!dimensions) return [];
+    const cy = wallClockDate().getFullYear();
+    return dimensions.periods
+      .filter((p) => p.period_type === "forecast" && p.year === cy)
+      .map((p) => p.label);
+  }, [dimensions]);
+  const availableSegments = dimensions?.segments ?? SEGMENTS_FALLBACK;
   const lastFullYear = wallClockDate().getFullYear() - 1;
   const pyYear = lastFullYear - 1;
 
@@ -3097,7 +3131,10 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
   const effectiveQuarter = useMemo(() => {
     if (variant === "act_vs_py") return `${lastFullYear}-Q4`;
     if (variant === "q_act_vs_py") return quarter;
-    if (variant === "cf_vs_py") return `${wallClockDate().getFullYear()}-Q2`;
+    if (variant === "cf_vs_py") {
+      const cq = Math.ceil((wallClockDate().getMonth() + 1) / 3);
+      return `${wallClockDate().getFullYear()}-Q${cq}`;
+    }
     if (variant === "q_cf_vs_py") return quarter || cfQuarters[0];
     if (variant === "quarterly") return quarter;
     return `${lastFullYear}-Q4`;
@@ -3107,7 +3144,10 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
   const combiningPeriod = useMemo(() => {
     if (combiningVariant === "act_vs_py") return `${lastFullYear}-Q4`;
     if (combiningVariant === "q_act_vs_py") return combiningQuarter;
-    if (combiningVariant === "cf_vs_py") return `${wallClockDate().getFullYear()}-Q2`;
+    if (combiningVariant === "cf_vs_py") {
+      const cq = Math.ceil((wallClockDate().getMonth() + 1) / 3);
+      return `${wallClockDate().getFullYear()}-Q${cq}`;
+    }
     if (combiningVariant === "q_cf_vs_py") return combiningQuarter || cfQuarters[0];
     return `${lastFullYear}-Q4`;
   }, [combiningVariant, combiningQuarter, lastFullYear, cfQuarters]);
@@ -3115,6 +3155,10 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
   // Fetch report data when tab/variant/quarter/segment changes
   const loadReport = useCallback(async () => {
     if (!isStatementTab) return;
+    if (dimensionsError) {
+      setError("Cannot load report: dimensions failed to load. Refresh the page to retry.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -3142,7 +3186,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
     } finally {
       setLoading(false);
     }
-  }, [tab, variant, effectiveQuarter, seg, isStatementTab, pyYear, lastFullYear, quarter, cfQuarters, entity]);
+  }, [tab, variant, effectiveQuarter, seg, isStatementTab, pyYear, lastFullYear, quarter, cfQuarters, entity, dimensionsError]);
 
   useEffect(() => {
     if (isStatementTab) {
@@ -3223,13 +3267,23 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
       <div style={{ flex: 1, overflow: "auto", padding: "24px 32px" }}>
         <TabBar tabs={statementTabs} active={tab} onChange={handleTabChange} />
 
-        {isStatementTab && (
+        {dimensionsLoading && isStatementTab && (
+          <div style={{ padding: "12px 16px", marginBottom: 16, background: "rgba(199,120,64,0.1)", border: `1px solid ${COLORS.accent}`, borderRadius: 6, fontSize: 13, color: COLORS.textMuted }}>
+            Loading available periods and segments...
+          </div>
+        )}
+        {dimensionsError && isStatementTab && (
+          <div style={{ padding: "12px 16px", marginBottom: 16, background: "rgba(220,60,60,0.1)", border: "1px solid rgba(220,60,60,0.5)", borderRadius: 6, fontSize: 13, color: "#e55" }}>
+            Failed to load report dimensions: {dimensionsError}. Report filters are unavailable.
+          </div>
+        )}
+        {isStatementTab && !dimensionsError && (
           <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
             <Select label="Report Variant" value={variant} onChange={setVariant} options={variantOptions} width={220} />
             {showQuarterSelect && <Select label="Quarter" value={quarter} onChange={setQuarter} options={quarterOptions} width={140} />}
             <Select label="Segment" value={segment} onChange={setSegment} width={180} options={[
               { value: "all", label: "All Segments" },
-              ...SEGMENTS.map((s) => ({ value: s, label: s })),
+              ...availableSegments.map((s) => ({ value: s, label: s })),
             ]} />
           </div>
         )}
@@ -3287,7 +3341,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
               )}
               <Select label="Segment" value={combiningSegment} onChange={setCombiningSegment} width={180} options={[
                 { value: "all", label: "All Segments" },
-                ...SEGMENTS.map((s) => ({ value: s, label: s })),
+                ...availableSegments.map((s) => ({ value: s, label: s })),
               ]} />
             </div>
             <CombiningStatement data={combiningData} loading={combiningLoading} error={combiningError} onRetry={loadCombining} />

@@ -1610,11 +1610,25 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None, entit
             # Filter rows to only those matching the requested period
             if is_annual:
                 # Annual: filter rows whose period falls in the requested year
+                rows_have_period = any(d.get("period") for d in data)
                 filtered = [d for d in data
                             if d.get("value") is not None
                             and str(requested_period) in str(d.get("period", ""))]
-                if not filtered:
-                    # If period field doesn't exist on rows, use all (backward compat)
+                if not filtered and rows_have_period:
+                    # Rows have period fields but none match — no data for this year
+                    available = [d.get("period") for d in data if d.get("period")]
+                    logger.warning(
+                        "No data for annual period %s, metric %s. Available periods: %s",
+                        requested_period, metric, available,
+                    )
+                    return None
+                if not filtered and not rows_have_period:
+                    # Legacy DCL responses without period fields — use all rows but warn
+                    logger.warning(
+                        "DCL response for %s lacks period fields — using all rows (legacy compat). "
+                        "Requested period: %s",
+                        metric, requested_period,
+                    )
                     filtered = [d for d in data if d.get("value") is not None]
                 if _is_pit:
                     # Point-in-time: take latest quarter's value (last in sorted order)
@@ -1633,10 +1647,29 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None, entit
                 if matching:
                     value = matching[0].get("value")
                 else:
-                    # Fall back to last row if no period field on rows
-                    value = data[-1].get("value") if isinstance(data[-1], dict) else data[-1]
+                    rows_have_period = any(d.get("period") for d in data)
+                    if rows_have_period:
+                        # Rows have period fields but none match — no data for this quarter
+                        available = [d.get("period") for d in data if d.get("period")]
+                        logger.warning(
+                            "No data for quarterly period %s, metric %s. Available periods: %s",
+                            requested_period, metric, available,
+                        )
+                        value = None
+                    else:
+                        # Legacy DCL responses without period fields — use last row but warn
+                        logger.warning(
+                            "DCL response for %s lacks period fields — using last row (legacy compat). "
+                            "Requested period: %s",
+                            metric, requested_period,
+                        )
+                        value = data[-1].get("value") if isinstance(data[-1], dict) else data[-1]
             else:
-                # Unknown period format — take last value for PIT, else sum/avg
+                # Unknown period format — log warning, then aggregate all returned rows
+                logger.warning(
+                    "Unknown period format %r for metric %s — aggregating all %d returned rows",
+                    requested_period, metric, len(data),
+                )
                 if _is_pit:
                     non_null = [d for d in data if d.get("value") is not None]
                     value = non_null[-1].get("value") if non_null else None
@@ -3690,6 +3723,79 @@ def _resolve_entity_id(request: NLQRequest) -> str:
     if not eid:
         eid = "meridian"
     return eid
+
+
+# =============================================================================
+# REPORT DIMENSIONS — dynamic period/segment availability
+# =============================================================================
+
+import time as _time_mod
+
+_dimension_cache: Dict[str, object] = {"data": None, "expires_at": 0.0}
+_DIMENSION_CACHE_TTL = 300  # 5 minutes
+
+_ENTITY_IDS = ["meridian", "cascadia"]
+
+
+@router.get("/report-dimensions")
+async def report_dimensions():
+    """Return available time periods and segments with per-entity data availability.
+
+    Uses a 5-minute in-memory cache to avoid hammering DCL with probe queries.
+    """
+    now = _time_mod.time()
+    if _dimension_cache["data"] is not None and now < _dimension_cache["expires_at"]:
+        return _dimension_cache["data"]
+
+    from src.nlq.services.period_engine import get_all_periods
+    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    from src.nlq.core.report_intent import _KNOWN_SEGMENTS
+
+    all_periods = get_all_periods(date.today())
+    dcl_client = get_semantic_client()
+
+    # Probe DCL for data existence per entity per period
+    periods_out = []
+    for p in all_periods:
+        has_data: Dict[str, bool] = {}
+        for eid in _ENTITY_IDS:
+            try:
+                result = dcl_client.query(
+                    metric="revenue",
+                    time_range={"period": p.label, "granularity": "quarterly"},
+                    entity_id=eid,
+                )
+                rows = result.get("data", [])
+                # Data exists if we got at least one row with a non-null value
+                # AND the row's period actually matches what we asked for
+                matched = any(
+                    d.get("value") is not None
+                    and p.label in str(d.get("period", ""))
+                    for d in rows
+                    if isinstance(d, dict)
+                )
+                has_data[eid] = matched
+            except Exception as exc:
+                logger.warning(
+                    "Dimension probe failed for %s/%s: %s", p.label, eid, exc
+                )
+                has_data[eid] = False
+
+        periods_out.append({
+            "label": p.label,
+            "year": p.year,
+            "quarter": p.quarter,
+            "period_type": p.period_type,
+            "has_data": has_data,
+        })
+
+    response = {
+        "periods": periods_out,
+        "segments": list(_KNOWN_SEGMENTS),
+    }
+    _dimension_cache["data"] = response
+    _dimension_cache["expires_at"] = now + _DIMENSION_CACHE_TTL
+    return response
 
 
 @router.post("/query", response_model=NLQResponse)

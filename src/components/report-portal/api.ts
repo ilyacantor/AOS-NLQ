@@ -29,6 +29,32 @@ import type {
 
 const NLQ_BASE = '/api/v1'
 
+// ── Report Dimensions ────────────────────────────────────────────────────────
+
+export interface PeriodDimension {
+  label: string
+  year: number
+  quarter: number
+  period_type: 'actual' | 'forecast'
+  has_data: Record<string, boolean>
+}
+
+export interface ReportDimensions {
+  periods: PeriodDimension[]
+  segments: string[]
+}
+
+export async function fetchReportDimensions(): Promise<ReportDimensions> {
+  const res = await fetch(`${NLQ_BASE}/report-dimensions`)
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Unknown error')
+    throw new Error(
+      `Report dimensions fetch failed (HTTP ${res.status}): ${errText.slice(0, 500)}`
+    )
+  }
+  return res.json()
+}
+
 // ── Report (P&L, BS, SOCF) ──────────────────────────────────────────────────
 
 function variantToQuery(
