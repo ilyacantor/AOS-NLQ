@@ -22,8 +22,6 @@ import type {
   WhatIfResult,
   QofEData,
   DashboardData,
-  MaestraEngagement,
-  MaestraMessage,
   MaestraStatus,
 } from './types'
 
@@ -344,35 +342,42 @@ export async function fetchDashboard(persona: string): Promise<DashboardData> {
   return res.json()
 }
 
-// ── Maestra ──────────────────────────────────────────────────────────────────
+// ── Maestra (live endpoints — sessions 2-5) ─────────────────────────────────
 
-export async function createMaestraEngagement(): Promise<MaestraEngagement> {
-  const res = await fetch('/api/reports/maestra/engage', { method: 'POST' })
-  if (!res.ok) {
-    const errText = await res.text().catch(() => 'Unknown error')
-    throw new Error(`Maestra engage failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
-  }
-  return res.json()
+const MAESTRA_CUSTOMER_ID = '00000000-0000-0000-0000-000000000001'
+
+export interface MaestraChatResponse {
+  text: string
+  session_id: string
+  action_result?: unknown
+  plan_created?: { plan_id: string; title: string; status: string }
 }
 
-export async function sendMaestraMessage(engagementId: string, message: string): Promise<MaestraMessage> {
-  const res = await fetch(`/api/reports/maestra/${engagementId}/message`, {
+export async function sendMaestraChat(
+  message: string,
+  sessionId?: string,
+): Promise<MaestraChatResponse> {
+  const res = await fetch('/maestra/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({
+      customer_id: MAESTRA_CUSTOMER_ID,
+      message,
+      session_id: sessionId,
+    }),
   })
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
-    throw new Error(`Maestra message failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+    throw new Error(`Maestra chat failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
   }
   return res.json()
 }
 
-export async function fetchMaestraStatus(engagementId: string): Promise<MaestraStatus> {
-  const res = await fetch(`/api/reports/maestra/${engagementId}/status`)
+export async function fetchMaestraStats(): Promise<MaestraStatus> {
+  const res = await fetch(`/maestra/stats/${MAESTRA_CUSTOMER_ID}`)
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
-    throw new Error(`Maestra status failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+    throw new Error(`Maestra stats failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
   }
   return res.json()
 }

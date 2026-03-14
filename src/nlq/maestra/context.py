@@ -48,6 +48,14 @@ _MODULE_STATUS_URLS: dict[str, str] = {
     "dcl": os.environ.get("DCL_API_URL", "http://localhost:8004") + "/maestra/status",
 }
 
+# Module health endpoints (lightweight fallback when /maestra/status fails)
+_MODULE_HEALTH_URLS: dict[str, str] = {
+    "aod": os.environ.get("AOD_URL", "http://localhost:8001") + "/health",
+    "aam": os.environ.get("AAM_URL", "http://localhost:8002") + "/health",
+    "farm": os.environ.get("FARM_URL", "http://localhost:8003") + "/health",
+    "dcl": os.environ.get("DCL_API_URL", "http://localhost:8004") + "/api/health",
+}
+
 # Action block regex — matches ```json { ... "action" ... } ```
 _ACTION_BLOCK_RE = re.compile(
     r"```json\s*(\{[\s\S]*?\"action\"[\s\S]*?\})\s*```"
@@ -98,12 +106,12 @@ def _is_stale(updated_at: str) -> bool:
 
 
 def _fetch_module_status(module: str) -> Optional[dict[str, Any]]:
-    """Fetch live status from a module's /maestra/status endpoint."""
+    """Fetch live status from a module's /maestra/status endpoint (10s timeout)."""
     url = _MODULE_STATUS_URLS.get(module)
     if not url:
         return None
     try:
-        r = httpx.get(url, timeout=5.0)
+        r = httpx.get(url, timeout=10.0)
         if r.status_code == 200:
             return r.json()
         logger.warning(
@@ -113,8 +121,39 @@ def _fetch_module_status(module: str) -> Optional[dict[str, Any]]:
     except httpx.ConnectError:
         logger.warning(f"Module {module} unreachable at {url}")
         return None
+    except httpx.TimeoutException:
+        logger.warning(f"Module {module} timed out after 10s at {url} — skipping")
+        return None
     except Exception as e:
         logger.warning(f"Module {module} status fetch failed: {type(e).__name__}: {e}")
+        return None
+
+
+def _fetch_module_health(module: str) -> Optional[dict[str, Any]]:
+    """Fallback: fetch /health when /maestra/status is unavailable (422, 404, etc.)."""
+    url = _MODULE_HEALTH_URLS.get(module)
+    if not url:
+        return None
+    try:
+        r = httpx.get(url, timeout=10.0)
+        if r.status_code == 200:
+            data = r.json()
+            # Tag as health-only so downstream formatting knows this isn't full status
+            data["_health_only"] = True
+            data["_source_url"] = url
+            return data
+        logger.warning(
+            f"Module {module} health endpoint returned {r.status_code}: {r.text[:200]}"
+        )
+        return None
+    except httpx.ConnectError:
+        logger.warning(f"Module {module} unreachable at health endpoint {url}")
+        return None
+    except httpx.TimeoutException:
+        logger.warning(f"Module {module} health timed out after 10s at {url} — skipping")
+        return None
+    except Exception as e:
+        logger.warning(f"Module {module} health fetch failed: {type(e).__name__}: {e}")
         return None
 
 
@@ -157,6 +196,12 @@ def _format_module_states(states: dict[str, Any]) -> str:
             state = {k: v for k, v in data.items() if not k.startswith("_")}
             lines.append(
                 f"- {module.upper()} (stale, cached at {ts}): {json.dumps(state, default=str)}"
+            )
+        elif isinstance(data, dict) and data.get("_health_only"):
+            clean = {k: v for k, v in data.items() if not k.startswith("_")}
+            status = "healthy" if clean.get("healthy") or clean.get("status") == "healthy" else "unhealthy"
+            lines.append(
+                f"- {module.upper()}: {status} (detailed status not available — health-only)"
             )
         else:
             clean = {k: v for k, v in data.items() if not k.startswith("_")}
@@ -220,6 +265,8 @@ async def assemble_context(
         scenario_constitution = _load_constitution(scenario_file)
         constitution_text += "\n\n" + scenario_constitution
 
+    print(f"MAESTRA: engagement loaded +{int((time.time() - start_time) * 1000)}ms", flush=True)
+
     # ------------------------------------------------------------------
     # 2. Load engagement state
     # ------------------------------------------------------------------
@@ -229,7 +276,9 @@ async def assemble_context(
     # 3. Load module state (with freshness check)
     # ------------------------------------------------------------------
     module_states: dict[str, Any] = {}
+    module_refresh_details: list[str] = []
     for module in ("aod", "aam", "farm", "dcl"):
+        mt = time.time()
         cached = svc.get_module_state(module, customer_id)
         if cached is not None:
             state_json = cached.get("state_json", {})
@@ -237,24 +286,37 @@ async def assemble_context(
             if _is_stale(updated_at):
                 # Try to fetch fresh
                 fresh = _fetch_module_status(module)
+                if fresh is None:
+                    fresh = _fetch_module_health(module)  # fallback: at least get health
+                elapsed = int((time.time() - mt) * 1000)
                 if fresh is not None:
                     svc.set_module_state(module, customer_id, fresh)
                     module_states[module] = fresh
+                    module_refresh_details.append(f"{module}:refreshed({elapsed}ms)")
                 else:
                     # Use stale cache with warning
                     state_json["_stale"] = True
                     state_json["_cached_at"] = updated_at
                     module_states[module] = state_json
+                    module_refresh_details.append(f"{module}:stale({elapsed}ms)")
             else:
                 module_states[module] = state_json
+                module_refresh_details.append(f"{module}:cached")
         else:
             # No cache — try live fetch
             fresh = _fetch_module_status(module)
+            if fresh is None:
+                fresh = _fetch_module_health(module)  # fallback: at least get health
+            elapsed = int((time.time() - mt) * 1000)
             if fresh is not None:
                 svc.set_module_state(module, customer_id, fresh)
                 module_states[module] = fresh
+                module_refresh_details.append(f"{module}:fetched({elapsed}ms)")
             else:
                 module_states[module] = None
+                module_refresh_details.append(f"{module}:unavailable({elapsed}ms)")
+
+    print(f"MAESTRA: module state refreshed +{int((time.time() - start_time) * 1000)}ms [{', '.join(module_refresh_details)}]", flush=True)
 
     # ------------------------------------------------------------------
     # 4. Assemble the prompt
@@ -317,6 +379,8 @@ async def assemble_context(
     # ------------------------------------------------------------------
     # 5. Call LLM
     # ------------------------------------------------------------------
+    print(f"MAESTRA: context assembled +{int((time.time() - start_time) * 1000)}ms ~{total_tokens} tokens (system={_approx_tokens(system_message)} user={_approx_tokens(user_message)})", flush=True)
+
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise RuntimeError(
@@ -325,16 +389,33 @@ async def assemble_context(
 
     client = anthropic.Anthropic(api_key=api_key, timeout=30.0)
 
-    response = client.messages.create(
-        model=CONTEXT_MODEL,
-        max_tokens=CONTEXT_MAX_TOKENS,
-        temperature=CONTEXT_TEMPERATURE,
-        system=system_message,
-        messages=[{"role": "user", "content": user_message}],
-    )
+    print(f"MAESTRA: LLM call starting +{int((time.time() - start_time) * 1000)}ms model={CONTEXT_MODEL} max_tokens={CONTEXT_MAX_TOKENS}", flush=True)
+
+    try:
+        response = client.messages.create(
+            model=CONTEXT_MODEL,
+            max_tokens=CONTEXT_MAX_TOKENS,
+            temperature=CONTEXT_TEMPERATURE,
+            system=system_message,
+            messages=[{"role": "user", "content": user_message}],
+        )
+    except anthropic.APITimeoutError as e:
+        elapsed = int((time.time() - start_time) * 1000)
+        logger.error("MAESTRA: LLM call timed out after %dms: %s", elapsed, e)
+        raise RuntimeError(
+            f"Claude API timed out after 30s. Total elapsed: {elapsed}ms. "
+            f"Model: {CONTEXT_MODEL}. The LLM did not respond in time."
+        )
+    except anthropic.APIError as e:
+        elapsed = int((time.time() - start_time) * 1000)
+        logger.error("MAESTRA: LLM call failed after %dms: %s: %s", elapsed, type(e).__name__, e)
+        raise RuntimeError(
+            f"Claude API error after {elapsed}ms: {type(e).__name__}: {e}"
+        )
 
     llm_time = time.time()
     latency_ms = int((llm_time - start_time) * 1000)
+    print(f"MAESTRA: LLM call complete +{latency_ms}ms (in={response.usage.input_tokens} out={response.usage.output_tokens})", flush=True)
 
     # Extract text from response
     raw_text = ""
@@ -439,6 +520,7 @@ async def assemble_context(
                 f"Summarize this for the customer in clear business language. "
                 f"Follow the entity clarity rule — specify which entity data belongs to."
             )
+            print(f"MAESTRA: narration LLM call starting +{int((time.time() - start_time) * 1000)}ms (read action result narration)", flush=True)
             try:
                 narration_response = client.messages.create(
                     model=CONTEXT_MODEL,
@@ -455,8 +537,13 @@ async def assemble_context(
                     display_text = narration_text
                     usage["input_tokens"] += narration_response.usage.input_tokens
                     usage["output_tokens"] += narration_response.usage.output_tokens
+                print(f"MAESTRA: narration LLM call complete +{int((time.time() - start_time) * 1000)}ms", flush=True)
+            except anthropic.APITimeoutError as e:
+                logger.warning("MAESTRA: narration LLM call timed out after 30s +%dms — using original response",
+                               int((time.time() - start_time) * 1000))
             except Exception as e:
-                logger.warning(f"Narration LLM call failed: {type(e).__name__}: {e}")
+                logger.warning("MAESTRA: narration LLM call failed +%dms: %s: %s",
+                               int((time.time() - start_time) * 1000), type(e).__name__, e)
 
         elif dispatch_result.get("planned"):
             # Write action — append plan info to response
@@ -465,9 +552,7 @@ async def assemble_context(
             )
 
         elif dispatch_result.get("error"):
-            display_text += (
-                f"\n\nNote: {dispatch_result['message']}"
-            )
+            logger.warning("Action dispatch failed (not shown to customer): %s", dispatch_result["message"])
 
     return {
         "text": display_text,

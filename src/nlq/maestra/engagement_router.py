@@ -138,6 +138,11 @@ async def chat(req: ChatRequest):
     returns formatted response. No separate demo mode — the seeded
     Meridian/Cascadia tenant IS the demo.
     """
+    import time as _time
+
+    t0 = _time.time()
+    print(f"MAESTRA: received message customer_id={req.customer_id} message={req.message[:80]!r}", flush=True)
+
     svc = get_engagement_service()
     session_id = req.session_id or str(uuid.uuid4())
 
@@ -152,17 +157,28 @@ async def chat(req: ChatRequest):
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
+    print(f"MAESTRA: engagement loaded +{int((_time.time() - t0) * 1000)}ms customer={engagement.get('customer_name')} phase={engagement.get('deal_phase')}", flush=True)
+
     # 2. First interaction check — refresh module state if no history
     try:
         recent = svc.get_recent_memory(req.customer_id, limit=1)
         if not recent:
             from src.nlq.maestra.context import _fetch_module_status
+            succeeded, failed = [], []
             for module in ("aod", "aam", "farm", "dcl"):
+                mt = _time.time()
                 fresh = _fetch_module_status(module)
+                elapsed = int((_time.time() - mt) * 1000)
                 if fresh is not None:
                     svc.set_module_state(module, req.customer_id, fresh)
+                    succeeded.append(f"{module}({elapsed}ms)")
+                else:
+                    failed.append(f"{module}({elapsed}ms)")
+            print(f"MAESTRA: module state refreshed +{int((_time.time() - t0) * 1000)}ms succeeded=[{', '.join(succeeded) or 'none'}] failed=[{', '.join(failed) or 'none'}]", flush=True)
+        else:
+            print(f"MAESTRA: module state refresh skipped (not first interaction) +{int((_time.time() - t0) * 1000)}ms", flush=True)
     except Exception as e:
-        logger.warning(f"First-interaction module refresh failed: {e}")
+        print(f"MAESTRA: first-interaction module refresh failed +{int((_time.time() - t0) * 1000)}ms: {e}", flush=True)
 
     # 3. Call assembleContext (includes LLM call + dispatch from sessions 3-4)
     try:
@@ -189,6 +205,7 @@ async def chat(req: ChatRequest):
                 "status": "pending",
             }
 
+    print(f"MAESTRA: response sent +{int((_time.time() - t0) * 1000)}ms text_len={len(response['text'])} has_dispatch={bool(dispatch)}", flush=True)
     return response
 
 

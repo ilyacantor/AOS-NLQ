@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { fetchReport, fetchDrillThrough, fetchReconciliation, fetchCombiningStatement, fetchOverlapData, fetchCrossSell, fetchRevenueByCustomer, fetchEBITDABridge, fetchWhatIf, fetchQofE, fetchDashboard, createMaestraEngagement, sendMaestraMessage, fetchMaestraStatus, fetchReportDimensions } from "./api";
+import { fetchReport, fetchDrillThrough, fetchReconciliation, fetchCombiningStatement, fetchOverlapData, fetchCrossSell, fetchRevenueByCustomer, fetchEBITDABridge, fetchWhatIf, fetchQofE, fetchDashboard, sendMaestraChat, fetchReportDimensions } from "./api";
 import type { PeriodDimension } from "./api";
 import React from "react";
-import type { ReportData, ReconReport, ReconCheck, DrillThroughItem, ReportVariant, EntitySelection, CombiningStatementData, OverlapData, CrossSellData, RevenueByCustomerData, EBITDABridgeData, BridgeAdjustment, WhatIfResult, QofEData, DashboardData, DashboardPersona, MaestraStatus, FinancialStatementData, FinancialStatementLineItem } from "./types";
+import type { ReportData, ReconReport, ReconCheck, DrillThroughItem, ReportVariant, EntitySelection, CombiningStatementData, OverlapData, CrossSellData, RevenueByCustomerData, EBITDABridgeData, BridgeAdjustment, WhatIfResult, QofEData, DashboardData, DashboardPersona, FinancialStatementData, FinancialStatementLineItem } from "./types";
 
 // ============================================================
 // FORMATTING
@@ -2650,20 +2650,15 @@ function RichContentRenderer({ content, onSendMessage }: { content: any; onSendM
 }
 
 // ── Maestra Floating Chat ──────────────────────────────────────────────────
-type ChatMsg = { role: "user" | "maestra"; text: string; richContent?: any[]; nav?: string; completeness?: number };
+type ChatMsg = { role: "user" | "maestra"; text: string };
 
 function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab: string) => void; onEntityChange?: (entity: EntitySelection) => void }) {
   const [expanded, setExpanded] = useState(false);
-  const [engagementId, setEngagementId] = useState<string | null>(null);
-  const [status, setStatus] = useState<MaestraStatus | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [completeness, setCompleteness] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [section, setSection] = useState<string>("");
   const chatEndRef = React.useRef<HTMLDivElement>(null);
 
   // Draggable position for expanded panel
@@ -2671,7 +2666,6 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
   const dragRef = React.useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
-    // Only drag from header area (not buttons)
     if ((e.target as HTMLElement).closest("button")) return;
     e.preventDefault();
     const panel = (e.currentTarget as HTMLElement).parentElement!;
@@ -2699,38 +2693,13 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
 
   useEffect(() => { scrollToBottom(); }, [messages, loading]);
 
-  const startEngagement = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const eng = await createMaestraEngagement();
-      setEngagementId(eng.engagement_id);
-      setMessages([{
-        role: "maestra",
-        text: `I've completed my background research on both Meridian Partners and Cascadia Advisory. I have their business profiles, systems landscape, and deal context loaded.`,
-      }]);
-      setSuggestions(["Let's get started", "Jump to findings", "Show me the roadmap"]);
-      setSection("PDI");
-      const st = await fetchMaestraStatus(eng.engagement_id);
-      setStatus(st);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Clear unread when expanded; auto-start engagement on first open
+  // Clear unread when expanded
   useEffect(() => {
-    if (expanded) {
-      setUnreadCount(0);
-      if (!engagementId && !loading) startEngagement();
-    }
-  }, [expanded, engagementId, loading, startEngagement]);
+    if (expanded) setUnreadCount(0);
+  }, [expanded]);
 
   const handleNavigate = useCallback((tab: string) => {
     if (onNavigate) onNavigate(tab);
-    // Auto-switch to combined entity for M&A tabs
     const combinedTabs = ["combining", "overlap", "crosssell", "cross_sell", "bridge", "ebitda", "whatif", "what_if", "qoe", "dashboards"];
     if (onEntityChange && combinedTabs.includes(tab)) {
       onEntityChange("combined");
@@ -2739,60 +2708,23 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
 
   const sendMessage = useCallback(async (overrideMsg?: string) => {
     const msg = (overrideMsg || input).trim();
-    if (!engagementId || !msg) return;
+    if (!msg) return;
     setInput("");
-    setSuggestions([]);
     setMessages((prev) => [...prev, { role: "user", text: msg }]);
     setLoading(true);
     try {
-      const resp = await sendMaestraMessage(engagementId, msg);
-      const newMsg: ChatMsg = {
-        role: "maestra",
-        text: resp.response,
-        richContent: resp.rich_content,
-        completeness: resp.completeness,
-      };
-      setMessages((prev) => [...prev, newMsg]);
+      const resp = await sendMaestraChat(msg, sessionId || undefined);
+      if (!sessionId) setSessionId(resp.session_id);
+      setMessages((prev) => [...prev, { role: "maestra", text: resp.text }]);
       if (!expanded) setUnreadCount((c) => c + 1);
-
-      if (resp.completeness !== undefined) setCompleteness(resp.completeness);
-      if (resp.suggestions) setSuggestions(resp.suggestions);
-      if (resp.section) setSection(resp.section);
-
-      if (resp.navigation && handleNavigate) {
-        // Map navigate_portal tab names to portal tab IDs
-        const tabMap: Record<string, string> = {
-          cross_sell: "crosssell", ebitda: "bridge", what_if: "whatif",
-          pl: "pl", bs: "bs", socf: "cf", drill: "pl", recon: "recon",
-          combining: "combining", overlap: "overlap", qoe: "qoe", dashboard: "dashboards",
-        };
-        const portalTab = tabMap[resp.navigation.tab] || resp.navigation.tab;
-        handleNavigate(portalTab);
-        setMessages((prev) => [...prev, {
-          role: "maestra",
-          text: `I've opened the ${resp.navigation!.tab.replace(/_/g, " ")} view in the portal.`,
-          nav: portalTab,
-        }]);
-      }
-      const st = await fetchMaestraStatus(engagementId);
-      setStatus(st);
     } catch (err) {
       setMessages((prev) => [...prev, { role: "maestra", text: `Error: ${err instanceof Error ? err.message : String(err)}` }]);
     } finally {
       setLoading(false);
     }
-  }, [engagementId, input, handleNavigate, expanded]);
-
-  const sectionLabel = (s: string) => {
-    const labels: Record<string, string> = {
-      PDC: "Deal Context", PDA: "Acquirer Profile", PDT: "Target Profile",
-      PDS: "DD Scope", PDR: "Analysis", PDF: "Findings",
-    };
-    return labels[s] || s;
-  };
+  }, [sessionId, input, expanded]);
 
   // Collapsed state — floating icon
-  // Use createPortal to render at document.body, bypassing any parent overflow/transform constraints
   if (!expanded) {
     return createPortal(
       <div
@@ -2808,9 +2740,7 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
         onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
         title="Open Maestra"
       >
-        {/* M icon */}
         <span style={{ fontSize: 22, fontWeight: 700, color: "#fff", fontFamily: "'IBM Plex Sans',sans-serif", lineHeight: 1 }}>M</span>
-        {/* Notification badge */}
         {unreadCount > 0 && (
           <span style={{
             position: "absolute", top: -2, right: -2, minWidth: 18, height: 18,
@@ -2825,7 +2755,6 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
   }
 
   // Expanded state — full chat panel
-  // Use createPortal to render at document.body, bypassing any parent overflow/transform constraints
   return createPortal(
     <div style={{
       position: "fixed",
@@ -2852,8 +2781,7 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Maestra</div>
             <div style={{ fontSize: 10, color: COLORS.textMuted }}>
-              {!engagementId ? "Integration Manager" : section ? sectionLabel(section) : status?.phase || "Ready"}
-              {completeness > 0 && <span style={{ marginLeft: 6, color: completeness >= 70 ? COLORS.green : COLORS.accent }}>{completeness}%</span>}
+              {loading ? "Thinking..." : "Engagement Lead"}
             </div>
           </div>
         </div>
@@ -2864,105 +2792,54 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
         >{"\u2013"}</button>
       </div>
 
-      {/* Body */}
-      {!engagementId ? (
-        /* Loading — engagement auto-starts on open */
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", textAlign: "center" }}>
-          <div style={{
-            width: 64, height: 64, borderRadius: "50%", background: `${COLORS.accent}22`,
-            display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20,
-          }}>
-            <span style={{ fontSize: 28, fontWeight: 700, color: COLORS.accent }}>M</span>
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.text, marginBottom: 8 }}>Maestra Integration Manager</div>
-          {error ? (
-            <>
-              <div style={{ color: COLORS.red, fontSize: 11, marginBottom: 12 }}>{error}</div>
-              <button onClick={startEngagement} style={{
-                padding: "10px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-                background: COLORS.accent, color: "#fff", border: "none", borderRadius: 8,
-              }}>Retry</button>
-            </>
-          ) : (
-            <div style={{ fontSize: 12, color: COLORS.textMuted, lineHeight: 1.5 }}>
-              Preparing engagement...
+      {/* Chat interface — always available, no engagement gate */}
+      <>
+        <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
+          {messages.length === 0 && !loading && (
+            <div style={{ textAlign: "center", padding: "40px 16px", color: COLORS.textMuted, fontSize: 12, lineHeight: 1.6 }}>
+              I'm Maestra, your engagement lead for this deal. Ask me about the Meridian/Cascadia convergence — pipeline health, module status, overlap reports, or anything else.
             </div>
           )}
+          {messages.map((m, i) => (
+            <div key={i} style={{ marginBottom: 12, textAlign: m.role === "user" ? "right" : "left" }}>
+              <div style={{
+                display: "inline-block", maxWidth: "88%", padding: "8px 14px", borderRadius: 8,
+                background: m.role === "user" ? "rgba(199,120,64,0.12)" : COLORS.bg,
+                color: COLORS.text, fontSize: 13, lineHeight: 1.5,
+                textAlign: "left", whiteSpace: "pre-wrap",
+              }}>{m.text}</div>
+            </div>
+          ))}
+          {loading && (
+            <div style={{ fontSize: 12, color: COLORS.textDim, fontStyle: "italic", display: "flex", alignItems: "center", gap: 6, padding: "4px 0" }}>
+              <span style={{ display: "inline-flex", gap: 3 }}>
+                {[0, 1, 2].map(d => <span key={d} style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.accent, animation: `bounce 1.4s ${d * 0.16}s infinite ease-in-out both` }} />)}
+              </span>
+              Maestra is thinking...
+            </div>
+          )}
+          <div ref={chatEndRef} />
         </div>
-      ) : (
-        /* Chat interface */
-        <>
-          <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
-            {messages.map((m, i) => (
-              <div key={i} style={{ marginBottom: 12, textAlign: m.role === "user" ? "right" : "left" }}>
-                {m.nav && handleNavigate ? (
-                  <button onClick={() => handleNavigate(m.nav!)} style={{
-                    display: "inline-block", padding: "6px 14px", borderRadius: 8,
-                    background: "rgba(199,120,64,0.12)", border: `1px solid ${COLORS.accent}44`,
-                    color: COLORS.accent, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                  }}>
-                    {"\u2197"} {m.text}
-                  </button>
-                ) : (
-                  <>
-                    <div style={{
-                      display: "inline-block", maxWidth: "88%", padding: "8px 14px", borderRadius: 8,
-                      background: m.role === "user" ? "rgba(199,120,64,0.12)" : COLORS.bg,
-                      color: COLORS.text, fontSize: 13, lineHeight: 1.5,
-                      textAlign: "left", whiteSpace: "pre-wrap",
-                    }}>{m.text}</div>
-                    {m.richContent && m.richContent.length > 0 && (
-                      <div style={{ maxWidth: "88%", display: "inline-block", width: "100%" }}>
-                        {m.richContent.map((rc: any, j: number) => <RichContentRenderer key={j} content={rc} onSendMessage={sendMessage} />)}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            ))}
-            {loading && (
-              <div style={{ fontSize: 12, color: COLORS.textDim, fontStyle: "italic", display: "flex", alignItems: "center", gap: 6, padding: "4px 0" }}>
-                <span style={{ display: "inline-flex", gap: 3 }}>
-                  {[0, 1, 2].map(d => <span key={d} style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.accent, animation: `bounce 1.4s ${d * 0.16}s infinite ease-in-out both` }} />)}
-                </span>
-                Maestra is thinking...
-              </div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
 
-          {/* Suggestions */}
-          {suggestions.length > 0 && !loading && (
-            <div style={{ padding: "6px 12px", borderTop: `1px solid ${COLORS.border}22`, display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {suggestions.map((s, i) => (
-                <button key={i} onClick={() => sendMessage(s)} style={{
-                  padding: "4px 10px", fontSize: 11, borderRadius: 12, cursor: "pointer",
-                  background: COLORS.bg, color: COLORS.textMuted, border: `1px solid ${COLORS.border}`,
-                }}>{s}</button>
-              ))}
-            </div>
-          )}
-
-          {/* Input */}
-          <div style={{ padding: "10px 12px", borderTop: `1px solid ${COLORS.border}`, display: "flex", gap: 8 }}>
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-              placeholder="Ask Maestra..."
-              style={{
-                flex: 1, padding: "8px 12px", fontSize: 13, background: COLORS.bg, color: COLORS.text,
-                border: `1px solid ${COLORS.border}`, borderRadius: 6, outline: "none",
-              }}
-            />
-            <button onClick={() => sendMessage()} disabled={loading || !input.trim()} style={{
-              padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer",
-              background: COLORS.accent, color: "#fff", border: "none", borderRadius: 6,
-              opacity: loading || !input.trim() ? 0.5 : 1,
-            }}>Send</button>
-          </div>
-        </>
-      )}
+        {/* Input */}
+        <div style={{ padding: "10px 12px", borderTop: `1px solid ${COLORS.border}`, display: "flex", gap: 8 }}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+            placeholder="Ask Maestra..."
+            style={{
+              flex: 1, padding: "8px 12px", fontSize: 13, background: COLORS.bg, color: COLORS.text,
+              border: `1px solid ${COLORS.border}`, borderRadius: 6, outline: "none",
+            }}
+          />
+          <button onClick={() => sendMessage()} disabled={loading || !input.trim()} style={{
+            padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+            background: COLORS.accent, color: "#fff", border: "none", borderRadius: 6,
+            opacity: loading || !input.trim() ? 0.5 : 1,
+          }}>Send</button>
+        </div>
+      </>
     </div>,
     document.body,
   );
