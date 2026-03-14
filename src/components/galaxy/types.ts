@@ -69,7 +69,7 @@ export interface IntentMapResponse {
   dashboard_data?: Record<string, unknown> | null;  // Dashboard widget data
   provenance?: RunProvenance | null;  // DCL run provenance for Trust Badge
   debug_info?: Record<string, unknown> | null;  // Diagnostic trace from backend
-  data_source?: string | null;  // "live", "demo", or "dcl"
+  data_source?: string | null;  // "live" or "dcl"
 }
 
 // Ring configuration

@@ -28,12 +28,11 @@ logger = logging.getLogger(__name__)
 class QueryExecutor:
     """Executes parsed queries against DCL."""
 
-    def __init__(self, fact_base=None, claude_client: Optional["ClaudeClient"] = None, entity_id: str = None):
+    def __init__(self, claude_client: Optional["ClaudeClient"] = None, entity_id: str = None):
         """
         Initialize the query executor.
 
         Args:
-            fact_base: Ignored - kept for backwards compatibility
             claude_client: Optional Claude client for LLM fallback on unknown breakdowns
             entity_id: Entity ID to pass through to DCL queries (e.g., "meridian")
         """

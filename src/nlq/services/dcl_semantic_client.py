@@ -20,7 +20,6 @@ Usage:
     # Returns (False, "Dimension 'customer' not available for 'revenue'. Valid: region, segment, product")
 """
 
-import contextlib
 import contextvars
 import functools
 import json
@@ -35,8 +34,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import httpx
 
-_force_local_ctx: contextvars.ContextVar[bool] = contextvars.ContextVar('_force_local_ctx', default=False)
-_data_mode_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar('_data_mode_ctx', default=None)
 _entity_id_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar('_entity_id_ctx', default=None)
 
 # Diagnostic trace collector — route handlers init this to [] before each request,
@@ -58,16 +55,12 @@ def propagate_context(fn):
     callable across multiple pool.submit() calls.
     """
     snapshot = {
-        "force_local": _force_local_ctx.get(),
-        "data_mode": _data_mode_ctx.get(),
         "entity_id": _entity_id_ctx.get(),
         "diag_trace": _diag_trace.get(),
     }
 
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
-        _force_local_ctx.set(snapshot["force_local"])
-        _data_mode_ctx.set(snapshot["data_mode"])
         _entity_id_ctx.set(snapshot["entity_id"])
         _diag_trace.set(snapshot["diag_trace"])
         return fn(*args, **kwargs)
@@ -150,7 +143,7 @@ class SemanticCatalog:
     dimensions: Dict[str, List[str]] = field(default_factory=dict)  # dimension -> valid values
     alias_to_metric: Dict[str, str] = field(default_factory=dict)  # alias -> metric_id
     ingest_summary: Optional[IngestSummary] = None  # Live ingest buffer info from DCL
-    dcl_mode: Optional[str] = None       # DCL's data_mode: "Demo", "Ingest", "Farm", "AAM"
+    dcl_mode: Optional[str] = None       # DCL's data_mode: "Empty", "Ingest", "Farm", "AAM"
     dcl_last_updated: Optional[str] = None  # ISO timestamp of last mode change
 
     def build_alias_index(self):
@@ -215,7 +208,7 @@ class DCLSemanticClient:
             if _allow_no_dcl:
                 logger.warning(
                     "DCL semantic client initialized - NO DCL (NLQ_ALLOW_NO_DCL set). "
-                    "Only explicit demo-mode queries will use local fact_base.json."
+                    "Queries will fail until DCL_API_URL is configured."
                 )
             else:
                 raise RuntimeError(
@@ -278,32 +271,20 @@ class DCLSemanticClient:
         """Get the semantic catalog, fetching/refreshing if needed."""
         return self.get_catalog()
 
-    def get_catalog(self, force_refresh: bool = False, force_local: bool = False) -> SemanticCatalog:
+    def get_catalog(self, force_refresh: bool = False) -> SemanticCatalog:
         """
         Fetch semantic catalog from DCL, with caching.
 
         Args:
             force_refresh: If True, bypass cache and fetch fresh
-            force_local: If True, skip DCL and use local fact_base.json
 
         Returns:
             SemanticCatalog with all metric definitions
-        """
-        ctx_force = _force_local_ctx.get()
-        data_mode = _data_mode_ctx.get()
-        diag(f"[NLQ-DIAG] get_catalog called: force_local={force_local}, ctx_force={ctx_force}, dcl_url={self.dcl_url}, data_mode={data_mode}")
 
-        # Only explicit demo mode can use local data
-        if force_local or ctx_force:
-            if data_mode == "demo":
-                catalog = self._build_local_catalog()
-                diag(f"[NLQ-DIAG] get_catalog -> LOCAL (demo mode, {len(catalog.metrics)} metrics)")
-                return catalog
-            else:
-                raise RuntimeError(
-                    f"force_local is set but data_mode={data_mode!r} (not 'demo'). "
-                    f"Only explicit demo mode can use local fact_base.json data."
-                )
+        Raises:
+            RuntimeError: If DCL is not configured or unreachable
+        """
+        diag(f"[NLQ-DIAG] get_catalog called: dcl_url={self.dcl_url}")
 
         current_time = time.time()
 
@@ -313,63 +294,31 @@ class DCLSemanticClient:
             and current_time - self._cache_time < CACHE_TTL_SECONDS):
             return self._catalog
 
-        # Try to fetch from DCL if configured
-        if self.dcl_url:
-            diag(f"[NLQ-DIAG] Fetching catalog from DCL: {self.dcl_url}/api/dcl/semantic-export")
-            try:
-                catalog = self._fetch_from_dcl()
-                self._catalog = catalog
-                self._cache_time = current_time
-                self._catalog_source = "dcl"
-                diag(f"[NLQ-DIAG] DCL catalog loaded OK: {len(catalog.metrics)} metrics")
-                logger.info(f"Loaded semantic catalog from DCL ({len(catalog.metrics)} metrics)")
-                return catalog
-            except RuntimeError:
-                raise  # Re-raise our own mode errors
-            except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
-                diag(f"[NLQ-DIAG] DCL catalog fetch FAILED: {type(e).__name__}: {e}")
-
-                # Demo mode: fallback to local fact_base is acceptable
-                if data_mode == "demo":
-                    logger.warning(
-                        f"DCL catalog fetch failed: {e} — using local fact_base.json (demo mode)"
-                    )
-                else:
-                    # All non-demo modes (live, ingest, default) must fail loud
-                    raise RuntimeError(
-                        f"DCL FAILURE: catalog fetch failed: {e}. "
-                        f"data_mode={data_mode or 'default'}, dcl_url={self.dcl_url}. "
-                        f"Cannot serve queries without DCL. Check DCL service health."
-                    )
-
-        # No DCL URL configured — only allowed with NLQ_ALLOW_NO_DCL escape hatch
-        # (startup validation should have caught this, but be defensive)
         if not self.dcl_url:
-            if data_mode and data_mode != "demo":
-                raise RuntimeError(
-                    f"DCL_API_URL not configured — cannot serve {data_mode}-mode queries "
-                    f"without DCL. Set DCL_API_URL or use data_mode='demo'."
-                )
-            # Only demo mode reaches here without DCL
-            catalog = self._build_local_catalog()
+            raise RuntimeError(
+                "DCL_API_URL not configured — cannot serve queries without DCL. "
+                "Set DCL_API_URL environment variable."
+            )
+
+        # Fetch from DCL
+        diag(f"[NLQ-DIAG] Fetching catalog from DCL: {self.dcl_url}/api/dcl/semantic-export")
+        try:
+            catalog = self._fetch_from_dcl()
             self._catalog = catalog
             self._cache_time = current_time
-            self._catalog_source = "local"
-            logger.debug(f"Using local catalog for demo mode ({len(catalog.metrics)} metrics)")
+            self._catalog_source = "dcl"
+            diag(f"[NLQ-DIAG] DCL catalog loaded OK: {len(catalog.metrics)} metrics")
+            logger.info(f"Loaded semantic catalog from DCL ({len(catalog.metrics)} metrics)")
             return catalog
-
-        # DCL was configured but fetch failed and data_mode is "demo" — use local fallback
-        catalog = self._build_local_catalog()
-        self._catalog = catalog
-        # Short cache (30s, not 5min) so we retry quickly
-        self._cache_time = current_time - CACHE_TTL_SECONDS + 30
-        self._catalog_source = "local_fallback"
-        logger.warning(
-            f"Using local_fallback catalog ({len(catalog.metrics)} metrics). "
-            f"DCL was configured but unavailable. Retrying in 30s."
-        )
-
-        return catalog
+        except RuntimeError:
+            raise  # Re-raise our own errors
+        except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
+            diag(f"[NLQ-DIAG] DCL catalog fetch FAILED: {type(e).__name__}: {e}")
+            raise RuntimeError(
+                f"DCL FAILURE: catalog fetch failed: {e}. "
+                f"dcl_url={self.dcl_url}. "
+                f"Cannot serve queries without DCL. Check DCL service health."
+            )
 
     def _fetch_from_dcl(self) -> SemanticCatalog:
         """Fetch semantic catalog from DCL's semantic-export endpoint.
@@ -472,87 +421,6 @@ class DCLSemanticClient:
 
         return catalog
 
-    def _build_local_catalog(self) -> SemanticCatalog:
-        """
-        Build semantic catalog from local fact_base.json.
-
-        This analyzes fact_base to discover:
-        - All metrics and their aliases
-        - Which dimensions each metric supports
-        """
-        catalog = SemanticCatalog()
-
-        # Load fact_base
-        fact_base_path = Path(__file__).parent.parent.parent.parent / "data" / "fact_base.json"
-        try:
-            with open(fact_base_path, 'r') as f:
-                fact_base = json.load(f)
-        except (FileNotFoundError, IOError, json.JSONDecodeError) as e:
-            logger.error(f"Failed to load fact_base.json: {e}")
-            return catalog
-
-        # Extract metrics from quarterly data
-        quarterly_metrics: Set[str] = set()
-        if 'quarterly' in fact_base:
-            for entry in fact_base['quarterly']:
-                for key in entry.keys():
-                    if key not in ('year', 'quarter', 'period'):
-                        quarterly_metrics.add(key)
-
-        # Discover dimension breakdowns per metric
-        # Pattern: {metric}_by_{dimension} in fact_base keys
-        metric_dimensions: Dict[str, List[str]] = {}
-        for key in fact_base.keys():
-            if '_by_' in key:
-                parts = key.split('_by_')
-                if len(parts) == 2:
-                    metric_name = parts[0]
-                    dimension = parts[1]
-                    if metric_name not in metric_dimensions:
-                        metric_dimensions[metric_name] = []
-                    metric_dimensions[metric_name].append(dimension)
-
-        # Build metric definitions with aliases
-        metric_aliases = self._get_metric_aliases()
-        metric_domains = self._get_metric_domains()
-        metric_units = self._get_metric_units()
-
-        for metric_id in quarterly_metrics:
-            # Get aliases for this metric
-            aliases = metric_aliases.get(metric_id, [])
-
-            # Get allowed dimensions
-            allowed_dims = metric_dimensions.get(metric_id, [])
-
-            # Create definition
-            metric = MetricDefinition(
-                id=metric_id,
-                display_name=self._format_display_name(metric_id),
-                aliases=aliases,
-                unit=metric_units.get(metric_id, ""),
-                allowed_dimensions=allowed_dims,
-                allowed_grains=["quarterly", "yearly"],
-                domain=metric_domains.get(metric_id, ""),
-            )
-            catalog.metrics[metric_id] = metric
-
-        # Extract dimension values from metadata
-        if 'metadata' in fact_base:
-            metadata = fact_base['metadata']
-            catalog.dimensions = {
-                'region': metadata.get('regions', []),
-                'segment': metadata.get('segments', []),
-                'product': metadata.get('products', []),
-                'stage': metadata.get('pipeline_stages', []),
-                'department': metadata.get('departments', []),
-                'rep': self._extract_rep_names(fact_base),
-            }
-
-        # Build alias index
-        catalog.build_alias_index()
-
-        return catalog
-
     def _get_metric_aliases(self) -> Dict[str, List[str]]:
         """Get common aliases for metrics including common misspellings."""
         return {
@@ -649,15 +517,6 @@ class DCLSemanticClient:
             "ltv_cac": "x", "magic_number": "x",
         }
 
-    def _extract_rep_names(self, fact_base: Dict) -> List[str]:
-        """Extract rep names from fact_base."""
-        reps = []
-        if 'sales_reps' in fact_base:
-            for rep in fact_base['sales_reps']:
-                if 'name' in rep:
-                    reps.append(rep['name'])
-        return reps
-
     def _format_display_name(self, metric_id: str) -> str:
         """Format metric ID into display name."""
         # Handle special cases
@@ -705,18 +564,6 @@ class DCLSemanticClient:
         """
         if not user_term:
             return None
-
-        data_mode = _data_mode_ctx.get()
-
-        # Only explicit demo mode can use local-only metric resolution
-        if _force_local_ctx.get():
-            if data_mode == "demo":
-                return self._resolve_metric_locally(user_term)
-            else:
-                raise RuntimeError(
-                    f"force_local is set but data_mode={data_mode!r} (not 'demo'). "
-                    f"Only explicit demo mode can resolve metrics from local data."
-                )
 
         # Try local exact match first — canonical IDs and registered aliases.
         # This prevents DCL's fuzzy resolver from mis-mapping e.g. "revenue" → "arr".
@@ -827,10 +674,7 @@ class DCLSemanticClient:
             ('metric' | 'entity'), ``name``, and ``score``.
             Returns empty list if DCL is unavailable or returns no results.
         """
-        data_mode = _data_mode_ctx.get()
-        if _force_local_ctx.get() or not self.dcl_url:
-            # search() returns [] when DCL unavailable — this is not a data fallback,
-            # it's a search endpoint. No local data is substituted.
+        if not self.dcl_url:
             return []
 
         try:
@@ -907,7 +751,7 @@ class DCLSemanticClient:
         Returns dict with:
           connected: bool — DCL responded to health check
           phase: str|None — DCL startup phase (ready, warming, degraded)
-          data_mode: str|None — DCL data mode (Demo, Ingest, Farm, AAM)
+          data_mode: str|None — DCL data mode (Empty, Ingest, Farm, AAM)
           last_run_id: str|None — last DCL run ID
           last_updated: str|None — last mode change timestamp
           error: str|None — error message if not connected
@@ -951,7 +795,7 @@ class DCLSemanticClient:
             pipe_count (int), available (bool), runs (list of raw run dicts).
         """
         # Try the live endpoint first (ingest runs only come from DCL)
-        if self.dcl_url and not _force_local_ctx.get():
+        if self.dcl_url:
             try:
                 response = self._http_client.get(
                     f"{self.dcl_url}/api/dcl/ingest/runs",
@@ -1129,30 +973,7 @@ class DCLSemanticClient:
         return sorted(all_dims)
 
     def get_latest_period(self) -> str:
-        """Return the latest period available in the data source.
-
-        In DCL mode, returns current_quarter() (DCL handles period resolution).
-        In local mode, scans fact_base quarterly data for the last entry.
-        """
-        data_mode = _data_mode_ctx.get()
-        if self.dcl_url and not _force_local_ctx.get():
-            return current_quarter()
-
-        # LIVE MODE: Don't read fact_base for period detection
-        if data_mode == "live":
-            return current_quarter()
-
-        # Local mode: find latest period from fact_base
-        fact_base_path = Path(__file__).parent.parent.parent.parent / "data" / "fact_base.json"
-        try:
-            with open(fact_base_path, 'r') as f:
-                fact_base = json.load(f)
-            quarterly = fact_base.get("quarterly", [])
-            if quarterly:
-                latest = quarterly[-1]
-                return latest.get("period", current_quarter())
-        except (FileNotFoundError, IOError, json.JSONDecodeError) as e:
-            logger.debug("Could not read fact_base for latest period; defaulting to current_quarter(): %s", e)
+        """Return the latest period available. DCL handles period resolution."""
         return current_quarter()
 
     def get_all_metrics(self) -> List[str]:
@@ -1312,8 +1133,6 @@ class DCLSemanticClient:
         grain: str = None,
         order_by: str = None,
         limit: int = None,
-        force_local: bool = False,
-        data_mode: str = None,
         tenant_id: str = None,
         entity_id: str = None,
     ) -> Dict[str, Any]:
@@ -1330,49 +1149,23 @@ class DCLSemanticClient:
             grain: Time granularity override (e.g., "monthly", "quarterly")
             order_by: Sort order ("asc" or "desc") for ranking queries
             limit: Number of results to return for ranking queries
-            force_local: If True, skip DCL and use local fact_base.json
 
         Returns:
             Query result from DCL with data points
 
         Raises:
-            DCLQueryError: If DCL returns an error or is unavailable
+            RuntimeError: If DCL is not configured or unavailable
         """
-        ctx_force = _force_local_ctx.get()
-        # Auto-read data_mode from context when not explicitly provided
-        if data_mode is None:
-            data_mode = _data_mode_ctx.get()
         # Auto-read entity_id from context when not explicitly provided
         if entity_id is None:
             entity_id = _entity_id_ctx.get()
-        diag(f"[NLQ-DIAG] query() called: metric={metric}, force_local={force_local}, ctx_force={ctx_force}, dcl_url={bool(self.dcl_url)}, data_mode={data_mode}, entity_id={entity_id}")
-
-        # Only explicit demo mode can use local fallback
-        if force_local or ctx_force:
-            if data_mode == "demo":
-                diag(f"[NLQ-DIAG] query() -> LOCAL FALLBACK (demo mode)")
-                result = self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
-                result["data_source"] = "demo"
-                result["data_source_reason"] = "Demo mode selected"
-                return result
-            else:
-                raise RuntimeError(
-                    f"force_local is set but data_mode={data_mode!r} (not 'demo'). "
-                    f"Only explicit demo mode can use local fact_base.json data."
-                )
+        diag(f"[NLQ-DIAG] query() called: metric={metric}, dcl_url={bool(self.dcl_url)}, entity_id={entity_id}")
 
         if not self.dcl_url:
-            if data_mode == "demo":
-                diag(f"[NLQ-DIAG] query() -> LOCAL FALLBACK (no DCL, demo mode)")
-                result = self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
-                result["data_source"] = "demo"
-                result["data_source_reason"] = "DCL not configured — using local data (demo mode)"
-                return result
-            else:
-                raise RuntimeError(
-                    f"DCL_API_URL not configured — cannot serve {data_mode or 'default'}-mode queries "
-                    f"without DCL. Set DCL_API_URL or use data_mode='demo'."
-                )
+            raise RuntimeError(
+                "DCL_API_URL not configured — cannot serve queries without DCL. "
+                "Set DCL_API_URL environment variable."
+            )
 
         try:
             # Transform time_range from NLQ format to DCL format
@@ -1418,12 +1211,6 @@ class DCLSemanticClient:
             }
             if entity_id:
                 payload["entity_id"] = entity_id
-            # Only forward data_mode to DCL when it's "demo" — this tells DCL
-            # to use local fact_base.  NLQ's "live" mode means "use DCL" (not
-            # local fallback), but DCL's "live" mode means "ingest buffer only".
-            # Sending "live" to DCL would bypass DCL's entity-scoped fact_bases.
-            if data_mode and data_mode != "live":
-                payload["data_mode"] = data_mode
             if order_by:
                 payload["order_by"] = order_by
             if limit:
@@ -1460,7 +1247,7 @@ class DCLSemanticClient:
 
             # When DCL explicitly reports ingest_empty (no ingested data for
             # this tenant/metric), only fall back to local data in demo mode.
-            # In live mode, this is an error — no silent fallback to fact_base.
+            # Check for empty store or missing metric data.
             dcl_meta = dcl_body.get("metadata") or {}
             dcl_meta_source = dcl_meta.get("source", "")
             dcl_data = dcl_body.get("data", [])
@@ -1476,21 +1263,13 @@ class DCLSemanticClient:
                 }
 
             if dcl_meta_source == "NO_DATA_FOR_METRIC" and not dcl_data:
-                if data_mode == "demo":
-                    diag(f"[NLQ-DIAG] query() DCL returned ingest_empty — falling back to local tenant data (demo mode)")
-                    result = self._query_local_fallback(metric, dimensions, filters, time_range, grain, order_by, limit)
-                    result["data_source"] = "demo"
-                    result["data_source_reason"] = "DCL ingest store empty for this tenant — using local tenant data (demo mode)"
-                    return result
-                else:
-                    error_msg = (
-                        f"DCL has no ingested data for metric '{metric}' "
-                        f"(tenant={tenant_id or 'default'}, source=ingest_empty). "
-                        f"Data mode is '{data_mode}' — refusing to fall back to local fact_base.json. "
-                        f"Ingest data via the Farm→DCL pipeline or switch to demo mode."
-                    )
-                    logger.warning(f"DCL INGEST EMPTY (live mode): {error_msg}")
-                    return {"error": error_msg, "status": "no_data"}
+                error_msg = (
+                    f"DCL has no ingested data for metric '{metric}' "
+                    f"(tenant={tenant_id or 'default'}, source=ingest_empty). "
+                    f"Ingest data via the Farm→DCL pipeline."
+                )
+                logger.warning(f"DCL INGEST EMPTY: {error_msg}")
+                return {"error": error_msg, "status": "no_data"}
 
             normalized = self._normalize_dcl_query_response(dcl_body)
 
@@ -1524,20 +1303,19 @@ class DCLSemanticClient:
           {status: "ok", metric, data: [{period, value, ...}],
            metadata: {...}, unit, source: "dcl", ...}
         """
-        # DCL returns metadata.source: "ingest" or "fact_base"
+        # DCL returns metadata.source: "ingest" or other
         # data_source reflects where NLQ got the data from:
         #   "live"  = DCL ingest (real ingested data)
-        #   "dcl"   = DCL served it from seed/fact_base (pipeline works, data not yet ingested)
-        #   "demo"  = NLQ's own local fallback (pipeline bypassed — only set in _query_local_fallback)
+        #   "dcl"   = DCL served it from seed data (pipeline works, data not yet ingested)
         dcl_source = (dcl_response.get("metadata") or {}).get("source", "")
         if dcl_source == "ingest":
             data_source = "live"
             data_source_reason = None
         else:
-            # DCL returned data (fact_base or unknown source) — pipeline is working,
+            # DCL returned data from a non-ingest source — pipeline is working,
             # but this metric doesn't have ingested data yet
             data_source = "dcl"
-            data_source_reason = f"DCL served from {dcl_source or 'unknown'} (no ingested data for this metric)" if dcl_source == "fact_base" else None
+            data_source_reason = f"DCL served from {dcl_source or 'unknown'} (no ingested data for this metric)" if dcl_source else None
 
         normalized: Dict[str, Any] = {
             "status": "ok",
@@ -1605,7 +1383,7 @@ class DCLSemanticClient:
             "is_sor": is_sor,
             "freshness": metadata.get("freshness_display", ""),
             "quality_score": metadata.get("quality_score"),
-            "mode": metadata.get("mode") or ("Ingest" if dcl_source == "ingest" else ("Demo" if dcl_source == "fact_base" else None)),
+            "mode": metadata.get("mode") or ("Ingest" if dcl_source == "ingest" else None),
         }
 
         # Carry over entity resolution and conflict data when present
@@ -1626,8 +1404,6 @@ class DCLSemanticClient:
         """
         Execute a ranking query to find top/bottom items by a metric.
 
-        This is specialized for superlative queries like "who is our top rep?"
-
         Args:
             metric: Metric to rank by (e.g., "quota_attainment_pct", "win_rate_pct", "revenue")
             dimension: Dimension to rank (e.g., "rep", "region", "service")
@@ -1638,19 +1414,6 @@ class DCLSemanticClient:
         Returns:
             Query result with ranked data
         """
-        data_mode = _data_mode_ctx.get()
-
-        # Only explicit demo mode can use local ranking data
-        if _force_local_ctx.get() or not self.dcl_url:
-            if data_mode == "demo":
-                return self._query_ranking_local(metric, dimension, order_by, limit, time_range)
-            else:
-                raise RuntimeError(
-                    f"Cannot serve ranking query from local data — data_mode={data_mode or 'default'}. "
-                    f"DCL must be available for non-demo ranking queries."
-                )
-
-        # DCL mode - use the general query with ranking parameters
         return self.query(
             metric=metric,
             dimensions=[dimension],
@@ -1659,378 +1422,6 @@ class DCLSemanticClient:
             limit=limit,
         )
 
-    def _query_ranking_local(
-        self,
-        metric: str,
-        dimension: str,
-        order_by: str = "desc",
-        limit: int = 1,
-        time_range: Dict[str, Any] = None,
-    ) -> Dict[str, Any]:
-        """
-        Local ranking query implementation for dev mode.
-
-        Handles specialized data structures like quota_by_rep, win_rate_by_rep, etc.
-        """
-        from pathlib import Path
-
-        fact_base_path = Path(__file__).parent.parent.parent.parent / "data" / "fact_base.json"
-        try:
-            with open(fact_base_path, 'r') as f:
-                fact_base = json.load(f)
-        except (FileNotFoundError, IOError, json.JSONDecodeError) as e:
-            logger.warning(f"Local ranking query failed - no fact_base.json: {e}")
-            return {"error": "No data available", "status": "error"}
-
-        # Determine period to use
-        period = self.get_latest_period()
-        if time_range:
-            period = time_range.get("period", period)
-
-        # Map metric + dimension to data source
-        data_source_map = {
-            ("quota_attainment_pct", "rep"): "quota_by_rep",
-            ("win_rate_pct", "rep"): "win_rate_by_rep",
-            ("pipeline", "rep"): "pipeline_by_rep",
-            ("slo_attainment_pct", "service"): "slo_attainment_by_service",
-            ("revenue", "region"): "revenue_by_region",
-            ("revenue", "segment"): "revenue_by_segment",
-            ("pipeline", "region"): "pipeline_by_region",
-            ("pipeline", "stage"): "pipeline_by_stage",
-            ("headcount", "department"): "headcount_by_department",
-            ("deal_value", "deal"): "top_deals",
-        }
-
-        # Find the data source
-        data_key = data_source_map.get((metric, dimension))
-
-        # If not in map, try constructing the key
-        if not data_key:
-            data_key = f"{metric}_by_{dimension}"
-
-        if data_key not in fact_base:
-            return {"error": f"No ranking data for {metric} by {dimension}", "status": "not_found"}
-
-        raw_data = fact_base[data_key]
-
-        # Handle different data structures
-        result_data = []
-
-        # Check if it's period-keyed data
-        if isinstance(raw_data, dict):
-            # For top_deals, it's different - period is a key to array of deals
-            if data_key == "top_deals":
-                deals = raw_data.get(period, raw_data.get(current_year(), []))
-                if isinstance(deals, list):
-                    result_data = [
-                        {"company": d.get("company"), "value": d.get("value"),
-                         "rep": d.get("rep"), "quarter": d.get("quarter")}
-                        for d in deals
-                    ]
-            # Period-keyed dimensional data
-            elif period in raw_data:
-                period_data = raw_data[period]
-                if isinstance(period_data, dict):
-                    for name, values in period_data.items():
-                        if name in ("Total", "total"):
-                            continue
-                        if isinstance(values, dict):
-                            # Nested structure like quota_by_rep
-                            value_field = "attainment_pct" if "attainment_pct" in values else "value"
-                            value_field = value_field if value_field in values else list(values.keys())[0] if values else "value"
-                            result_data.append({
-                                dimension: name,
-                                "value": values.get(value_field, values.get("value", 0)),
-                                **values  # Include all fields
-                            })
-                        else:
-                            # Simple key-value
-                            result_data.append({
-                                dimension: name,
-                                "value": values
-                            })
-            else:
-                # Try latest period
-                periods = list(raw_data.keys())
-                if periods:
-                    latest_period = sorted(periods)[-1]
-                    period_data = raw_data[latest_period]
-                    if isinstance(period_data, dict):
-                        for name, values in period_data.items():
-                            if name in ("Total", "total"):
-                                continue
-                            if isinstance(values, dict):
-                                value_field = "attainment_pct" if "attainment_pct" in values else "value"
-                                result_data.append({
-                                    dimension: name,
-                                    "value": values.get(value_field, 0),
-                                    **values
-                                })
-                            else:
-                                result_data.append({
-                                    dimension: name,
-                                    "value": values
-                                })
-        elif isinstance(raw_data, list):
-            # Already a list of items
-            result_data = raw_data
-
-        # Sort the data
-        if result_data:
-            reverse = (order_by.lower() == "desc")
-
-            def get_sort_value(item):
-                # Try common value field names in priority order
-                for key in ("value", "attainment_pct", "pipeline", "slo_attainment_pct", "revenue", "headcount"):
-                    if key in item:
-                        v = item[key]
-                        return v if isinstance(v, (int, float)) else 0
-                return 0
-
-            result_data = sorted(result_data, key=get_sort_value, reverse=reverse)
-
-        # Apply limit
-        if limit and limit > 0:
-            result_data = result_data[:limit]
-
-        return {
-            "metric": metric,
-            "dimension": dimension,
-            "period": period,
-            "data": result_data,
-            "status": "ok",
-            "source": "local_fallback"
-        }
-
-    def _apply_sorting_and_limit(
-        self,
-        data: List[Dict[str, Any]],
-        order_by: str = None,
-        limit: int = None
-    ) -> List[Dict[str, Any]]:
-        """
-        Apply sorting and limit to query results.
-
-        Args:
-            data: List of result dicts
-            order_by: "asc" or "desc"
-            limit: Max number of results to return
-
-        Returns:
-            Sorted and limited data list
-        """
-        if not data:
-            return data
-
-        # Sort by value if order_by is specified
-        if order_by:
-            reverse = (order_by.lower() == "desc")
-            # Get the value field - look for 'value' or other numeric fields
-            def get_sort_key(item):
-                # Try common value field names
-                for key in ("value", "attainment_pct", "pipeline", "revenue", "slo_attainment_pct", "headcount"):
-                    if key in item:
-                        val = item[key]
-                        return val if isinstance(val, (int, float)) else 0
-                # If dict has nested value
-                if isinstance(item, dict):
-                    for v in item.values():
-                        if isinstance(v, (int, float)):
-                            return v
-                        if isinstance(v, dict) and "value" in v:
-                            return v["value"]
-                return 0
-
-            data = sorted(data, key=get_sort_key, reverse=reverse)
-
-        # Apply limit
-        if limit and limit > 0:
-            data = data[:limit]
-
-        return data
-
-    def _query_local_fallback(
-        self,
-        metric: str,
-        dimensions: List[str] = None,
-        filters: Dict[str, Any] = None,
-        time_range: Dict[str, Any] = None,
-        grain: str = None,
-        order_by: str = None,
-        limit: int = None,
-    ) -> Dict[str, Any]:
-        """
-        Local fallback for dev mode when DCL is not available.
-
-        Reads from fact_base.json to provide mock data.
-        """
-        from pathlib import Path
-
-        fact_base_path = Path(__file__).parent.parent.parent.parent / "data" / "fact_base.json"
-        try:
-            with open(fact_base_path, 'r') as f:
-                fact_base = json.load(f)
-        except (FileNotFoundError, IOError, json.JSONDecodeError) as e:
-            logger.warning(f"Local fallback failed - no fact_base.json: {e}")
-            return {"error": "No data available (DCL not configured, no local fallback)", "status": "error"}
-
-        # Build response based on query type
-        result = {
-            "metric": metric,
-            "data": [],
-            "status": "ok",
-            "source": "local_fallback",
-            "metadata": {
-                "mode": "Demo",
-                "quality_score": 1.0,
-                "freshness_display": "",
-            },
-            "run_provenance": {
-                "run_id": None,
-                "tenant_id": None,
-                "snapshot_name": "fact_base.json",
-                "run_timestamp": None,
-                "source_systems": ["Local Dev"],
-                "freshness": "",
-                "quality_score": 1.0,
-                "mode": "Demo",
-            },
-        }
-
-        # Validate dimensions before attempting lookup
-        if dimensions:
-            for dim in dimensions:
-                is_valid, error_msg = self.validate_dimension(metric, dim)
-                if not is_valid:
-                    return {"error": error_msg, "status": "error"}
-
-        # Handle dimensional queries
-        period_filter = time_range.get("period") if time_range else None
-        default_period = self.get_latest_period()
-
-        if dimensions:
-            # Try multiple key patterns:
-            # 1. {metric}_by_{dimensions} - e.g., "engagement_score_by_department"
-            # 2. {base_metric}_by_{dimensions} - e.g., "engagement_by_department"
-            # 3. For metrics ending in _rate/_pct/_score, try without suffix
-            dim_suffix = '_'.join(dimensions)
-            dim_key_variants = [
-                f"{metric}_by_{dim_suffix}",
-            ]
-            # Add variant without common suffixes
-            for suffix in ("_score", "_rate", "_pct", "_count", "_days", "_hours"):
-                if metric.endswith(suffix):
-                    base_metric = metric[:-len(suffix)]
-                    dim_key_variants.append(f"{base_metric}_by_{dim_suffix}")
-                    break
-
-            dim_key = None
-            for variant in dim_key_variants:
-                if variant in fact_base:
-                    dim_key = variant
-                    break
-
-            if dim_key and dim_key in fact_base:
-                dim_data = fact_base[dim_key]
-
-                # Data is keyed by period - get the right period's data
-                if isinstance(dim_data, dict):
-                    # Try to get specific period or default
-                    period_data = None
-                    if period_filter and period_filter in dim_data:
-                        period_data = dim_data[period_filter]
-                    elif default_period in dim_data:
-                        period_data = dim_data[default_period]
-                    elif dim_data:
-                        # Take the latest period
-                        period_data = dim_data.get(list(dim_data.keys())[-1])
-
-                    if period_data and isinstance(period_data, dict):
-                        # Convert dict {dim_value: value} to list of dicts
-                        dimension = dimensions[0] if dimensions else "label"
-                        result["data"] = [
-                            {dimension: k, "value": v}
-                            for k, v in period_data.items()
-                            if k not in ("Total", "total")
-                        ]
-                        result["data"] = self._apply_sorting_and_limit(result["data"], order_by, limit)
-                        return result
-
-            # Try single dimension with key variants
-            for dim in dimensions:
-                dim_key_single_variants = [f"{metric}_by_{dim}"]
-                for suffix in ("_score", "_rate", "_pct", "_count", "_days", "_hours"):
-                    if metric.endswith(suffix):
-                        base_metric = metric[:-len(suffix)]
-                        dim_key_single_variants.append(f"{base_metric}_by_{dim}")
-                        break
-
-                dim_key = None
-                for variant in dim_key_single_variants:
-                    if variant in fact_base:
-                        dim_key = variant
-                        break
-
-                if dim_key and dim_key in fact_base:
-                    dim_data = fact_base[dim_key]
-
-                    if isinstance(dim_data, dict):
-                        period_data = None
-                        if period_filter and period_filter in dim_data:
-                            period_data = dim_data[period_filter]
-                        elif default_period in dim_data:
-                            period_data = dim_data[default_period]
-                        elif dim_data:
-                            period_data = dim_data.get(list(dim_data.keys())[-1])
-
-                        if period_data and isinstance(period_data, dict):
-                            result["data"] = [
-                                {dim: k, "value": v}
-                                for k, v in period_data.items()
-                                if k not in ("Total", "total")
-                            ]
-                            result["data"] = self._apply_sorting_and_limit(result["data"], order_by, limit)
-                            return result
-
-        # Handle time series queries - respect time_range filter
-        if "quarterly" in fact_base:
-            quarterly_data = []
-            period_filter = time_range.get("period") if time_range else None
-            granularity = time_range.get("granularity", "quarterly") if time_range else "quarterly"
-
-            for entry in fact_base["quarterly"]:
-                if metric not in entry:
-                    continue
-
-                entry_period = entry.get("period", f"{entry.get('year')}-{entry.get('quarter')}")
-                entry_year = str(entry.get("year", ""))
-
-                # Apply period filter
-                if period_filter:
-                    # Year filter (e.g., "2025")
-                    if period_filter.isdigit() and len(period_filter) == 4:
-                        if entry_year != period_filter:
-                            continue
-                    # Quarter filter (e.g., "2025-Q4")
-                    elif "-Q" in period_filter:
-                        if entry_period != period_filter:
-                            continue
-
-                quarterly_data.append({
-                    "period": entry_period,
-                    "value": entry[metric]
-                })
-
-            if quarterly_data:
-                result["data"] = quarterly_data
-                return result
-
-        # Try direct metric lookup
-        if metric in fact_base:
-            result["data"] = fact_base[metric]
-            return result
-
-        return {"error": f"Metric '{metric}' not found in local data", "status": "not_found"}
 
     # =========================================================================
     # GRAPH RESOLUTION API - Semantic graph traversal via DCL
@@ -2067,19 +1458,11 @@ class DCLSemanticClient:
 
             Returns {"can_answer": False, "reason": "..."} on failure/unavailable.
         """
-        data_mode = _data_mode_ctx.get()
-
-        # LIVE MODE: Never use local catalog fallback for graph resolution
-        if data_mode == "live" and _force_local_ctx.get():
+        if not self.dcl_url:
             raise RuntimeError(
-                "LIVE MODE FAILURE: Cannot resolve graph query from local catalog. "
-                "DCL must be available for live graph resolution."
+                "DCL_API_URL not configured — cannot resolve graph queries without DCL."
             )
 
-        if _force_local_ctx.get():
-            return self._resolve_via_catalog(concepts, dimensions, filters)
-
-        # Try DCL's graph resolution endpoint first
         if self.dcl_url:
             payload = {
                 "concepts": concepts,
@@ -2360,26 +1743,6 @@ def get_semantic_client() -> DCLSemanticClient:
     return _semantic_client
 
 
-def set_force_local(value: bool):
-    """Legacy setter — prefer using force_local_data() context manager instead."""
-    _force_local_ctx.set(value)
-
-
-def set_data_mode(value: Optional[str]):
-    """Set the data_mode for the current request context.
-
-    When set to 'live', all DCL queries will include data_mode='live' so DCL
-    checks the ingest buffer first.  When set to 'demo', force_local is also
-    set so queries hit fact_base.json.
-    """
-    _data_mode_ctx.set(value)
-
-
-def get_data_mode() -> Optional[str]:
-    """Return the data_mode set for the current request context."""
-    return _data_mode_ctx.get()
-
-
 def set_entity_id(value: Optional[str]):
     """Set the entity_id for the current request context."""
     _entity_id_ctx.set(value)
@@ -2406,19 +1769,3 @@ def reset_provenance_ctx():
     _last_data_source_ctx.set(None)
 
 
-@contextlib.contextmanager
-def force_local_data():
-    """Context manager that forces DCL client to use local fact_base.json.
-
-    Usage:
-        with force_local_data():
-            result = client.query(...)  # Uses local data
-
-    Replaces the error-prone set_force_local(True) / finally: set_force_local(False)
-    pattern. Guarantees cleanup even if the handler raises.
-    """
-    token = _force_local_ctx.set(True)
-    try:
-        yield
-    finally:
-        _force_local_ctx.reset(token)

@@ -37,7 +37,7 @@ BASE_URL = "http://127.0.0.1:8005"
 NLQ_ENDPOINT = "/api/v1/query"
 TIMEOUT = 45.0  # generous — LLM calls can be slow
 
-DEMO_SOURCES = {"demo", "local_fallback", "fact_base"}
+BAD_DATA_SOURCES = {"demo", "local_fallback", "fact_base", "local"}
 
 # ---------------------------------------------------------------------------
 # Shape categories
@@ -147,8 +147,8 @@ def validate_point(body: Dict) -> Tuple[bool, str]:
             return False, f"VALUE_NOT_NUMERIC: {value!r}"
 
     ds = (body.get("data_source") or "").lower()
-    if ds in DEMO_SOURCES:
-        return False, f"DEMO_DATA_SOURCE: {ds}"
+    if ds in BAD_DATA_SOURCES:
+        return False, f"BAD_DATA_SOURCE: {ds}"
 
     return True, f"OK (value={value}, source={ds or 'n/a'})"
 
@@ -161,8 +161,8 @@ def validate_breakdown(body: Dict) -> Tuple[bool, str]:
         return False, f"NOT_SUCCESS: {err}"
 
     ds = (body.get("data_source") or "").lower()
-    if ds in DEMO_SOURCES:
-        return False, f"DEMO_DATA_SOURCE: {ds}"
+    if ds in BAD_DATA_SOURCES:
+        return False, f"BAD_DATA_SOURCE: {ds}"
 
     # Check dashboard_data
     dd = body.get("dashboard_data")
@@ -199,8 +199,8 @@ def validate_ranking(body: Dict) -> Tuple[bool, str]:
         return False, f"NOT_SUCCESS: {err}"
 
     ds = (body.get("data_source") or "").lower()
-    if ds in DEMO_SOURCES:
-        return False, f"DEMO_DATA_SOURCE: {ds}"
+    if ds in BAD_DATA_SOURCES:
+        return False, f"BAD_DATA_SOURCE: {ds}"
 
     answer = (body.get("answer") or "").strip()
     if not answer:
@@ -287,8 +287,8 @@ def validate_report_entity(body: Dict) -> Tuple[bool, str]:
         return False, f"NOT_SUCCESS: {err}"
 
     ds = (body.get("data_source") or "").lower()
-    if ds in DEMO_SOURCES:
-        return False, f"DEMO_DATA_SOURCE: {ds}"
+    if ds in BAD_DATA_SOURCES:
+        return False, f"BAD_DATA_SOURCE: {ds}"
 
     fs = body.get("financial_statement_data")
     if not fs or not isinstance(fs, dict):
@@ -365,7 +365,7 @@ def validate_bridge_source(body: Dict) -> Tuple[bool, str]:
     if not ds:
         return False, "DATA_SOURCE_NULL — must be 'live' or 'dcl', got empty/null"
 
-    bad_sources = {"local", "fact_base", "demo", "local_fallback"}
+    bad_sources = BAD_DATA_SOURCES
     if ds.lower() in bad_sources:
         return False, f"BAD_DATA_SOURCE: '{ds}' — must be 'live' or 'dcl'"
 

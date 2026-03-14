@@ -571,12 +571,6 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
                 <p className={`text-slate-200 text-sm leading-relaxed ${sheetState === 'collapsed' ? 'line-clamp-2' : ''}`}>
                   {data.text_response}
                 </p>
-                {data.data_source === 'demo' && sheetState !== 'collapsed' && (
-                  <p className="text-slate-400 text-xs mt-2 flex items-center gap-1.5">
-                    <span className="text-amber-400/70">*</span>
-                    Sample data — live dataset not available for this metric
-                  </p>
-                )}
                 {data.needs_clarification && data.clarification_prompt && sheetState !== 'collapsed' && (
                   <p className="text-amber-400 text-sm mt-2 p-2 bg-amber-900/20 rounded border border-amber-800/30">
                     {data.clarification_prompt}
@@ -663,12 +657,6 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               <p className="text-slate-200 text-sm leading-relaxed">
                 {data.text_response}
               </p>
-              {data.data_source === 'demo' && (
-                <p className="text-slate-400 text-xs mt-2 flex items-center gap-1.5">
-                  <span className="text-amber-400/70">*</span>
-                  Sample data — live dataset not available for this metric
-                </p>
-              )}
               {data.needs_clarification && data.clarification_prompt && (
                 <p className="text-amber-400 text-sm mt-3 p-2 bg-amber-900/20 rounded border border-amber-800/30">
                   {data.clarification_prompt}

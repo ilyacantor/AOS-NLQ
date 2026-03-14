@@ -11,8 +11,8 @@ interface ProvenanceBadgeProps {
  *
  * Three states based on metadata.mode:
  *   - Verified (green): mode == "Ingest" or "Live" — live Runner data with run_id
- *   - Run (blue): mode == "Demo" or "Farm" — graph-build / test oracle data
- *   - Local (grey): mode missing or null — local fact_base.json fallback
+ *   - Run (blue): mode == "Farm" — graph-build / test oracle data
+ *   - Local (grey): mode missing or null — no data available
  *
  * Compact mode: inline badge next to answer header.
  * Full mode: expandable accordion in NodeDetailPanel with drill-down to run_id.
@@ -26,7 +26,7 @@ export const ProvenanceBadge: React.FC<ProvenanceBadgeProps> = ({
   // Determine badge state from mode + run_id
   const mode = provenance?.mode?.toLowerCase() ?? null;
   const isVerified = mode === 'ingest' || mode === 'live';
-  const isRun = mode === 'demo' || mode === 'farm';
+  const isRun = mode === 'farm';
   const isLocal = !isVerified && !isRun;
   const hasSourceSystems = provenance?.source_systems && provenance.source_systems.length > 0;
 
@@ -102,9 +102,9 @@ export const ProvenanceBadge: React.FC<ProvenanceBadgeProps> = ({
           fullClass: 'bg-slate-800/30 border border-slate-700/30 hover:bg-slate-800/50',
           labelClass: 'text-slate-500',
           chevronClass: 'text-slate-600',
-          label: 'Local Data',
-          compactLabel: 'Local',
-          tooltip: 'Local dev data (fact_base.json)',
+          label: 'No Data',
+          compactLabel: 'No Data',
+          tooltip: 'No live data available — ingest data via the Farm→DCL pipeline',
         };
 
   if (compact) {
@@ -216,14 +216,14 @@ export const ProvenanceBadge: React.FC<ProvenanceBadgeProps> = ({
             </>
           ) : isRun ? (
             <div className="text-blue-400/80">
-              Sourced from Graph Build ({provenance?.mode ?? 'Demo'} mode).
+              Sourced from Graph Build ({provenance?.mode ?? 'Farm'} mode).
               {provenance?.quality_score != null && (
                 <span className="ml-1">Quality: {Math.round(provenance.quality_score * 100)}%</span>
               )}
             </div>
           ) : (
             <div className="text-slate-500">
-              Using local fact_base.json. Set DCL_API_URL to connect to live DCL.
+              No live data available. Set DCL_API_URL and ingest data via the Farm→DCL pipeline.
             </div>
           )}
         </div>

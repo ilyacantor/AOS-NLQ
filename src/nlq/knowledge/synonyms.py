@@ -539,7 +539,7 @@ METRIC_SYNONYMS: Dict[str, List[str]] = {
     ],
 
     # =========================================================================
-    # Additional metrics from fact_base.json (comprehensive coverage)
+    # Additional metrics (comprehensive coverage)
     # =========================================================================
 
     # Financial metrics

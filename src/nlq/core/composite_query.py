@@ -107,7 +107,7 @@ def determine_pl_periods(period_spec: Optional[str]) -> List[str]:
 
     # Default: generate all quarters from 2024 through the current quarter.
     # DCL queries will return data for periods that have it; periods without
-    # data will simply have no line items. No fact_base.json dependency.
+    # data will simply have no line items.
     from src.nlq.core.dates import current_quarter
     cq = current_quarter()  # e.g. "2026-Q1"
 

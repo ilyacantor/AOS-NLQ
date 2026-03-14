@@ -218,7 +218,7 @@ class IntentMapResponse(BaseModel):
     # Data source transparency (H4/H5: never silent about where data comes from)
     data_source: Optional[str] = Field(
         default=None,
-        description="Where data was sourced: 'dcl', 'local', or 'local_fallback'"
+        description="Where data was sourced: 'dcl' or 'live'"
     )
 
     # Provenance (DCL integration)
@@ -318,7 +318,7 @@ class QueryResult(BaseModel):
 
     data_source: Optional[str] = Field(
         default=None,
-        description="Data source: 'live' (ingested), 'demo' (fact_base), or 'dcl'"
+        description="Data source: 'live' (ingested) or 'dcl'"
     )
 
 
@@ -551,7 +551,7 @@ class NLQResponse(BaseModel):
     # Data source transparency (H4/H5: never silent about where data comes from)
     data_source: Optional[str] = Field(
         default=None,
-        description="Where data was sourced: 'dcl', 'local', or 'local_fallback'"
+        description="Where data was sourced: 'dcl' or 'live'"
     )
 
     # Persona context

@@ -350,7 +350,7 @@ class DashboardGenerationResponse(BaseModel):
 
     success: bool = Field(..., description="Whether generation succeeded")
     dashboard: Optional[DashboardSchema] = Field(default=None, description="Generated dashboard schema")
-    widget_data: Optional[Dict[str, Any]] = Field(default=None, description="Pre-resolved widget data from fact base")
+    widget_data: Optional[Dict[str, Any]] = Field(default=None, description="Pre-resolved widget data from DCL")
     error: Optional[str] = Field(default=None, description="Error message if failed")
 
     # Generation metadata
@@ -372,7 +372,6 @@ class DashboardRefinementRequest(BaseModel):
         description="Natural language refinement request"
     )
     conversation_id: Optional[str] = Field(default=None, description="Conversation ID for context")
-    data_mode: Optional[str] = Field(default="live", description="Data mode: 'live' for DCL, 'demo' for local fact_base.json")
 
 
 class DashboardRefinementResponse(BaseModel):
@@ -380,7 +379,7 @@ class DashboardRefinementResponse(BaseModel):
 
     success: bool = Field(..., description="Whether refinement succeeded")
     dashboard: Optional[DashboardSchema] = Field(default=None, description="Updated dashboard schema")
-    widget_data: Optional[Dict[str, Any]] = Field(default=None, description="Pre-resolved widget data from fact base")
+    widget_data: Optional[Dict[str, Any]] = Field(default=None, description="Pre-resolved widget data from DCL")
     error: Optional[str] = Field(default=None, description="Error message if failed")
     refinement_status: str = Field(default="applied", description="Refinement outcome: applied, noop, or error")
     noop_reason: Optional[str] = Field(default=None, description="Reason for no-op if status is noop")

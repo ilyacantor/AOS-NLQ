@@ -61,11 +61,6 @@ class NLQRequest(BaseModel):
         description="Browser session ID for LLM call tracking"
     )
 
-    data_mode: Optional[str] = Field(
-        default="live",
-        description="Data mode: 'live' for DCL, 'demo' for local fact_base.json"
-    )
-
     persona: Optional[str] = Field(
         default=None,
         description="Active persona (CFO/CRO/COO/CTO/CHRO). Authoritative for dashboard generation."

@@ -11,10 +11,6 @@ interface PipelineStatus {
   freshness: string | null;
 }
 
-interface Props {
-  dataMode?: 'live' | 'demo';
-}
-
 // Polling intervals
 const FAST_POLL_INTERVAL = 30_000;   // 30s during first 2 minutes (cold-start recovery)
 const NORMAL_POLL_INTERVAL = 60_000; // 60s after initial warm-up period
@@ -23,7 +19,7 @@ const FAST_POLL_WINDOW = 120_000;    // 2 minutes of fast polling after mount
 // Retry backoffs for initial fetch (ms)
 const MOUNT_RETRY_BACKOFFS = [2_000, 4_000, 8_000];
 
-export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
+export const DataPipelineStatus: React.FC = () => {
   const [status, setStatus] = useState<PipelineStatus | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState(false);
@@ -32,7 +28,7 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
 
   const fetchStatus = useCallback(async (): Promise<boolean> => {
     try {
-      const res = await fetch(`/api/v1/pipeline/status?data_mode=${dataMode}`);
+      const res = await fetch('/api/v1/pipeline/status');
       if (res.ok) {
         const data = await res.json();
         // Detect offline -> connected transition
@@ -51,7 +47,7 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
       setError(true);
       return false;
     }
-  }, [dataMode, status?.dcl_connected]);
+  }, [status?.dcl_connected]);
 
   // Initial mount: retry with backoff to survive cold starts
   useEffect(() => {
@@ -74,12 +70,10 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
     fetchWithRetry();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataMode]);
+  }, []);
 
   // Polling: fast for first 2 min (cold-start recovery), then normal
   useEffect(() => {
-    if (dataMode === 'demo') return;
-
     const getPollInterval = () => {
       const elapsed = Date.now() - mountTimeRef.current;
       return elapsed < FAST_POLL_WINDOW ? FAST_POLL_INTERVAL : NORMAL_POLL_INTERVAL;
@@ -95,19 +89,15 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
 
     schedulePoll();
     return () => clearTimeout(timer);
-  }, [fetchStatus, dataMode]);
-
-  const isDemo = dataMode === 'demo';
+  }, [fetchStatus]);
 
   // Unified connectivity: DCL is reachable if EITHER the health check says so
   // OR the catalog was successfully loaded from DCL (cached up to 5 min).
-  // This prevents contradictory states where the detail row shows "Connected"
-  // (catalog_source=dcl) but the header shows "Offline" (health check timeout).
   const dclReachable = !!(status?.dcl_connected || status?.catalog_source === 'dcl');
 
   const mode = status?.dcl_mode?.toLowerCase() ?? null;
-  const isLive = !isDemo && dclReachable && (mode === 'farm' || mode === 'ingest' || mode === 'live');
-  const isConnectedDemo = !isDemo && dclReachable && !isLive;
+  const isLive = dclReachable && (mode === 'farm' || mode === 'ingest' || mode === 'live');
+  const isConnectedEmpty = dclReachable && !isLive;
 
   const formatRelative = (iso: string | null): string => {
     if (!iso) return '';
@@ -125,15 +115,13 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
     }
   };
 
-  const light = isDemo
-    ? { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Demo', pulse: false }
-    : connecting
-      ? { color: 'bg-amber-400', ring: 'ring-amber-400/30', label: 'Connecting...', pulse: true }
-      : isLive
-        ? { color: 'bg-emerald-400', ring: 'ring-emerald-400/30', label: 'Live', pulse: true }
-        : isConnectedDemo
-          ? { color: 'bg-amber-400', ring: 'ring-amber-400/30', label: 'Connected', pulse: false }
-          : { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Offline', pulse: false };
+  const light = connecting
+    ? { color: 'bg-amber-400', ring: 'ring-amber-400/30', label: 'Connecting...', pulse: true }
+    : isLive
+      ? { color: 'bg-emerald-400', ring: 'ring-emerald-400/30', label: 'Live', pulse: true }
+      : isConnectedEmpty
+        ? { color: 'bg-amber-400', ring: 'ring-amber-400/30', label: 'Connected', pulse: false }
+        : { color: 'bg-slate-500', ring: 'ring-slate-500/20', label: 'Offline', pulse: false };
 
   return (
     <div className="relative">
@@ -160,21 +148,18 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
               <div className="flex items-center gap-2">
                 <span className={`inline-flex rounded-full h-2.5 w-2.5 ${light.color}`} />
                 <span className="text-sm font-medium text-white">
-                  {isDemo ? 'Demo Mode'
-                    : connecting ? 'Connecting to DCL...'
+                  {connecting ? 'Connecting to DCL...'
                     : isLive ? 'Pipeline Active'
-                    : isConnectedDemo ? 'DCL Connected'
+                    : isConnectedEmpty ? 'DCL Connected'
                     : 'DCL Offline'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                {isDemo
-                  ? `Using fact_base.json (${status?.metric_count ?? 96} metrics)`
-                  : connecting
+                {connecting
                     ? 'Establishing connection to DCL...'
                   : isLive
                     ? 'Live data flowing through DCL'
-                    : isConnectedDemo
+                    : isConnectedEmpty
                       ? `DCL reachable — serving ${status?.metric_count ?? 0} metrics (no ingested data yet)`
                       : 'Cannot reach DCL — check that DCL backend is running on port 8004'}
               </p>
@@ -184,22 +169,14 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">DCL</span>
                 <span className={`flex items-center gap-1.5 ${
-                  isDemo ? 'text-slate-500'
-                    : status?.catalog_source === 'dcl' ? 'text-emerald-400'
-                    : status?.catalog_source === 'local_fallback' ? 'text-amber-400'
+                  status?.catalog_source === 'dcl' ? 'text-emerald-400'
                     : 'text-slate-500'
                 }`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${
-                    isDemo ? 'bg-slate-500'
-                      : status?.catalog_source === 'dcl' ? 'bg-emerald-400'
-                      : status?.catalog_source === 'local_fallback' ? 'bg-amber-400'
+                    status?.catalog_source === 'dcl' ? 'bg-emerald-400'
                       : 'bg-slate-500'
                   }`} />
-                  {isDemo ? 'Bypassed'
-                    : status?.catalog_source === 'dcl' ? 'Connected'
-                    : status?.catalog_source === 'local_fallback' ? 'Stale Fallback'
-                    : status?.catalog_source === 'local' ? 'Local Dev'
-                    : 'Offline'}
+                  {status?.catalog_source === 'dcl' ? 'Connected' : 'Offline'}
                 </span>
               </div>
 
@@ -212,13 +189,10 @@ export const DataPipelineStatus: React.FC<Props> = ({ dataMode = 'live' }) => {
                 <span className="text-slate-500">Metrics</span>
                 <span className="text-slate-300">
                   {status?.metric_count ?? 0} loaded
-                  {status?.catalog_source === 'local_fallback' && (
-                    <span className="text-amber-400 ml-1">(fallback)</span>
-                  )}
                 </span>
               </div>
 
-              {!isDemo && status?.last_run_id && (
+              {status?.last_run_id && (
                 <>
                   <div className="border-t border-slate-800 pt-2.5 mt-2.5">
                     <span className="text-slate-500 text-[10px] uppercase tracking-wider">Last Ingestion</span>

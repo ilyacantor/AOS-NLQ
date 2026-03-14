@@ -2,7 +2,6 @@
 Pytest fixtures for AOS-NLQ tests.
 
 Provides shared test fixtures including:
-- fact_base: Loaded financial fact base
 - test_questions: Ground truth test questions
 - mock_claude_client: Mock Claude client for unit tests
 - reference_date: Fixed date for reproducible tests
@@ -29,21 +28,6 @@ def reference_date() -> date:
 
 
 @pytest.fixture
-def fact_base_path() -> Path:
-    """Path to the fact base JSON file."""
-    # Try multiple locations
-    paths = [
-        Path("data/fact_base.json"),
-        Path("/home/user/AOS-NLQ/data/fact_base.json"),
-        Path(__file__).parent.parent / "data" / "fact_base.json",
-    ]
-    for p in paths:
-        if p.exists():
-            return p
-    pytest.skip("Fact base file not found")
-
-
-@pytest.fixture
 def test_questions_path() -> Path:
     """Path to the test questions JSON file."""
     paths = [
@@ -55,15 +39,6 @@ def test_questions_path() -> Path:
         if p.exists():
             return p
     pytest.skip("Test questions file not found")
-
-
-@pytest.fixture
-def fact_base(fact_base_path):
-    """Loaded FactBase instance."""
-    from src.nlq.knowledge.fact_base import FactBase
-    fb = FactBase()
-    fb.load(fact_base_path)
-    return fb
 
 
 @pytest.fixture

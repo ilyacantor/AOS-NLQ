@@ -27,9 +27,9 @@ class SimpleMetricResult:
     period: str = field(default_factory=current_quarter)
     data_quality: float = 1.0  # From DCL metadata.quality_score
     freshness: str = "0h"  # From DCL provenance[].freshness
-    source: str = "local"  # "dcl" when from live DCL, "local" for fact_base fallback
+    source: str = "dcl"  # "dcl" when from live DCL
     run_provenance: Optional[Dict[str, Any]] = None  # DCL run provenance for Trust Badge
-    data_source: Optional[str] = None  # "live", "demo", or "dcl"
+    data_source: Optional[str] = None  # "live" or "dcl"
     data_source_reason: Optional[str] = None  # Why fallback occurred (only when demo)
 
 

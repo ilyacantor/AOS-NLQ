@@ -126,7 +126,6 @@ function App() {
   const [lastDuration, setLastDuration] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [dataMode, setDataMode] = useState<'live' | 'demo'>('live')
   const [liveDataAvailable, setLiveDataAvailable] = useState<boolean>(false)
   const [dclWaitSeconds, setDclWaitSeconds] = useState<number>(0)
 
@@ -166,8 +165,6 @@ function App() {
   const queryRef = useRef(query)
   queryRef.current = query
 
-  const dataModeRef = useRef(dataMode)
-  dataModeRef.current = dataMode
 
   // Load deduplicated query history from the server.
   // Re-fetches whenever historyVersion is bumped (after each query completes).
@@ -231,13 +228,13 @@ function App() {
 
   // DCL wait counter — ticks every second while live data is unavailable
   useEffect(() => {
-    if (dataMode !== 'live' || liveDataAvailable) {
+    if (liveDataAvailable) {
       setDclWaitSeconds(0)
       return
     }
     const timer = setInterval(() => setDclWaitSeconds(s => s + 1), 1000)
     return () => clearInterval(timer)
-  }, [dataMode, liveDataAvailable])
+  }, [liveDataAvailable])
 
   // Submit query — ONE endpoint, ONE path: /api/v1/query
   const submitQuery = useCallback(async (queryText: string) => {
@@ -260,7 +257,6 @@ function App() {
           question: queryText,
           reference_date: new Date().toISOString().split('T')[0],
           session_id: sessionId,
-          data_mode: dataModeRef.current,
           persona: selectedPersona
         })
       })
@@ -611,7 +607,7 @@ function App() {
         <div className="flex items-center justify-between px-4 py-3 md:hidden">
           <div className="flex items-center gap-2">
             <span className="text-cyan-400 text-xl font-bold">NLQ</span>
-            <DataPipelineStatus dataMode={dataMode} />
+            <DataPipelineStatus />
           </div>
           <div className="flex items-center gap-2">
             {/* View Mode Toggle - Compact for mobile */}
@@ -701,17 +697,6 @@ function App() {
                   Reports
                 </button>
                 <div className="flex items-center gap-3 text-slate-500 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-500 text-xs">Data:</span>
-                    <select
-                      value={dataMode}
-                      onChange={(e) => setDataMode(e.target.value as 'live' | 'demo')}
-                      className="bg-slate-800 text-slate-300 text-xs rounded-md px-2 py-1 border border-slate-700 focus:border-cyan-400 focus:outline-none cursor-pointer"
-                    >
-                      <option value="live">Live</option>
-                      <option value="demo">Demo</option>
-                    </select>
-                  </div>
                   <LLMCallCounter />
                   {lastDuration && <span>{lastDuration}</span>}
                 </div>
@@ -788,18 +773,7 @@ function App() {
           </div>
 
           <div className="flex items-center gap-4 text-slate-500 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-slate-500 text-xs">Data:</span>
-              <select
-                value={dataMode}
-                onChange={(e) => setDataMode(e.target.value as 'live' | 'demo')}
-                className="bg-slate-800 text-slate-300 text-xs rounded-md px-2 py-1 border border-slate-700 focus:border-cyan-400 focus:outline-none cursor-pointer"
-              >
-                <option value="live">Live</option>
-                <option value="demo">Demo</option>
-              </select>
-            </div>
-            <DataPipelineStatus dataMode={dataMode} />
+            <DataPipelineStatus />
             <LLMCallCounter />
             {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
             <button
@@ -836,7 +810,6 @@ function App() {
                     personaOptions={personaOptions.map(p => ({ label: p.label, value: p.value }))}
                     onPersonaChange={(value) => handlePersonaSelect(value as Persona)}
                     isGenerating={isGeneratingDashboard}
-                    dataMode={dataMode}
                     sessionId={sessionId}
                   />
                 </div>
@@ -904,7 +877,7 @@ function App() {
                 {/* Chatbox — centered in the page, below the visual */}
                 <div className={`flex flex-col items-center px-6 ${hasGalaxyResponse ? 'pt-3 pb-3 border-t border-slate-800/50' : 'pb-4'}`}>
                   {/* DCL loading banner — shown when in live mode but no ingested data yet */}
-                  {dataMode === 'live' && !liveDataAvailable && (
+                  {!liveDataAvailable && (
                     <div className="w-full max-w-2xl mb-3 px-4 py-2.5 bg-amber-900/30 border border-amber-600/40 rounded-lg flex items-center gap-3">
                       <svg className="w-4 h-4 animate-spin text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

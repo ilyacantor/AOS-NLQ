@@ -61,8 +61,6 @@ interface DashboardRendererProps {
   onPersonaChange?: (persona: string) => void;
   /** Whether dashboard is being generated */
   isGenerating?: boolean;
-  /** Data mode: 'live' for DCL, 'demo' for local fact_base.json */
-  dataMode?: 'live' | 'demo';
   /** Session ID for query endpoint refinements */
   sessionId?: string;
 }
@@ -115,7 +113,6 @@ export function DashboardRenderer({
   personaOptions = [],
   onPersonaChange,
   isGenerating = false,
-  dataMode = 'live',
   sessionId,
 }: DashboardRendererProps) {
   const [schema, setSchemaRaw] = useState<DashboardSchema | null>(initialSchema ? normalizeSchema(initialSchema) : null);
@@ -328,7 +325,6 @@ export function DashboardRenderer({
     onRefinement,
     editMode,
     handleAutoArrange,
-    dataMode,
     sessionId,
   });
 

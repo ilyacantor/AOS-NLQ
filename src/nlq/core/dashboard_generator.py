@@ -124,7 +124,6 @@ def _get_fallback_dimension(metric: str, requested_dimension: str | None) -> str
 def generate_dashboard_schema(
     query: str,
     requirements: VisualizationRequirements,
-    fact_base: Any = None,
     debug_info: Optional[DashboardDebugInfo] = None,
 ) -> DashboardSchema:
     """
@@ -133,7 +132,6 @@ def generate_dashboard_schema(
     Args:
         query: Original natural language query
         requirements: Extracted visualization requirements
-        fact_base: Optional fact base for data validation
         debug_info: Optional debug info for tracking decisions
 
     Returns:

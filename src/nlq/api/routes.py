@@ -50,7 +50,7 @@ from src.nlq.services.llm_call_counter import get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log, LearningLogEntry
 from src.nlq.services.query_cache_service import CacheHitType, get_cache_service
 from src.nlq.services.dcl_enrichment import enrich_response as dcl_enrich_response
-from src.nlq.services.dcl_semantic_client import set_force_local, set_data_mode, set_entity_id, force_local_data, diag, diag_init, diag_collect, reset_provenance_ctx, propagate_context
+from src.nlq.services.dcl_semantic_client import set_entity_id, diag, diag_init, diag_collect, reset_provenance_ctx, propagate_context
 from src.nlq.services.insufficient_data_tracker import get_insufficient_data_tracker, CONFIDENCE_THRESHOLD
 from src.nlq.core.dates import current_year, current_quarter, prior_year
 
@@ -2512,7 +2512,7 @@ def _format_ingest_answer(question: str, ingest_data: dict) -> str:
     available = ingest_data.get("available", False)
 
     if not available or (not sources and not tenants):
-        return "No live ingest data is currently available. The system is running on demo data."
+        return "No live ingest data is currently available. Ingest data via the Farm→DCL pipeline."
 
     # Check if asking about a specific source (e.g., "is Splunk connected?")
     specific_source = None
@@ -3807,17 +3807,12 @@ async def query(request: NLQRequest) -> NLQResponse:
     Provenance is applied once at this boundary via _ensure_provenance.
     """
     _request_entity_id = _resolve_entity_id(request)
-    set_data_mode(request.data_mode)
     set_entity_id(_request_entity_id)
     reset_provenance_ctx()
-    if request.data_mode == "demo":
-        set_force_local(True)
     try:
         result = await _query_impl(request, _request_entity_id)
         return _ensure_provenance(result)
     finally:
-        set_force_local(False)
-        set_data_mode(None)
         set_entity_id(None)
         reset_provenance_ctx()
 
@@ -3826,7 +3821,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
     """Core query implementation. Provenance is applied by the caller."""
     _start_time = time.perf_counter()
     _trace = diag_init()
-    diag(f"[NLQ-DIAG] /query endpoint: question='{request.question[:60]}', data_mode={request.data_mode}, entity_id={_request_entity_id}")
+    diag(f"[NLQ-DIAG] /query endpoint: question='{request.question[:60]}', entity_id={_request_entity_id}")
     try:
         off_topic_response = handle_off_topic_or_easter_egg(request.question)
         if off_topic_response:

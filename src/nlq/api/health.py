@@ -27,7 +27,7 @@ router = APIRouter()
 class HealthResponse(BaseModel):
     status: str
     version: str
-    fact_base_loaded: bool
+    dcl_available: bool
     claude_available: bool
     session_count: int = 0
     max_sessions: int = 100
@@ -37,9 +37,9 @@ class HealthResponse(BaseModel):
 class PipelineStatusResponse(BaseModel):
     """Pipeline status for the permanent UI status light."""
     dcl_connected: bool
-    dcl_mode: Optional[str] = None  # "Ingest", "Demo", "Live", "Farm", or None
+    dcl_mode: Optional[str] = None  # "Ingest", "Empty", "Live", "Farm", or None
     metric_count: int = 0
-    catalog_source: Optional[str] = None  # "dcl", "local", "local_fallback", or None
+    catalog_source: Optional[str] = None  # "dcl" or None
     last_run_id: Optional[str] = None
     last_run_timestamp: Optional[str] = None
     last_source_systems: Optional[List[str]] = None
@@ -103,7 +103,7 @@ async def health() -> HealthResponse:
     return HealthResponse(
         status="healthy" if dcl_available else "degraded",
         version="0.1.0",
-        fact_base_loaded=dcl_available,  # Field name kept for backwards compatibility
+        dcl_available=dcl_available,
         claude_available=claude_available,
         session_count=session_stats["total_sessions"],
         max_sessions=session_stats["max_sessions"],
@@ -112,34 +112,19 @@ async def health() -> HealthResponse:
 
 
 @router.get("/pipeline/status", response_model=PipelineStatusResponse)
-async def pipeline_status(data_mode: Optional[str] = None) -> PipelineStatusResponse:
+async def pipeline_status() -> PipelineStatusResponse:
     """
     Return data pipeline connection status for the UI status light.
 
     Polls the DCL semantic client to determine:
-    - Whether DCL is connected (live API vs local fallback)
-    - What mode it's running in (Ingest/Demo/Live/Farm)
+    - Whether DCL is connected
+    - What mode it's running in (Ingest/Empty/Live/Farm)
     - Last run provenance if available
 
     The frontend polls this every 30s to keep the header status light current.
     """
     from src.nlq.services.dcl_semantic_client import get_semantic_client
 
-    if data_mode == "demo":
-        dcl_client = get_semantic_client()
-        try:
-            local_catalog = dcl_client._build_local_catalog()
-            metric_count = len(local_catalog.metrics)
-        except (FileNotFoundError, IOError, KeyError, ValueError):
-            metric_count = 0
-        return PipelineStatusResponse(
-            dcl_connected=False,
-            dcl_mode=None,
-            metric_count=metric_count,
-            catalog_source="local",
-        )
-
-    # Live/ingest mode: check DCL connectivity via health endpoint
     dcl_client = get_semantic_client()
     health = dcl_client.check_dcl_health()
     dcl_connected = health.get("connected", False)

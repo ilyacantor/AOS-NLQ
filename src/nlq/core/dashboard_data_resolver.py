@@ -48,8 +48,8 @@ class DashboardDataResolver:
     All data access goes through DCL's query API.
     """
 
-    def __init__(self, fact_base=None):
-        """Initialize resolver. fact_base param kept for backwards compatibility but ignored."""
+    def __init__(self):
+        """Initialize resolver. All data access goes through DCL."""
         self.dcl_client = get_semantic_client()
         self._provenance: Optional[Dict[str, Any]] = None
 
@@ -749,7 +749,6 @@ class DashboardDataResolver:
 
 def resolve_dashboard_with_data(
     schema: DashboardSchema,
-    fact_base=None,  # Kept for backwards compatibility, ignored
     reference_year: str = "2025",
 ) -> Dict[str, Any]:
     """
