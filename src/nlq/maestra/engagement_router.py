@@ -163,11 +163,13 @@ async def chat(req: ChatRequest):
     try:
         recent = svc.get_recent_memory(req.customer_id, limit=1)
         if not recent:
-            from src.nlq.maestra.context import _fetch_module_status
+            from src.nlq.maestra.context import _fetch_module_status, _fetch_module_health
             succeeded, failed = [], []
             for module in ("aod", "aam", "farm", "dcl"):
                 mt = _time.time()
                 fresh = _fetch_module_status(module)
+                if fresh is None:
+                    fresh = _fetch_module_health(module)  # fallback: at least get health
                 elapsed = int((_time.time() - mt) * 1000)
                 if fresh is not None:
                     svc.set_module_state(module, req.customer_id, fresh)
