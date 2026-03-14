@@ -199,7 +199,7 @@ def _format_module_states(states: dict[str, Any]) -> str:
             )
         elif isinstance(data, dict) and data.get("_health_only"):
             clean = {k: v for k, v in data.items() if not k.startswith("_")}
-            status = "healthy" if clean.get("healthy") or clean.get("status") == "healthy" else "unhealthy"
+            status = "healthy" if clean.get("healthy") or clean.get("status") in ("healthy", "ok") else "unhealthy"
             lines.append(
                 f"- {module.upper()}: {status} (detailed status not available — health-only)"
             )
