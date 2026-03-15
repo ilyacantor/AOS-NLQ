@@ -40,7 +40,7 @@ _proxy_client = httpx.Client(timeout=30.0, follow_redirects=True)
 
 @router.get("/api/reports/revenue-by-customer")
 async def revenue_by_customer(
-    entity_id: str = Query(..., description="Entity ID (meridian or cascadia)"),
+    entity_id: str = Query(..., description="Entity ID — dynamic, resolved from DCL engagement state"),
 ):
     """
     Revenue by customer pivoted into a quarterly table.

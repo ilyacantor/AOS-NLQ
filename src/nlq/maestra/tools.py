@@ -265,8 +265,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 },
                 "entity": {
                     "type": "string",
-                    "enum": ["meridian", "cascadia", "combined"],
-                    "description": "Optional entity filter.",
+                    "description": "Optional entity filter — resolved dynamically from DCL engagement state. Use 'combined' for multi-entity view.",
                 },
                 "filters": {
                     "type": "object",

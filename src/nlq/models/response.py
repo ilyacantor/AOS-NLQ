@@ -373,7 +373,7 @@ class FinancialStatementLineItem(BaseModel):
 class FinancialStatementData(BaseModel):
     """Structured financial statement for rendering."""
     title: str = Field(default="Income Statement", description="Statement title")
-    entity: str = Field(default="Meridian Partners", description="Entity name")
+    entity: str = Field(default="", description="Entity name — resolved dynamically from DCL engagement state")
     periods: List[str] = Field(default_factory=list, description="Column headers in display order")
     line_items: List[FinancialStatementLineItem] = Field(default_factory=list)
     currency: str = "USD"

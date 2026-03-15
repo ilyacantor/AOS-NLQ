@@ -68,7 +68,7 @@ class NLQRequest(BaseModel):
 
     entity_id: Optional[str] = Field(
         default=None,
-        description="Entity filter: 'meridian', 'cascadia', or 'combined'. Sent by report portal entity selector."
+        description="Entity filter — dynamic, resolved from DCL engagement state. Sent by report portal entity selector."
     )
 
     consolidate: Optional[bool] = Field(

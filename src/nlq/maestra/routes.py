@@ -32,7 +32,7 @@ router = APIRouter(prefix="/api/reports/maestra", tags=["Maestra"])
 # =============================================================================
 
 class EngageRequest(BaseModel):
-    deal_name: str = "Meridian-Cascadia Integration"
+    deal_name: str = "Default Integration"
     entities: list[dict[str, str]] | None = None
     demo_mode: bool = True
     mode: str = "pre_deal"  # "pre_deal" or "classic"

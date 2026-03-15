@@ -24,19 +24,26 @@ from src.nlq.models.response import (
 
 logger = logging.getLogger(__name__)
 
-# Entity ID → display name mapping
-_ENTITY_NAMES = {
-    "meridian": "Meridian Partners",
-    "cascadia": "Cascadia Process Solutions",
-    "combined": "Combined (Meridian + Cascadia)",
-}
-
-
 def _resolve_entity_name(entity_id: Optional[str]) -> str:
-    """Resolve entity_id to display name, defaulting to Meridian."""
-    if entity_id:
-        return _ENTITY_NAMES.get(entity_id.lower(), entity_id.title())
-    return "Meridian Partners"
+    """Resolve entity_id to display name via EntityRegistry."""
+    from src.nlq.core.entity_registry import get_entity_registry
+
+    if not entity_id:
+        # Default to first registered entity's display name
+        registry = get_entity_registry()
+        try:
+            entities = registry.get_entities_sync()
+            if entities:
+                return entities[0]["display_name"]
+        except ConnectionError:
+            pass
+        return entity_id.title() if entity_id else "Unknown Entity"
+
+    try:
+        registry = get_entity_registry()
+        return registry.get_entity_name_sync(entity_id)
+    except (ValueError, ConnectionError):
+        return entity_id.replace("_", " ").title()
 
 # ── P&L line items in presentation order ──────────────────────────────────
 PL_LINE_ITEMS = [
@@ -129,7 +136,7 @@ class PLStatementHandler:
             periods: List of quarterly periods (e.g., ["2024-Q1", "2024-Q2", ...]).
             query_fn: callable(metric_id, period) -> Optional[SimpleMetricResult].
                       Injected from routes.py to avoid circular imports.
-            entity_id: Optional entity filter (e.g., "meridian", "cascadia").
+            entity_id: Optional entity filter — resolved from DCL engagement state.
         """
         self.periods = periods
         self.query_fn = query_fn

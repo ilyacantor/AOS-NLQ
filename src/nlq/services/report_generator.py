@@ -95,7 +95,7 @@ class ReportGenerator:
         Args:
             query_fn: callable(metric_id, period) -> Optional[SimpleMetricResult]
             wall_clock: Override wall clock date (defaults to date.today())
-            entity_id: Optional entity filter (e.g., "meridian", "cascadia").
+            entity_id: Optional entity filter — resolved from DCL engagement state.
         """
         self.query_fn = query_fn
         self.wall_clock = wall_clock or date.today()

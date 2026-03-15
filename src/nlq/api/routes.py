@@ -793,6 +793,34 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+# =============================================================================
+# ENTITY REGISTRY ENDPOINT
+# =============================================================================
+
+@router.get("/entities")
+async def list_entities():
+    """Return the list of available entities from DCL engagement state.
+
+    Frontend calls this to populate the entity selector dropdown.
+    Entities are discovered dynamically from DCL, not hardcoded.
+    """
+    from src.nlq.core.entity_registry import get_entity_registry
+
+    registry = get_entity_registry()
+    try:
+        entities = await registry.get_entities()
+    except ConnectionError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Cannot fetch entity list — DCL unreachable: {e}",
+        )
+    # Always include "combined" as an option
+    return {
+        "entities": entities,
+        "combined_available": len(entities) > 1,
+    }
+
+
 # Lazy-loaded singletons
 _claude_client: ClaudeClient = None
 
@@ -1368,11 +1396,20 @@ def _try_tiered_metric_query_core(question: str, entity_id: Optional[str] = None
                 stripped = True
                 break
 
-    # Strip entity names from the metric query so "meridian revenue" -> "revenue"
-    # and "cascadia ebitda" -> "ebitda". The entity_id is captured separately.
-    _entity_names = ["meridian", "cascadia", "combined", "consolidated"]
-    for ename in _entity_names:
-        # Handle possessives: "meridian's revenue" -> "revenue"
+    # Strip entity names from the metric query so entity-prefixed queries
+    # like "acme revenue" -> "revenue". The entity_id is captured separately.
+    from src.nlq.core.entity_registry import get_entity_registry
+    _entity_strip_names = ["combined", "consolidated"]
+    try:
+        _reg = get_entity_registry()
+        _reg_entities = _reg.get_entities_sync()
+        for _e in _reg_entities:
+            _entity_strip_names.append(_e["entity_id"].lower())
+            _entity_strip_names.append(_e["display_name"].lower())
+    except ConnectionError:
+        pass  # If DCL is unreachable, we can only strip "combined"/"consolidated"
+    for ename in _entity_strip_names:
+        # Handle possessives: "entity's revenue" -> "revenue"
         metric_query = metric_query.replace(ename + "'s ", " ").replace(ename, "")
     metric_query = metric_query.strip()
 
@@ -1539,15 +1576,27 @@ def _try_tiered_metric_query_core(question: str, entity_id: Optional[str] = None
 def _detect_entity_id(question: str) -> Optional[str]:
     """Detect entity mentions in the question text.
 
+    Checks against dynamically registered entities from DCL.
     Returns the entity_id if an entity name is found, or None for default behavior.
     """
+    from src.nlq.core.entity_registry import get_entity_registry
+
     q = question.lower()
-    if "meridian" in q:
-        return "meridian"
-    if "cascadia" in q:
-        return "cascadia"
     if "combined" in q or "consolidated" in q:
         return "combined"
+
+    registry = get_entity_registry()
+    try:
+        entities = registry.get_entities_sync()
+        for entity in entities:
+            # Check entity_id (e.g., entity name in "what is <entity>'s revenue")
+            if entity["entity_id"].lower() in q:
+                return entity["entity_id"]
+            # Check display_name (e.g., "Acme Corp")
+            if entity["display_name"].lower() in q:
+                return entity["entity_id"]
+    except ConnectionError:
+        logger.warning("Cannot detect entity from question — DCL unreachable for entity registry")
     return None
 
 
@@ -1745,21 +1794,38 @@ def _has_explicit_period(question: str) -> bool:
 
 
 def _build_combined_metric_result(metric: str, period: Optional[str] = None, filters: Optional[dict] = None) -> Optional['SimpleMetricResult']:
-    """Query both meridian and cascadia, sum additive metrics or average non-additive."""
+    """Query all registered entities, sum additive metrics or average non-additive."""
     from src.nlq.knowledge.schema import is_additive_metric
-    m_result = _build_simple_metric_result(metric, period, entity_id="meridian", filters=filters)
-    c_result = _build_simple_metric_result(metric, period, entity_id="cascadia", filters=filters)
-    if m_result is None and c_result is None:
+    from src.nlq.core.entity_registry import get_entity_registry
+
+    registry = get_entity_registry()
+    try:
+        entity_ids = registry.get_entity_ids_sync()
+    except ConnectionError as e:
+        logger.error(f"Cannot build combined metric — DCL unreachable: {e}")
         return None
-    if m_result is None:
-        return c_result
-    if c_result is None:
-        return m_result
+
+    if not entity_ids:
+        return None
+
+    # Query each entity
+    results = []
+    for eid in entity_ids:
+        r = _build_simple_metric_result(metric, period, entity_id=eid, filters=filters)
+        if r is not None:
+            results.append(r)
+
+    if not results:
+        return None
+    if len(results) == 1:
+        return results[0]
+
+    # Combine values
     if is_additive_metric(metric):
-        combined_val = m_result.value + c_result.value
+        combined_val = sum(r.value for r in results)
     else:
-        combined_val = (m_result.value + c_result.value) / 2.0
-    # Clone m_result with combined value
+        combined_val = sum(r.value for r in results) / len(results)
+
     from dataclasses import replace
     from src.nlq.knowledge.schema import get_metric_unit
     unit = get_metric_unit(metric)
@@ -1770,10 +1836,10 @@ def _build_combined_metric_result(metric: str, period: Optional[str] = None, fil
     else:
         formatted = str(round(combined_val, 1))
     return replace(
-        m_result,
+        results[0],
         value=combined_val,
         formatted_value=formatted,
-        answer=f"{m_result.display_name} for {m_result.period} is {formatted}",
+        answer=f"{results[0].display_name} for {results[0].period} is {formatted}",
         data_source="live",
     )
 
@@ -3714,14 +3780,31 @@ def _handle_ambiguous_query_text(
 
 
 def _resolve_entity_id(request: NLQRequest) -> str:
-    """Resolve entity_id from request body, question text, or default to meridian."""
+    """Resolve entity_id from request body, question text, or default to first registered entity."""
+    from src.nlq.core.entity_registry import get_entity_registry
+
     eid = request.entity_id
     if not eid and request.consolidate:
         eid = "combined"
     if not eid:
         eid = _detect_entity_id(request.question)
     if not eid:
-        eid = "meridian"
+        # Default to first registered entity from DCL
+        registry = get_entity_registry()
+        try:
+            entity_ids = registry.get_entity_ids_sync()
+            if entity_ids:
+                eid = entity_ids[0]
+        except ConnectionError as e:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Cannot determine default entity — DCL unreachable: {e}",
+            )
+    if not eid:
+        raise HTTPException(
+            status_code=503,
+            detail="No entities registered in DCL — cannot resolve entity_id.",
+        )
     return eid
 
 
@@ -3734,14 +3817,12 @@ import time as _time_mod
 _dimension_cache: Dict[str, object] = {"data": None, "expires_at": 0.0}
 _DIMENSION_CACHE_TTL = 300  # 5 minutes
 
-_ENTITY_IDS = ["meridian", "cascadia"]
-
-
 @router.get("/report-dimensions")
 async def report_dimensions():
     """Return available time periods and segments with per-entity data availability.
 
     Uses a 5-minute in-memory cache to avoid hammering DCL with probe queries.
+    Entity list is resolved dynamically from DCL via EntityRegistry.
     """
     now = _time_mod.time()
     if _dimension_cache["data"] is not None and now < _dimension_cache["expires_at"]:
@@ -3750,15 +3831,26 @@ async def report_dimensions():
     from src.nlq.services.period_engine import get_all_periods
     from src.nlq.services.dcl_semantic_client import get_semantic_client
     from src.nlq.core.report_intent import _KNOWN_SEGMENTS
+    from src.nlq.core.entity_registry import get_entity_registry
 
     all_periods = get_all_periods(date.today())
     dcl_client = get_semantic_client()
+
+    # Get entity list dynamically from DCL
+    registry = get_entity_registry()
+    try:
+        entity_ids = registry.get_entity_ids_sync()
+    except ConnectionError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Cannot fetch entity list for report dimensions — {e}",
+        )
 
     # Probe DCL for data existence per entity per period
     periods_out = []
     for p in all_periods:
         has_data: Dict[str, bool] = {}
-        for eid in _ENTITY_IDS:
+        for eid in entity_ids:
             try:
                 result = dcl_client.query(
                     metric="revenue",

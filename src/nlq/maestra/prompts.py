@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+import logging
+
 from src.nlq.maestra.types import (
     ContourMap,
     DemoPhase,
@@ -20,6 +22,24 @@ from src.nlq.maestra.types import (
     PreDealContext,
     SectionId,
 )
+
+_logger = logging.getLogger(__name__)
+
+
+def _get_demo_entity_names() -> tuple[str, str]:
+    """Get acquirer/target display names from DCL entity registry.
+
+    Returns (acquirer_name, target_name) — defaults to generic labels
+    if DCL is unreachable.
+    """
+    from src.nlq.core.entity_registry import get_entity_registry
+    try:
+        entities = get_entity_registry().get_entities_sync()
+        acquirer = entities[0]["display_name"] if entities else "Acquirer"
+        target = entities[1]["display_name"] if len(entities) > 1 else "Target"
+        return acquirer, target
+    except (ConnectionError, IndexError):
+        return "Acquirer", "Target"
 
 
 # =============================================================================
@@ -341,14 +361,21 @@ EXIT CONDITIONS:
 # LAYER 4: DEMO CONTEXT (Convergence demo)
 # =============================================================================
 
-DEMO_CONTEXT = """DEMO CONTEXT — Convergence (Meridian acquiring Cascadia):
-- Meridian Partners: PE-backed professional services, $5B revenue, 14 entities, 3 divisions
+def get_demo_context() -> str:
+    """Build demo context string with dynamic entity names from registry."""
+    acquirer, target = _get_demo_entity_names()
+    return f"""DEMO CONTEXT — Convergence ({acquirer} acquiring {target}):
+- {acquirer}: PE-backed professional services, $5B revenue, 14 entities, 3 divisions
   Systems: SAP S/4HANA (ERP), Workday (HR), Salesforce (CRM), NetSuite (subsidiary ERP)
-- Cascadia Advisory: Boutique consulting, $1B revenue, 5 entities, 2 divisions
+- {target}: Boutique consulting, $1B revenue, 5 entities, 2 divisions
   Systems: QuickBooks (ERP), BambooHR (HR), HubSpot (CRM)
 - PE Sponsor: Crestview Capital
-- Pain point: Cascadia runs QuickBooks (cash basis) vs Meridian's SAP (GAAP accrual)
+- Pain point: {target} runs QuickBooks (cash basis) vs {acquirer}'s SAP (GAAP accrual)
 """
+
+
+# Keep backward-compatible module-level constant (lazy-evaluated on first access)
+DEMO_CONTEXT = get_demo_context()
 
 
 def get_demo_phase_prompt(phase: DemoPhase) -> str:
@@ -368,22 +395,24 @@ def get_demo_phase_prompt(phase: DemoPhase) -> str:
 
 
 def _demo_phase_1() -> str:
-    return """PHASE 1: CONTEXT (2 min)
+    acquirer, target = _get_demo_entity_names()
+    return f"""PHASE 1: CONTEXT (2 min)
 
 Introduce the engagement. Key points:
-- "Meridian is acquiring Cascadia. Deal signed, we're in post-close integration."
-- "12 systems at Meridian, 8 at Cascadia. Different ERPs, different charts of accounts."
+- "{acquirer} is acquiring {target}. Deal signed, we're in post-close integration."
+- "12 systems at {acquirer}, 8 at {target}. Different ERPs, different charts of accounts."
 - "Our job: unify the data, reconcile the books, find the synergies."
 
 When the presenter says "next" or similar, call advance_section."""
 
 
 def _demo_phase_2() -> str:
-    return """PHASE 2: DISCOVERY (3 min)
+    acquirer, target = _get_demo_entity_names()
+    return f"""PHASE 2: DISCOVERY (3 min)
 
 Show AOD results for both entities using show_table:
-- Meridian: 12 discovered systems (SAP, Workday, Salesforce, etc.)
-- Cascadia: 8 discovered systems (QuickBooks, BambooHR, HubSpot, etc.)
+- {acquirer}: 12 discovered systems (SAP, Workday, Salesforce, etc.)
+- {target}: 8 discovered systems (QuickBooks, BambooHR, HubSpot, etc.)
 - Highlight the ERP mismatch: SAP (GAAP) vs QuickBooks (cash basis)
 
 Use lookup_system_data to show discovered systems."""
@@ -413,7 +442,7 @@ def _demo_phase_5() -> str:
     return """PHASE 5: COFA UNIFICATION (3 min)
 
 Show the chart of accounts mapping. Key points:
-- "8 material conflicts found between Meridian and Cascadia charts of accounts"
+- "8 material conflicts found between acquirer and target charts of accounts"
 - Use show_comparison for each major conflict
 - Show resolution recommendations
 - Use navigate_portal to show the reconciliation tab"""
@@ -567,8 +596,9 @@ def _pd_section_deal_context(ctx: Optional[PreDealContext]) -> str:
     acquirer = ""
     target = ""
     if ctx:
-        acquirer = ctx.acquirer_intel.company_overview or "Meridian Partners"
-        target = ctx.target_intel.company_overview or "Cascadia Advisory"
+        _acq_default, _tgt_default = _get_demo_entity_names()
+        acquirer = ctx.acquirer_intel.company_overview or _acq_default
+        target = ctx.target_intel.company_overview or _tgt_default
     return f"""SECTION: DEAL CONTEXT (Target: 2-3 minutes)
 
 GOAL: Confirm the deal structure and capture timeline, concerns, and synergy expectations.
@@ -579,7 +609,7 @@ OPENING: You already know the deal. Open with a brief summary of what you found:
 - "This is a PE-backed acquisition. Crestview Capital is the sponsor."
 
 Then confirm:
-1. Both entities are correct (Meridian acquiring Cascadia)
+1. Both entities are correct (acquirer acquiring target)
 2. Deal type (acquisition)
 3. Deal stage and timeline — ask: "Where are you in the process, and what's the target close date?"
 4. Key concerns — ask: "What keeps you up at night about this integration?"
@@ -599,7 +629,7 @@ def _pd_section_acquirer_profile(ctx: Optional[PreDealContext]) -> str:
         systems_text = ", ".join(systems_list)
     return f"""SECTION: ACQUIRER PROFILE (Target: 5 minutes)
 
-GOAL: Present what you discovered about Meridian and confirm with the deal person.
+GOAL: Present what you discovered about the acquirer and confirm with the deal person.
 
 YOUR APPROACH: Show what you know, ask them to correct.
 
@@ -613,7 +643,7 @@ WHAT TO PRESENT:
    - Consolidated P&L takes 3 weeks due to dual-ERP issue
 3. Systems landscape — use show_table:
    - {systems_text or "12 discovered systems (SAP, NetSuite, Oracle, Workday, Salesforce, etc.)"}
-   - Call lookup_system_data to get the full list, filter by entity=Meridian
+   - Call lookup_system_data to get the full list, filter by entity=acquirer
 
 After presenting each piece, ask: "Does that look right?" or "Anything I'm missing?"
 
@@ -626,25 +656,26 @@ EXIT CONDITIONS:
 
 
 def _pd_section_target_profile(ctx: Optional[PreDealContext]) -> str:
-    return """SECTION: TARGET PROFILE (Target: 5-10 minutes)
+    _, target = _get_demo_entity_names()
+    return f"""SECTION: TARGET PROFILE (Target: 5-10 minutes)
 
-GOAL: Present what you discovered about Cascadia. Access level determines depth.
+GOAL: Present what you discovered about {target}. Access level determines depth.
 
 YOUR APPROACH: Same as acquirer — show and confirm.
 
 WHAT TO PRESENT:
 1. Organizational structure — use show_hierarchy:
    - 2 divisions: Advisory (3 entities), Managed Services (2 entities)
-   - $1B revenue, bootstrapped until Meridian acquisition
+   - $1B revenue, bootstrapped until acquirer acquisition
 2. Key points:
    - 5 legal entities, ~680 headcount
    - Revenue concentration risk: top 3 customers = 35% of revenue
    - Switching from QuickBooks cash basis to accrual
 3. Systems landscape — use show_table:
    - 8 systems (QuickBooks, BambooHR, HubSpot, Gusto, etc.)
-   - Call lookup_system_data, filter by entity=Cascadia
+   - Call lookup_system_data, filter by entity={target}
 
-ACCESS CONSIDERATION: If the deal person says they have limited access to Cascadia data, acknowledge what you have and note what's missing. Don't push for data they can't provide.
+ACCESS CONSIDERATION: If the deal person says they have limited access to target data, acknowledge what you have and note what's missing. Don't push for data they can't provide.
 
 After each piece: "Does that match what you know?" or "Anything to add or correct?"
 
@@ -810,7 +841,8 @@ def build_pre_deal_context_layer(
 
     # Acquirer
     if pre_deal_context.acquirer_intel.company_overview:
-        parts.append(f"\nACQUIRER (Meridian Partners):")
+        _acq_name, _ = _get_demo_entity_names()
+        parts.append(f"\nACQUIRER ({_acq_name}):")
         parts.append(f"- {pre_deal_context.acquirer_intel.company_overview}")
         if pre_deal_context.acquirer_intel.known_systems:
             parts.append(f"- Systems: {', '.join(pre_deal_context.acquirer_intel.known_systems[:6])}")
@@ -819,7 +851,8 @@ def build_pre_deal_context_layer(
 
     # Target
     if pre_deal_context.target_intel.company_overview:
-        parts.append(f"\nTARGET (Cascadia Advisory):")
+        _, _tgt_name = _get_demo_entity_names()
+        parts.append(f"\nTARGET ({_tgt_name}):")
         parts.append(f"- {pre_deal_context.target_intel.company_overview}")
         if pre_deal_context.target_intel.known_systems:
             parts.append(f"- Systems: {', '.join(pre_deal_context.target_intel.known_systems[:4])}")

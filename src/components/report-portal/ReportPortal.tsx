@@ -649,11 +649,28 @@ function ReconView() {
 // ============================================================
 
 function EntitySelector({ selected, onChange }: { selected: EntitySelection; onChange: (e: EntitySelection) => void }) {
-  const entities: { id: EntitySelection; label: string }[] = [
-    { id: "meridian", label: "Meridian" },
-    { id: "cascadia", label: "Cascadia" },
+  const [entities, setEntities] = React.useState<{ id: EntitySelection; label: string }[]>([
     { id: "combined", label: "Combined" },
-  ];
+  ]);
+
+  React.useEffect(() => {
+    fetch("/api/v1/entities")
+      .then((r) => r.json())
+      .then((data) => {
+        const fetched = (data.entities || []).map((e: { entity_id: string; display_name: string }) => ({
+          id: e.entity_id as EntitySelection,
+          label: e.display_name,
+        }));
+        if (data.combined_available) {
+          fetched.push({ id: "combined" as EntitySelection, label: "Combined" });
+        }
+        if (fetched.length > 0) setEntities(fetched);
+      })
+      .catch(() => {
+        // If fetch fails, keep default "combined" only
+      });
+  }, []);
+
   return (
     <div style={{ display: "flex", gap: 4, padding: "12px 32px 0", background: COLORS.headerBg }}>
       {entities.map((e) => (
@@ -3130,7 +3147,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <span style={{ fontSize: 12, color: COLORS.textMuted }}>
-            {entity === "meridian" ? "Meridian Partners" : entity === "cascadia" ? "Cascadia Group" : "Combined View"} {"\u2022"} {entity === "combined" ? "Multi-Entity" : "Single Entity"} {"\u2022"} {wallClockDate().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            {entity === "combined" ? "Combined View" : entity.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())} {"\u2022"} {entity === "combined" ? "Multi-Entity" : "Single Entity"} {"\u2022"} {wallClockDate().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
           </span>
           <button onClick={onClose} style={{ background: "transparent", border: `1px solid ${COLORS.border}`, color: COLORS.textMuted, cursor: "pointer", padding: "4px 12px", borderRadius: 4, fontSize: 12 }}>
             Close

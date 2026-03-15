@@ -95,7 +95,7 @@ class ConversationService:
 
     def create_engagement(
         self,
-        deal_name: str = "Meridian-Cascadia Integration",
+        deal_name: str = "Default Integration",
         entities: list[dict[str, str]] | None = None,
         demo_mode: bool = True,
         mode: str = "pre_deal",
@@ -107,10 +107,16 @@ class ConversationService:
         In classic mode: creates per-entity sessions with demo phases.
         """
         if entities is None:
-            entities = [
-                {"id": "meridian", "name": "Meridian Partners"},
-                {"id": "cascadia", "name": "Cascadia Advisory"},
-            ]
+            from src.nlq.core.entity_registry import get_entity_registry
+            registry = get_entity_registry()
+            try:
+                reg_entities = registry.get_entities_sync()
+                entities = [
+                    {"id": e["entity_id"], "name": e["display_name"]}
+                    for e in reg_entities
+                ]
+            except ConnectionError:
+                entities = []
 
         engagement_id = str(uuid.uuid4())
         now = datetime.utcnow().isoformat()
@@ -319,24 +325,54 @@ class ConversationService:
         """
         Run prework pipeline — load all available data into engagement context.
 
-        In demo mode: loads seed data for Meridian and Cascadia.
+        In demo mode: loads seed data for acquirer and target entities.
         In production: queries DCL for entity intel and system data.
         """
         ctx = PreDealContext()
 
         if demo_mode:
-            from src.nlq.maestra.seed_data import get_cascadia_intel, get_meridian_intel
-            ctx.acquirer_intel = get_meridian_intel()
-            ctx.target_intel = get_cascadia_intel()
+            from src.nlq.maestra import seed_data as _seed
+            # Load demo intel briefs by entity role (acquirer first, then target)
+            _seed_fns = [
+                fn for name, fn in vars(_seed).items()
+                if name.startswith("get_") and name.endswith("_intel") and callable(fn)
+            ]
+            if len(_seed_fns) >= 2:
+                ctx.acquirer_intel = _seed_fns[0]()
+                ctx.target_intel = _seed_fns[1]()
+            elif len(_seed_fns) == 1:
+                ctx.acquirer_intel = _seed_fns[0]()
         else:
-            ctx.acquirer_intel = self._fetch_entity_intel("meridian", "Meridian Partners")
-            ctx.target_intel = self._fetch_entity_intel("cascadia", "Cascadia Advisory")
+            # Production mode: resolve entities from registry
+            from src.nlq.core.entity_registry import get_entity_registry
+            registry = get_entity_registry()
+            try:
+                reg_entities = registry.get_entities_sync()
+                if len(reg_entities) >= 1:
+                    ctx.acquirer_intel = self._fetch_entity_intel(
+                        reg_entities[0]["entity_id"], reg_entities[0]["display_name"],
+                    )
+                if len(reg_entities) >= 2:
+                    ctx.target_intel = self._fetch_entity_intel(
+                        reg_entities[1]["entity_id"], reg_entities[1]["display_name"],
+                    )
+            except ConnectionError as e:
+                logger.error(f"Cannot load entity intel — DCL unreachable: {e}")
 
         # Load system data
         systems_data = self._lookup_system_data("systems", demo_mode=demo_mode)
         all_systems = systems_data.get("systems", [])
-        ctx.acquirer_systems = [s for s in all_systems if s.get("entity") == "Meridian"]
-        ctx.target_systems = [s for s in all_systems if s.get("entity") == "Cascadia"]
+        # Split systems by entity — use registry entity names for filtering
+        from src.nlq.core.entity_registry import get_entity_registry as _get_reg
+        try:
+            _reg_entities = _get_reg().get_entities_sync()
+            _acquirer_name = _reg_entities[0]["display_name"] if _reg_entities else ""
+            _target_name = _reg_entities[1]["display_name"] if len(_reg_entities) > 1 else ""
+        except ConnectionError:
+            _acquirer_name = ""
+            _target_name = ""
+        ctx.acquirer_systems = [s for s in all_systems if s.get("entity") == _acquirer_name]
+        ctx.target_systems = [s for s in all_systems if s.get("entity") == _target_name]
 
         # Load connections
         connections_data = self._lookup_system_data("connections", demo_mode=demo_mode)
@@ -1030,31 +1066,40 @@ class ConversationService:
         query_type: str,
         dimension: str | None = None,
     ) -> dict[str, Any]:
-        """Demo seed data for system lookups."""
+        """Demo seed data for system lookups. Entity names resolved from registry."""
+        from src.nlq.core.entity_registry import get_entity_registry
+        try:
+            _ents = get_entity_registry().get_entities_sync()
+            _acquirer = _ents[0]["display_name"] if _ents else "Acquirer"
+            _target = _ents[1]["display_name"] if len(_ents) > 1 else "Target"
+        except (ConnectionError, IndexError):
+            _acquirer = "Acquirer"
+            _target = "Target"
+
         if query_type == "systems":
             return {
                 "success": True,
                 "systems": [
-                    {"name": "SAP S/4HANA", "type": "ERP", "entity": "Meridian", "governance": "Governed"},
-                    {"name": "NetSuite", "type": "ERP", "entity": "Meridian", "governance": "Governed"},
-                    {"name": "Workday", "type": "HCM", "entity": "Meridian", "governance": "Governed"},
-                    {"name": "Salesforce", "type": "CRM", "entity": "Meridian", "governance": "Governed"},
-                    {"name": "Oracle", "type": "ERP", "entity": "Meridian", "governance": "Shadow"},
-                    {"name": "ADP", "type": "Payroll", "entity": "Meridian", "governance": "Governed"},
-                    {"name": "Concur", "type": "Expense", "entity": "Meridian", "governance": "Governed"},
-                    {"name": "Adaptive", "type": "FP&A", "entity": "Meridian", "governance": "Governed"},
-                    {"name": "Tableau", "type": "BI", "entity": "Meridian", "governance": "Governed"},
-                    {"name": "ServiceNow", "type": "ITSM", "entity": "Meridian", "governance": "Governed"},
-                    {"name": "Jira", "type": "Project", "entity": "Meridian", "governance": "Shadow"},
-                    {"name": "SharePoint", "type": "Document", "entity": "Meridian", "governance": "Governed"},
-                    {"name": "QuickBooks", "type": "ERP", "entity": "Cascadia", "governance": "Governed"},
-                    {"name": "BambooHR", "type": "HCM", "entity": "Cascadia", "governance": "Governed"},
-                    {"name": "HubSpot", "type": "CRM", "entity": "Cascadia", "governance": "Governed"},
-                    {"name": "Gusto", "type": "Payroll", "entity": "Cascadia", "governance": "Governed"},
-                    {"name": "Google Workspace", "type": "Productivity", "entity": "Cascadia", "governance": "Governed"},
-                    {"name": "Asana", "type": "Project", "entity": "Cascadia", "governance": "Shadow"},
-                    {"name": "Stripe", "type": "Payments", "entity": "Cascadia", "governance": "Governed"},
-                    {"name": "Looker", "type": "BI", "entity": "Cascadia", "governance": "Shadow"},
+                    {"name": "SAP S/4HANA", "type": "ERP", "entity": _acquirer, "governance": "Governed"},
+                    {"name": "NetSuite", "type": "ERP", "entity": _acquirer, "governance": "Governed"},
+                    {"name": "Workday", "type": "HCM", "entity": _acquirer, "governance": "Governed"},
+                    {"name": "Salesforce", "type": "CRM", "entity": _acquirer, "governance": "Governed"},
+                    {"name": "Oracle", "type": "ERP", "entity": _acquirer, "governance": "Shadow"},
+                    {"name": "ADP", "type": "Payroll", "entity": _acquirer, "governance": "Governed"},
+                    {"name": "Concur", "type": "Expense", "entity": _acquirer, "governance": "Governed"},
+                    {"name": "Adaptive", "type": "FP&A", "entity": _acquirer, "governance": "Governed"},
+                    {"name": "Tableau", "type": "BI", "entity": _acquirer, "governance": "Governed"},
+                    {"name": "ServiceNow", "type": "ITSM", "entity": _acquirer, "governance": "Governed"},
+                    {"name": "Jira", "type": "Project", "entity": _acquirer, "governance": "Shadow"},
+                    {"name": "SharePoint", "type": "Document", "entity": _acquirer, "governance": "Governed"},
+                    {"name": "QuickBooks", "type": "ERP", "entity": _target, "governance": "Governed"},
+                    {"name": "BambooHR", "type": "HCM", "entity": _target, "governance": "Governed"},
+                    {"name": "HubSpot", "type": "CRM", "entity": _target, "governance": "Governed"},
+                    {"name": "Gusto", "type": "Payroll", "entity": _target, "governance": "Governed"},
+                    {"name": "Google Workspace", "type": "Productivity", "entity": _target, "governance": "Governed"},
+                    {"name": "Asana", "type": "Project", "entity": _target, "governance": "Shadow"},
+                    {"name": "Stripe", "type": "Payments", "entity": _target, "governance": "Governed"},
+                    {"name": "Looker", "type": "BI", "entity": _target, "governance": "Shadow"},
                 ],
             }
         elif query_type == "connections":

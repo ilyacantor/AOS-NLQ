@@ -34,7 +34,7 @@ class QueryExecutor:
 
         Args:
             claude_client: Optional Claude client for LLM fallback on unknown breakdowns
-            entity_id: Entity ID to pass through to DCL queries (e.g., "meridian")
+            entity_id: Entity ID to pass through to DCL queries — resolved from DCL engagement state
         """
         self.dcl_client = get_semantic_client()
         self.claude_client = claude_client

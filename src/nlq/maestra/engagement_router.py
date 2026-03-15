@@ -136,7 +136,7 @@ async def chat(req: ChatRequest):
 
     Validates customer exists, assembles context, dispatches actions,
     returns formatted response. No separate demo mode — the seeded
-    Meridian/Cascadia tenant IS the demo.
+    seeded demo tenant IS the demo.
     """
     import time as _time
 
