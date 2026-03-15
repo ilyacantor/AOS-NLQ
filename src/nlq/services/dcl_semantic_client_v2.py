@@ -11,6 +11,7 @@ src/nlq/config/metric_concept_map.yaml.
 
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -134,6 +135,25 @@ class DCLSemanticClientV2:
             )
         return METRIC_CONCEPT_MAP[canonical]
 
+    _RE_BARE_YEAR = re.compile(r"^20\d{2}$")
+
+    def _is_bare_year(self, period: Optional[str]) -> bool:
+        """Check if period is a bare year like '2025' (not quarterly '2025-Q1')."""
+        return bool(period and self._RE_BARE_YEAR.match(str(period)))
+
+    def _expand_year_to_quarters(self, year: str) -> List[str]:
+        """Expand '2025' → ['2025-Q1', '2025-Q2', '2025-Q3', '2025-Q4']."""
+        return [f"{year}-Q{q}" for q in range(1, 5)]
+
+    def _get_latest_quarter(self) -> Optional[str]:
+        """Ask DCL for the latest available period from triples overview."""
+        overview = self._get("/api/dcl/triples/overview")
+        periods = overview.get("periods", [])
+        if not periods:
+            return None
+        # Periods are strings like "2025-Q1"; sorted lexically = chronologically
+        return sorted(periods)[-1]
+
     def _browse_triple(
         self,
         domain: str,
@@ -200,6 +220,11 @@ class DCLSemanticClientV2:
     ) -> Dict[str, Any]:
         """Resolve a metric name to a value from DCL triples.
 
+        Period handling:
+        - Bare year ("2025") → query each quarter, SUM additive / AVG non-additive
+        - Quarterly ("2025-Q1") → single query
+        - None → default to latest available quarter
+
         Returns: {value, entity_id, period, confidence_score, confidence_tier,
                   source_system, data_source, metric_name, concept}
         """
@@ -211,7 +236,40 @@ class DCLSemanticClientV2:
         concept = defn["concept"]
         prop = defn["property"]
         domain = concept.split(".")[0]
+        unit = defn.get("unit", "usd")
 
+        # --- Period resolution ---
+        if self._is_bare_year(period):
+            return self._get_metric_annual(
+                metric_name, concept, prop, domain, unit, entity_id, period,
+            )
+
+        if period is None:
+            period = self._get_latest_quarter()
+            if period is None:
+                return {
+                    "value": None,
+                    "error": "No periods available in DCL triples — store may be empty",
+                    "metric_name": metric_name,
+                    "concept": concept,
+                    "data_source": "dcl_v2",
+                }
+
+        # --- Single quarter query ---
+        return self._get_metric_single_period(
+            metric_name, concept, prop, domain, entity_id, period,
+        )
+
+    def _get_metric_single_period(
+        self,
+        metric_name: str,
+        concept: str,
+        prop: str,
+        domain: str,
+        entity_id: Optional[str],
+        period: str,
+    ) -> Dict[str, Any]:
+        """Query a single metric for one specific period."""
         browse_result = self._browse_triple(
             domain=domain,
             entity_id=entity_id,
@@ -227,7 +285,7 @@ class DCLSemanticClientV2:
                 "error": (
                     f"No triple found for concept='{concept}', property='{prop}'"
                     f"{f', entity_id={entity_id}' if entity_id else ''}"
-                    f"{f', period={period}' if period else ''}"
+                    f", period={period}"
                     f" — domain '{domain}' returned {len(triples)} triples, "
                     f"none matching the target concept"
                 ),
@@ -246,6 +304,65 @@ class DCLSemanticClientV2:
             "data_source": "dcl_v2",
             "metric_name": metric_name,
             "concept": concept,
+        }
+
+    def _get_metric_annual(
+        self,
+        metric_name: str,
+        concept: str,
+        prop: str,
+        domain: str,
+        unit: str,
+        entity_id: Optional[str],
+        year: str,
+    ) -> Dict[str, Any]:
+        """Query a metric across Q1-Q4 of a year. SUM additive, AVG non-additive."""
+        quarters = self._expand_year_to_quarters(year)
+        values: List[float] = []
+        last_triple: Optional[Dict[str, Any]] = None
+
+        for q in quarters:
+            browse_result = self._browse_triple(
+                domain=domain,
+                entity_id=entity_id,
+                period=q,
+                property_name=prop,
+            )
+            triples = browse_result.get("triples", [])
+            triple = self._extract_triple_value(triples, concept, prop)
+            if triple is not None:
+                val = self._numeric_value(triple)
+                if val is not None:
+                    values.append(val)
+                    last_triple = triple
+
+        if not values:
+            return {
+                "value": None,
+                "error": (
+                    f"No data for '{concept}' across {year} Q1-Q4"
+                    f"{f', entity_id={entity_id}' if entity_id else ''}"
+                ),
+                "metric_name": metric_name,
+                "concept": concept,
+                "data_source": "dcl_v2",
+            }
+
+        # Additive units (money, counts) → SUM; rates/ratios/pcts → AVG
+        is_additive = unit in ("usd", "count", "months", "days", "hours", "points")
+        aggregated = sum(values) if is_additive else sum(values) / len(values)
+
+        return {
+            "value": aggregated,
+            "entity_id": entity_id or (last_triple.get("entity_id") if last_triple else None),
+            "period": year,
+            "confidence_score": last_triple.get("confidence_score") if last_triple else None,
+            "confidence_tier": last_triple.get("confidence_tier") if last_triple else None,
+            "source_system": last_triple.get("source_system") if last_triple else None,
+            "data_source": "dcl_v2",
+            "metric_name": metric_name,
+            "concept": concept,
+            "quarters_found": len(values),
         }
 
     def get_metric_timeseries(
@@ -305,6 +422,19 @@ class DCLSemanticClientV2:
         defn = self._resolve_metric_def(metric_name)
         if defn["type"] != "derived":
             return self.get_metric(metric_name, entity_id=entity_id, period=period)
+
+        # For derived metrics with bare year, default to latest quarter
+        # (formula needs same-period components — annual aggregation not applicable)
+        if self._is_bare_year(period) or period is None:
+            resolved = self._get_latest_quarter()
+            if resolved is None:
+                return {
+                    "value": None,
+                    "error": "No periods available in DCL triples — store may be empty",
+                    "metric_name": metric_name,
+                    "data_source": "dcl_v2",
+                }
+            period = resolved
 
         components = defn.get("components", [])
         formula = defn.get("formula", "")

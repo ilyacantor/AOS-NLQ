@@ -229,8 +229,8 @@ def _extract_chart_type(query: str) -> Optional[str]:
 def _extract_metric(query: str) -> Optional[str]:
     """Extract a metric name from a query using DCL semantic client."""
     try:
-        from src.nlq.services.dcl_semantic_client import get_semantic_client
-        semantic_client = get_semantic_client()
+        from src.nlq.services.dcl_client_router import get_routed_client
+        semantic_client = get_routed_client()
 
         # Try to find a metric in the query
         words = query.lower().split()

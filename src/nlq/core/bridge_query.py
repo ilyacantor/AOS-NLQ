@@ -77,8 +77,8 @@ class BridgeHandler:
 
         Returns dict mapping region name -> annual revenue value.
         """
-        from src.nlq.services.dcl_semantic_client import get_semantic_client
-        client = get_semantic_client()
+        from src.nlq.services.dcl_client_router import get_routed_client
+        client = get_routed_client()
         result = client.query(
             metric="revenue",
             dimensions=["region"],

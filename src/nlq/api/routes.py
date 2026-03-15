@@ -419,8 +419,8 @@ def _extract_period_from_dashboard_query(question: str) -> str:
         return f"20{year_match.group(1)}"
 
     # Default to latest available period
-    from src.nlq.services.dcl_semantic_client import get_semantic_client
-    return get_semantic_client().get_latest_period()
+    from src.nlq.services.dcl_client_router import get_routed_client
+    return get_routed_client().get_latest_period()
 
 
 def _handle_dashboard_query(question: str, persona: Optional[str] = None, entity_id: str = None) -> Optional[IntentMapResponse]:
@@ -1125,9 +1125,9 @@ def _try_superlative_query(question: str) -> Optional[SimpleMetricResult]:
         return None
 
     # Get the DCL client
-    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    from src.nlq.services.dcl_client_router import get_routed_client
     from src.nlq.api.query_helpers import determine_domain
-    dcl_client = get_semantic_client()
+    dcl_client = get_routed_client()
 
     # Execute ranking query
     order_by = get_sort_order(intent.ranking_type)
@@ -1612,9 +1612,9 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None, entit
     Uses the explicit period from the query when provided.
     Falls back to latest available period only when no period was specified.
     """
-    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    from src.nlq.services.dcl_client_router import get_routed_client
 
-    dcl_client = get_semantic_client()
+    dcl_client = get_routed_client()
 
     # Use explicit period from query, or fall back to latest
     requested_period = period or dcl_client.get_latest_period()
@@ -2140,7 +2140,7 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
     Returns None if no confident match found.
     """
     import re
-    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
     from src.nlq.knowledge.synonyms import normalize_metric
 
     q = question.lower().strip()
@@ -2640,8 +2640,8 @@ def _try_ingest_status_core(question: str) -> Optional[IngestStatusResult]:
     if not _is_ingest_question(question):
         return None
 
-    from src.nlq.services.dcl_semantic_client import get_semantic_client
-    dcl_client = get_semantic_client()
+    from src.nlq.services.dcl_client_router import get_routed_client
+    dcl_client = get_routed_client()
     ingest_data = dcl_client.get_ingest_runs()
 
     answer = _format_ingest_answer(question, ingest_data)
@@ -3835,7 +3835,7 @@ async def report_dimensions():
         return _dimension_cache["data"]
 
     from src.nlq.services.period_engine import get_all_periods
-    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
     from src.nlq.core.report_intent import _KNOWN_SEGMENTS
     from src.nlq.core.entity_registry import get_entity_registry
 

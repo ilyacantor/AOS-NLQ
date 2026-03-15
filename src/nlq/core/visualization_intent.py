@@ -259,7 +259,7 @@ def detect_visualization_intent(query: str, persona: Optional[str] = None) -> Vi
     # Detect dimensions using DCL semantic client
     dimensions = []
     try:
-        from src.nlq.services.dcl_semantic_client import get_semantic_client
+        from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
         semantic_client = get_semantic_client()
 
         # Extract "by X" patterns and resolve through DCL
@@ -414,7 +414,7 @@ def _extract_metrics_from_query(query: str, persona: Optional[str] = None) -> Tu
     """
     import logging
     import re
-    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
 
     logger = logging.getLogger(__name__)
     metrics = []

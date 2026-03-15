@@ -11,7 +11,7 @@ a structured error — not a quiet redirect to the legacy path.
 import logging
 from typing import Any, Dict, List, Optional, Set
 
-from src.nlq.services.dcl_semantic_client import DCLSemanticClient
+from src.nlq.services.dcl_semantic_client import DCLSemanticClient, _entity_id_ctx
 from src.nlq.services.dcl_semantic_client_v2 import (
     DCLSemanticClientV2,
     resolve_metric_name,
@@ -119,6 +119,14 @@ class DCLClientRouter:
         """Dimension validation — delegates to old catalog."""
         return self.old.validate_dimension(metric, dimension)
 
+    def resolve_dimension(self, user_term: str):
+        """Dimension resolution — delegates to old catalog."""
+        return self.old.resolve_dimension(user_term)
+
+    def get_valid_dimensions(self, metric_id: str):
+        """Get valid dimensions for a metric — delegates to old catalog."""
+        return self.old.get_valid_dimensions(metric_id)
+
     # ------------------------------------------------------------------
     # v1-compatible query() — translates old-style calls to v2
     # ------------------------------------------------------------------
@@ -141,6 +149,10 @@ class DCLClientRouter:
         v2 get_metric() calls so that executor.py and routes.py work
         without changes to their call sites.
         """
+        # Auto-read entity_id from context when not explicitly provided
+        if entity_id is None:
+            entity_id = _entity_id_ctx.get()
+
         # Extract period from time_range
         period = None
         if time_range:

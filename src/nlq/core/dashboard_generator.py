@@ -27,7 +27,7 @@ from src.nlq.core.debug_info import (
 )
 from src.nlq.knowledge.display import get_display_name, get_domain
 from src.nlq.knowledge.schema import get_metric_unit
-from src.nlq.services.dcl_semantic_client import get_semantic_client
+from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
 
 import logging
 

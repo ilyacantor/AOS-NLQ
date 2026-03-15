@@ -35,8 +35,8 @@ def _query_dcl_value(metric: str, period: str) -> Optional[Any]:
     - Additive metrics (revenue, counts): summed
     - Non-additive metrics (pct, ratio, score, days): averaged
     """
-    from src.nlq.services.dcl_semantic_client import get_semantic_client
-    dcl_client = get_semantic_client()
+    from src.nlq.services.dcl_client_router import get_routed_client
+    dcl_client = get_routed_client()
 
     result = dcl_client.query(metric=metric, time_range={"period": period})
     if result.get("error"):
