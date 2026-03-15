@@ -190,57 +190,57 @@ class DashboardDataResolver:
 
         metric = metrics[0].metric
         cq = current_quarter()
+        quarters = _quarter_range(8)
+        prior_q = quarters[-2] if len(quarters) >= 2 else None
 
-        # Query DCL for latest quarter value (quarterly grain is most reliable
-        # because DCL ingest data is stored at quarter grain)
-        result = self._query_dcl(
-            metric=metric,
-            filters=filters,
-            time_range={"period": cq, "granularity": "quarterly"},
-        )
-
-        if result.get("error") or not result.get("data"):
-            # Retry with yearly grain as fallback
-            logger.info(f"KPI quarterly query failed for '{metric}', retrying with yearly grain")
+        # Parallel: fetch current value, prior value, and sparkline concurrently
+        def _fetch_current():
             result = self._query_dcl(
-                metric=metric,
-                filters=filters,
-                time_range={"period": reference_year, "granularity": "yearly"},
+                metric=metric, filters=filters,
+                time_range={"period": cq, "granularity": "quarterly"},
             )
             if result.get("error") or not result.get("data"):
-                return {"loading": False, "error": result.get("error", f"No data for '{metric}'")}
+                result = self._query_dcl(
+                    metric=metric, filters=filters,
+                    time_range={"period": reference_year, "granularity": "yearly"},
+                )
+            return self._extract_value_from_result(result)
 
-        # Extract value from DCL response
-        value = self._extract_value_from_result(result)
+        def _fetch_prior():
+            if not prior_q:
+                return None
+            result = self._query_dcl(
+                metric=metric, filters=filters,
+                time_range={"period": prior_q, "granularity": "quarterly"},
+            )
+            return self._extract_value_from_result(result)
+
+        def _fetch_sparkline():
+            return self._query_quarters_sparkline(metric, filters, 8)
+
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            fut_current = pool.submit(propagate_context(_fetch_current))
+            fut_prior = pool.submit(propagate_context(_fetch_prior))
+            fut_sparkline = pool.submit(propagate_context(_fetch_sparkline))
+            value = fut_current.result()
+            prior_value = fut_prior.result()
+            sparkline_data = fut_sparkline.result()
+
         if value is None:
             return {"loading": False, "error": f"No data for '{metric}'"}
 
-        # Get prior quarter for trend (best-effort — trend is optional)
-        quarters = _quarter_range(8)
-        prior_q = quarters[-2] if len(quarters) >= 2 else None
+        # Compute trend
         trend = None
-        if prior_q:
-            prior_result = self._query_dcl(
-                metric=metric,
-                filters=filters,
-                time_range={"period": prior_q, "granularity": "quarterly"},
-            )
-            prior_value = self._extract_value_from_result(prior_result)
-            if prior_value is not None and prior_value != 0:
-                pct_change = ((value - prior_value) / prior_value) * 100
-                trend = {
-                    "direction": "up" if pct_change > 0 else "down" if pct_change < 0 else "flat",
-                    "percent_change": abs(round(pct_change, 1)),
-                    "comparison_label": f"vs {prior_q}"
-                }
+        if prior_value is not None and prior_value != 0:
+            pct_change = ((value - prior_value) / prior_value) * 100
+            trend = {
+                "direction": "up" if pct_change > 0 else "down" if pct_change < 0 else "flat",
+                "percent_change": abs(round(pct_change, 1)),
+                "comparison_label": f"vs {prior_q}"
+            }
 
-        # Format value
         formatted_value = self._format_value(metric, value)
 
-        # Get sparkline data (last 8 quarters)
-        sparkline_data = self._query_quarters_sparkline(metric, filters, 8)
-
-        # Include filter info in response
         filter_label = None
         if filters:
             filter_label = ", ".join(f"{k}: {v}" for k, v in filters.items())
@@ -255,18 +255,21 @@ class DashboardDataResolver:
         }
 
     def _query_quarters_sparkline(self, metric: str, filters: dict, num_quarters: int) -> Optional[List[float]]:
-        """Query individual quarters and build sparkline data."""
+        """Query individual quarters in parallel and build sparkline data."""
         quarters = _quarter_range(num_quarters)
-        values = []
-        for q in quarters:
+
+        def _fetch_quarter(q: str) -> float:
             result = self._query_dcl(
                 metric=metric,
                 filters=filters,
                 time_range={"period": q, "granularity": "quarterly"},
             )
             val = self._extract_value_from_result(result)
-            values.append(round(val, 1) if val is not None else 0)
-        # Only return if we got at least some real data
+            return round(val, 1) if val is not None else 0
+
+        with ThreadPoolExecutor(max_workers=num_quarters) as pool:
+            values = list(pool.map(propagate_context(_fetch_quarter), quarters))
+
         if any(v != 0 for v in values):
             return values
         return None
@@ -285,21 +288,25 @@ class DashboardDataResolver:
 
         metric = metrics[0].metric
 
-        # Query each quarter individually to build the time series
+        # Query all quarters in parallel
         quarters = _quarter_range(8)
-        data_points = []
-        for q in quarters:
+
+        def _fetch_quarter(q: str):
             result = self._query_dcl(
-                metric=metric,
-                filters=filters,
+                metric=metric, filters=filters,
                 time_range={"period": q, "granularity": "quarterly"},
             )
             val = self._extract_value_from_result(result)
             if val is not None:
-                # Format label nicely (2025-Q1 -> Q1 2025)
                 parts = q.split("-")
                 label = f"{parts[1]} {parts[0]}" if len(parts) == 2 else q
-                data_points.append({"label": label, "value": round(val, 1)})
+                return {"label": label, "value": round(val, 1)}
+            return None
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            results = list(pool.map(propagate_context(_fetch_quarter), quarters))
+
+        data_points = [r for r in results if r is not None]
 
         if not data_points:
             return {"loading": False, "error": f"No time series data for '{metric}'"}

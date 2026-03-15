@@ -76,6 +76,13 @@ gross_margin_pct:
       property: "amount"
   aliases: ["gross_margin_percent"]
 
+ebitda:
+  concept: "pnl.ebitda"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["earnings_before_interest_taxes"]
+
 operating_margin_pct:
   type: derived
   unit: "pct"

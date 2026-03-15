@@ -89,15 +89,21 @@ class DCLClientRouter:
         """Get semantic catalog (still from old client's cached catalog)."""
         return self.old.get_catalog()
 
-    def resolve_metric(self, user_term: str):
+    def resolve_metric(self, user_term: str, **kwargs):
         """Resolve user term to canonical metric.
 
         Tries v2 metric map first, falls back to old catalog.
+        Accepts **kwargs for backward compatibility with callers
+        passing local_only or other flags.
         """
         canonical = resolve_metric_name(user_term)
         if canonical is not None:
             return {"id": canonical, "source": "v2_metric_map"}
-        return self.old.resolve_metric(user_term)
+        return self.old.resolve_metric(user_term, **kwargs)
+
+    def validate_metrics(self, metric_ids: list):
+        """Validate a list of metric IDs — delegates to old client."""
+        return self.old.validate_metrics(metric_ids)
 
     def search(self, term: str, **kwargs):
         """Semantic search — delegates to old client."""

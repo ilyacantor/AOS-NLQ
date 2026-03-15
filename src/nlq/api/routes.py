@@ -1428,7 +1428,7 @@ def _try_tiered_metric_query_core(question: str, entity_id: Optional[str] = None
         # Only strip if it's an entity filter, not a period reference
         # Matches: "2025", "Q1 2025", "2025-Q1", "2025 Q1", "H1 2025"
         is_period_ref = bool(_re.match(
-            r'^(?:q[1-4]\s+)?20\d{2}(?:[-\s]q[1-4])?$|^20\d{2}[-\s]?q[1-4]$|^h[12]\s+20\d{2}$',
+            r'^(?:fy\s*)?(?:q[1-4]\s+)?20\d{2}(?:[-\s]q[1-4])?$|^20\d{2}[-\s]?q[1-4]$|^h[12]\s+20\d{2}$|^fy\s*20\d{2}$',
             captured, _re.IGNORECASE,
         ))
         is_period_phrase = captured in ("this year", "last year", "this quarter", "last quarter")
@@ -1486,7 +1486,10 @@ def _try_tiered_metric_query_core(question: str, entity_id: Optional[str] = None
         " in 2024-q1", " in 2024-q2", " in 2024-q3", " in 2024-q4",
         " in 2025-q1", " in 2025-q2", " in 2025-q3", " in 2025-q4",
         " in 2026-q1", " in 2026-q2", " in 2026-q3", " in 2026-q4",
+        " for fy 2024", " for fy 2025", " for fy 2026",
+        " for fy2024", " for fy2025", " for fy2026",
         " for 2024", " for 2025", " for 2026",
+        " in fy 2024", " in fy 2025", " in fy 2026",
         " in 2024", " in 2025", " in 2026",
         " during 2024", " during 2025", " during 2026",
         " for q1 2024", " for q1 2025", " for q1 2026",
@@ -1504,6 +1507,8 @@ def _try_tiered_metric_query_core(question: str, entity_id: Optional[str] = None
         " 2024-q1", " 2024-q2", " 2024-q3", " 2024-q4",
         " 2025-q1", " 2025-q2", " 2025-q3", " 2025-q4",
         " 2026-q1", " 2026-q2", " 2026-q3", " 2026-q4",
+        " fy 2024", " fy 2025", " fy 2026",
+        " fy2024", " fy2025", " fy2026",
         " 2024", " 2025", " 2026",
         " this year", " last year", " this quarter", " last quarter",
         " this quater", " last quater",  # misspellings
@@ -1535,15 +1540,21 @@ def _try_tiered_metric_query_core(question: str, entity_id: Optional[str] = None
         if metric_query.startswith(prefix):
             metric_query = metric_query[len(prefix):].strip()
 
+    # Choose the right builder based on entity_id
+    def _query_fn(metric, period=None, entity_id=entity_id, filters=None):
+        if entity_id == "combined":
+            return _build_combined_metric_result(metric, period=period, filters=filters)
+        return _build_simple_metric_result(metric, period=period, entity_id=entity_id, filters=filters)
+
     # Try synonym lookup
     resolved_metric = normalize_metric(metric_query)
     if resolved_metric:
-        return _build_simple_metric_result(resolved_metric, period=_extracted_period, entity_id=entity_id)
+        return _query_fn(resolved_metric, period=_extracted_period)
 
     # Also try the original query in case it's already a metric name
     resolved_metric = normalize_metric(q.rstrip("?").strip())
     if resolved_metric:
-        return _build_simple_metric_result(resolved_metric, period=_extracted_period, entity_id=entity_id)
+        return _query_fn(resolved_metric, period=_extracted_period)
 
     # Step 3: Try embedding-based lookup (CHEAP - ~$0.0001)
     # Only do this if we have the embedding index available
@@ -1563,12 +1574,12 @@ def _try_tiered_metric_query_core(question: str, entity_id: Optional[str] = None
                 else:
                     result = loop.run_until_complete(metric_index.lookup(metric_query))
                     if result and result.is_high_confidence:
-                        return _build_simple_metric_result(result.canonical_metric, period=_extracted_period, entity_id=entity_id)
+                        return _query_fn(result.canonical_metric, period=_extracted_period)
             except RuntimeError:
                 # No event loop, create one
                 result = asyncio.run(metric_index.lookup(metric_query))
                 if result and result.is_high_confidence:
-                    return _build_simple_metric_result(result.canonical_metric, period=_extracted_period, entity_id=entity_id)
+                    return _query_fn(result.canonical_metric, period=_extracted_period)
     except ImportError:
         pass  # Embedding index not available, fall through
     except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
@@ -3950,7 +3961,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
         _is_cost_query = any(phrase in _q_cost for phrase in [
             "cost structure", "cost driver", "biggest cost",
             "opex breakdown", "operating expenses breakdown",
-            "operating expense",
+            "operating expense breakdown",
         ])
         if _is_cost_query:
             from src.nlq.services.dcl_client_router import get_routed_client as _get_cost_sc
@@ -4291,8 +4302,46 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
             # Check if this should be a visual dashboard first
             should_viz, viz_requirements = should_generate_visualization(request.question, persona=request.persona)
             if should_viz and viz_requirements.intent != VisualizationIntent.SIMPLE_ANSWER:
-                # Let the visualization intent handler below generate proper widgets
-                pass
+                # Generate dashboard directly — don't fall through intermediate checks
+                try:
+                    debug_info = DashboardDebugInfo(original_query=request.question)
+                    dashboard_schema = generate_dashboard_schema(
+                        query=request.question,
+                        requirements=viz_requirements,
+                        debug_info=debug_info,
+                    )
+                    data_resolver = DashboardDataResolver()
+                    widget_data = data_resolver.resolve_dashboard_data(
+                        dashboard_schema,
+                        reference_year=current_year(),
+                    )
+                    dashboard_dict = dashboard_schema.model_dump()
+                    session_id = request.session_id or "anon"
+                    set_session_dashboard(session_id, dashboard_dict, widget_data)
+                    await _log_query_event(
+                        request.question, "bypass",
+                        message="Dashboard visual (early)",
+                        persona=viz_requirements.persona or "CFO",
+                        execution_time_ms=_elapsed_ms(_start_time),
+                        session_id=request.session_id,
+                    )
+                    return NLQResponse(
+                        success=True,
+                        answer=f"Here's a dashboard showing {dashboard_schema.title}",
+                        value=None, unit=None,
+                        confidence=viz_requirements.confidence,
+                        parsed_intent="VISUALIZATION",
+                        resolved_metric=viz_requirements.metrics[0] if viz_requirements.metrics else None,
+                        resolved_period=current_year(),
+                        response_type="dashboard",
+                        dashboard=dashboard_dict,
+                        dashboard_data=widget_data,
+                        data_source="live",
+                        provenance=data_resolver.provenance,
+                    )
+                except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
+                    logger.error(f"Dashboard generation failed (early path): {e}", exc_info=True)
+                    # Fall through to intermediate checks and downstream viz handler
             else:
                 # Fallback to text summary for non-visual dashboard requests
                 dashboard_response = _handle_dashboard_query(request.question, persona=request.persona, entity_id=_request_entity_id)

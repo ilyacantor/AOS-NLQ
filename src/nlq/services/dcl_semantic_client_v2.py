@@ -279,6 +279,46 @@ class DCLSemanticClientV2:
         triples = browse_result.get("triples", [])
         triple = self._extract_triple_value(triples, concept, prop)
 
+        # If no triples found at all, retry without period filter.
+        # Some data (e.g. employee headcount) is stored with period=NULL
+        # meaning "current state" — period-filtered queries won't find it.
+        if not triples and period:
+            browse_no_period = self._browse_triple(
+                domain=domain,
+                entity_id=entity_id,
+                period=None,
+                property_name=prop,
+            )
+            triples = browse_no_period.get("triples", [])
+            triple = self._extract_triple_value(triples, concept, prop)
+
+        # If no exact concept match but concept is a ".total" aggregate,
+        # sum all triples in the domain with the matching property.
+        # e.g. employee.total sums employee.sales + employee.finance + ...
+        if triple is None and concept.endswith(".total") and triples:
+            domain_prefix = concept.rsplit(".total", 1)[0] + "."
+            matching = [t for t in triples
+                        if t.get("concept", "").startswith(domain_prefix)
+                        and t.get("property") == prop]
+            if matching:
+                total = 0.0
+                last = matching[-1]
+                for t in matching:
+                    val = self._numeric_value(t)
+                    if val is not None:
+                        total += val
+                return {
+                    "value": total,
+                    "entity_id": entity_id or last.get("entity_id"),
+                    "period": last.get("period"),
+                    "confidence_score": last.get("confidence_score"),
+                    "confidence_tier": last.get("confidence_tier"),
+                    "source_system": last.get("source_system"),
+                    "data_source": "dcl_v2",
+                    "metric_name": metric_name,
+                    "concept": concept,
+                }
+
         if triple is None:
             return {
                 "value": None,

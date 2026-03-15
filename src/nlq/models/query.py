@@ -10,7 +10,7 @@ from datetime import date
 from enum import Enum
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
 class QueryMode(str, Enum):
@@ -43,7 +43,8 @@ class NLQRequest(BaseModel):
         ...,
         min_length=1,
         max_length=1000,
-        description="Natural language question about financial data"
+        description="Natural language question about financial data",
+        validation_alias=AliasChoices("question", "query"),
     )
 
     reference_date: Optional[date] = Field(
