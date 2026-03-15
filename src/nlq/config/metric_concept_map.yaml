@@ -1,0 +1,479 @@
+# NLQ metric name → DCL triple concept + property + computation
+#
+# Types:
+#   direct  — single triple lookup by concept + property
+#   derived — computed from multiple triples using formula
+#
+# Each NLQ metric name maps to exactly one resolution strategy.
+# Missing metric = structured error from the v2 client, not silent fallback.
+
+# ─── Revenue & Sales ───────────────────────────────────────────────
+
+revenue:
+  concept: "revenue.total"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["total_revenue", "top_line"]
+
+arr:
+  concept: "revenue.recurring"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["annual_recurring_revenue", "recurring_revenue"]
+
+new_logo_revenue:
+  concept: "revenue.new_logo"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+expansion_revenue:
+  concept: "revenue.expansion"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+renewal_revenue:
+  concept: "revenue.renewal"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+bookings:
+  concept: "revenue.bookings"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+# ─── Cost & Profitability ─────────────────────────────────────────
+
+cogs:
+  concept: "cogs.total"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+gross_margin:
+  type: derived
+  unit: "usd"
+  formula: "revenue.total - cogs.total"
+  components:
+    - concept: "revenue.total"
+      property: "amount"
+    - concept: "cogs.total"
+      property: "amount"
+
+gross_margin_pct:
+  type: derived
+  unit: "pct"
+  formula: "(revenue.total - cogs.total) / revenue.total * 100"
+  components:
+    - concept: "revenue.total"
+      property: "amount"
+    - concept: "cogs.total"
+      property: "amount"
+  aliases: ["gross_margin_percent"]
+
+operating_margin_pct:
+  type: derived
+  unit: "pct"
+  formula: "pnl.ebitda / revenue.total * 100"
+  components:
+    - concept: "pnl.ebitda"
+      property: "amount"
+    - concept: "revenue.total"
+      property: "amount"
+  aliases: ["operating_margin", "ebitda_margin"]
+
+net_income:
+  concept: "pnl.net_income"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["net_profit", "bottom_line"]
+
+# ─── Expenses ──────────────────────────────────────────────────────
+
+opex:
+  concept: "opex.total"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["operating_expenses"]
+
+sga:
+  concept: "opex.sga"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["selling_general_admin"]
+
+selling_expenses:
+  concept: "opex.selling"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+g_and_a_expenses:
+  concept: "opex.g_and_a"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["ga_expenses"]
+
+# ─── Balance Sheet ─────────────────────────────────────────────────
+
+cash:
+  concept: "asset.cash"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["cash_and_equivalents"]
+
+ar:
+  concept: "asset.accounts_receivable"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["accounts_receivable"]
+
+ap:
+  concept: "liability.accounts_payable"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["accounts_payable"]
+
+deferred_revenue:
+  concept: "liability.deferred_revenue"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+current_liabilities:
+  concept: "liability.current"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+# ─── People ────────────────────────────────────────────────────────
+
+headcount:
+  concept: "employee.total"
+  property: "headcount"
+  type: direct
+  unit: "count"
+  aliases: ["employees", "employee_count", "total_headcount"]
+
+engineering_headcount:
+  concept: "employee.engineering"
+  property: "headcount"
+  type: direct
+  unit: "count"
+
+sales_headcount:
+  concept: "employee.sales"
+  property: "headcount"
+  type: direct
+  unit: "count"
+
+cs_headcount:
+  concept: "employee.customer_success"
+  property: "headcount"
+  type: direct
+  unit: "count"
+
+product_headcount:
+  concept: "employee.product"
+  property: "headcount"
+  type: direct
+  unit: "count"
+
+marketing_headcount:
+  concept: "employee.marketing"
+  property: "headcount"
+  type: direct
+  unit: "count"
+
+ga_headcount:
+  concept: "employee.g_and_a"
+  property: "headcount"
+  type: direct
+  unit: "count"
+
+hires:
+  concept: "employee.hires"
+  property: "count"
+  type: direct
+  unit: "count"
+
+attrition:
+  concept: "employee.attrition"
+  property: "count"
+  type: direct
+  unit: "count"
+
+attrition_rate_pct:
+  concept: "employee.attrition_rate"
+  property: "rate"
+  type: direct
+  unit: "pct"
+  aliases: ["attrition_rate"]
+
+employee_growth_rate:
+  concept: "employee.growth_rate"
+  property: "rate"
+  type: direct
+  unit: "pct"
+
+# ─── Efficiency / SaaS ────────────────────────────────────────────
+
+burn_multiple:
+  type: derived
+  unit: "ratio"
+  formula: "cash_flow.net_burn / revenue.recurring"
+  components:
+    - concept: "cash_flow.net_burn"
+      property: "amount"
+    - concept: "revenue.recurring"
+      property: "amount"
+
+revenue_per_employee:
+  type: derived
+  unit: "usd"
+  formula: "revenue.total / employee.total"
+  components:
+    - concept: "revenue.total"
+      property: "amount"
+    - concept: "employee.total"
+      property: "headcount"
+
+magic_number:
+  type: derived
+  unit: "ratio"
+  formula: "(revenue.total[t] - revenue.total[t-1]) * 4 / opex.sales_marketing[t-1]"
+  components:
+    - concept: "revenue.total"
+      property: "amount"
+    - concept: "opex.sales_marketing"
+      property: "amount"
+
+ltv_cac:
+  concept: "service.ltv_cac"
+  property: "ratio"
+  type: direct
+  unit: "ratio"
+
+cac_payback_months:
+  concept: "service.cac_payback"
+  property: "months"
+  type: direct
+  unit: "months"
+
+# ─── Pipeline & Sales Metrics ─────────────────────────────────────
+
+pipeline:
+  concept: "customer.pipeline"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["qualified_pipeline", "sales_pipeline"]
+
+win_rate_pct:
+  concept: "customer.win_rate"
+  property: "rate"
+  type: direct
+  unit: "pct"
+  aliases: ["win_rate"]
+
+sales_cycle_days:
+  concept: "customer.sales_cycle"
+  property: "days"
+  type: direct
+  unit: "days"
+
+quota_attainment_pct:
+  concept: "customer.quota_attainment"
+  property: "rate"
+  type: direct
+  unit: "pct"
+  aliases: ["quota_attainment"]
+
+avg_deal_size:
+  concept: "customer.avg_deal_size"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+new_logos:
+  concept: "customer.new_logos"
+  property: "count"
+  type: direct
+  unit: "count"
+
+customer_count:
+  concept: "customer.total"
+  property: "count"
+  type: direct
+  unit: "count"
+  aliases: ["customers"]
+
+# ─── Retention ─────────────────────────────────────────────────────
+
+churn_rate_pct:
+  concept: "customer.churn_rate"
+  property: "rate"
+  type: direct
+  unit: "pct"
+  aliases: ["churn_rate", "churn"]
+
+logo_churn_pct:
+  concept: "customer.logo_churn"
+  property: "rate"
+  type: direct
+  unit: "pct"
+
+nrr:
+  concept: "customer.nrr"
+  property: "rate"
+  type: direct
+  unit: "pct"
+  aliases: ["net_revenue_retention"]
+
+# ─── Customer Success ─────────────────────────────────────────────
+
+nps:
+  concept: "customer.nps"
+  property: "score"
+  type: direct
+  unit: "score"
+
+csat:
+  concept: "customer.csat"
+  property: "score"
+  type: direct
+  unit: "score"
+
+support_tickets:
+  concept: "service.support_tickets"
+  property: "count"
+  type: direct
+  unit: "count"
+
+resolution_hours:
+  concept: "service.resolution_time"
+  property: "hours"
+  type: direct
+  unit: "hours"
+
+first_response_hours:
+  concept: "service.first_response"
+  property: "hours"
+  type: direct
+  unit: "hours"
+
+# ─── Tech / Engineering ───────────────────────────────────────────
+
+uptime_pct:
+  concept: "service.uptime"
+  property: "rate"
+  type: direct
+  unit: "pct"
+
+downtime_hours:
+  concept: "service.downtime"
+  property: "hours"
+  type: direct
+  unit: "hours"
+
+deploys_per_week:
+  concept: "service.deploys"
+  property: "count"
+  type: direct
+  unit: "count"
+
+security_vulns:
+  concept: "service.security_vulns"
+  property: "count"
+  type: direct
+  unit: "count"
+
+tech_debt_pct:
+  concept: "service.tech_debt"
+  property: "rate"
+  type: direct
+  unit: "pct"
+
+code_coverage_pct:
+  concept: "service.code_coverage"
+  property: "rate"
+  type: direct
+  unit: "pct"
+
+bug_escape_rate:
+  concept: "service.bug_escape_rate"
+  property: "rate"
+  type: direct
+  unit: "pct"
+
+critical_bugs:
+  concept: "service.critical_bugs"
+  property: "count"
+  type: direct
+  unit: "count"
+
+mttr_p1_hours:
+  concept: "service.mttr_p1"
+  property: "hours"
+  type: direct
+  unit: "hours"
+
+sprint_velocity:
+  concept: "service.sprint_velocity"
+  property: "points"
+  type: direct
+  unit: "points"
+
+features_shipped:
+  concept: "service.features_shipped"
+  property: "count"
+  type: direct
+  unit: "count"
+
+# ─── Other / Misc ─────────────────────────────────────────────────
+
+implementation_days:
+  concept: "service.implementation"
+  property: "days"
+  type: direct
+  unit: "days"
+
+cloud_spend:
+  concept: "vendor.cloud_spend"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+cloud_spend_pct_revenue:
+  type: derived
+  unit: "pct"
+  formula: "vendor.cloud_spend / revenue.total * 100"
+  components:
+    - concept: "vendor.cloud_spend"
+      property: "amount"
+    - concept: "revenue.total"
+      property: "amount"
+
+reps_at_quota_pct:
+  concept: "customer.reps_at_quota"
+  property: "rate"
+  type: direct
+  unit: "pct"
+
+unbilled_revenue:
+  concept: "asset.unbilled_revenue"
+  property: "amount"
+  type: direct
+  unit: "usd"

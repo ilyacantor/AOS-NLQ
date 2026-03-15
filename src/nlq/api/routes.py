@@ -429,9 +429,9 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None, entity
 
     All data is fetched from DCL.
     """
-    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    from src.nlq.services.dcl_client_router import get_routed_client
 
-    dcl_client = get_semantic_client()
+    dcl_client = get_routed_client()
 
     def _query_metric_value(metric: str, period: Optional[str] = None) -> Optional[float]:
         """Query a single metric value from DCL."""
@@ -472,8 +472,8 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None, entity
                 return data
             return None
         except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
-            logger.debug(f"Failed to query {metric}: {e}")
-            return None
+            logger.warning(f"Dashboard metric '{metric}' query failed: {e}")
+            raise
 
     def _build_period_data(period: Optional[str] = None) -> dict:
         period = period or current_year()
@@ -492,7 +492,11 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None, entity
         ]
         period_data = {}
         for metric in metrics_to_query:
-            value = _query_metric_value(metric, period)
+            try:
+                value = _query_metric_value(metric, period)
+            except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
+                logger.debug(f"Dashboard metric '{metric}' unavailable: {e}")
+                continue
             if value is not None:
                 period_data[metric] = value
         return period_data
@@ -906,7 +910,7 @@ def _try_comparison_query(question: str, entity_id: Optional[str] = None) -> Opt
     """
     import re as _re
     from src.nlq.core.dates import current_year, current_quarter, prior_quarter, prior_year
-    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
     from src.nlq.knowledge.synonyms import normalize_metric
     from src.nlq.knowledge.schema import get_metric_unit, is_additive_metric
     from src.nlq.knowledge.display import get_display_name
@@ -1803,7 +1807,9 @@ def _build_combined_metric_result(metric: str, period: Optional[str] = None, fil
         entity_ids = registry.get_entity_ids_sync()
     except ConnectionError as e:
         logger.error(f"Cannot build combined metric — DCL unreachable: {e}")
-        return None
+        raise RuntimeError(
+            f"Cannot build combined metric for '{metric}' — DCL entity registry unreachable: {e}"
+        ) from e
 
     if not entity_ids:
         return None
@@ -1974,7 +1980,7 @@ def _try_multi_metric_query(question: str) -> Optional[NLQResponse]:
         return None
 
     # Build results for each metric
-    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
     from src.nlq.knowledge.schema import get_metric_unit, get_canonical_unit
     from src.nlq.knowledge.display import get_display_name
 
@@ -2729,7 +2735,7 @@ def _handle_ambiguous_query_text(
     """
     import re
     from datetime import date as date_type
-    from src.nlq.services.dcl_semantic_client import get_semantic_client
+    from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
 
     dcl_client = get_semantic_client()
 
@@ -3324,7 +3330,7 @@ def _handle_ambiguous_query_text(
 
         # "biggest deals" or "2025 biggest deals" -> Show top deals for current + prior year
         if "biggest deals" in q or ("deals" in q and "biggest" in q):
-            from src.nlq.services.dcl_semantic_client import get_semantic_client
+            from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
             dcl_client = get_semantic_client()
 
             def _get_top_deals(year: str):
@@ -3947,7 +3953,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
             "operating expense",
         ])
         if _is_cost_query:
-            from src.nlq.services.dcl_semantic_client import get_semantic_client as _get_cost_sc
+            from src.nlq.services.dcl_client_router import get_routed_client as _get_cost_sc
             _cost_client = _get_cost_sc()
             _cost_metrics = [
                 ("cogs", "COGS"),
@@ -3998,7 +4004,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
         # Build a multi-metric CRO view instead of routing to dashboard.
         # =================================================================
         if "sales scorecard" in _q_cost or "sales score card" in _q_cost:
-            from src.nlq.services.dcl_semantic_client import get_semantic_client as _get_sales_sc
+            from src.nlq.services.dcl_client_router import get_routed_client as _get_sales_sc
             _sales_client = _get_sales_sc()
             _sales_metrics = [
                 ("pipeline", "Pipeline", "usd_millions", "$", "M"),
@@ -4169,7 +4175,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
             else:
                 _summary_period = current_quarter()
             # Build a multi-metric summary
-            from src.nlq.services.dcl_semantic_client import get_semantic_client as _get_sc
+            from src.nlq.services.dcl_client_router import get_routed_client as _get_sc
             dcl_client_summary = _get_sc()
             _summary_metrics = ["revenue", "gross_margin_pct", "ebitda", "net_income", "arr"]
             _summary_parts = []

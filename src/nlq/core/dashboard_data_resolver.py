@@ -11,7 +11,8 @@ from typing import Any, Dict, List, Optional
 
 from src.nlq.core.dates import current_year, current_quarter
 
-from src.nlq.services.dcl_semantic_client import get_semantic_client, propagate_context
+from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
+from src.nlq.services.dcl_semantic_client import propagate_context
 from src.nlq.knowledge.schema import get_metric_unit
 from src.nlq.knowledge.display import get_display_name
 from src.nlq.models.dashboard_schema import (

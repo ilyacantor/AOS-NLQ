@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from src.nlq.core.confidence import ConfidenceCalculator, bounded_confidence
 from src.nlq.models.query import ParsedQuery, QueryIntent
 from src.nlq.models.response import QueryResult
-from src.nlq.services.dcl_semantic_client import get_semantic_client
+from src.nlq.services.dcl_client_router import get_routed_client
 
 if TYPE_CHECKING:
     from src.nlq.llm.client import ClaudeClient
@@ -36,7 +36,7 @@ class QueryExecutor:
             claude_client: Optional Claude client for LLM fallback on unknown breakdowns
             entity_id: Entity ID to pass through to DCL queries — resolved from DCL engagement state
         """
-        self.dcl_client = get_semantic_client()
+        self.dcl_client = get_routed_client()
         self.claude_client = claude_client
         self.entity_id = entity_id
         self.confidence_calculator = ConfidenceCalculator()
@@ -234,6 +234,7 @@ class QueryExecutor:
         if parsed_query.entity:
             filters.append({"dimension": "entity", "value": parsed_query.entity})
 
+        graph_response = None
         try:
             graph_response = self.dcl_client.resolve_via_graph(
                 concepts=concepts,
@@ -241,7 +242,9 @@ class QueryExecutor:
                 filters=filters if filters else None,
             )
         except Exception as e:
-            logger.debug(f"Graph resolution attempt failed: {e}")
+            logger.info(f"Graph resolution unavailable for '{concepts}': {e}")
+
+        if graph_response is None:
             return None
 
         # If graph can't answer, fall back to flat query
