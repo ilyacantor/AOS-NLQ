@@ -1,0 +1,129 @@
+{
+  "entity_id": "meridian-001",
+  "entity_name": "Meridian Software Inc.",
+  "industry": "SaaS / Enterprise Software",
+  "fiscal_year_end": "2025-12-31",
+  "currency": "USD",
+  "accounts": [
+    {
+      "account_code": "4000",
+      "account_name": "Subscription Revenue",
+      "element": "revenue",
+      "natural_balance": "credit",
+      "amount": "3750000000.00",
+      "source": "entity_a"
+    },
+    {
+      "account_code": "4100",
+      "account_name": "Professional Services Revenue",
+      "element": "revenue",
+      "natural_balance": "credit",
+      "amount": "625000000.00",
+      "source": "entity_a"
+    },
+    {
+      "account_code": "4200",
+      "account_name": "Licensing Revenue",
+      "element": "revenue",
+      "natural_balance": "credit",
+      "amount": "625000000.00",
+      "source": "entity_a"
+    },
+    {
+      "account_code": "5000",
+      "account_name": "Hosting & Infrastructure COGS",
+      "element": "expense",
+      "natural_balance": "debit",
+      "amount": "750000000.00",
+      "source": "entity_a"
+    },
+    {
+      "account_code": "5100",
+      "account_name": "Professional Services COGS",
+      "element": "expense",
+      "natural_balance": "debit",
+      "amount": "375000000.00",
+      "source": "entity_a"
+    },
+    {
+      "account_code": "5200",
+      "account_name": "Customer Support COGS",
+      "element": "expense",
+      "natural_balance": "debit",
+      "amount": "250000000.00",
+      "source": "entity_a"
+    },
+    {
+      "account_code": "6000",
+      "account_name": "Sales & Marketing",
+      "element": "expense",
+      "natural_balance": "debit",
+      "amount": "1000000000.00",
+      "source": "entity_a"
+    },
+    {
+      "account_code": "6100",
+      "account_name": "Research & Development",
+      "element": "expense",
+      "natural_balance": "debit",
+      "amount": "875000000.00",
+      "source": "entity_a"
+    },
+    {
+      "account_code": "6200",
+      "account_name": "General & Administrative",
+      "element": "expense",
+      "natural_balance": "debit",
+      "amount": "375000000.00",
+      "source": "entity_a"
+    },
+    {
+      "account_code": "6300",
+      "account_name": "Stock-Based Compensation",
+      "element": "expense",
+      "natural_balance": "debit",
+      "amount": "250000000.00",
+      "source": "entity_a"
+    },
+    {
+      "account_code": "6400",
+      "account_name": "Depreciation & Amortization",
+      "element": "expense",
+      "natural_balance": "debit",
+      "amount": "187500000.00",
+      "source": "entity_a"
+    },
+    {
+      "account_code": "7000",
+      "account_name": "Interest Expense",
+      "element": "expense",
+      "natural_balance": "debit",
+      "amount": "62500000.00",
+      "source": "entity_a"
+    },
+    {
+      "account_code": "8000",
+      "account_name": "Income Tax Provision",
+      "element": "expense",
+      "natural_balance": "debit",
+      "amount": "75000000.00",
+      "source": "entity_a"
+    }
+  ],
+  "chart_of_accounts": [
+    {"account_code": "4000", "element": "revenue"},
+    {"account_code": "4100", "element": "revenue"},
+    {"account_code": "4200", "element": "revenue"},
+    {"account_code": "5000", "element": "expense"},
+    {"account_code": "5100", "element": "expense"},
+    {"account_code": "5200", "element": "expense"},
+    {"account_code": "6000", "element": "expense"},
+    {"account_code": "6100", "element": "expense"},
+    {"account_code": "6200", "element": "expense"},
+    {"account_code": "6300", "element": "expense"},
+    {"account_code": "6400", "element": "expense"},
+    {"account_code": "7000", "element": "expense"},
+    {"account_code": "8000", "element": "expense"},
+    {"account_code": "9000", "element": "revenue"}
+  ]
+}
