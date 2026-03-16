@@ -155,6 +155,27 @@ async def _deferred_init():
             f"cache, pattern seeding, and other services will still attempt to initialize"
         )
 
+    # Step 1b: Verify Maestra schema is accessible
+    try:
+        svc = get_persistence_service()
+        if svc and svc.is_available:
+            from src.nlq.maestra.engagement import EngagementService
+            eng_svc = EngagementService()
+            eng_svc._table("customer_engagements").select("customer_id").limit(1).execute()
+            logger.info("[Startup] Maestra schema verified — engagement table accessible")
+        else:
+            logger.error(
+                "[Startup] Supabase persistence not available — Maestra endpoints will fail. "
+                "Set SUPABASE_API_URL and SUPABASE_KEY environment variables."
+            )
+    except Exception as e:
+        failures.append("maestra_schema")
+        logger.error(
+            f"[Startup] Maestra schema NOT accessible: {e}. "
+            f"Apply schema: psql $DATABASE_URL -f sql/maestra/001_maestra_schema.sql "
+            f"and expose 'maestra' schema in Supabase API settings."
+        )
+
     # Step 2: Cache service
     try:
         await loop.run_in_executor(None, init_cache_service_from_env)
