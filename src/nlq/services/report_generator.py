@@ -324,8 +324,10 @@ class ReportGenerator:
     ) -> Dict[str, Optional[float]]:
         """Query metrics across periods and aggregate.
 
-        All metric×period queries are fired in parallel via a thread pool,
-        then aggregated per metric once results arrive.
+        Uses batch fetching via DCLSemanticClientV2.get_metrics_batch()
+        to minimize HTTP calls (one per DCL domain×period instead of one
+        per metric×period).  Falls back to per-metric query_fn if the
+        v2 batch client is unavailable or filters are present.
 
         For multi-period (full-year) columns:
           - Additive metrics (revenue, etc.) are summed.
@@ -344,8 +346,16 @@ class ReportGenerator:
         if not periods:
             return {}
 
-        # Fire all metric×period queries in parallel
-        # Key: (metric_id, period_index) -> result value
+        # Try batch fetching via v2 client (fewer HTTP calls)
+        if not filters:
+            try:
+                return self._query_periods_batch(line_items, periods)
+            except Exception as exc:
+                logger.warning(
+                    "Batch fetch failed, falling back to per-metric queries: %s", exc,
+                )
+
+        # Fallback: per-metric queries with reduced concurrency
         results_map: Dict[tuple, Optional[float]] = {}
 
         def _fetch(metric_id: str, period_idx: int, period_label: str):
@@ -363,7 +373,7 @@ class ReportGenerator:
                 )
             return (metric_id, period_idx, None)
 
-        with ThreadPoolExecutor(max_workers=min(32, len(line_items) * len(periods))) as pool:
+        with ThreadPoolExecutor(max_workers=min(8, len(line_items) * len(periods))) as pool:
             wrapped = propagate_context(_fetch)
             futures = [
                 pool.submit(wrapped, metric_id, pi, period_info.label)
@@ -374,7 +384,53 @@ class ReportGenerator:
                 metric_id, period_idx, value = future.result()
                 results_map[(metric_id, period_idx)] = value
 
-        # Aggregate per metric
+        return self._aggregate_results(line_items, periods, results_map)
+
+    def _query_periods_batch(
+        self,
+        line_items: List[str],
+        periods: list,
+    ) -> Dict[str, Optional[float]]:
+        """Batch-fetch metrics across periods using v2 client.
+
+        Makes one DCL HTTP call per domain×period instead of one per
+        metric×period.  For a P&L with 13 metrics across 4 quarters,
+        this reduces ~52 HTTP calls to ~16 (4 domains × 4 quarters).
+        """
+        from src.nlq.knowledge.schema import is_additive_metric, is_point_in_time_metric
+        from src.nlq.services.dcl_semantic_client_v2 import get_semantic_client_v2
+
+        v2 = get_semantic_client_v2()
+
+        # Fetch each period's batch in parallel (limited concurrency)
+        results_map: Dict[tuple, Optional[float]] = {}
+
+        def _batch_for_period(period_idx: int, period_label: str):
+            batch = v2.get_metrics_batch(line_items, entity_id=self.entity_id, period=period_label)
+            return period_idx, batch
+
+        with ThreadPoolExecutor(max_workers=min(8, len(periods))) as pool:
+            wrapped = propagate_context(_batch_for_period)
+            futures = [
+                pool.submit(wrapped, pi, period_info.label)
+                for pi, period_info in enumerate(periods)
+            ]
+            for future in as_completed(futures):
+                period_idx, batch = future.result()
+                for metric_id, value in batch.items():
+                    results_map[(metric_id, period_idx)] = value
+
+        return self._aggregate_results(line_items, periods, results_map)
+
+    @staticmethod
+    def _aggregate_results(
+        line_items: List[str],
+        periods: list,
+        results_map: Dict[tuple, Optional[float]],
+    ) -> Dict[str, Optional[float]]:
+        """Aggregate per-period results into a single value per metric."""
+        from src.nlq.knowledge.schema import is_additive_metric, is_point_in_time_metric
+
         aggregated: Dict[str, Optional[float]] = {}
         for metric_id in line_items:
             values_for_periods: List[float] = []
@@ -390,7 +446,6 @@ class ReportGenerator:
                     elif is_point_in_time_metric(metric_id):
                         aggregated[metric_id] = round(values_for_periods[-1], 2)
                     else:
-                        # Percentages, ratios, scores — average across periods
                         aggregated[metric_id] = round(
                             sum(values_for_periods) / len(values_for_periods), 2
                         )

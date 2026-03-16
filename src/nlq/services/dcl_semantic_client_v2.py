@@ -12,11 +12,16 @@ src/nlq/config/metric_concept_map.yaml.
 import logging
 import os
 import re
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 import yaml
+
+from src.nlq.services.dcl_semantic_client import propagate_context
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +100,10 @@ class DCLSemanticClientV2:
             )
         self.base_url = raw_url.rstrip("/")
         self._http = httpx.Client(base_url=self.base_url, timeout=30.0)
+        # Browse cache: key → (expire_time, response_dict)
+        self._browse_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+        self._browse_cache_lock = threading.Lock()
+        self._browse_cache_ttl = 120  # seconds
         logger.info(f"DCLSemanticClientV2 initialized — endpoint: {self.base_url}")
 
     # ------------------------------------------------------------------
@@ -162,7 +171,15 @@ class DCLSemanticClientV2:
         property_name: Optional[str] = None,
         limit: int = 50,
     ) -> Dict[str, Any]:
-        """Call /api/dcl/triples/browse with filters."""
+        """Call /api/dcl/triples/browse with filters. TTL-cached (120s)."""
+        cache_key = f"{domain}|{entity_id}|{period}|{property_name}|{limit}"
+        now = time.time()
+
+        with self._browse_cache_lock:
+            cached = self._browse_cache.get(cache_key)
+            if cached and now < cached[0]:
+                return cached[1]
+
         params: Dict[str, Any] = {"domain": domain, "limit": limit}
         if entity_id:
             params["entity_id"] = entity_id
@@ -170,7 +187,61 @@ class DCLSemanticClientV2:
             params["period"] = period
         if property_name:
             params["property"] = property_name
-        return self._get("/api/dcl/triples/browse", params=params)
+        result = self._get("/api/dcl/triples/browse", params=params)
+
+        with self._browse_cache_lock:
+            self._browse_cache[cache_key] = (now + self._browse_cache_ttl, result)
+
+        return result
+
+    def clear_browse_cache(self):
+        """Clear the browse cache. Useful for testing."""
+        with self._browse_cache_lock:
+            self._browse_cache.clear()
+
+    def _try_total_synthesis(
+        self,
+        triples: List[Dict[str, Any]],
+        concept: str,
+        prop: str,
+        metric_name: str,
+        entity_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """Synthesize a .total value by summing sub-concept triples.
+
+        If concept is 'employee.total', sums all 'employee.*' triples with
+        the matching property. Returns a result dict or None if no sub-concepts found.
+        """
+        if not concept.endswith(".total") or not triples:
+            return None
+
+        domain_prefix = concept.rsplit(".total", 1)[0] + "."
+        matching = [
+            t for t in triples
+            if t.get("concept", "").startswith(domain_prefix)
+            and t.get("property") == prop
+        ]
+        if not matching:
+            return None
+
+        total = 0.0
+        last = matching[-1]
+        for t in matching:
+            val = self._numeric_value(t)
+            if val is not None:
+                total += val
+
+        return {
+            "value": total,
+            "entity_id": entity_id or last.get("entity_id"),
+            "period": last.get("period"),
+            "confidence_score": last.get("confidence_score"),
+            "confidence_tier": last.get("confidence_tier"),
+            "source_system": last.get("source_system"),
+            "data_source": "dcl_v2",
+            "metric_name": metric_name,
+            "concept": concept,
+        }
 
     def _extract_triple_value(
         self,
@@ -294,30 +365,10 @@ class DCLSemanticClientV2:
 
         # If no exact concept match but concept is a ".total" aggregate,
         # sum all triples in the domain with the matching property.
-        # e.g. employee.total sums employee.sales + employee.finance + ...
-        if triple is None and concept.endswith(".total") and triples:
-            domain_prefix = concept.rsplit(".total", 1)[0] + "."
-            matching = [t for t in triples
-                        if t.get("concept", "").startswith(domain_prefix)
-                        and t.get("property") == prop]
-            if matching:
-                total = 0.0
-                last = matching[-1]
-                for t in matching:
-                    val = self._numeric_value(t)
-                    if val is not None:
-                        total += val
-                return {
-                    "value": total,
-                    "entity_id": entity_id or last.get("entity_id"),
-                    "period": last.get("period"),
-                    "confidence_score": last.get("confidence_score"),
-                    "confidence_tier": last.get("confidence_tier"),
-                    "source_system": last.get("source_system"),
-                    "data_source": "dcl_v2",
-                    "metric_name": metric_name,
-                    "concept": concept,
-                }
+        if triple is None:
+            synthesized = self._try_total_synthesis(triples, concept, prop, metric_name, entity_id)
+            if synthesized is not None:
+                return synthesized
 
         if triple is None:
             return {
@@ -361,7 +412,7 @@ class DCLSemanticClientV2:
         values: List[float] = []
         last_triple: Optional[Dict[str, Any]] = None
 
-        for q in quarters:
+        def _fetch_quarter(q: str) -> Optional[Tuple[float, Dict[str, Any]]]:
             browse_result = self._browse_triple(
                 domain=domain,
                 entity_id=entity_id,
@@ -370,11 +421,57 @@ class DCLSemanticClientV2:
             )
             triples = browse_result.get("triples", [])
             triple = self._extract_triple_value(triples, concept, prop)
+
+            # Try .total synthesis if no exact match
+            if triple is None:
+                synthesized = self._try_total_synthesis(triples, concept, prop, metric_name, entity_id)
+                if synthesized is not None and synthesized.get("value") is not None:
+                    return (synthesized["value"], synthesized)
+
             if triple is not None:
                 val = self._numeric_value(triple)
                 if val is not None:
-                    values.append(val)
-                    last_triple = triple
+                    return (val, triple)
+            return None
+
+        # Parallel quarter fetch (4 concurrent)
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            results = list(pool.map(propagate_context(_fetch_quarter), quarters))
+
+        for r in results:
+            if r is not None:
+                values.append(r[0])
+                last_triple = r[1]
+
+        # If no quarterly data found, try period=None (period-agnostic data)
+        if not values:
+            browse_no_period = self._browse_triple(
+                domain=domain,
+                entity_id=entity_id,
+                period=None,
+                property_name=prop,
+            )
+            triples = browse_no_period.get("triples", [])
+            triple = self._extract_triple_value(triples, concept, prop)
+            if triple is None:
+                synthesized = self._try_total_synthesis(triples, concept, prop, metric_name, entity_id)
+                if synthesized is not None and synthesized.get("value") is not None:
+                    synthesized["period"] = year
+                    return synthesized
+            elif triple is not None:
+                val = self._numeric_value(triple)
+                if val is not None:
+                    return {
+                        "value": val,
+                        "entity_id": triple.get("entity_id"),
+                        "period": year,
+                        "confidence_score": triple.get("confidence_score"),
+                        "confidence_tier": triple.get("confidence_tier"),
+                        "source_system": triple.get("source_system"),
+                        "data_source": "dcl_v2",
+                        "metric_name": metric_name,
+                        "concept": concept,
+                    }
 
         if not values:
             return {
@@ -562,8 +659,8 @@ class DCLSemanticClientV2:
         Supports the specific formulas in metric_concept_map.yaml.
         Not a general-purpose eval — explicit pattern matching for safety.
         """
-        # gross_margin: revenue.total - cogs.total
-        if metric_name == "gross_margin":
+        # gross_margin / gross_profit: revenue.total - cogs.total
+        if metric_name in ("gross_margin", "gross_profit"):
             return values.get("revenue.total", 0) - values.get("cogs.total", 0)
 
         # gross_margin_pct: (revenue.total - cogs.total) / revenue.total * 100
@@ -576,8 +673,8 @@ class DCLSemanticClientV2:
                 )
             return (rev - cogs) / rev * 100
 
-        # operating_margin_pct: pnl.ebitda / revenue.total * 100
-        if metric_name == "operating_margin_pct":
+        # operating_margin_pct / ebitda_margin_pct: pnl.ebitda / revenue.total * 100
+        if metric_name in ("operating_margin_pct", "ebitda_margin_pct"):
             ebitda = values.get("pnl.ebitda", 0)
             rev = values.get("revenue.total", 0)
             if rev == 0:
@@ -585,6 +682,16 @@ class DCLSemanticClientV2:
                     f"Cannot compute {metric_name}: revenue.total is zero (division by zero)"
                 )
             return ebitda / rev * 100
+
+        # net_margin_pct: pnl.net_income / revenue.total * 100
+        if metric_name == "net_margin_pct":
+            net = values.get("pnl.net_income", 0)
+            rev = values.get("revenue.total", 0)
+            if rev == 0:
+                raise ValueError(
+                    f"Cannot compute {metric_name}: revenue.total is zero (division by zero)"
+                )
+            return net / rev * 100
 
         # burn_multiple: cash_flow.net_burn / revenue.recurring
         if metric_name == "burn_multiple":
@@ -631,6 +738,84 @@ class DCLSemanticClientV2:
             f"No formula implementation for derived metric '{metric_name}'. "
             f"Formula: {formula}. Add it to _compute_formula()."
         )
+
+    # ------------------------------------------------------------------
+    # Batch metric fetch (reduces HTTP calls for reports)
+    # ------------------------------------------------------------------
+
+    def get_metrics_batch(
+        self,
+        metric_names: List[str],
+        entity_id: Optional[str] = None,
+        period: Optional[str] = None,
+    ) -> Dict[str, Optional[float]]:
+        """Fetch multiple metrics in minimal HTTP calls by batching per domain.
+
+        Groups metrics by their DCL domain, makes one _browse_triple() call
+        per domain (with a wide limit), and extracts individual metric values
+        from the batch result.  Derived metrics are computed after all
+        components are fetched.
+
+        Returns: {metric_name: value_or_None}
+        """
+        results: Dict[str, Optional[float]] = {}
+        direct_by_domain: Dict[str, List[tuple]] = {}  # domain -> [(metric_name, concept, prop)]
+        derived_metrics: List[str] = []
+
+        for name in metric_names:
+            canonical = resolve_metric_name(name)
+            if canonical is None:
+                results[name] = None
+                continue
+            defn = METRIC_CONCEPT_MAP[canonical]
+            if defn["type"] == "derived":
+                derived_metrics.append(name)
+            else:
+                concept = defn["concept"]
+                prop = defn["property"]
+                domain = concept.split(".")[0]
+                direct_by_domain.setdefault(domain, []).append((name, concept, prop))
+
+        # Batch-fetch each domain once
+        domain_triples: Dict[str, List[Dict[str, Any]]] = {}
+        for domain, items in direct_by_domain.items():
+            try:
+                browse_result = self._browse_triple(
+                    domain=domain,
+                    entity_id=entity_id,
+                    period=period,
+                    limit=200,
+                )
+                domain_triples[domain] = browse_result.get("triples", [])
+            except Exception as exc:
+                logger.warning("Batch browse failed for domain=%s, period=%s: %s", domain, period, exc)
+                domain_triples[domain] = []
+
+        # Extract individual metric values from batch results
+        for domain, items in direct_by_domain.items():
+            triples = domain_triples.get(domain, [])
+            for metric_name, concept, prop in items:
+                triple = self._extract_triple_value(triples, concept, prop)
+                if triple is not None:
+                    results[metric_name] = self._numeric_value(triple)
+                else:
+                    # Try .total synthesis (e.g. employee.total from employee.*)
+                    synthesized = self._try_total_synthesis(triples, concept, prop, metric_name, entity_id)
+                    if synthesized is not None:
+                        results[metric_name] = synthesized.get("value")
+                    else:
+                        results[metric_name] = None
+
+        # Compute derived metrics (these may need their own fetches)
+        for name in derived_metrics:
+            try:
+                result = self.get_derived_metric(name, entity_id=entity_id, period=period)
+                results[name] = result.get("value")
+            except (ValueError, RuntimeError) as exc:
+                logger.warning("Derived metric '%s' failed in batch: %s", name, exc)
+                results[name] = None
+
+        return results
 
     # ------------------------------------------------------------------
     # Dashboard

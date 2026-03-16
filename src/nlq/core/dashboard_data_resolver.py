@@ -448,21 +448,41 @@ class DashboardDataResolver:
 
         quarters = _quarter_range(4)
         categories = [q.split("-")[1] for q in quarters]  # ["Q1", "Q2", ...]
-        series = []
+        active_metrics = metrics[:3]
 
-        for metric_binding in metrics[:3]:
-            metric = metric_binding.metric
+        # Build all (metric, quarter) pairs for parallel fetch
+        tasks = [
+            (mb.metric, q)
+            for mb in active_metrics
+            for q in quarters
+        ]
+
+        def _fetch_pair(pair):
+            metric, q = pair
+            result = self._query_dcl(
+                metric=metric,
+                filters=filters,
+                time_range={"period": q, "granularity": "quarterly"},
+            )
+            val = self._extract_value_from_result(result)
+            return (metric, q, val)
+
+        with ThreadPoolExecutor(max_workers=len(tasks)) as pool:
+            results = list(pool.map(propagate_context(_fetch_pair), tasks))
+
+        # Reassemble into series by metric
+        val_map: Dict[str, Dict[str, Optional[float]]] = {}
+        for metric, q, val in results:
+            val_map.setdefault(metric, {})[q] = val
+
+        series = []
+        for mb in active_metrics:
+            metric = mb.metric
             data_points = []
             for q in quarters:
-                result = self._query_dcl(
-                    metric=metric,
-                    filters=filters,
-                    time_range={"period": q, "granularity": "quarterly"},
-                )
-                val = self._extract_value_from_result(result)
-                label = q.split("-")[1]  # "Q1"
+                val = val_map.get(metric, {}).get(q)
+                label = q.split("-")[1]
                 data_points.append({"label": label, "value": round(val, 1) if val else 0})
-
             series.append({
                 "name": get_display_name(metric),
                 "data": data_points,
@@ -499,19 +519,37 @@ class DashboardDataResolver:
 
         if dimension == "quarter":
             quarters = _quarter_range(4)
+
+            # Build all (metric, quarter) pairs for parallel fetch
+            tasks = [
+                (mb.metric, q)
+                for mb in metrics
+                for q in quarters
+            ]
+
+            def _fetch_pair(pair):
+                metric, q = pair
+                result = self._query_dcl(
+                    metric=metric,
+                    filters=filters,
+                    time_range={"period": q, "granularity": "quarterly"},
+                )
+                val = self._extract_value_from_result(result)
+                return (metric, q, val)
+
+            with ThreadPoolExecutor(max_workers=len(tasks)) as pool:
+                results = list(pool.map(propagate_context(_fetch_pair), tasks))
+
+            # Reassemble into rows by quarter
+            val_map: Dict[str, Dict[str, Optional[float]]] = {}
+            for metric, q, val in results:
+                val_map.setdefault(q, {})[metric] = val
+
             for q in quarters:
                 row = {"quarter": q.replace("-", " ")}
-
-                for metric_binding in metrics:
-                    metric = metric_binding.metric
-                    result = self._query_dcl(
-                        metric=metric,
-                        filters=filters,
-                        time_range={"period": q, "granularity": "quarterly"},
-                    )
-                    val = self._extract_value_from_result(result)
-                    row[metric] = round(val, 1) if val else None
-
+                for mb in metrics:
+                    val = val_map.get(q, {}).get(mb.metric)
+                    row[mb.metric] = round(val, 1) if val else None
                 rows.append(row)
         else:
             # Get dimensional breakdown using current quarter

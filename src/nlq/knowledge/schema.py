@@ -926,6 +926,76 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         unit="USD millions",
         description="Combined depreciation and amortization expense"
     ),
+    "sm_expense": MetricDefinition(
+        name="sm_expense",
+        display_name="Sales & Marketing",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Sales and marketing expense"
+    ),
+    "rd_expense": MetricDefinition(
+        name="rd_expense",
+        display_name="Research & Development",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Research and development expense"
+    ),
+    "ga_expense": MetricDefinition(
+        name="ga_expense",
+        display_name="General & Administrative",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="General and administrative expense"
+    ),
+    "change_in_ar": MetricDefinition(
+        name="change_in_ar",
+        display_name="Change in A/R",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Change in accounts receivable"
+    ),
+    "change_in_ap": MetricDefinition(
+        name="change_in_ap",
+        display_name="Change in A/P",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Change in accounts payable"
+    ),
+    "change_in_deferred_rev": MetricDefinition(
+        name="change_in_deferred_rev",
+        display_name="Change in Deferred Revenue",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Change in deferred revenue"
+    ),
+    "cfo": MetricDefinition(
+        name="cfo",
+        display_name="Cash from Operations",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Operating cash flow"
+    ),
+    "prepaid_expenses": MetricDefinition(
+        name="prepaid_expenses",
+        display_name="Prepaid Expenses",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Prepaid expenses"
+    ),
+    "pp_e": MetricDefinition(
+        name="pp_e",
+        display_name="PP&E",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Property, plant and equipment"
+    ),
+    "accrued_expenses": MetricDefinition(
+        name="accrued_expenses",
+        display_name="Accrued Expenses",
+        metric_type=MetricType.CURRENCY,
+        unit="USD millions",
+        description="Accrued expenses"
+    ),
     "finance_headcount": MetricDefinition(
         name="finance_headcount",
         display_name="Finance Headcount",
@@ -970,6 +1040,10 @@ METRIC_PERSONAS = {
     "dso": "CFO", "dpo": "CFO", "working_capital": "CFO",
     "mrr": "CFO", "acv": "CFO", "fcf": "CFO", "cash_from_operations": "CFO",
     "opex": "CFO", "da_expense": "CFO",
+    "sm_expense": "CFO", "rd_expense": "CFO", "ga_expense": "CFO",
+    "change_in_ar": "CFO", "change_in_ap": "CFO", "change_in_deferred_rev": "CFO",
+    "cfo": "CFO", "prepaid_expenses": "CFO", "pp_e": "CFO", "accrued_expenses": "CFO",
+    "gross_profit": "CFO", "net_margin_pct": "CFO",
 
     # CRO metrics
     "bookings": "CRO", "arr": "CRO", "pipeline": "CRO",

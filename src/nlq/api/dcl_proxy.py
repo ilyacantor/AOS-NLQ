@@ -424,14 +424,15 @@ async def ebitda_bridge(entity_id: str = Query(None)):
 @router.get("/api/reports/qoe")
 async def quality_of_earnings(entity_id: str = Query(None)):
     """Fetch QoE from DCL v2 and transform into QofEData shape."""
-    qoe_data = await asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/qoe/combined")
+    # Fetch QoE and bridge concurrently (was sequential — ~16s → ~8s)
+    qoe_data, bridge = await asyncio.gather(
+        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/qoe/combined"),
+        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/bridge"),
+    )
 
     entity_a = qoe_data.get("entity_a", {})
     entity_b = qoe_data.get("entity_b", {})
     combined = qoe_data.get("combined", {})
-
-    # Build EBITDA bridge adjustments from bridge data
-    bridge = await asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/bridge")
     adjustments = []
     for adj in bridge.get("adjustments", []):
         adjustments.append({

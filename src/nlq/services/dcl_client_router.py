@@ -16,6 +16,7 @@ from src.nlq.services.dcl_semantic_client_v2 import (
     DCLSemanticClientV2,
     resolve_metric_name,
 )
+from src.nlq.knowledge.schema import is_additive_metric
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +160,19 @@ class DCLClientRouter:
         if entity_id is None:
             entity_id = _entity_id_ctx.get()
 
+        # --- Combined entity handling ---
+        if entity_id == "combined":
+            return self._query_combined(
+                metric=metric,
+                dimensions=dimensions,
+                filters=filters,
+                time_range=time_range,
+                grain=grain,
+                order_by=order_by,
+                limit=limit,
+                tenant_id=tenant_id,
+            )
+
         # Extract period from time_range
         period = None
         if time_range:
@@ -231,6 +245,126 @@ class DCLClientRouter:
             tenant_id=tenant_id,
             entity_id=entity_id,
         )
+
+    # ------------------------------------------------------------------
+    # Combined entity aggregation
+    # ------------------------------------------------------------------
+
+    def _query_combined(
+        self,
+        metric: str,
+        dimensions: List[str] = None,
+        filters: Dict[str, Any] = None,
+        time_range: Dict[str, Any] = None,
+        grain: str = None,
+        order_by: str = None,
+        limit: int = None,
+        tenant_id: str = None,
+    ) -> Dict[str, Any]:
+        """Query each registered entity and aggregate results.
+
+        Additive metrics (revenue, costs) are summed.
+        Non-additive metrics (margins, ratios) are averaged.
+        If only one entity is registered, queries it directly (no aggregation).
+        """
+        from src.nlq.core.entity_registry import get_entity_registry
+
+        registry = get_entity_registry()
+        entity_ids = registry.get_entity_ids_sync()
+
+        if not entity_ids:
+            return {
+                "error": "No entities registered in DCL — cannot query combined",
+                "status": "error",
+                "data_source": "dcl_v2",
+            }
+
+        # Single entity — no aggregation needed
+        if len(entity_ids) == 1:
+            return self.query(
+                metric=metric,
+                dimensions=dimensions,
+                filters=filters,
+                time_range=time_range,
+                grain=grain,
+                order_by=order_by,
+                limit=limit,
+                tenant_id=tenant_id,
+                entity_id=entity_ids[0],
+            )
+
+        # Multi-entity — query each, then aggregate
+        per_entity: Dict[str, Dict[str, Any]] = {}
+        errors: List[str] = []
+
+        for eid in entity_ids:
+            result = self.query(
+                metric=metric,
+                dimensions=dimensions,
+                filters=filters,
+                time_range=time_range,
+                grain=grain,
+                order_by=order_by,
+                limit=limit,
+                tenant_id=tenant_id,
+                entity_id=eid,
+            )
+            if result.get("error"):
+                errors.append(f"{eid}: {result['error']}")
+            elif result.get("data"):
+                per_entity[eid] = result
+
+        if not per_entity:
+            return {
+                "error": (
+                    f"No data for metric '{metric}' from any entity. "
+                    f"Errors: {'; '.join(errors)}"
+                ),
+                "status": "no_data",
+                "data_source": "dcl_v2",
+            }
+
+        # Aggregate: extract the value from each entity's data
+        values = []
+        template_result = None
+        for eid, result in per_entity.items():
+            template_result = result
+            data = result.get("data", [])
+            if data and isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict) and item.get("value") is not None:
+                        values.append(item["value"])
+                    elif isinstance(item, (int, float)):
+                        values.append(item)
+
+        if not values:
+            return {
+                "error": f"No numeric values found for metric '{metric}' across entities {entity_ids}",
+                "status": "no_data",
+                "data_source": "dcl_v2",
+            }
+
+        additive = is_additive_metric(metric)
+        aggregated = sum(values) if additive else sum(values) / len(values)
+
+        # Build combined result in v1 format
+        period = None
+        if template_result and template_result.get("data"):
+            first_item = template_result["data"][0] if template_result["data"] else {}
+            if isinstance(first_item, dict):
+                period = first_item.get("period")
+
+        return {
+            "metric": metric,
+            "data": [{"period": period, "value": aggregated}],
+            "data_source": "dcl_v2",
+            "metadata": {
+                "source": "dcl_v2",
+                "entity_id": "combined",
+                "entities_queried": list(per_entity.keys()),
+                "aggregation": "sum" if additive else "average",
+            },
+        }
 
     # ------------------------------------------------------------------
     # Passthrough for old client methods used by executor/routes

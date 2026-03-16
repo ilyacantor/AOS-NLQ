@@ -65,6 +65,17 @@ gross_margin:
     - concept: "cogs.total"
       property: "amount"
 
+gross_profit:
+  type: derived
+  unit: "usd"
+  formula: "revenue.total - cogs.total"
+  components:
+    - concept: "revenue.total"
+      property: "amount"
+    - concept: "cogs.total"
+      property: "amount"
+  aliases: ["gross_income"]
+
 gross_margin_pct:
   type: derived
   unit: "pct"
@@ -82,6 +93,34 @@ ebitda:
   type: direct
   unit: "usd"
   aliases: ["earnings_before_interest_taxes"]
+
+ebitda_margin_pct:
+  type: derived
+  unit: "pct"
+  formula: "pnl.ebitda / revenue.total * 100"
+  components:
+    - concept: "pnl.ebitda"
+      property: "amount"
+    - concept: "revenue.total"
+      property: "amount"
+
+operating_profit:
+  concept: "pnl.operating_profit"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["operating_income", "op_profit"]
+
+net_margin_pct:
+  type: derived
+  unit: "pct"
+  formula: "pnl.net_income / revenue.total * 100"
+  components:
+    - concept: "pnl.net_income"
+      property: "amount"
+    - concept: "revenue.total"
+      property: "amount"
+  aliases: ["net_profit_margin"]
 
 operating_margin_pct:
   type: derived
@@ -130,6 +169,27 @@ g_and_a_expenses:
   unit: "usd"
   aliases: ["ga_expenses"]
 
+sm_expense:
+  concept: "opex.sales_marketing"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["sales_marketing", "s_and_m", "sales_and_marketing"]
+
+rd_expense:
+  concept: "opex.research_development"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["research_development", "r_and_d", "research_and_development"]
+
+ga_expense:
+  concept: "opex.general_admin"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["general_admin", "general_administrative"]
+
 # ─── Balance Sheet ─────────────────────────────────────────────────
 
 cash:
@@ -146,6 +206,38 @@ ar:
   unit: "usd"
   aliases: ["accounts_receivable"]
 
+prepaid_expenses:
+  concept: "asset.current.prepaid"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+pp_e:
+  concept: "asset.noncurrent.property_plant_equipment"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["ppe", "property_plant_equipment"]
+
+intangibles:
+  concept: "asset.noncurrent.intangibles"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["intangible_assets"]
+
+goodwill:
+  concept: "asset.noncurrent.goodwill"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+total_assets:
+  concept: "asset.total"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
 ap:
   concept: "liability.accounts_payable"
   property: "amount"
@@ -153,8 +245,20 @@ ap:
   unit: "usd"
   aliases: ["accounts_payable"]
 
+accrued_expenses:
+  concept: "liability.current.accrued_expenses"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
 deferred_revenue:
   concept: "liability.deferred_revenue"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+total_liabilities:
+  concept: "liability.total"
   property: "amount"
   type: direct
   unit: "usd"
@@ -164,6 +268,67 @@ current_liabilities:
   property: "amount"
   type: direct
   unit: "usd"
+
+retained_earnings:
+  concept: "equity.retained_earnings"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+stockholders_equity:
+  concept: "equity.total"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["total_equity", "shareholders_equity"]
+
+# ─── Statement of Cash Flows ──────────────────────────────────────
+
+da_expense:
+  concept: "cash_flow.depreciation_amortization"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["depreciation_amortization", "d_and_a"]
+
+change_in_ar:
+  concept: "cash_flow.change_in_ar"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+change_in_ap:
+  concept: "cash_flow.change_in_ap"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+change_in_deferred_rev:
+  concept: "cash_flow.change_in_deferred_revenue"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+cfo:
+  concept: "cash_flow.operating"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["cash_from_operations", "operating_cash_flow"]
+
+capex:
+  concept: "cash_flow.capex"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["capital_expenditures"]
+
+fcf:
+  concept: "cash_flow.free_cash_flow"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["free_cash_flow"]
 
 # ─── People ────────────────────────────────────────────────────────
 

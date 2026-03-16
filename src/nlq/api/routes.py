@@ -3806,12 +3806,14 @@ def _resolve_entity_id(request: NLQRequest) -> str:
     if not eid:
         eid = _detect_entity_id(request.question)
     if not eid:
-        # Default to first registered entity from DCL
+        # Default: single entity → use it; multi-entity → combined
         registry = get_entity_registry()
         try:
             entity_ids = registry.get_entity_ids_sync()
-            if entity_ids:
+            if len(entity_ids) == 1:
                 eid = entity_ids[0]
+            elif len(entity_ids) > 1:
+                eid = "combined"
         except ConnectionError as e:
             raise HTTPException(
                 status_code=503,
