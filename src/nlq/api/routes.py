@@ -4928,17 +4928,20 @@ async def reconciliation():
         )
 
     # Use a shared httpx client for connection pooling across all queries
-    client = httpx.Client(timeout=30, limits=httpx.Limits(max_connections=64, max_keepalive_connections=32))
+    client = httpx.Client(timeout=60, limits=httpx.Limits(max_connections=16, max_keepalive_connections=8))
 
-    def query_fn(metric_id: str, period: str):
+    def query_fn(metric_id: str, period: str, entity_id: str = None):
         """Query DCL for a metric value. Returns object with .value attribute."""
         try:
+            payload = {
+                "metric": metric_id,
+                "time_range": {"start": period, "end": period},
+            }
+            if entity_id:
+                payload["entity_id"] = entity_id
             r = client.post(
                 f"{dcl_url}/api/dcl/query",
-                json={
-                    "metric": metric_id,
-                    "time_range": {"start": period, "end": period},
-                },
+                json=payload,
             )
         except httpx.ConnectError as exc:
             raise RuntimeError(
@@ -4978,7 +4981,40 @@ async def reconciliation():
             ),
         )
 
-    gt_data = gt.get("ground_truth", gt)
+    gt_raw = gt.get("ground_truth", gt)
+
+    # Farm v5+ nests ground truth per entity under "ground_truth_by_entity".
+    # Flatten into {quarter: {metric: entry}} across all entities for
+    # reconciliation — each (metric, period) check runs per-entity with the
+    # entity's expected value.
+    gt_by_entity = gt_raw.get("ground_truth_by_entity", {})
+    if gt_by_entity:
+        # New format: ground_truth_by_entity.{entity_id}.{quarter}.{metric}
+        # Build flat gt_data and track entity_id per check
+        gt_data: Dict[str, Dict] = {}
+        check_entity_map: Dict[tuple, str] = {}  # (metric, period) -> entity_id
+        all_entity_ids = sorted(gt_by_entity.keys())
+
+        for entity_id, entity_gt in gt_by_entity.items():
+            if not isinstance(entity_gt, dict):
+                continue
+            for quarter_key, quarter_data in entity_gt.items():
+                if quarter_key in _GT_NON_QUARTER_KEYS or not isinstance(quarter_data, dict):
+                    continue
+                if quarter_key not in gt_data:
+                    gt_data[quarter_key] = {}
+                for metric_key, entry in quarter_data.items():
+                    if metric_key in _QUARTER_META_KEYS:
+                        continue
+                    # Prefix with entity to avoid collisions
+                    composite_key = f"{entity_id}:{metric_key}"
+                    gt_data[quarter_key][composite_key] = entry
+                    check_entity_map[(composite_key, quarter_key)] = entity_id
+    else:
+        # Legacy format: flat quarters at top level
+        gt_data = gt_raw
+        check_entity_map = {}
+
     quarters = sorted([
         k for k in gt_data
         if k not in _GT_NON_QUARTER_KEYS
@@ -4993,7 +5029,7 @@ async def reconciliation():
 
     # Build the full list of (metric, period, expected) checks upfront,
     # then fire ALL of them in parallel instead of sequentially.
-    all_checks = []  # (metric_id, period, expected_value)
+    all_checks = []  # (composite_key, period, expected_value)
     for period in quarters:
         quarter_data = gt_data.get(period, {})
         for key, entry in quarter_data.items():
@@ -5011,16 +5047,21 @@ async def reconciliation():
 
     # Fire all queries in parallel
     results = {}  # (metric_id, period) -> (actual_value | None, error_str | None)
-    max_workers = min(64, len(all_checks))
+    max_workers = min(8, len(all_checks))
 
-    def _fetch(metric_id: str, period: str):
+    def _fetch(composite_key: str, period: str):
+        # Composite keys are "entity_id:metric_id" for multi-entity ground truth
+        if ":" in composite_key:
+            entity_id, metric_id = composite_key.split(":", 1)
+        else:
+            entity_id, metric_id = None, composite_key
         try:
-            result = query_fn(metric_id, period)
+            result = query_fn(metric_id, period, entity_id=entity_id)
             if result is None:
-                return (metric_id, period, None, None)
-            return (metric_id, period, result.value, None)
+                return (composite_key, period, None, None)
+            return (composite_key, period, result.value, None)
         except Exception as exc:
-            return (metric_id, period, None, str(exc))
+            return (composite_key, period, None, str(exc))
 
     try:
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
