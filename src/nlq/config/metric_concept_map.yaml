@@ -193,14 +193,14 @@ ga_expense:
 # ─── Balance Sheet ─────────────────────────────────────────────────
 
 cash:
-  concept: "asset.cash"
+  concept: "asset.current.cash"
   property: "amount"
   type: direct
   unit: "usd"
   aliases: ["cash_and_equivalents"]
 
 ar:
-  concept: "asset.accounts_receivable"
+  concept: "asset.current.accounts_receivable"
   property: "amount"
   type: direct
   unit: "usd"
@@ -239,7 +239,7 @@ total_assets:
   unit: "usd"
 
 ap:
-  concept: "liability.accounts_payable"
+  concept: "liability.current.accounts_payable"
   property: "amount"
   type: direct
   unit: "usd"
@@ -252,7 +252,7 @@ accrued_expenses:
   unit: "usd"
 
 deferred_revenue:
-  concept: "liability.deferred_revenue"
+  concept: "liability.current.deferred_revenue"
   property: "amount"
   type: direct
   unit: "usd"
@@ -285,49 +285,53 @@ stockholders_equity:
 # ─── Statement of Cash Flows ──────────────────────────────────────
 
 da_expense:
-  concept: "cash_flow.depreciation_amortization"
+  concept: "cash_flow.operating.depreciation_add_back"
   property: "amount"
   type: direct
   unit: "usd"
   aliases: ["depreciation_amortization", "d_and_a"]
 
 change_in_ar:
-  concept: "cash_flow.change_in_ar"
+  concept: "cash_flow.operating.change_in_ar"
   property: "amount"
   type: direct
   unit: "usd"
 
 change_in_ap:
-  concept: "cash_flow.change_in_ap"
+  concept: "cash_flow.operating.change_in_ap"
   property: "amount"
   type: direct
   unit: "usd"
 
 change_in_deferred_rev:
-  concept: "cash_flow.change_in_deferred_revenue"
+  concept: "cash_flow.operating.change_in_deferred_revenue"
   property: "amount"
   type: direct
   unit: "usd"
 
 cfo:
-  concept: "cash_flow.operating"
+  concept: "cash_flow.operating.total"
   property: "amount"
   type: direct
   unit: "usd"
   aliases: ["cash_from_operations", "operating_cash_flow"]
 
 capex:
-  concept: "cash_flow.capex"
+  concept: "cash_flow.investing.capex"
   property: "amount"
   type: direct
   unit: "usd"
   aliases: ["capital_expenditures"]
 
 fcf:
-  concept: "cash_flow.free_cash_flow"
-  property: "amount"
-  type: direct
+  type: derived
   unit: "usd"
+  formula: "cash_flow.operating.total - cash_flow.investing.capex"
+  components:
+    - concept: "cash_flow.operating.total"
+      property: "amount"
+    - concept: "cash_flow.investing.capex"
+      property: "amount"
   aliases: ["free_cash_flow"]
 
 # ─── People ────────────────────────────────────────────────────────

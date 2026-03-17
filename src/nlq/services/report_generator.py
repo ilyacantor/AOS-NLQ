@@ -396,11 +396,18 @@ class ReportGenerator:
         Makes one DCL HTTP call per domain×period instead of one per
         metric×period.  For a P&L with 13 metrics across 4 quarters,
         this reduces ~52 HTTP calls to ~16 (4 domains × 4 quarters).
+
+        For combined entity: fetches per-entity batches and aggregates
+        (sum additive, average non-additive) since DCL has no entity
+        called "combined".
         """
         from src.nlq.knowledge.schema import is_additive_metric, is_point_in_time_metric
         from src.nlq.services.dcl_semantic_client_v2 import get_semantic_client_v2
 
         v2 = get_semantic_client_v2()
+
+        if self.entity_id == "combined":
+            return self._query_periods_batch_combined(line_items, periods, v2)
 
         # Fetch each period's batch in parallel (limited concurrency)
         results_map: Dict[tuple, Optional[float]] = {}
@@ -419,6 +426,72 @@ class ReportGenerator:
                 period_idx, batch = future.result()
                 for metric_id, value in batch.items():
                     results_map[(metric_id, period_idx)] = value
+
+        return self._aggregate_results(line_items, periods, results_map)
+
+    def _query_periods_batch_combined(
+        self,
+        line_items: List[str],
+        periods: list,
+        v2,
+    ) -> Dict[str, Optional[float]]:
+        """Batch-fetch for combined entity — query each real entity, then aggregate.
+
+        For each (entity, period) pair, fetches all metrics in one batch call.
+        Then sums additive metrics and averages non-additive metrics across entities
+        for each (metric, period) slot before passing to _aggregate_results for
+        cross-period aggregation.
+        """
+        from src.nlq.knowledge.schema import is_additive_metric
+        from src.nlq.core.entity_registry import get_entity_registry
+
+        registry = get_entity_registry()
+        entity_ids = registry.get_entity_ids_sync()
+        if not entity_ids:
+            logger.error("No entities registered — cannot build combined report")
+            return {}
+
+        # Fetch batches: one per (entity, period) — parallelized
+        # Key: (entity_id, period_idx) -> {metric: value}
+        entity_period_batches: Dict[tuple, Dict[str, Optional[float]]] = {}
+
+        def _batch_for_entity_period(eid: str, period_idx: int, period_label: str):
+            batch = v2.get_metrics_batch(line_items, entity_id=eid, period=period_label)
+            return eid, period_idx, batch
+
+        # Limit concurrency to avoid overwhelming DCL — combined reports
+        # generate 2× the browse calls (one per entity), so cap at 4 workers
+        # to keep total concurrent DCL requests manageable.
+        max_workers = min(4, len(entity_ids) * len(periods))
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            wrapped = propagate_context(_batch_for_entity_period)
+            futures = [
+                pool.submit(wrapped, eid, pi, period_info.label)
+                for eid in entity_ids
+                for pi, period_info in enumerate(periods)
+            ]
+            for future in as_completed(futures):
+                eid, period_idx, batch = future.result()
+                entity_period_batches[(eid, period_idx)] = batch
+
+        # Aggregate across entities for each (metric, period) slot
+        results_map: Dict[tuple, Optional[float]] = {}
+        for pi in range(len(periods)):
+            for metric_id in line_items:
+                entity_values = []
+                for eid in entity_ids:
+                    batch = entity_period_batches.get((eid, pi), {})
+                    val = batch.get(metric_id)
+                    if val is not None:
+                        entity_values.append(val)
+
+                if entity_values:
+                    if is_additive_metric(metric_id):
+                        results_map[(metric_id, pi)] = sum(entity_values)
+                    else:
+                        results_map[(metric_id, pi)] = (
+                            sum(entity_values) / len(entity_values)
+                        )
 
         return self._aggregate_results(line_items, periods, results_map)
 

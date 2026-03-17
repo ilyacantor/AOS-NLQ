@@ -723,6 +723,12 @@ class DCLSemanticClientV2:
                 )
             return spend / rev * 100
 
+        # fcf: cash_flow.operating.total - cash_flow.investing.capex
+        if metric_name == "fcf":
+            cfo = values.get("cash_flow.operating.total", 0)
+            capex = values.get("cash_flow.investing.capex", 0)
+            return cfo - capex
+
         # magic_number is a multi-period metric — needs special handling
         if metric_name == "magic_number":
             # This requires t and t-1 periods; single-period fallback
