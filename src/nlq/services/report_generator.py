@@ -459,10 +459,10 @@ class ReportGenerator:
             batch = v2.get_metrics_batch(line_items, entity_id=eid, period=period_label)
             return eid, period_idx, batch
 
-        # Limit concurrency to avoid overwhelming DCL — combined reports
-        # generate 2× the browse calls (one per entity), so cap at 4 workers
-        # to keep total concurrent DCL requests manageable.
-        max_workers = min(4, len(entity_ids) * len(periods))
+        # Combined reports generate one batch-browse per (entity, period).
+        # With derived metrics resolved inline (no redundant HTTP calls),
+        # 8 workers can handle all pairs without overwhelming DCL.
+        max_workers = min(8, len(entity_ids) * len(periods))
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             wrapped = propagate_context(_batch_for_entity_period)
             futures = [

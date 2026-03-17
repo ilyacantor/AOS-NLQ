@@ -812,11 +812,80 @@ class DCLSemanticClientV2:
                     else:
                         results[metric_name] = None
 
-        # Compute derived metrics (these may need their own fetches)
+        # Compute derived metrics inline from already-fetched domain triples
+        # instead of calling get_derived_metric() which re-browses with
+        # different cache keys (property_name filter + limit=50) causing
+        # 48 redundant HTTP calls per combined report.
         for name in derived_metrics:
             try:
-                result = self.get_derived_metric(name, entity_id=entity_id, period=period)
-                results[name] = result.get("value")
+                canonical = resolve_metric_name(name)
+                if canonical is None:
+                    results[name] = None
+                    continue
+                defn = METRIC_CONCEPT_MAP[canonical]
+                components = defn.get("components", [])
+                formula = defn.get("formula", "")
+
+                # For derived metrics with bare year, resolve to latest quarter
+                derived_period = period
+                if self._is_bare_year(derived_period) or derived_period is None:
+                    resolved = self._get_latest_quarter()
+                    if resolved is None:
+                        results[name] = None
+                        continue
+                    derived_period = resolved
+
+                # Gather component values from already-fetched domain triples,
+                # fetching any missing domains with the same limit=200 pattern
+                component_values: Dict[str, float] = {}
+                missing_component = False
+                for comp in components:
+                    comp_concept = comp["concept"]
+                    comp_prop = comp["property"]
+                    comp_domain = comp_concept.split(".")[0]
+
+                    # Fetch domain if not already in domain_triples
+                    if comp_domain not in domain_triples:
+                        try:
+                            browse_result = self._browse_triple(
+                                domain=comp_domain,
+                                entity_id=entity_id,
+                                period=derived_period,
+                                limit=200,
+                            )
+                            domain_triples[comp_domain] = browse_result.get("triples", [])
+                        except Exception as exc:
+                            logger.warning(
+                                "Derived metric '%s': browse failed for domain=%s: %s",
+                                name, comp_domain, exc,
+                            )
+                            domain_triples[comp_domain] = []
+
+                    triples = domain_triples.get(comp_domain, [])
+                    triple = self._extract_triple_value(triples, comp_concept, comp_prop)
+
+                    if triple is None:
+                        # Try .total synthesis
+                        synthesized = self._try_total_synthesis(
+                            triples, comp_concept, comp_prop, name, entity_id,
+                        )
+                        if synthesized is not None:
+                            component_values[comp_concept] = synthesized.get("value")
+                            continue
+                        missing_component = True
+                        break
+
+                    val = self._numeric_value(triple)
+                    if val is None:
+                        missing_component = True
+                        break
+                    component_values[comp_concept] = val
+
+                if missing_component:
+                    results[name] = None
+                    continue
+
+                results[name] = self._compute_formula(canonical, formula, component_values)
             except (ValueError, RuntimeError) as exc:
                 logger.warning("Derived metric '%s' failed in batch: %s", name, exc)
                 results[name] = None

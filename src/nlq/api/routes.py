@@ -15,7 +15,7 @@ import logging
 import os
 from datetime import date
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -5045,36 +5045,200 @@ async def reconciliation():
         len(all_checks), len(quarters),
     )
 
-    # Fire all queries in parallel
-    results = {}  # (metric_id, period) -> (actual_value | None, error_str | None)
-    max_workers = min(8, len(all_checks))
+    # ── Batch-browse strategy ──────────────────────────────────────────
+    # Instead of 2300+ individual POST /api/dcl/query calls (one per metric),
+    # batch-browse by (domain, entity_id, period) and extract values from
+    # the results. This reduces HTTP calls from ~2300 to ~288.
+    from src.nlq.services.dcl_semantic_client_v2 import (
+        METRIC_CONCEPT_MAP, resolve_metric_name,
+    )
 
-    def _fetch(composite_key: str, period: str):
-        # Composite keys are "entity_id:metric_id" for multi-entity ground truth
+    # Step 1: Build mapping from composite_key → metric definition + components
+    # and collect all (domain, entity_id, period) tuples needed.
+    browse_tuples: set = set()  # (domain, entity_id, period)
+    check_defs: Dict[str, dict] = {}  # composite_key -> {metric_id, entity_id, defn}
+
+    for composite_key, period, _ in all_checks:
+        if composite_key in check_defs:
+            # Already resolved the definition; just add period tuples
+            defn_info = check_defs[composite_key]
+            for dom in defn_info["domains"]:
+                browse_tuples.add((dom, defn_info["entity_id"], period))
+            continue
+
         if ":" in composite_key:
             entity_id, metric_id = composite_key.split(":", 1)
         else:
             entity_id, metric_id = None, composite_key
-        try:
-            result = query_fn(metric_id, period, entity_id=entity_id)
-            if result is None:
-                return (composite_key, period, None, None)
-            return (composite_key, period, result.value, None)
-        except Exception as exc:
-            return (composite_key, period, None, str(exc))
 
+        canonical = resolve_metric_name(metric_id)
+        if canonical is None:
+            check_defs[composite_key] = {
+                "metric_id": metric_id, "entity_id": entity_id,
+                "defn": None, "domains": set(), "canonical": None,
+            }
+            continue
+
+        defn = METRIC_CONCEPT_MAP[canonical]
+        domains = set()
+        if defn["type"] == "direct":
+            domains.add(defn["concept"].split(".")[0])
+        elif defn["type"] == "derived":
+            for comp in defn.get("components", []):
+                domains.add(comp["concept"].split(".")[0])
+
+        check_defs[composite_key] = {
+            "metric_id": metric_id, "entity_id": entity_id,
+            "defn": defn, "domains": domains, "canonical": canonical,
+        }
+        for dom in domains:
+            browse_tuples.add((dom, entity_id, period))
+
+    # Step 2: Batch-browse all (domain, entity_id, period) tuples in parallel
+    browse_cache: Dict[tuple, list] = {}  # (domain, entity_id, period) -> triples
+
+    def _browse(domain: str, eid: Optional[str], period: str):
+        params: Dict[str, Any] = {"domain": domain, "limit": 200}
+        if eid:
+            params["entity_id"] = eid
+        if period:
+            params["period"] = period
+        try:
+            r = client.get(f"{dcl_url}/api/dcl/triples/browse", params=params)
+            if r.status_code == 200:
+                return (domain, eid, period, r.json().get("triples", []), None)
+            return (domain, eid, period, [], f"HTTP {r.status_code}")
+        except Exception as exc:
+            return (domain, eid, period, [], str(exc))
+
+    browse_max_workers = min(16, len(browse_tuples)) if browse_tuples else 1
     try:
-        with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            wrapped = propagate_context(_fetch)
-            futures = [
-                pool.submit(wrapped, metric_id, period)
-                for metric_id, period, _ in all_checks
+        with ThreadPoolExecutor(max_workers=browse_max_workers) as pool:
+            wrapped_browse = propagate_context(_browse)
+            browse_futures = [
+                pool.submit(wrapped_browse, dom, eid, per)
+                for dom, eid, per in browse_tuples
             ]
-            for future in as_completed(futures):
-                metric_id, period, value, error = future.result()
-                results[(metric_id, period)] = (value, error)
-    finally:
-        client.close()
+            for future in as_completed(browse_futures):
+                dom, eid, per, triples, err = future.result()
+                if err:
+                    logger.warning("Reconciliation browse failed domain=%s entity=%s period=%s: %s", dom, eid, per, err)
+                browse_cache[(dom, eid, per)] = triples
+    except Exception:
+        pass  # individual errors logged above; checks below handle missing data
+
+    logger.info(
+        "Reconciliation: %d browse calls (vs %d per-metric calls previously)",
+        len(browse_tuples), len(all_checks),
+    )
+
+    # Step 3: Extract metric values from browse results
+    results = {}  # (composite_key, period) -> (actual_value | None, error_str | None)
+
+    _NUMERIC_RE = re.compile(r"^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$")
+
+    def _extract_numeric(triple):
+        if triple is None:
+            return None
+        val = triple.get("value")
+        if val is None:
+            return None
+        if isinstance(val, (int, float)):
+            return float(val)
+        if isinstance(val, str) and _NUMERIC_RE.match(val.strip()):
+            return float(val)
+        if isinstance(val, str):
+            logger.warning("Reconciliation: non-numeric triple value '%s' — skipping", val)
+        return None
+
+    def _find_triple(triples, concept, prop):
+        for t in triples:
+            if t.get("concept") == concept and t.get("property") == prop:
+                return t
+        return None
+
+    def _try_synthesis(triples, concept, prop):
+        """Synthesize .total from sub-concept triples."""
+        if not concept.endswith(".total") or not triples:
+            return None
+        prefix = concept.rsplit(".total", 1)[0] + "."
+        total = 0.0
+        found = False
+        for t in triples:
+            if t.get("concept", "").startswith(prefix) and t.get("property") == prop:
+                val = _extract_numeric(t)
+                if val is not None:
+                    total += val
+                    found = True
+        return total if found else None
+
+    # Import _compute_formula logic inline — use the client instance
+    from src.nlq.services.dcl_semantic_client_v2 import DCLSemanticClientV2
+    _formula_client = DCLSemanticClientV2.__new__(DCLSemanticClientV2)
+
+    for composite_key, period, _ in all_checks:
+        defn_info = check_defs.get(composite_key)
+        if defn_info is None or defn_info["defn"] is None:
+            # Unknown metric — fall back to per-metric query
+            eid = defn_info["entity_id"] if defn_info else None
+            mid = defn_info["metric_id"] if defn_info else composite_key
+            try:
+                result = query_fn(mid, period, entity_id=eid)
+                if result is None:
+                    results[(composite_key, period)] = (None, None)
+                else:
+                    results[(composite_key, period)] = (result.value, None)
+            except Exception as exc:
+                results[(composite_key, period)] = (None, str(exc))
+            continue
+
+        defn = defn_info["defn"]
+        eid = defn_info["entity_id"]
+        canonical = defn_info["canonical"]
+
+        if defn["type"] == "direct":
+            concept = defn["concept"]
+            prop = defn["property"]
+            domain = concept.split(".")[0]
+            triples = browse_cache.get((domain, eid, period), [])
+            triple = _find_triple(triples, concept, prop)
+            val = _extract_numeric(triple)
+            if val is None:
+                # Try .total synthesis
+                val = _try_synthesis(triples, concept, prop)
+            results[(composite_key, period)] = (val, None)
+
+        elif defn["type"] == "derived":
+            components = defn.get("components", [])
+            formula = defn.get("formula", "")
+            component_values = {}
+            missing = False
+            for comp in components:
+                comp_concept = comp["concept"]
+                comp_prop = comp["property"]
+                comp_domain = comp_concept.split(".")[0]
+                triples = browse_cache.get((comp_domain, eid, period), [])
+                triple = _find_triple(triples, comp_concept, comp_prop)
+                val = _extract_numeric(triple)
+                if val is None:
+                    val = _try_synthesis(triples, comp_concept, comp_prop)
+                if val is None:
+                    missing = True
+                    break
+                component_values[comp_concept] = val
+
+            if missing:
+                results[(composite_key, period)] = (None, None)
+            else:
+                try:
+                    computed = _formula_client._compute_formula(canonical, formula, component_values)
+                    results[(composite_key, period)] = (computed, None)
+                except (ValueError, ZeroDivisionError) as exc:
+                    results[(composite_key, period)] = (None, str(exc))
+        else:
+            results[(composite_key, period)] = (None, None)
+
+    client.close()
 
     # Aggregate results per quarter
     tolerance_pct = 1.0
