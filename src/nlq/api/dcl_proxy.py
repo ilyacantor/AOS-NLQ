@@ -1263,12 +1263,14 @@ async def financial_statement(
     # Q1-Q4 internally — no need for NLQ to make per-quarter calls.
     from datetime import date
     current_year = date.today().year
+    last_full_year = current_year - 1  # Last completed fiscal year (actuals)
 
     if variant == "full_year_act_vs_py":
-        cy_period = str(current_year)
-        py_period = str(current_year - 1)
-        cy_label = f"FY {current_year} Actual"
-        py_label = f"FY {current_year - 1} Actual"
+        # Actuals: last completed year vs the year before
+        cy_period = str(last_full_year)
+        py_period = str(last_full_year - 1)
+        cy_label = f"FY {last_full_year} Actual"
+        py_label = f"FY {last_full_year - 1} Actual"
     elif variant == "quarterly_act_vs_py":
         if not quarter:
             raise HTTPException(status_code=400, detail="quarter param required for quarterly variant")
@@ -1278,10 +1280,11 @@ async def financial_statement(
         cy_label = f"{parts[1]} {parts[0]} Actual"
         py_label = f"{parts[1]} {int(parts[0]) - 1} Actual"
     elif variant == "full_year_cf_vs_py_act":
+        # Current-year forecast vs last completed year actuals
         cy_period = str(current_year)
-        py_period = str(current_year - 1)
+        py_period = str(last_full_year)
         cy_label = f"FY {current_year} (Act+CF)"
-        py_label = f"FY {current_year - 1} Actual"
+        py_label = f"FY {last_full_year} Actual"
     elif variant == "quarterly_cf_vs_py":
         if not quarter:
             raise HTTPException(status_code=400, detail="quarter param required for quarterly variant")

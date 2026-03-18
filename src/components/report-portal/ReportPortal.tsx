@@ -3113,6 +3113,16 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
       return;
     }
 
+    // Segment-level data not yet available in triple store
+    if (seg) {
+      setError("Segment-level data not yet available. Select 'All Segments' to view the full statement.");
+      setCurrentData(null);
+      setPyData(null);
+      setRawFSData(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -3151,6 +3161,15 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
   const combSeg = combiningSegment === "all" ? null : combiningSegment;
   const loadCombining = useCallback(async () => {
     if (tab !== "combining" || entity !== "combined") return;
+
+    // Segment-level data not yet available in triple store
+    if (combSeg) {
+      setCombiningError("Segment-level data not yet available. Select 'All Segments' to view the combining statement.");
+      setCombiningData(null);
+      setCombiningLoading(false);
+      return;
+    }
+
     setCombiningLoading(true);
     setCombiningError(null);
     try {
