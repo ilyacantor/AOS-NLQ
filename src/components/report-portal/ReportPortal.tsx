@@ -2949,6 +2949,15 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
   const lastFullYear = wallClockDate().getFullYear() - 1;
   const pyYear = lastFullYear - 1;
 
+  // Sync quarter selectors to latest actual quarter when dimensions load
+  useEffect(() => {
+    if (actQuarters.length > 0) {
+      const latest = actQuarters[actQuarters.length - 1];
+      setQuarter(latest);
+      setCombiningQuarter(latest);
+    }
+  }, [actQuarters]);
+
   const handleEntityChange = useCallback((e: EntitySelection) => {
     setEntity(e);
     // Reset to a valid tab when switching entity mode
@@ -3046,14 +3055,11 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
 
   // Combining period mirrors IS variant logic
   const combiningPeriod = useMemo(() => {
-    if (combiningVariant === "act_vs_py") return `${lastFullYear}-Q4`;
+    if (combiningVariant === "act_vs_py") return String(lastFullYear);
     if (combiningVariant === "q_act_vs_py") return combiningQuarter;
-    if (combiningVariant === "cf_vs_py") {
-      const cq = Math.ceil((wallClockDate().getMonth() + 1) / 3);
-      return `${wallClockDate().getFullYear()}-Q${cq}`;
-    }
+    if (combiningVariant === "cf_vs_py") return String(wallClockDate().getFullYear());
     if (combiningVariant === "q_cf_vs_py") return combiningQuarter || cfQuarters[0];
-    return `${lastFullYear}-Q4`;
+    return String(lastFullYear);
   }, [combiningVariant, combiningQuarter, lastFullYear, cfQuarters]);
 
   // Fetch report data when tab/variant/quarter/segment changes

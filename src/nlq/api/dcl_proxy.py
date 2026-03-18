@@ -1115,31 +1115,57 @@ def _flatten_dcl_statement(dcl_data: dict, statement: str) -> dict:
             if rev is not None and cogs is not None:
                 flat["gross_profit"] = round(rev - cogs, 2)
     elif statement == "balance_sheet":
+        # DCL's _domain_to_dict strips the first segment (e.g. "asset."),
+        # yielding keys like "current.cash", "noncurrent.property_plant_equipment".
+        # Remap these nested sub-keys to the flat keys _BS_LINES expects.
+        _BS_ASSET_REMAP = {
+            "current.cash": "cash",
+            "current.accounts_receivable": "ar",
+            "current.unbilled_revenue": "unbilled_revenue",
+            "current.prepaid": "prepaid_expenses",
+            "noncurrent.property_plant_equipment": "pp_e",
+            "noncurrent.intangibles": "intangibles",
+            "noncurrent.goodwill": "goodwill",
+        }
+        _BS_LIABILITY_REMAP = {
+            "current.accounts_payable": "ap",
+            "current.accrued_expenses": "accrued_expenses",
+            "current.deferred_revenue": "deferred_revenue",
+            "noncurrent.long_term_debt": "long_term_debt",
+        }
+        _BS_EQUITY_REMAP = {
+            "retained_earnings": "retained_earnings",
+            "common_stock": "common_stock",
+        }
         assets = dcl_data.get("assets", {})
         for k, v in assets.items():
             if k == "total":
                 flat["total"] = v
             else:
-                flat[k] = v
+                flat[_BS_ASSET_REMAP.get(k, k)] = v
         liabilities = dcl_data.get("liabilities", {})
         for k, v in liabilities.items():
             if k == "total":
                 flat["total_liabilities"] = v
             else:
-                flat[k] = v
+                flat[_BS_LIABILITY_REMAP.get(k, k)] = v
         equity = dcl_data.get("equity", {})
         for k, v in equity.items():
             if k == "total":
                 flat["stockholders_equity"] = v
             else:
-                flat[k] = v
+                flat[_BS_EQUITY_REMAP.get(k, k)] = v
     elif statement == "cash_flow":
+        # Remap DCL CF concept names to the keys _CF_LINES expects.
+        _CF_OPERATING_REMAP = {
+            "depreciation_add_back": "da_expense",
+        }
         operating = dcl_data.get("operating", {})
         for k, v in operating.items():
             if k == "total":
                 flat["operating_total"] = v
             else:
-                flat[k] = v
+                flat[_CF_OPERATING_REMAP.get(k, k)] = v
         investing = dcl_data.get("investing", {})
         for k, v in investing.items():
             if k == "total":
@@ -1268,16 +1294,21 @@ async def financial_statement(
         raise HTTPException(status_code=400, detail=f"Unknown variant '{variant}'")
 
     # Two DCL calls total: CY and PY. DCL aggregates quarters internally.
+    # Issue both in parallel via ThreadPoolExecutor to halve wall-clock time.
+    from concurrent.futures import ThreadPoolExecutor
+
     if is_combined:
         def _fetch() -> tuple:
-            cy = _dcl_get(dcl_combining_path, {"period": cy_period})
-            py = _dcl_get(dcl_combining_path, {"period": py_period})
-            return cy.get("combined", {}), py.get("combined", {})
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                cy_f = pool.submit(_dcl_get, dcl_combining_path, {"period": cy_period})
+                py_f = pool.submit(_dcl_get, dcl_combining_path, {"period": py_period})
+                return cy_f.result().get("combined", {}), py_f.result().get("combined", {})
     else:
         def _fetch() -> tuple:
-            cy = _dcl_get(dcl_single_path, {"entity_id": entity_id, "period": cy_period})
-            py = _dcl_get(dcl_single_path, {"entity_id": entity_id, "period": py_period})
-            return cy, py
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                cy_f = pool.submit(_dcl_get, dcl_single_path, {"entity_id": entity_id, "period": cy_period})
+                py_f = pool.submit(_dcl_get, dcl_single_path, {"entity_id": entity_id, "period": py_period})
+                return cy_f.result(), py_f.result()
 
     cy_raw, py_raw = await asyncio.to_thread(_fetch)
 
