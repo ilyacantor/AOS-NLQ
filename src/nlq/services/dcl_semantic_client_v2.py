@@ -746,6 +746,12 @@ class DCLSemanticClientV2:
                 )
             return spend / rev * 100
 
+        # sga: opex.sales_marketing + opex.general_admin
+        if metric_name == "sga":
+            sm = values.get("opex.sales_marketing", 0)
+            ga = values.get("opex.general_admin", 0)
+            return sm + ga
+
         # fcf: cash_flow.operating.total - cash_flow.investing.capex
         if metric_name == "fcf":
             cfo = values.get("cash_flow.operating.total", 0)

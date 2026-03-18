@@ -112,7 +112,7 @@ operating_profit:
   aliases: ["operating_income", "op_profit"]
 
 tax_expense:
-  concept: "pnl.tax_expense"
+  concept: "pnl.tax"
   property: "amount"
   type: direct
   unit: "usd"
@@ -157,11 +157,15 @@ opex:
   aliases: ["operating_expenses"]
 
 sga:
-  concept: "opex.sga"
-  property: "amount"
-  type: direct
+  type: derived
   unit: "usd"
   aliases: ["selling_general_admin"]
+  components:
+    - concept: "opex.sales_marketing"
+      property: "amount"
+    - concept: "opex.general_admin"
+      property: "amount"
+  formula: "opex.sales_marketing + opex.general_admin"
 
 selling_expenses:
   concept: "opex.selling"
@@ -668,7 +672,7 @@ reps_at_quota_pct:
   unit: "pct"
 
 unbilled_revenue:
-  concept: "asset.unbilled_revenue"
+  concept: "asset.current.unbilled_revenue"
   property: "amount"
   type: direct
   unit: "usd"

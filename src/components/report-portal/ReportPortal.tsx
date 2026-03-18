@@ -1188,7 +1188,6 @@ function LoadingState({ message = "Loading..." }: { message?: string }) {
   return (
     <div style={{ padding: "60px 20px", textAlign: "center" }}>
       <div style={{ fontSize: 14, color: COLORS.textMuted, fontFamily: "'IBM Plex Sans',sans-serif" }}>{message}</div>
-      <div style={{ marginTop: 12, fontSize: 12, color: COLORS.textDim }}>Loading report data...</div>
     </div>
   );
 }

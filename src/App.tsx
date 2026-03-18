@@ -639,8 +639,9 @@ function App() {
                     ? 'bg-slate-700 text-white'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
+                title="User Guide"
               >
-                Guide
+                ?
               </button>
               <button
                 onClick={() => setViewMode('reports')}
@@ -683,8 +684,9 @@ function App() {
                       ? 'bg-slate-700 text-white'
                       : 'bg-slate-800 text-cyan-400 hover:bg-slate-700'
                   }`}
+                  title="User Guide"
                 >
-                  User Guide
+                  ?
                 </button>
                 <button
                   onClick={() => { setViewMode('reports'); setMobileMenuOpen(false); }}
@@ -747,17 +749,6 @@ function App() {
                   Dashboard
                 </button>
                 <button
-                  id="nav-tab-guide"
-                  onClick={() => setViewMode('guide')}
-                  className={`min-h-[44px] px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'guide'
-                      ? 'bg-slate-700 text-white'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  User Guide
-                </button>
-                <button
                   id="nav-tab-reports"
                   onClick={() => setViewMode('reports')}
                   className={`min-h-[44px] px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
@@ -781,6 +772,18 @@ function App() {
               className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border border-cyan-400 text-cyan-400 hover:bg-cyan-400/10"
             >
               Tour
+            </button>
+            <button
+              id="nav-tab-guide"
+              onClick={() => setViewMode('guide')}
+              className={`min-h-[44px] w-[44px] flex items-center justify-center rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'guide'
+                  ? 'bg-slate-700 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="User Guide"
+            >
+              ?
             </button>
           </div>
         </div>
