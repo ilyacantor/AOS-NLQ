@@ -7,4 +7,4 @@ echo "Building React frontend..."
 npm run build
 
 echo "Starting FastAPI server on port 5000..."
-exec uvicorn src.nlq.main:app --host 0.0.0.0 --port 5000
+exec uvicorn src.nlq.main:app --host 0.0.0.0 --port 5000 --workers 2

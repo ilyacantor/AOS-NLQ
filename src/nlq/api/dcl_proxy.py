@@ -76,9 +76,16 @@ def _dcl_get(path: str, params: dict = None) -> dict:
 
 
 def _get_entity_ids() -> List[str]:
-    """Fetch entity IDs from DCL triples overview — dynamic, never hardcoded."""
+    """Fetch real entity IDs from DCL triples overview — dynamic, never hardcoded.
+
+    Excludes the synthetic 'combined' entity which is produced by NLQ at query
+    time and does not have its own financial data in the triple store.
+    """
     overview = _dcl_get("/api/dcl/triples/overview")
-    entities = [e["entity_id"] for e in overview.get("entities", [])]
+    entities = [
+        e["entity_id"] for e in overview.get("entities", [])
+        if e["entity_id"] != "combined"
+    ]
     if not entities:
         raise HTTPException(
             status_code=404,
@@ -280,56 +287,57 @@ async def cross_sell():
 
     opportunities = opps_data.get("opportunities", [])
 
-    # Split into m_to_c and c_to_m
+    # Split into m_to_c and c_to_m — pass through DCL v2 scored fields unchanged.
+    # All DCL values are in $M. Frontend formatter handles display scaling.
     m_to_c = []
     c_to_m = []
     for opp in opportunities:
         candidate = {
-            "customer_id": opp.get("customer", ""),
-            "customer_name": opp.get("customer", ""),
+            "customer_id": opp.get("customer_id", opp.get("customer", "")),
+            "customer_name": opp.get("customer_name", opp.get("customer", "")),
             "entity_id": opp.get("current_entity", ""),
-            "recommended_service": opp.get("service", ""),
-            "propensity_score": 0.7,
-            "estimated_acv": _parse_float(opp.get("typical_acv")),
-            "industry_match": 0.8,
-            "size_match": 0.8,
-            "behavioral_score": 0.7,
-            "engagement_fit": 0.7,
-            "relationship_strength": 0.7,
+            "recommended_service": opp.get("recommended_service", opp.get("service", "")),
+            "propensity_score": opp.get("propensity_score", 0),
+            "estimated_acv": _parse_float(opp.get("estimated_acv", opp.get("typical_acv"))),
+            "industry_match": opp.get("industry_match", 0),
+            "size_match": opp.get("size_match", 0),
+            "behavioral_score": opp.get("behavioral_score", 0),
+            "engagement_fit": opp.get("engagement_fit", 0),
+            "relationship_strength": opp.get("relationship_strength", 0),
             "rationale": opp.get("rationale", ""),
-            "comparable_customers": [],
-            "buyer_persona": "CFO",
-            "customer_engagement_M": 0.0,
-            "years_as_client": 0,
-            "industry": "",
-            "segment": "",
+            "comparable_customers": opp.get("comparable_customers", []),
+            "buyer_persona": opp.get("buyer_persona", "CFO"),
+            "customer_engagement_M": _parse_float(opp.get("customer_engagement_M")),
+            "years_as_client": opp.get("years_as_client", 0),
+            "industry": opp.get("industry", ""),
+            "segment": opp.get("segment", ""),
         }
         if opp.get("opportunity_entity", "").lower().startswith("c"):
             m_to_c.append(candidate)
         else:
             c_to_m.append(candidate)
 
-    by_direction = summary_data.get("by_direction", {})
     m_to_c_acv = sum(c["estimated_acv"] for c in m_to_c)
     c_to_m_acv = sum(c["estimated_acv"] for c in c_to_m)
+    high_conf_threshold = 80  # propensity_score is 0-100 integer scale
 
     result = {
         "m_to_c": m_to_c,
         "c_to_m": c_to_m,
         "summary": {
             "m_to_c_candidates": len(m_to_c),
-            "m_to_c_total_acv": round(m_to_c_acv, 2),
-            "m_to_c_high_conf_count": len([c for c in m_to_c if c["propensity_score"] > 0.8]),
-            "m_to_c_high_conf_acv": round(sum(c["estimated_acv"] for c in m_to_c if c["propensity_score"] > 0.8), 2),
+            "m_to_c_total_acv": m_to_c_acv,
+            "m_to_c_high_conf_count": len([c for c in m_to_c if c["propensity_score"] >= high_conf_threshold]),
+            "m_to_c_high_conf_acv": sum(c["estimated_acv"] for c in m_to_c if c["propensity_score"] >= high_conf_threshold),
             "c_to_m_candidates": len(c_to_m),
-            "c_to_m_total_acv": round(c_to_m_acv, 2),
-            "c_to_m_high_conf_count": len([c for c in c_to_m if c["propensity_score"] > 0.8]),
-            "c_to_m_high_conf_acv": round(sum(c["estimated_acv"] for c in c_to_m if c["propensity_score"] > 0.8), 2),
+            "c_to_m_total_acv": c_to_m_acv,
+            "c_to_m_high_conf_count": len([c for c in c_to_m if c["propensity_score"] >= high_conf_threshold]),
+            "c_to_m_high_conf_acv": sum(c["estimated_acv"] for c in c_to_m if c["propensity_score"] >= high_conf_threshold),
             "total_candidates": summary_data.get("total_opportunities", len(opportunities)),
-            "total_pipeline_acv": round(summary_data.get("total_potential_acv", m_to_c_acv + c_to_m_acv), 2),
-            "total_high_conf_acv": round(sum(
-                c["estimated_acv"] for c in m_to_c + c_to_m if c["propensity_score"] > 0.8
-            ), 2),
+            "total_pipeline_acv": m_to_c_acv + c_to_m_acv,
+            "total_high_conf_acv": sum(
+                c["estimated_acv"] for c in m_to_c + c_to_m if c["propensity_score"] >= high_conf_threshold
+            ),
         },
     }
     return JSONResponse(content=result)
@@ -417,6 +425,67 @@ async def ebitda_bridge(entity_id: str = Query(None)):
     return JSONResponse(content=result)
 
 
+def _build_revenue_quality(
+    entity_a: Dict, entity_b: Dict, combined: Dict,
+    total_rev: float, by_stream: List[Dict], cross_sell: Dict,
+) -> Dict:
+    """Build revenue_quality section from real DCL data."""
+    # Revenue mix from by_stream
+    stream_map: Dict[str, float] = {}
+    for s in by_stream:
+        concept = s.get("concept", "")
+        val = round(float(s.get("value", 0)), 2)
+        name = concept.split(".", 1)[1] if "." in concept else concept
+        stream_map[name] = val
+
+    # Classify recurring vs non-recurring
+    recurring_concepts = {"managed_services", "per_fte", "per_transaction", "fixed_fee"}
+    recurring_total = sum(v for k, v in stream_map.items() if k in recurring_concepts)
+    non_recurring_total = sum(v for k, v in stream_map.items() if k not in recurring_concepts)
+    recurring_pct = round(recurring_total / total_rev * 100, 1) if total_rev else 0
+    non_recurring_pct = round(non_recurring_total / total_rev * 100, 1) if total_rev else 0
+
+    # Cross-sell penetration from real cross-sell data
+    cs_opps = cross_sell.get("opportunities", [])
+    cs_total = cross_sell.get("total", len(cs_opps))
+    cs_pipeline_acv = round(sum(_parse_float(o.get("estimated_acv", 0)) for o in cs_opps), 2)
+    high_conf = [o for o in cs_opps if o.get("propensity_score", 0) >= 70]
+    high_conf_acv = round(sum(_parse_float(o.get("estimated_acv", 0)) for o in high_conf), 2)
+
+    return {
+        "customer_concentration": {
+            "hhi": 0,  # Not computable without per-customer revenue breakdown
+            "top_10_pct": 0,
+            "top_20_pct": 0,
+            "top_50_pct": 0,
+            "threshold_alerts": [],
+            "total_customers": 0,
+        },
+        "contract_quality": {
+            "msa_pct": 0,  # Not in triple store
+            "sow_pct": 0,
+            "t_and_m_pct": 0,
+            "avg_tenure_years": 0,
+        },
+        "revenue_mix": {
+            "recurring_pct": recurring_pct,
+            "non_recurring_pct": non_recurring_pct,
+            "advisory_consulting_M": stream_map.get("consulting", 0),
+            "managed_services_M": stream_map.get("managed_services", 0),
+            "per_fte_M": stream_map.get("per_fte", 0),
+            "per_transaction_M": stream_map.get("per_transaction", 0),
+        },
+        "cohort_retention": [],
+        "cross_sell_penetration": {
+            "total_candidates": cs_total,
+            "total_pipeline_acv_M": cs_pipeline_acv,
+            "converted_count": len(high_conf),
+            "converted_acv_M": high_conf_acv,
+            "conversion_rate_pct": round(len(high_conf) / cs_total * 100, 1) if cs_total else 0,
+        },
+    }
+
+
 # ---------------------------------------------------------------------------
 # QoE — transforms v2 combined QoE into QofEData
 # ---------------------------------------------------------------------------
@@ -424,10 +493,11 @@ async def ebitda_bridge(entity_id: str = Query(None)):
 @router.get("/api/reports/qoe")
 async def quality_of_earnings(entity_id: str = Query(None)):
     """Fetch QoE from DCL v2 and transform into QofEData shape."""
-    # Fetch QoE and bridge concurrently (was sequential — ~16s → ~8s)
-    qoe_data, bridge = await asyncio.gather(
+    # Fetch QoE, bridge, and cross-sell concurrently
+    qoe_data, bridge, cross_sell = await asyncio.gather(
         asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/qoe/combined"),
         asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/bridge"),
+        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/cross-sell"),
     )
 
     entity_a = qoe_data.get("entity_a", {})
@@ -453,10 +523,11 @@ async def quality_of_earnings(entity_id: str = Query(None)):
             "trend": "stable",
         })
 
-    # Revenue quality from entity_a
-    rev_quality = entity_a.get("revenue_quality", {})
-    total_rev = rev_quality.get("total_revenue", 0)
-    by_stream = rev_quality.get("by_stream", [])
+    # Revenue quality — merge both entities' streams for combined view
+    rev_a = entity_a.get("revenue_quality", {})
+    rev_b = entity_b.get("revenue_quality", {})
+    total_rev = rev_a.get("total_revenue", 0) + rev_b.get("total_revenue", 0)
+    by_stream = rev_a.get("by_stream", []) + rev_b.get("by_stream", [])
 
     # Margin trend from combined
     margin_trend = combined.get("margin_trend", [])
@@ -474,38 +545,9 @@ async def quality_of_earnings(entity_id: str = Query(None)):
             "status_counts": {"active": len(adjustments)},
             "total_adjustments": len(adjustments),
         },
-        "revenue_quality": {
-            "customer_concentration": {
-                "hhi": 0,
-                "top_10_pct": 0,
-                "top_20_pct": 0,
-                "top_50_pct": 0,
-                "threshold_alerts": [],
-                "total_customers": 0,
-            },
-            "contract_quality": {
-                "msa_pct": 0,
-                "sow_pct": 0,
-                "t_and_m_pct": 0,
-                "avg_tenure_years": 0,
-            },
-            "revenue_mix": {
-                "recurring_pct": 0,
-                "non_recurring_pct": 0,
-                "advisory_consulting_M": 0,
-                "managed_services_M": 0,
-                "per_fte_M": 0,
-                "per_transaction_M": 0,
-            },
-            "cohort_retention": [],
-            "cross_sell_penetration": {
-                "total_candidates": 0,
-                "total_pipeline_acv_M": 0,
-                "converted_count": 0,
-                "converted_acv_M": 0,
-                "conversion_rate_pct": 0,
-            },
-        },
+        "revenue_quality": _build_revenue_quality(
+            entity_a, entity_b, combined, total_rev, by_stream, cross_sell,
+        ),
         "sustainability_score": {
             "overall": combined.get("confidence_weighted_ebitda", adjusted) / max(adjusted, 1) * 100 if adjusted else 0,
             "components": [],
@@ -632,6 +674,335 @@ async def revenue_by_customer(
         "total_revenue": round(total_revenue, 2),
         "customer_count": len(customers),
         "provenance": provenance,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Combining Income Statement — transforms v2 hierarchical P&L into flat line_items
+# ---------------------------------------------------------------------------
+
+@router.get("/api/reports/combining-is")
+async def combining_income_statement(period: str = Query("2025-Q1")):
+    """Fetch combining IS from DCL v2 and transform into CombiningStatementData shape."""
+    dcl_data = await asyncio.to_thread(
+        _dcl_get, "/api/reports/combining-is", {"period": period}
+    )
+
+    entity_a = dcl_data.get("entity_a", {})
+    entity_b = dcl_data.get("entity_b", {})
+    adjustments = dcl_data.get("adjustments", {})
+    combined = dcl_data.get("combined", {})
+
+    def _val(section: dict, key: str) -> float:
+        if isinstance(section, dict):
+            v = section.get(key)
+            if isinstance(v, dict):
+                return round(float(v.get("total", 0)), 2)
+            if v is not None:
+                return round(float(v), 2)
+        return 0.0
+
+    def _sub(section: dict, key: str) -> float:
+        if isinstance(section, dict):
+            v = section.get(key)
+            if isinstance(v, (int, float)):
+                return round(float(v), 2)
+            if isinstance(v, dict):
+                return round(float(v.get("total", 0)), 2)
+        return 0.0
+
+    entity_a_name = str(entity_a.get("name", "entity_a"))
+    entity_b_name = str(entity_b.get("name", "entity_b"))
+
+    def _line(name: str, a_val: float, b_val: float, adj_val: float, comb_val: float) -> Dict:
+        return {
+            "line_item": name,
+            entity_a_name: round(a_val, 2),
+            entity_b_name: round(b_val, 2),
+            "adjustments": round(adj_val, 2),
+            "combined": round(comb_val, 2),
+        }
+
+    adj_rev = _sub(adjustments.get("revenue", {}), "total")
+    adj_cogs = _sub(adjustments.get("cogs", {}), "total")
+    adj_opex = _sub(adjustments.get("opex", {}), "total")
+    adj_dep = _sub(adjustments.get("depreciation", {}), "total")
+    adj_ebitda = float(adjustments.get("total_ebitda_impact", 0))
+
+    # Revenue sub-lines: collect all sub-keys from both entities
+    rev_a = entity_a.get("revenue", {})
+    rev_b = entity_b.get("revenue", {})
+    rev_c = combined.get("revenue", {})
+    rev_keys = sorted(set(k for k in list(rev_a.keys()) + list(rev_b.keys()) + list(rev_c.keys()) if k != "total"))
+
+    line_items: List[Dict] = []
+
+    # Revenue sub-lines
+    for key in rev_keys:
+        display = key.replace("_", " ").title()
+        line_items.append(_line(
+            f"  {display}",
+            float(rev_a.get(key, 0)), float(rev_b.get(key, 0)),
+            0, float(rev_c.get(key, 0)),
+        ))
+    line_items.append(_line(
+        "Total Revenue",
+        _sub(rev_a, "total"), _sub(rev_b, "total"),
+        adj_rev, _sub(rev_c, "total"),
+    ))
+
+    # COGS sub-lines
+    cogs_a = entity_a.get("cogs", {})
+    cogs_b = entity_b.get("cogs", {})
+    cogs_c = combined.get("cogs", {})
+    cogs_keys = sorted(set(k for k in list(cogs_a.keys()) + list(cogs_b.keys()) + list(cogs_c.keys()) if k != "total"))
+
+    for key in cogs_keys:
+        display = key.replace("_", " ").title()
+        line_items.append(_line(
+            f"  {display}",
+            float(cogs_a.get(key, 0)), float(cogs_b.get(key, 0)),
+            0, float(cogs_c.get(key, 0)),
+        ))
+    line_items.append(_line(
+        "Total COGS",
+        _sub(cogs_a, "total"), _sub(cogs_b, "total"),
+        adj_cogs, _sub(cogs_c, "total"),
+    ))
+
+    # Gross Profit
+    gp_a = _sub(rev_a, "total") - _sub(cogs_a, "total")
+    gp_b = _sub(rev_b, "total") - _sub(cogs_b, "total")
+    gp_adj = adj_rev - adj_cogs
+    gp_c = _sub(rev_c, "total") - _sub(cogs_c, "total")
+    line_items.append(_line("Gross Profit", gp_a, gp_b, gp_adj, gp_c))
+
+    # OpEx sub-lines
+    opex_a = entity_a.get("opex", {})
+    opex_b = entity_b.get("opex", {})
+    opex_c = combined.get("opex", {})
+    opex_keys = sorted(set(k for k in list(opex_a.keys()) + list(opex_b.keys()) + list(opex_c.keys()) if k != "total"))
+
+    for key in opex_keys:
+        display = key.replace("_", " ").title()
+        line_items.append(_line(
+            f"  {display}",
+            float(opex_a.get(key, 0)), float(opex_b.get(key, 0)),
+            0, float(opex_c.get(key, 0)),
+        ))
+    line_items.append(_line(
+        "Total OpEx",
+        _sub(opex_a, "total"), _sub(opex_b, "total"),
+        adj_opex, _sub(opex_c, "total"),
+    ))
+
+    # EBITDA
+    line_items.append(_line(
+        "EBITDA",
+        _val(entity_a, "ebitda"), _val(entity_b, "ebitda"),
+        adj_ebitda, _val(combined, "ebitda"),
+    ))
+
+    # D&A
+    line_items.append(_line(
+        "Depreciation & Amortization",
+        _val(entity_a, "depreciation_amortization"), _val(entity_b, "depreciation_amortization"),
+        adj_dep, _val(combined, "depreciation_amortization"),
+    ))
+
+    # Operating Profit
+    line_items.append(_line(
+        "Operating Profit",
+        _val(entity_a, "operating_profit"), _val(entity_b, "operating_profit"),
+        adj_ebitda - adj_dep, _val(combined, "operating_profit"),
+    ))
+
+    # Tax
+    line_items.append(_line(
+        "Tax",
+        _val(entity_a, "tax"), _val(entity_b, "tax"),
+        0, _val(combined, "tax"),
+    ))
+
+    # Net Income
+    line_items.append(_line(
+        "Net Income",
+        _val(entity_a, "net_income"), _val(entity_b, "net_income"),
+        adj_ebitda - adj_dep, _val(combined, "net_income"),
+    ))
+
+    return JSONResponse(content={
+        "period": dcl_data.get("period", period),
+        "line_items": line_items,
+    })
+
+
+# ---------------------------------------------------------------------------
+# What-If — transforms DCL v2 bridge into WhatIfResult shape
+# ---------------------------------------------------------------------------
+
+# Default lever definitions for the what-if UI
+_WHATIF_LEVER_DEFS = [
+    {"name": "revenue_growth", "label": "Revenue Growth", "min": -20, "max": 20, "default": 0, "unit": "%", "impact_per_point_M": None},
+    {"name": "cogs_change", "label": "COGS Change", "min": -20, "max": 20, "default": 0, "unit": "%", "impact_per_point_M": None},
+    {"name": "opex_change", "label": "OpEx Change", "min": -20, "max": 20, "default": 0, "unit": "%", "impact_per_point_M": None},
+    {"name": "synergy_realization", "label": "Synergy Realization", "min": 0, "max": 100, "default": 50, "unit": "%", "impact_per_point_M": None},
+    {"name": "headcount_change", "label": "Headcount Change", "min": -15, "max": 15, "default": 0, "unit": "%", "impact_per_point_M": None},
+]
+
+_WHATIF_PRESETS = {
+    "conservative": {"revenue_growth": -5, "cogs_change": 5, "opex_change": 5, "synergy_realization": 30, "headcount_change": -5},
+    "base_case": {"revenue_growth": 0, "cogs_change": 0, "opex_change": 0, "synergy_realization": 50, "headcount_change": 0},
+    "optimistic": {"revenue_growth": 10, "cogs_change": -5, "opex_change": -5, "synergy_realization": 80, "headcount_change": 5},
+}
+
+
+@router.post("/api/reports/what-if")
+async def what_if_scenario(request: Request):
+    """Build WhatIfResult from DCL bridge + lever adjustments."""
+    body = await request.json() if await request.body() else {}
+    preset = body.get("preset")
+    levers = body.get("levers")
+
+    if preset and preset in _WHATIF_PRESETS:
+        levers = _WHATIF_PRESETS[preset]
+    elif not levers:
+        levers = {d["name"]: d["default"] for d in _WHATIF_LEVER_DEFS}
+
+    # Get bridge data from DCL
+    bridge = await asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/bridge")
+
+    reported = bridge.get("reported_ebitda", 0)
+    adjusted = bridge.get("adjusted_ebitda", 0)
+    by_lever = bridge.get("by_lever", {})
+    synergy_total = by_lever.get("synergy", 0)
+
+    # Apply levers to compute scenario
+    rev_adj = levers.get("revenue_growth", 0) / 100
+    cogs_adj = levers.get("cogs_change", 0) / 100
+    opex_adj = levers.get("opex_change", 0) / 100
+    synergy_pct = levers.get("synergy_realization", 50) / 100
+
+    # Compute scenario EBITDA impact
+    rev_delta = reported * rev_adj
+    scenario_ebitda = adjusted + rev_delta - (adjusted * cogs_adj * 0.3) - (adjusted * opex_adj * 0.2)
+    scenario_synergy = synergy_total * synergy_pct
+
+    pf_year1 = round(scenario_ebitda + scenario_synergy * 0.5, 2)
+    pf_steady = round(scenario_ebitda + scenario_synergy, 2)
+
+    ev_multiple = 8.0
+
+    # Transform bridge adjustments
+    entity_adjustments = []
+    synergies = []
+    for adj in bridge.get("adjustments", []):
+        ba = {
+            "name": adj.get("name", ""),
+            "category": adj.get("lever", "normalization"),
+            "entity": "combined",
+            "confidence": str(adj.get("confidence", 0.5)),
+            "amount": adj.get("amount", 0),
+            "amount_low": adj.get("amount_low", 0),
+            "amount_high": adj.get("amount_high", 0),
+            "lever": adj.get("lever"),
+            "support_reference": adj.get("support_reference", ""),
+            "rationale": adj.get("rationale", ""),
+        }
+        if adj.get("lever") == "synergy":
+            synergies.append(ba)
+        else:
+            entity_adjustments.append(ba)
+
+    result = {
+        "levers": levers,
+        "lever_definitions": _WHATIF_LEVER_DEFS,
+        "reported_ebitda": reported,
+        "entity_adjusted_ebitda": adjusted,
+        "adjustments": entity_adjustments,
+        "synergies": synergies,
+        "pro_forma_ebitda": {"year_1": pf_year1, "steady_state": pf_steady},
+        "ev_impact": {
+            "year_1": round(pf_year1 * ev_multiple, 2),
+            "steady_state": round(pf_steady * ev_multiple, 2),
+        },
+        "presets": _WHATIF_PRESETS,
+    }
+    return JSONResponse(content=result)
+
+
+# ---------------------------------------------------------------------------
+# Dashboard — transforms DCL v2 resolver data into DashboardData shape
+# ---------------------------------------------------------------------------
+
+@router.get("/api/reports/dashboard/{persona}")
+async def dashboard(persona: str):
+    """Fetch dashboard from DCL and transform into DashboardData shape."""
+    dcl_data = await asyncio.to_thread(
+        _dcl_get, f"/api/reports/dashboard/{persona}"
+    )
+
+    pnl = dcl_data.get("pnl", {})
+    bs = dcl_data.get("balance_sheet", {})
+
+    rev = pnl.get("revenue", {})
+    cogs = pnl.get("cogs", {})
+    opex = pnl.get("opex", {})
+    assets = bs.get("assets", {})
+    liabilities = bs.get("liabilities", {})
+    equity = bs.get("equity", {})
+
+    rev_total = float(rev.get("total", 0)) if isinstance(rev, dict) else 0
+    cogs_total = float(cogs.get("total", 0)) if isinstance(cogs, dict) else 0
+    ebitda = float(pnl.get("ebitda", 0))
+    net_income = float(pnl.get("net_income", 0))
+
+    # Sum asset/liability/equity totals dynamically
+    def _sum_section(section: Dict) -> float:
+        if not isinstance(section, dict):
+            return 0
+        total = 0.0
+        for v in section.values():
+            if isinstance(v, (int, float)):
+                total += v
+        return round(total, 2)
+
+    total_assets = _sum_section(assets)
+    total_liabilities = _sum_section(liabilities)
+    total_equity = _sum_section(equity)
+
+    gross_margin = round((rev_total - cogs_total) / rev_total * 100, 1) if rev_total else 0
+    ebitda_margin = round(ebitda / rev_total * 100, 1) if rev_total else 0
+    net_margin = round(net_income / rev_total * 100, 1) if rev_total else 0
+
+    persona_titles = {
+        "cfo": "Chief Financial Officer Dashboard",
+        "cro": "Chief Revenue Officer Dashboard",
+        "coo": "Chief Operating Officer Dashboard",
+        "cto": "Chief Technology Officer Dashboard",
+        "chro": "Chief Human Resources Officer Dashboard",
+    }
+
+    kpis = {
+        "revenue_M": round(rev_total, 2),
+        "ebitda_M": round(ebitda, 2),
+        "net_income_M": round(net_income, 2),
+        "gross_margin_pct": gross_margin,
+        "ebitda_margin_pct": ebitda_margin,
+        "net_margin_pct": net_margin,
+        "total_assets_M": total_assets,
+        "total_liabilities_M": total_liabilities,
+        "total_equity_M": total_equity,
+    }
+
+    return JSONResponse(content={
+        "persona": persona,
+        "title": persona_titles.get(persona.lower(), f"{persona.upper()} Dashboard"),
+        "entity_id": dcl_data.get("entity_id"),
+        "period": dcl_data.get("period"),
+        "kpis": kpis,
+        "pnl": pnl,
+        "balance_sheet": bs,
     })
 
 

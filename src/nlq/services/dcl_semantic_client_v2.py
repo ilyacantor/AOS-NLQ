@@ -26,6 +26,19 @@ from src.nlq.services.dcl_semantic_client import propagate_context
 logger = logging.getLogger(__name__)
 
 
+class MetricsBatchResult(dict):
+    """Dict subclass that also carries confidence metadata from source triples.
+
+    Used by get_metrics_batch() so callers get {metric: value} dict behavior
+    plus .min_confidence_score and .min_confidence_tier from the actual data.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.min_confidence_score: Optional[float] = None
+        self.min_confidence_tier: Optional[str] = None
+
+
 # ---------------------------------------------------------------------------
 # Metric concept map loader
 # ---------------------------------------------------------------------------
@@ -754,19 +767,21 @@ class DCLSemanticClientV2:
         metric_names: List[str],
         entity_id: Optional[str] = None,
         period: Optional[str] = None,
-    ) -> Dict[str, Optional[float]]:
-        """Fetch multiple metrics in minimal HTTP calls by batching per domain.
+    ) -> "MetricsBatchResult":
+        """Fetch multiple metrics in one HTTP call via browse-batch endpoint.
 
-        Groups metrics by their DCL domain, makes one _browse_triple() call
-        per domain (with a wide limit), and extracts individual metric values
-        from the batch result.  Derived metrics are computed after all
-        components are fetched.
+        Collects all needed domains (from direct and derived metrics), makes
+        a single POST to /api/dcl/triples/browse-batch, and resolves all
+        metric values from the response. One HTTP call replaces N per-domain
+        browse calls.
 
-        Returns: {metric_name: value_or_None}
+        Returns: MetricsBatchResult (dict subclass with .min_confidence_score,
+                 .min_confidence_tier from source triples)
         """
         results: Dict[str, Optional[float]] = {}
         direct_by_domain: Dict[str, List[tuple]] = {}  # domain -> [(metric_name, concept, prop)]
         derived_metrics: List[str] = []
+        all_domains: set = set()
 
         for name in metric_names:
             canonical = resolve_metric_name(name)
@@ -776,46 +791,77 @@ class DCLSemanticClientV2:
             defn = METRIC_CONCEPT_MAP[canonical]
             if defn["type"] == "derived":
                 derived_metrics.append(name)
+                # Collect component domains for derived metrics too
+                for comp in defn.get("components", []):
+                    all_domains.add(comp["concept"].split(".")[0])
             else:
                 concept = defn["concept"]
                 prop = defn["property"]
                 domain = concept.split(".")[0]
                 direct_by_domain.setdefault(domain, []).append((name, concept, prop))
+                all_domains.add(domain)
 
-        # Batch-fetch each domain once
+        # Single batch fetch for ALL domains at once
         domain_triples: Dict[str, List[Dict[str, Any]]] = {}
-        for domain, items in direct_by_domain.items():
+        if all_domains:
             try:
-                browse_result = self._browse_triple(
-                    domain=domain,
-                    entity_id=entity_id,
-                    period=period,
-                    limit=200,
-                )
-                domain_triples[domain] = browse_result.get("triples", [])
+                body: Dict[str, Any] = {"domains": sorted(all_domains)}
+                if entity_id:
+                    body["entity_ids"] = [entity_id]
+                if period:
+                    body["period"] = period
+                resp = self._http.post("/api/dcl/triples/browse-batch", json=body)
+                if resp.status_code >= 400:
+                    raise RuntimeError(f"browse-batch returned {resp.status_code}: {resp.text[:300]}")
+                data = resp.json()
+                domain_triples = data.get("triples_by_domain", {})
             except Exception as exc:
-                logger.warning("Batch browse failed for domain=%s, period=%s: %s", domain, period, exc)
-                domain_triples[domain] = []
+                logger.warning("browse-batch failed, falling back to per-domain browse: %s", exc)
+                # Fallback: per-domain browse (original behavior)
+                for domain in all_domains:
+                    try:
+                        browse_result = self._browse_triple(
+                            domain=domain,
+                            entity_id=entity_id,
+                            period=period,
+                            limit=200,
+                        )
+                        domain_triples[domain] = browse_result.get("triples", [])
+                    except Exception as inner_exc:
+                        logger.warning("Fallback browse failed for domain=%s: %s", domain, inner_exc)
+                        domain_triples[domain] = []
 
-        # Extract individual metric values from batch results
+        # Extract individual metric values from batch results.
+        # Track confidence scores from source triples.
+        confidence_scores: List[float] = []
+        confidence_tiers: List[str] = []
+
+        def _track_confidence(triple_dict: Optional[Dict[str, Any]]):
+            if triple_dict is None:
+                return
+            score = triple_dict.get("confidence_score")
+            tier = triple_dict.get("confidence_tier")
+            if score is not None:
+                confidence_scores.append(float(score))
+            if tier is not None:
+                confidence_tiers.append(tier)
+
         for domain, items in direct_by_domain.items():
             triples = domain_triples.get(domain, [])
             for metric_name, concept, prop in items:
                 triple = self._extract_triple_value(triples, concept, prop)
                 if triple is not None:
                     results[metric_name] = self._numeric_value(triple)
+                    _track_confidence(triple)
                 else:
-                    # Try .total synthesis (e.g. employee.total from employee.*)
                     synthesized = self._try_total_synthesis(triples, concept, prop, metric_name, entity_id)
                     if synthesized is not None:
                         results[metric_name] = synthesized.get("value")
+                        _track_confidence(synthesized)
                     else:
                         results[metric_name] = None
 
         # Compute derived metrics inline from already-fetched domain triples
-        # instead of calling get_derived_metric() which re-browses with
-        # different cache keys (property_name filter + limit=50) causing
-        # 48 redundant HTTP calls per combined report.
         for name in derived_metrics:
             try:
                 canonical = resolve_metric_name(name)
@@ -826,7 +872,6 @@ class DCLSemanticClientV2:
                 components = defn.get("components", [])
                 formula = defn.get("formula", "")
 
-                # For derived metrics with bare year, resolve to latest quarter
                 derived_period = period
                 if self._is_bare_year(derived_period) or derived_period is None:
                     resolved = self._get_latest_quarter()
@@ -835,8 +880,6 @@ class DCLSemanticClientV2:
                         continue
                     derived_period = resolved
 
-                # Gather component values from already-fetched domain triples,
-                # fetching any missing domains with the same limit=200 pattern
                 component_values: Dict[str, float] = {}
                 missing_component = False
                 for comp in components:
@@ -844,33 +887,16 @@ class DCLSemanticClientV2:
                     comp_prop = comp["property"]
                     comp_domain = comp_concept.split(".")[0]
 
-                    # Fetch domain if not already in domain_triples
-                    if comp_domain not in domain_triples:
-                        try:
-                            browse_result = self._browse_triple(
-                                domain=comp_domain,
-                                entity_id=entity_id,
-                                period=derived_period,
-                                limit=200,
-                            )
-                            domain_triples[comp_domain] = browse_result.get("triples", [])
-                        except Exception as exc:
-                            logger.warning(
-                                "Derived metric '%s': browse failed for domain=%s: %s",
-                                name, comp_domain, exc,
-                            )
-                            domain_triples[comp_domain] = []
-
                     triples = domain_triples.get(comp_domain, [])
                     triple = self._extract_triple_value(triples, comp_concept, comp_prop)
 
                     if triple is None:
-                        # Try .total synthesis
                         synthesized = self._try_total_synthesis(
                             triples, comp_concept, comp_prop, name, entity_id,
                         )
                         if synthesized is not None:
                             component_values[comp_concept] = synthesized.get("value")
+                            _track_confidence(synthesized)
                             continue
                         missing_component = True
                         break
@@ -880,6 +906,7 @@ class DCLSemanticClientV2:
                         missing_component = True
                         break
                     component_values[comp_concept] = val
+                    _track_confidence(triple)
 
                 if missing_component:
                     results[name] = None
@@ -890,7 +917,160 @@ class DCLSemanticClientV2:
                 logger.warning("Derived metric '%s' failed in batch: %s", name, exc)
                 results[name] = None
 
-        return results
+        # Wrap results with confidence metadata from source triples
+        batch_result = MetricsBatchResult(results)
+        if confidence_scores:
+            batch_result.min_confidence_score = min(confidence_scores)
+        if confidence_tiers:
+            # Tier ordering: exact > high > medium > low
+            tier_rank = {"exact": 4, "high": 3, "medium": 2, "low": 1, "derived": 2}
+            batch_result.min_confidence_tier = min(
+                confidence_tiers, key=lambda t: tier_rank.get(t, 0)
+            )
+
+        return batch_result
+
+    def get_all_metrics_by_period(
+        self,
+        metric_names: List[str],
+        entity_id: Optional[str] = None,
+    ) -> Tuple["MetricsBatchResult", float]:
+        """Fetch ALL periods for given metrics in ONE browse-batch call.
+
+        Makes a single HTTP call with no period filter, then groups results
+        by period and extracts metrics per period. Returns:
+          - MetricsBatchResult keyed by (metric_name, period) as "{metric}|{period}"
+          - min confidence score from source triples
+
+        This replaces N calls to get_metrics_batch (one per period) with 1 call.
+        """
+        direct_by_domain: Dict[str, List[tuple]] = {}
+        derived_metrics: List[str] = []
+        all_domains: set = set()
+
+        for name in metric_names:
+            canonical = resolve_metric_name(name)
+            if canonical is None:
+                continue
+            defn = METRIC_CONCEPT_MAP[canonical]
+            if defn["type"] == "derived":
+                derived_metrics.append(name)
+                for comp in defn.get("components", []):
+                    all_domains.add(comp["concept"].split(".")[0])
+            else:
+                concept = defn["concept"]
+                prop = defn["property"]
+                domain = concept.split(".")[0]
+                direct_by_domain.setdefault(domain, []).append((name, concept, prop))
+                all_domains.add(domain)
+
+        # Single batch fetch — ALL domains, ALL periods, one entity
+        all_triples: List[Dict[str, Any]] = []
+        if all_domains:
+            try:
+                body: Dict[str, Any] = {"domains": sorted(all_domains)}
+                if entity_id:
+                    body["entity_ids"] = [entity_id]
+                resp = self._http.post("/api/dcl/triples/browse-batch", json=body)
+                if resp.status_code >= 400:
+                    raise RuntimeError(f"browse-batch returned {resp.status_code}: {resp.text[:300]}")
+                data = resp.json()
+                # Flatten all triples
+                for domain_triples in data.get("triples_by_domain", {}).values():
+                    all_triples.extend(domain_triples)
+            except Exception as exc:
+                logger.warning("get_all_metrics_by_period: browse-batch failed: %s", exc)
+                # No fallback — fail loudly per A1
+                raise RuntimeError(
+                    f"DCL browse-batch call failed for entity_id={entity_id}, "
+                    f"domains={sorted(all_domains)}: {exc}"
+                ) from exc
+
+        # Group all triples by (domain, period)
+        triples_by_domain_period: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+        for t in all_triples:
+            concept = t.get("concept", "")
+            domain = concept.split(".")[0] if concept else ""
+            period = t.get("period", "")
+            if domain and period:
+                triples_by_domain_period.setdefault((domain, period), []).append(t)
+
+        # Get all unique periods
+        all_periods = sorted({t.get("period") for t in all_triples if t.get("period")})
+
+        # Extract metrics per period
+        results = MetricsBatchResult()
+        confidence_scores: List[float] = []
+
+        def _track_confidence(triple_dict: Optional[Dict[str, Any]]):
+            if triple_dict is None:
+                return
+            score = triple_dict.get("confidence_score")
+            if score is not None:
+                confidence_scores.append(float(score))
+
+        for period in all_periods:
+            # Direct metrics
+            for domain, items in direct_by_domain.items():
+                triples = triples_by_domain_period.get((domain, period), [])
+                for metric_name, concept, prop in items:
+                    triple = self._extract_triple_value(triples, concept, prop)
+                    if triple is not None:
+                        results[f"{metric_name}|{period}"] = self._numeric_value(triple)
+                        _track_confidence(triple)
+                    else:
+                        synthesized = self._try_total_synthesis(triples, concept, prop, metric_name, entity_id)
+                        if synthesized is not None:
+                            results[f"{metric_name}|{period}"] = synthesized.get("value")
+                            _track_confidence(synthesized)
+
+            # Derived metrics
+            for name in derived_metrics:
+                try:
+                    canonical = resolve_metric_name(name)
+                    if canonical is None:
+                        continue
+                    defn = METRIC_CONCEPT_MAP[canonical]
+                    components = defn.get("components", [])
+                    formula = defn.get("formula", "")
+
+                    component_values: Dict[str, float] = {}
+                    missing_component = False
+                    for comp in components:
+                        comp_concept = comp["concept"]
+                        comp_prop = comp["property"]
+                        comp_domain = comp_concept.split(".")[0]
+                        triples = triples_by_domain_period.get((comp_domain, period), [])
+                        triple = self._extract_triple_value(triples, comp_concept, comp_prop)
+
+                        if triple is None:
+                            synthesized = self._try_total_synthesis(
+                                triples, comp_concept, comp_prop, name, entity_id,
+                            )
+                            if synthesized is not None:
+                                component_values[comp_concept] = synthesized.get("value")
+                                _track_confidence(synthesized)
+                                continue
+                            missing_component = True
+                            break
+
+                        val = self._numeric_value(triple)
+                        if val is None:
+                            missing_component = True
+                            break
+                        component_values[comp_concept] = val
+                        _track_confidence(triple)
+
+                    if not missing_component:
+                        results[f"{name}|{period}"] = self._compute_formula(canonical, formula, component_values)
+                except (ValueError, RuntimeError) as exc:
+                    logger.warning("Derived metric '%s' period=%s failed: %s", name, period, exc)
+
+        if confidence_scores:
+            results.min_confidence_score = min(confidence_scores)
+        min_conf = min(confidence_scores) if confidence_scores else 1.0
+
+        return results, min_conf
 
     # ------------------------------------------------------------------
     # Dashboard

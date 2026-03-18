@@ -5046,9 +5046,11 @@ async def reconciliation():
     )
 
     # ── Batch-browse strategy ──────────────────────────────────────────
-    # Instead of 2300+ individual POST /api/dcl/query calls (one per metric),
-    # batch-browse by (domain, entity_id, period) and extract values from
-    # the results. This reduces HTTP calls from ~2300 to ~288.
+    # One POST to /api/dcl/triples/browse-batch fetches all domains and
+    # entities in a single SQL query. Values are extracted client-side.
+    # This replaces hundreds of individual browse calls with 1 HTTP call.
+    import time as _time
+    _t0 = _time.monotonic()
     from src.nlq.services.dcl_semantic_client_v2 import (
         METRIC_CONCEPT_MAP, resolve_metric_name,
     )
@@ -5094,43 +5096,45 @@ async def reconciliation():
         for dom in domains:
             browse_tuples.add((dom, entity_id, period))
 
-    # Step 2: Batch-browse all (domain, entity_id, period) tuples in parallel
+    # Step 2: Single batch-browse call — fetches ALL domains for ALL entities at once.
+    # Replaces hundreds of individual browse calls with 1 HTTP call.
+    all_domains: set = set()
+    all_entity_ids: set = set()
+    for dom, eid, _per in browse_tuples:
+        all_domains.add(dom)
+        if eid:
+            all_entity_ids.add(eid)
+
     browse_cache: Dict[tuple, list] = {}  # (domain, entity_id, period) -> triples
 
-    def _browse(domain: str, eid: Optional[str], period: str):
-        params: Dict[str, Any] = {"domain": domain, "limit": 200}
-        if eid:
-            params["entity_id"] = eid
-        if period:
-            params["period"] = period
-        try:
-            r = client.get(f"{dcl_url}/api/dcl/triples/browse", params=params)
-            if r.status_code == 200:
-                return (domain, eid, period, r.json().get("triples", []), None)
-            return (domain, eid, period, [], f"HTTP {r.status_code}")
-        except Exception as exc:
-            return (domain, eid, period, [], str(exc))
-
-    browse_max_workers = min(16, len(browse_tuples)) if browse_tuples else 1
     try:
-        with ThreadPoolExecutor(max_workers=browse_max_workers) as pool:
-            wrapped_browse = propagate_context(_browse)
-            browse_futures = [
-                pool.submit(wrapped_browse, dom, eid, per)
-                for dom, eid, per in browse_tuples
-            ]
-            for future in as_completed(browse_futures):
-                dom, eid, per, triples, err = future.result()
-                if err:
-                    logger.warning("Reconciliation browse failed domain=%s entity=%s period=%s: %s", dom, eid, per, err)
-                browse_cache[(dom, eid, per)] = triples
-    except Exception:
-        pass  # individual errors logged above; checks below handle missing data
+        batch_body: Dict[str, Any] = {"domains": sorted(all_domains)}
+        if all_entity_ids:
+            batch_body["entity_ids"] = sorted(all_entity_ids)
+        r = client.post(f"{dcl_url}/api/dcl/triples/browse-batch", json=batch_body)
+        if r.status_code != 200:
+            raise RuntimeError(f"browse-batch returned HTTP {r.status_code}: {r.text[:300]}")
+        batch_data = r.json()
+        triples_by_domain = batch_data.get("triples_by_domain", {})
 
-    logger.info(
-        "Reconciliation: %d browse calls (vs %d per-metric calls previously)",
-        len(browse_tuples), len(all_checks),
-    )
+        # Group into browse_cache by (domain, entity_id, period)
+        for domain, triples in triples_by_domain.items():
+            for t in triples:
+                eid = t.get("entity_id")
+                period = t.get("period")
+                if period:
+                    browse_cache.setdefault((domain, eid, period), []).append(t)
+        print(f"[RECON] batch-browse returned {batch_data.get('total_count', 0)} triples across {len(triples_by_domain)} domains (1 HTTP call)", flush=True)
+    except Exception as exc:
+        print(f"[RECON] batch-browse failed: {exc}", flush=True)
+        raise RuntimeError(
+            f"Reconciliation aborted: DCL batch-browse call failed at "
+            f"{dcl_url}/api/dcl/triples/browse-batch — {exc}"
+        ) from exc
+
+    _t1 = _time.monotonic()
+    unknown_count = sum(1 for v in check_defs.values() if v["defn"] is None)
+    print(f"[RECON] {len(browse_cache)} cache entries for {len(all_checks)} checks ({unknown_count} unknown metrics) — browse took {_t1 - _t0:.1f}s", flush=True)
 
     # Step 3: Extract metric values from browse results
     results = {}  # (composite_key, period) -> (actual_value | None, error_str | None)
@@ -5179,17 +5183,9 @@ async def reconciliation():
     for composite_key, period, _ in all_checks:
         defn_info = check_defs.get(composite_key)
         if defn_info is None or defn_info["defn"] is None:
-            # Unknown metric — fall back to per-metric query
-            eid = defn_info["entity_id"] if defn_info else None
-            mid = defn_info["metric_id"] if defn_info else composite_key
-            try:
-                result = query_fn(mid, period, entity_id=eid)
-                if result is None:
-                    results[(composite_key, period)] = (None, None)
-                else:
-                    results[(composite_key, period)] = (result.value, None)
-            except Exception as exc:
-                results[(composite_key, period)] = (None, str(exc))
+            # Unknown metric — not in METRIC_CONCEPT_MAP, no DCL triple data.
+            # Mark as None without making HTTP calls (these would all return empty).
+            results[(composite_key, period)] = (None, None)
             continue
 
         defn = defn_info["defn"]

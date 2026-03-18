@@ -68,7 +68,7 @@ class TestHealthChecks:
         assert resp.status_code == 200, f"DCL health check failed: {resp.text}"
 
     def test_nlq_health(self, nlq_client):
-        resp = nlq_client.get("/api/health")
+        resp = nlq_client.get("/api/v1/health")
         assert resp.status_code == 200, f"NLQ health check failed: {resp.text}"
 
 
@@ -178,15 +178,26 @@ class TestDashboardMetrics:
 
     def test_cfo_dashboard_via_nlq(self, nlq_client):
         result = _nlq_query(nlq_client, "Show me the CFO dashboard")
-        # Dashboard responses contain nodes or text with metric values
-        nodes = result.get("nodes", [])
-        text = result.get("text", "") or result.get("answer", "")
-
-        has_data = len(nodes) > 0 or (text and "$" in text)
-        assert has_data, (
+        # Dashboard responses return structured dashboard with widgets
+        dashboard = result.get("dashboard")
+        assert dashboard is not None, (
             f"User asked 'Show me the CFO dashboard'. "
-            f"Expected: dashboard with metric values. Got nodes={len(nodes)}, "
-            f"text preview: {str(text)[:200]}"
+            f"Expected: dashboard object with widgets. Got keys: {list(result.keys())}"
+        )
+        widgets = dashboard.get("widgets", [])
+        assert len(widgets) > 0, (
+            f"User asked 'Show me the CFO dashboard'. "
+            f"Expected: dashboard with metric widgets. Got 0 widgets. "
+            f"Dashboard: {str(dashboard)[:300]}"
+        )
+        # B12: source field check
+        source = (
+            result.get("data_source")
+            or result.get("source")
+        )
+        assert source is not None, (
+            f"User asked 'Show me the CFO dashboard'. "
+            f"Expected data_source field present. Got source='{source}'"
         )
 
 

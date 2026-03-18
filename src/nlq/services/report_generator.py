@@ -100,6 +100,7 @@ class ReportGenerator:
         self.query_fn = query_fn
         self.wall_clock = wall_clock or date.today()
         self.entity_id = entity_id
+        self._batch_min_confidence: Optional[float] = None
 
     def generate_report(
         self,
@@ -303,7 +304,7 @@ class ReportGenerator:
             answer="\n".join(lines),
             value=None,
             unit=None,
-            confidence=0.95,
+            confidence=self._batch_min_confidence if self._batch_min_confidence is not None else 1.0,
             parsed_intent="REPORT_QUERY",
             resolved_metric=statement_type,
             resolved_period=(
@@ -391,15 +392,13 @@ class ReportGenerator:
         line_items: List[str],
         periods: list,
     ) -> Dict[str, Optional[float]]:
-        """Batch-fetch metrics across periods using v2 client.
+        """Batch-fetch metrics across periods using ONE browse-batch call.
 
-        Makes one DCL HTTP call per domain×period instead of one per
-        metric×period.  For a P&L with 13 metrics across 4 quarters,
-        this reduces ~52 HTTP calls to ~16 (4 domains × 4 quarters).
+        Makes a single HTTP call to DCL (no period filter), gets ALL triples
+        for all domains/periods, then extracts metrics per period client-side.
+        For combined entity, makes one call per entity (2 total).
 
-        For combined entity: fetches per-entity batches and aggregates
-        (sum additive, average non-additive) since DCL has no entity
-        called "combined".
+        Tracks min confidence from source triples via self._batch_min_confidence.
         """
         from src.nlq.knowledge.schema import is_additive_metric, is_point_in_time_metric
         from src.nlq.services.dcl_semantic_client_v2 import get_semantic_client_v2
@@ -409,23 +408,20 @@ class ReportGenerator:
         if self.entity_id == "combined":
             return self._query_periods_batch_combined(line_items, periods, v2)
 
-        # Fetch each period's batch in parallel (limited concurrency)
+        # ONE call for all periods — extract per-period values client-side
+        period_labels = [p.label for p in periods]
+        all_data, min_conf = v2.get_all_metrics_by_period(
+            line_items, entity_id=self.entity_id,
+        )
+        self._batch_min_confidence = min_conf
+
+        # Map results from "metric|period" keys to (metric, period_idx)
         results_map: Dict[tuple, Optional[float]] = {}
-
-        def _batch_for_period(period_idx: int, period_label: str):
-            batch = v2.get_metrics_batch(line_items, entity_id=self.entity_id, period=period_label)
-            return period_idx, batch
-
-        with ThreadPoolExecutor(max_workers=min(8, len(periods))) as pool:
-            wrapped = propagate_context(_batch_for_period)
-            futures = [
-                pool.submit(wrapped, pi, period_info.label)
-                for pi, period_info in enumerate(periods)
-            ]
-            for future in as_completed(futures):
-                period_idx, batch = future.result()
-                for metric_id, value in batch.items():
-                    results_map[(metric_id, period_idx)] = value
+        for pi, period_label in enumerate(period_labels):
+            for metric_id in line_items:
+                key = f"{metric_id}|{period_label}"
+                if key in all_data:
+                    results_map[(metric_id, pi)] = all_data[key]
 
         return self._aggregate_results(line_items, periods, results_map)
 
@@ -435,12 +431,10 @@ class ReportGenerator:
         periods: list,
         v2,
     ) -> Dict[str, Optional[float]]:
-        """Batch-fetch for combined entity — query each real entity, then aggregate.
+        """Batch-fetch for combined entity — one browse-batch call per entity.
 
-        For each (entity, period) pair, fetches all metrics in one batch call.
-        Then sums additive metrics and averages non-additive metrics across entities
-        for each (metric, period) slot before passing to _aggregate_results for
-        cross-period aggregation.
+        Makes N calls (one per entity, typically 2) instead of N×P calls.
+        Each call returns all periods' data. Then aggregates across entities.
         """
         from src.nlq.knowledge.schema import is_additive_metric
         from src.nlq.core.entity_registry import get_entity_registry
@@ -451,37 +445,37 @@ class ReportGenerator:
             logger.error("No entities registered — cannot build combined report")
             return {}
 
-        # Fetch batches: one per (entity, period) — parallelized
-        # Key: (entity_id, period_idx) -> {metric: value}
-        entity_period_batches: Dict[tuple, Dict[str, Optional[float]]] = {}
+        period_labels = [p.label for p in periods]
 
-        def _batch_for_entity_period(eid: str, period_idx: int, period_label: str):
-            batch = v2.get_metrics_batch(line_items, entity_id=eid, period=period_label)
-            return eid, period_idx, batch
+        # One browse-batch call per entity (parallelized, typically 2 calls)
+        entity_data: Dict[str, dict] = {}  # entity_id -> {metric|period: value}
+        confidence_scores: list = []
 
-        # Combined reports generate one batch-browse per (entity, period).
-        # With derived metrics resolved inline (no redundant HTTP calls),
-        # 8 workers can handle all pairs without overwhelming DCL.
-        max_workers = min(8, len(entity_ids) * len(periods))
-        with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            wrapped = propagate_context(_batch_for_entity_period)
-            futures = [
-                pool.submit(wrapped, eid, pi, period_info.label)
-                for eid in entity_ids
-                for pi, period_info in enumerate(periods)
-            ]
+        def _fetch_entity(eid: str):
+            all_data, min_conf = v2.get_all_metrics_by_period(
+                line_items, entity_id=eid,
+            )
+            return eid, all_data, min_conf
+
+        with ThreadPoolExecutor(max_workers=len(entity_ids)) as pool:
+            wrapped = propagate_context(_fetch_entity)
+            futures = [pool.submit(wrapped, eid) for eid in entity_ids]
             for future in as_completed(futures):
-                eid, period_idx, batch = future.result()
-                entity_period_batches[(eid, period_idx)] = batch
+                eid, all_data, min_conf = future.result()
+                entity_data[eid] = all_data
+                confidence_scores.append(min_conf)
+
+        if confidence_scores:
+            self._batch_min_confidence = min(confidence_scores)
 
         # Aggregate across entities for each (metric, period) slot
         results_map: Dict[tuple, Optional[float]] = {}
-        for pi in range(len(periods)):
+        for pi, period_label in enumerate(period_labels):
             for metric_id in line_items:
                 entity_values = []
                 for eid in entity_ids:
-                    batch = entity_period_batches.get((eid, pi), {})
-                    val = batch.get(metric_id)
+                    data = entity_data.get(eid, {})
+                    val = data.get(f"{metric_id}|{period_label}")
                     if val is not None:
                         entity_values.append(val)
 

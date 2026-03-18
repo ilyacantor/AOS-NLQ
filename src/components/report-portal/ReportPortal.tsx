@@ -32,12 +32,22 @@ function variancePct(act: number, py: number): string {
   return (pct >= 0 ? "+" : "") + pct.toFixed(1) + "%";
 }
 
-function fmtM(n: number | null | undefined): string {
-  if (n === null || n === undefined) return "\u2014";
-  const m = n / 1_000_000;
-  const abs = Math.abs(m);
-  const s = abs.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  return n < 0 ? `($${s}M)` : `$${s}M`;
+function fmtDollar(n: number | null | undefined): string {
+  if (n === null || n === undefined || n === 0) return "\u2014";
+  // DCL returns all financial values in $M. Auto-scale for display.
+  const absM = Math.abs(n);
+  let formatted: string;
+  if (absM >= 1000) {
+    const b = absM / 1000;
+    formatted = `$${b.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}B`;
+  } else if (absM >= 0.1) {
+    const mDec = absM < 10 ? 1 : 0;
+    formatted = `$${absM.toLocaleString("en-US", { minimumFractionDigits: mDec, maximumFractionDigits: mDec })}M`;
+  } else {
+    const k = absM * 1000;
+    formatted = `$${k.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}K`;
+  }
+  return n < 0 ? `(${formatted})` : formatted;
 }
 
 function fmtScore(n: number): string {
@@ -1180,10 +1190,10 @@ function CrossSellTab() {
       {/* Summary cards */}
       <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
         {[
-          { label: "Total Pipeline", value: fmtM(s.total_pipeline_acv), sub: `${s.total_candidates} candidates` },
-          { label: "High Confidence", value: fmtM(s.total_high_conf_acv), sub: "Score > 80" },
-          { label: "M \u2192 C Candidates", value: String(s.m_to_c_candidates), sub: fmtM(s.m_to_c_total_acv) },
-          { label: "C \u2192 M Candidates", value: String(s.c_to_m_candidates), sub: fmtM(s.c_to_m_total_acv) },
+          { label: "Total Pipeline", value: fmtDollar(s.total_pipeline_acv), sub: `${s.total_candidates} candidates` },
+          { label: "High Confidence", value: fmtDollar(s.total_high_conf_acv), sub: "Score > 80" },
+          { label: "M \u2192 C Candidates", value: String(s.m_to_c_candidates), sub: fmtDollar(s.m_to_c_total_acv) },
+          { label: "C \u2192 M Candidates", value: String(s.c_to_m_candidates), sub: fmtDollar(s.c_to_m_total_acv) },
         ].map((card) => (
           <div key={card.label} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "16px 20px", flex: "1 1 180px", minWidth: 180 }}>
             <div style={{ fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>{card.label}</div>
@@ -1238,7 +1248,7 @@ function CrossSellTab() {
                     <td style={{ textAlign: "right", padding: "8px 12px", fontWeight: 600, color: c.propensity_score >= 80 ? COLORS.green : c.propensity_score >= 60 ? COLORS.accent : COLORS.textMuted }}>
                       {c.propensity_score}
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px 12px", color: COLORS.text }}>{fmtM(c.estimated_acv)}</td>
+                    <td style={{ textAlign: "right", padding: "8px 12px", color: COLORS.text }}>{fmtDollar(c.estimated_acv)}</td>
                     <td style={{ padding: "8px 12px", color: COLORS.textMuted, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 11 }}>{c.industry}</td>
                     <td style={{ padding: "8px 12px" }}>
                       <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 3, fontWeight: 600,
@@ -1258,7 +1268,7 @@ function CrossSellTab() {
                           <div><span style={{ color: COLORS.textDim }}>Behavioral:</span> <span style={{ color: COLORS.text }}>{c.behavioral_score}/30</span></div>
                           <div><span style={{ color: COLORS.textDim }}>Engagement Fit:</span> <span style={{ color: COLORS.text }}>{c.engagement_fit}/15</span></div>
                           <div><span style={{ color: COLORS.textDim }}>Relationship:</span> <span style={{ color: COLORS.text }}>{c.relationship_strength}/10</span></div>
-                          <div><span style={{ color: COLORS.textDim }}>Current Engagement:</span> <span style={{ color: COLORS.text }}>{fmtM(c.customer_engagement_M * 1_000_000)}</span></div>
+                          <div><span style={{ color: COLORS.textDim }}>Current Engagement:</span> <span style={{ color: COLORS.text }}>{fmtDollar(c.customer_engagement_M)}</span></div>
                         </div>
                         <div style={{ marginTop: 12, padding: "10px 14px", background: COLORS.bg, borderRadius: 6, fontSize: 12, color: COLORS.textMuted, lineHeight: 1.5 }}>
                           <span style={{ fontWeight: 600, color: COLORS.text }}>Rationale:</span> {c.rationale}
@@ -1423,7 +1433,7 @@ function EBITDABridgeTab() {
             {isSubtract ? "\u2212 " : "+ "}{adj.name}
           </td>
           <td style={{ textAlign: "right", padding: "8px 16px", color: isSubtract ? COLORS.red : COLORS.green, fontSize: 13, fontFamily: "'IBM Plex Mono',monospace" }}>
-            {isSubtract ? `(${fmtM(Math.abs(adj.amount))})` : fmtM(adj.amount)}
+            {isSubtract ? `(${fmtDollar(Math.abs(adj.amount))})` : fmtDollar(adj.amount)}
           </td>
           <td style={{ textAlign: "center", padding: "8px 12px" }}>
             <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 3, fontWeight: 600, color: confidenceColor(adj.confidence), background: adj.confidence === "high" ? COLORS.greenBg : adj.confidence === "medium" ? "rgba(199,120,64,0.08)" : COLORS.redBg }}>
@@ -1435,7 +1445,7 @@ function EBITDABridgeTab() {
           <tr style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
             <td colSpan={3} style={{ padding: "8px 20px 12px 48px", background: COLORS.surface }}>
               <div style={{ fontSize: 12, color: COLORS.textMuted, lineHeight: 1.5, fontFamily: "'IBM Plex Sans',sans-serif" }}>
-                <div><span style={{ color: COLORS.textDim }}>Range:</span> {fmtM(adj.amount_low)} — {fmtM(adj.amount_high)}</div>
+                <div><span style={{ color: COLORS.textDim }}>Range:</span> {fmtDollar(adj.amount_low)} — {fmtDollar(adj.amount_high)}</div>
                 <div><span style={{ color: COLORS.textDim }}>Category:</span> {adj.category.replace(/_/g, " ")}</div>
                 {adj.lever && <div><span style={{ color: COLORS.textDim }}>Lever:</span> {adj.lever}</div>}
                 <div style={{ marginTop: 6 }}><span style={{ color: COLORS.textDim }}>Support:</span> {adj.support_reference}</div>
@@ -1456,11 +1466,11 @@ function EBITDABridgeTab() {
       <div style={{ display: "flex", flexDirection: "column", gap: 0, marginBottom: 24 }}>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
           {([
-            { id: "reported", label: "Reported EBITDA", value: fmtM(rep.combined_reported) },
-            { id: "adjusted", label: "Entity Adjusted", value: fmtM(ea.combined) },
-            { id: "pf_yr1", label: "Pro Forma Yr 1", value: fmtM(pf.year_1.current) },
-            { id: "pf_ss", label: "Pro Forma Steady State", value: fmtM(pf.steady_state.current) },
-            { id: "ev", label: `EV @ ${ev.multiple}x`, value: fmtM(ev.steady_state_ev.current) },
+            { id: "reported", label: "Reported EBITDA", value: fmtDollar(rep.combined_reported) },
+            { id: "adjusted", label: "Entity Adjusted", value: fmtDollar(ea.combined) },
+            { id: "pf_yr1", label: "Pro Forma Yr 1", value: fmtDollar(pf.year_1.current) },
+            { id: "pf_ss", label: "Pro Forma Steady State", value: fmtDollar(pf.steady_state.current) },
+            { id: "ev", label: `EV @ ${ev.multiple}x`, value: fmtDollar(ev.steady_state_ev.current) },
           ] as const).map((kpi) => {
             const isExp = expandedKpi === kpi.id;
             return (
@@ -1485,15 +1495,15 @@ function EBITDABridgeTab() {
                   <tbody>
                     <tr style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
                       <td style={{ padding: "6px 0", color: COLORS.textMuted }}>Meridian</td>
-                      <td style={{ textAlign: "right", padding: "6px 0", color: COLORS.text, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(rep.meridian)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 0", color: COLORS.text, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(rep.meridian)}</td>
                     </tr>
                     <tr style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
                       <td style={{ padding: "6px 0", color: COLORS.textMuted }}>Cascadia</td>
-                      <td style={{ textAlign: "right", padding: "6px 0", color: COLORS.text, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(rep.cascadia)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 0", color: COLORS.text, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(rep.cascadia)}</td>
                     </tr>
                     <tr style={{ borderTop: `1px solid ${COLORS.borderLight}` }}>
                       <td style={{ padding: "6px 0", color: COLORS.text, fontWeight: 700 }}>Combined</td>
-                      <td style={{ textAlign: "right", padding: "6px 0", color: COLORS.text, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(rep.combined_reported)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 0", color: COLORS.text, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(rep.combined_reported)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1514,22 +1524,22 @@ function EBITDABridgeTab() {
                   <tbody>
                     <tr style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
                       <td style={{ padding: "6px 0", color: COLORS.textMuted }}>Reported</td>
-                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(rep.meridian)}</td>
-                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(rep.cascadia)}</td>
-                      <td style={{ textAlign: "right", padding: "6px 0", color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(rep.combined_reported)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(rep.meridian)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(rep.cascadia)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 0", color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(rep.combined_reported)}</td>
                     </tr>
                     {data.entity_adjustments.map((adj) => (
                       <tr key={adj.name} style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
                         <td style={{ padding: "6px 0", color: COLORS.textMuted, fontSize: 11 }}>{adj.name}</td>
                         <td colSpan={2} style={{ textAlign: "center", padding: "6px 8px", color: COLORS.textDim, fontSize: 10 }}>{adj.entity}</td>
-                        <td style={{ textAlign: "right", padding: "6px 0", color: adj.amount >= 0 ? COLORS.green : COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{adj.amount >= 0 ? "+" : ""}{fmtM(adj.amount)}</td>
+                        <td style={{ textAlign: "right", padding: "6px 0", color: adj.amount >= 0 ? COLORS.green : COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{adj.amount >= 0 ? "+" : ""}{fmtDollar(adj.amount)}</td>
                       </tr>
                     ))}
                     <tr style={{ borderTop: `1px solid ${COLORS.borderLight}` }}>
                       <td style={{ padding: "6px 0", color: COLORS.text, fontWeight: 700 }}>Adjusted</td>
-                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.text, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(ea.meridian)}</td>
-                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.text, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(ea.cascadia)}</td>
-                      <td style={{ textAlign: "right", padding: "6px 0", color: COLORS.text, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(ea.combined)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.text, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(ea.meridian)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.text, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(ea.cascadia)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 0", color: COLORS.text, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(ea.combined)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1541,7 +1551,7 @@ function EBITDABridgeTab() {
                 <div style={{ display: "flex", gap: 32, alignItems: "center" }}>
                   <div>
                     <div style={{ fontSize: 10, color: COLORS.textDim }}>LOW</div>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(pf.year_1.low)}</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(pf.year_1.low)}</div>
                   </div>
                   <div style={{ flex: 1, height: 6, background: COLORS.bg, borderRadius: 3, position: "relative", maxWidth: 200 }}>
                     <div style={{ position: "absolute", left: 0, top: 0, height: 6, borderRadius: 3, background: `linear-gradient(90deg, ${COLORS.red}, ${COLORS.green})`, width: "100%" }} />
@@ -1549,15 +1559,15 @@ function EBITDABridgeTab() {
                   </div>
                   <div>
                     <div style={{ fontSize: 10, color: COLORS.textDim }}>HIGH</div>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(pf.year_1.high)}</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(pf.year_1.high)}</div>
                   </div>
                   <div style={{ borderLeft: `1px solid ${COLORS.border}`, paddingLeft: 24 }}>
                     <div style={{ fontSize: 10, color: COLORS.textDim }}>CURRENT</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(pf.year_1.current)}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(pf.year_1.current)}</div>
                   </div>
                 </div>
                 <div style={{ marginTop: 12, fontSize: 11, color: COLORS.textMuted }}>
-                  Synergies applied: {data.combination_synergies.length} items totaling {fmtM(data.combination_synergies.reduce((s, a) => s + a.amount, 0))}
+                  Synergies applied: {data.combination_synergies.length} items totaling {fmtDollar(data.combination_synergies.reduce((s, a) => s + a.amount, 0))}
                 </div>
               </div>
             )}
@@ -1567,7 +1577,7 @@ function EBITDABridgeTab() {
                 <div style={{ display: "flex", gap: 32, alignItems: "center" }}>
                   <div>
                     <div style={{ fontSize: 10, color: COLORS.textDim }}>LOW</div>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(pf.steady_state.low)}</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(pf.steady_state.low)}</div>
                   </div>
                   <div style={{ flex: 1, height: 6, background: COLORS.bg, borderRadius: 3, position: "relative", maxWidth: 200 }}>
                     <div style={{ position: "absolute", left: 0, top: 0, height: 6, borderRadius: 3, background: `linear-gradient(90deg, ${COLORS.red}, ${COLORS.green})`, width: "100%" }} />
@@ -1575,11 +1585,11 @@ function EBITDABridgeTab() {
                   </div>
                   <div>
                     <div style={{ fontSize: 10, color: COLORS.textDim }}>HIGH</div>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(pf.steady_state.high)}</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(pf.steady_state.high)}</div>
                   </div>
                   <div style={{ borderLeft: `1px solid ${COLORS.border}`, paddingLeft: 24 }}>
                     <div style={{ fontSize: 10, color: COLORS.textDim }}>CURRENT</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(pf.steady_state.current)}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(pf.steady_state.current)}</div>
                   </div>
                 </div>
                 <div style={{ marginTop: 12, fontSize: 11, color: COLORS.textMuted }}>
@@ -1602,20 +1612,20 @@ function EBITDABridgeTab() {
                   <tbody>
                     <tr style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
                       <td style={{ padding: "6px 0", color: COLORS.textMuted }}>Year 1 EV</td>
-                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(ev.year_1_ev.low)}</td>
-                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.text, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(ev.year_1_ev.current)}</td>
-                      <td style={{ textAlign: "right", padding: "6px 0", color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(ev.year_1_ev.high)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(ev.year_1_ev.low)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.text, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(ev.year_1_ev.current)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 0", color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(ev.year_1_ev.high)}</td>
                     </tr>
                     <tr>
                       <td style={{ padding: "6px 0", color: COLORS.text, fontWeight: 600 }}>Steady State EV</td>
-                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(ev.steady_state_ev.low)}</td>
-                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.text, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(ev.steady_state_ev.current)}</td>
-                      <td style={{ textAlign: "right", padding: "6px 0", color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(ev.steady_state_ev.high)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(ev.steady_state_ev.low)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 8px", color: COLORS.text, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(ev.steady_state_ev.current)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 0", color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(ev.steady_state_ev.high)}</td>
                     </tr>
                   </tbody>
                 </table>
                 <div style={{ marginTop: 10, fontSize: 11, color: COLORS.textMuted }}>
-                  EV delta from reported: {fmtM(ev.steady_state_ev.current - rep.combined_reported * ev.multiple)} incremental value created
+                  EV delta from reported: {fmtDollar(ev.steady_state_ev.current - rep.combined_reported * ev.multiple)} incremental value created
                 </div>
               </div>
             )}
@@ -1637,7 +1647,7 @@ function EBITDABridgeTab() {
             {/* Reported */}
             <tr style={{ background: COLORS.totalBg, borderBottom: `1px solid ${COLORS.borderLight}` }}>
               <td style={{ padding: "10px 16px", fontWeight: 600, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>Reported EBITDA (Combined)</td>
-              <td style={{ textAlign: "right", padding: "10px 16px", fontWeight: 600, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(rep.combined_reported)}</td>
+              <td style={{ textAlign: "right", padding: "10px 16px", fontWeight: 600, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(rep.combined_reported)}</td>
               <td></td>
             </tr>
 
@@ -1648,7 +1658,7 @@ function EBITDABridgeTab() {
             {/* Entity adjusted subtotal */}
             <tr style={{ background: COLORS.totalBg, borderTop: `1px solid ${COLORS.borderLight}`, borderBottom: `1px solid ${COLORS.borderLight}` }}>
               <td style={{ padding: "10px 16px", fontWeight: 600, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>Entity-Level Adjusted EBITDA</td>
-              <td style={{ textAlign: "right", padding: "10px 16px", fontWeight: 600, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(ea.combined)}</td>
+              <td style={{ textAlign: "right", padding: "10px 16px", fontWeight: 600, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(ea.combined)}</td>
               <td></td>
             </tr>
 
@@ -1661,12 +1671,12 @@ function EBITDABridgeTab() {
             {/* Pro forma */}
             <tr style={{ background: COLORS.totalBg, borderTop: `2px solid ${COLORS.accent}` }}>
               <td style={{ padding: "10px 16px", fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>Pro Forma Adjusted EBITDA (Yr 1)</td>
-              <td style={{ textAlign: "right", padding: "10px 16px", fontWeight: 700, color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(pf.year_1.current)}</td>
+              <td style={{ textAlign: "right", padding: "10px 16px", fontWeight: 700, color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(pf.year_1.current)}</td>
               <td></td>
             </tr>
             <tr style={{ background: COLORS.totalBg }}>
               <td style={{ padding: "10px 16px", fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>Pro Forma Adjusted EBITDA (Steady State)</td>
-              <td style={{ textAlign: "right", padding: "10px 16px", fontWeight: 700, color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(pf.steady_state.current)}</td>
+              <td style={{ textAlign: "right", padding: "10px 16px", fontWeight: 700, color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(pf.steady_state.current)}</td>
               <td></td>
             </tr>
           </tbody>
@@ -1773,12 +1783,12 @@ function WhatIfTab() {
         <div style={{ display: "flex", flexDirection: "column", gap: 0, marginBottom: 20 }}>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             {([
-              { id: "wi_reported", label: "Reported EBITDA", value: fmtM(result.reported_ebitda) },
-              { id: "wi_adjusted", label: "Entity Adjusted", value: fmtM(result.entity_adjusted_ebitda) },
-              { id: "wi_pf1", label: "Pro Forma Yr 1", value: fmtM(result.pro_forma_ebitda.year_1) },
-              { id: "wi_pfss", label: "Pro Forma SS", value: fmtM(result.pro_forma_ebitda.steady_state) },
-              { id: "wi_ev1", label: "EV (Yr 1)", value: fmtM(result.ev_impact.year_1) },
-              { id: "wi_evss", label: "EV (SS)", value: fmtM(result.ev_impact.steady_state) },
+              { id: "wi_reported", label: "Reported EBITDA", value: fmtDollar(result.reported_ebitda) },
+              { id: "wi_adjusted", label: "Entity Adjusted", value: fmtDollar(result.entity_adjusted_ebitda) },
+              { id: "wi_pf1", label: "Pro Forma Yr 1", value: fmtDollar(result.pro_forma_ebitda.year_1) },
+              { id: "wi_pfss", label: "Pro Forma SS", value: fmtDollar(result.pro_forma_ebitda.steady_state) },
+              { id: "wi_ev1", label: "EV (Yr 1)", value: fmtDollar(result.ev_impact.year_1) },
+              { id: "wi_evss", label: "EV (SS)", value: fmtDollar(result.ev_impact.steady_state) },
             ] as const).map((kpi) => {
               const isExp = wiKpi === kpi.id;
               return (
@@ -1816,7 +1826,7 @@ function WhatIfTab() {
                   {adjRows.map((a) => (
                     <tr key={a.name} style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
                       <td style={{ padding: "5px 12px", color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>{a.name}</td>
-                      <td style={{ textAlign: "right", padding: "5px 12px", color: a.amount >= 0 ? COLORS.green : COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{a.amount >= 0 ? "+" : ""}{fmtM(a.amount)}</td>
+                      <td style={{ textAlign: "right", padding: "5px 12px", color: a.amount >= 0 ? COLORS.green : COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{a.amount >= 0 ? "+" : ""}{fmtDollar(a.amount)}</td>
                       <td style={{ textAlign: "center", padding: "5px 8px" }}>
                         <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 600, color: confidenceColor(a.confidence), background: a.confidence === "high" ? COLORS.greenBg : a.confidence === "medium" ? "rgba(199,120,64,0.08)" : COLORS.redBg }}>{a.confidence.toUpperCase()}</span>
                       </td>
@@ -1825,7 +1835,7 @@ function WhatIfTab() {
                   ))}
                   <tr style={{ borderTop: `1px solid ${COLORS.borderLight}` }}>
                     <td style={{ padding: "5px 12px", color: COLORS.text, fontWeight: 700 }}>Total Adjustments</td>
-                    <td style={{ textAlign: "right", padding: "5px 12px", color: COLORS.text, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{adjTotal >= 0 ? "+" : ""}{fmtM(adjTotal)}</td>
+                    <td style={{ textAlign: "right", padding: "5px 12px", color: COLORS.text, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{adjTotal >= 0 ? "+" : ""}{fmtDollar(adjTotal)}</td>
                     <td colSpan={2}></td>
                   </tr>
                 </tbody>
@@ -1847,7 +1857,7 @@ function WhatIfTab() {
                     <tr key={s.name} style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
                       <td style={{ padding: "5px 12px", color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>{s.name}</td>
                       <td style={{ textAlign: "right", padding: "5px 12px", color: s.category === "dis_synergy" ? COLORS.red : COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>
-                        {s.category === "dis_synergy" ? `(${fmtM(Math.abs(s.amount))})` : `+${fmtM(s.amount)}`}
+                        {s.category === "dis_synergy" ? `(${fmtDollar(Math.abs(s.amount))})` : `+${fmtDollar(s.amount)}`}
                       </td>
                       <td style={{ textAlign: "center", padding: "5px 8px" }}>
                         <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 600, color: confidenceColor(s.confidence), background: s.confidence === "high" ? COLORS.greenBg : s.confidence === "medium" ? "rgba(199,120,64,0.08)" : COLORS.redBg }}>{s.confidence.toUpperCase()}</span>
@@ -1857,7 +1867,7 @@ function WhatIfTab() {
                   ))}
                   <tr style={{ borderTop: `1px solid ${COLORS.borderLight}` }}>
                     <td style={{ padding: "5px 12px", color: COLORS.text, fontWeight: 700 }}>Net Synergies</td>
-                    <td style={{ textAlign: "right", padding: "5px 12px", color: COLORS.text, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{synTotal >= 0 ? "+" : ""}{fmtM(synTotal)}</td>
+                    <td style={{ textAlign: "right", padding: "5px 12px", color: COLORS.text, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{synTotal >= 0 ? "+" : ""}{fmtDollar(synTotal)}</td>
                     <td colSpan={2}></td>
                   </tr>
                 </tbody>
@@ -1872,8 +1882,8 @@ function WhatIfTab() {
                     <div style={{ fontSize: 12, color: COLORS.textMuted, lineHeight: 1.6 }}>
                       <div>This is the unadjusted, as-reported combined EBITDA before any normalization adjustments or synergy assumptions.</div>
                       <div style={{ marginTop: 8, display: "flex", gap: 24 }}>
-                        <div><span style={{ color: COLORS.textDim }}>Value:</span> <span style={{ fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(result.reported_ebitda)}</span></div>
-                        <div><span style={{ color: COLORS.textDim }}>Adjustments pending:</span> <span style={{ fontWeight: 600, color: COLORS.accent }}>{adjRows.length} items ({adjTotal >= 0 ? "+" : ""}{fmtM(adjTotal)})</span></div>
+                        <div><span style={{ color: COLORS.textDim }}>Value:</span> <span style={{ fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(result.reported_ebitda)}</span></div>
+                        <div><span style={{ color: COLORS.textDim }}>Adjustments pending:</span> <span style={{ fontWeight: 600, color: COLORS.accent }}>{adjRows.length} items ({adjTotal >= 0 ? "+" : ""}{fmtDollar(adjTotal)})</span></div>
                       </div>
                     </div>
                   </div>
@@ -1882,7 +1892,7 @@ function WhatIfTab() {
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>Entity-Adjusted EBITDA Build-Up</div>
                     <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 10 }}>
-                      Reported {fmtM(result.reported_ebitda)} + adjustments {adjTotal >= 0 ? "+" : ""}{fmtM(adjTotal)} = <span style={{ fontWeight: 700, color: COLORS.text }}>{fmtM(result.entity_adjusted_ebitda)}</span>
+                      Reported {fmtDollar(result.reported_ebitda)} + adjustments {adjTotal >= 0 ? "+" : ""}{fmtDollar(adjTotal)} = <span style={{ fontWeight: 700, color: COLORS.text }}>{fmtDollar(result.entity_adjusted_ebitda)}</span>
                     </div>
                     {adjTable}
                   </div>
@@ -1891,7 +1901,7 @@ function WhatIfTab() {
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>Pro Forma Year 1 Build-Up</div>
                     <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 10 }}>
-                      Adjusted {fmtM(result.entity_adjusted_ebitda)} + net synergies {synTotal >= 0 ? "+" : ""}{fmtM(synTotal)} = <span style={{ fontWeight: 700, color: COLORS.green }}>{fmtM(result.pro_forma_ebitda.year_1)}</span>
+                      Adjusted {fmtDollar(result.entity_adjusted_ebitda)} + net synergies {synTotal >= 0 ? "+" : ""}{fmtDollar(synTotal)} = <span style={{ fontWeight: 700, color: COLORS.green }}>{fmtDollar(result.pro_forma_ebitda.year_1)}</span>
                     </div>
                     {synTable}
                   </div>
@@ -1900,7 +1910,7 @@ function WhatIfTab() {
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>Pro Forma Steady State Build-Up</div>
                     <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 10 }}>
-                      Adjusted {fmtM(result.entity_adjusted_ebitda)} + full synergy realization {synTotal >= 0 ? "+" : ""}{fmtM(synTotal)} = <span style={{ fontWeight: 700, color: COLORS.green }}>{fmtM(result.pro_forma_ebitda.steady_state)}</span>
+                      Adjusted {fmtDollar(result.entity_adjusted_ebitda)} + full synergy realization {synTotal >= 0 ? "+" : ""}{fmtDollar(synTotal)} = <span style={{ fontWeight: 700, color: COLORS.green }}>{fmtDollar(result.pro_forma_ebitda.steady_state)}</span>
                     </div>
                     <div style={{ marginBottom: 12 }}>{synTable}</div>
                     <div style={{ fontSize: 11, color: COLORS.textMuted, fontStyle: "italic" }}>Steady state assumes 100% synergy realization (typically 24–36 months post-close)</div>
@@ -1910,13 +1920,13 @@ function WhatIfTab() {
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>Enterprise Value — Year 1</div>
                     <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 12 }}>
-                      Pro Forma Yr 1 EBITDA {fmtM(result.pro_forma_ebitda.year_1)} applied at current lever multiple
+                      Pro Forma Yr 1 EBITDA {fmtDollar(result.pro_forma_ebitda.year_1)} applied at current lever multiple
                     </div>
                     <table style={{ borderCollapse: "collapse", fontSize: 12 }}>
                       <tbody>
                         <tr style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
                           <td style={{ padding: "5px 16px 5px 0", color: COLORS.textMuted }}>Pro Forma EBITDA (Yr 1)</td>
-                          <td style={{ textAlign: "right", padding: "5px 0", color: COLORS.text, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(result.pro_forma_ebitda.year_1)}</td>
+                          <td style={{ textAlign: "right", padding: "5px 0", color: COLORS.text, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(result.pro_forma_ebitda.year_1)}</td>
                         </tr>
                         <tr style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
                           <td style={{ padding: "5px 16px 5px 0", color: COLORS.textMuted }}>Multiple (from lever)</td>
@@ -1924,7 +1934,7 @@ function WhatIfTab() {
                         </tr>
                         <tr style={{ borderTop: `1px solid ${COLORS.borderLight}` }}>
                           <td style={{ padding: "5px 16px 5px 0", color: COLORS.text, fontWeight: 700 }}>EV (Year 1)</td>
-                          <td style={{ textAlign: "right", padding: "5px 0", color: COLORS.green, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(result.ev_impact.year_1)}</td>
+                          <td style={{ textAlign: "right", padding: "5px 0", color: COLORS.green, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(result.ev_impact.year_1)}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -1934,13 +1944,13 @@ function WhatIfTab() {
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>Enterprise Value — Steady State</div>
                     <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 12 }}>
-                      Pro Forma SS EBITDA {fmtM(result.pro_forma_ebitda.steady_state)} applied at current lever multiple
+                      Pro Forma SS EBITDA {fmtDollar(result.pro_forma_ebitda.steady_state)} applied at current lever multiple
                     </div>
                     <table style={{ borderCollapse: "collapse", fontSize: 12 }}>
                       <tbody>
                         <tr style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
                           <td style={{ padding: "5px 16px 5px 0", color: COLORS.textMuted }}>Pro Forma EBITDA (SS)</td>
-                          <td style={{ textAlign: "right", padding: "5px 0", color: COLORS.text, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(result.pro_forma_ebitda.steady_state)}</td>
+                          <td style={{ textAlign: "right", padding: "5px 0", color: COLORS.text, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(result.pro_forma_ebitda.steady_state)}</td>
                         </tr>
                         <tr style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
                           <td style={{ padding: "5px 16px 5px 0", color: COLORS.textMuted }}>Multiple (from lever)</td>
@@ -1948,11 +1958,11 @@ function WhatIfTab() {
                         </tr>
                         <tr style={{ borderTop: `1px solid ${COLORS.borderLight}` }}>
                           <td style={{ padding: "5px 16px 5px 0", color: COLORS.text, fontWeight: 700 }}>EV (Steady State)</td>
-                          <td style={{ textAlign: "right", padding: "5px 0", color: COLORS.green, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtM(result.ev_impact.steady_state)}</td>
+                          <td style={{ textAlign: "right", padding: "5px 0", color: COLORS.green, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{fmtDollar(result.ev_impact.steady_state)}</td>
                         </tr>
                         <tr style={{ borderTop: `1px solid ${COLORS.border}22` }}>
                           <td style={{ padding: "5px 16px 5px 0", color: COLORS.textMuted, fontSize: 11 }}>Incremental vs Reported</td>
-                          <td style={{ textAlign: "right", padding: "5px 0", color: COLORS.accent, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace", fontSize: 11 }}>+{fmtM(result.ev_impact.steady_state - result.ev_impact.year_1)}</td>
+                          <td style={{ textAlign: "right", padding: "5px 0", color: COLORS.accent, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace", fontSize: 11 }}>+{fmtDollar(result.ev_impact.steady_state - result.ev_impact.year_1)}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -2019,7 +2029,7 @@ function QofETab() {
         </div>
         <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "14px 18px", flex: "1 1 160px" }}>
           <div style={{ fontSize: 10, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>Adjusted EBITDA</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace", marginTop: 4 }}>{fmtM(summary.entity_adjusted_ebitda)}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace", marginTop: 4 }}>{fmtDollar(summary.entity_adjusted_ebitda)}</div>
         </div>
         <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "14px 18px", flex: "1 1 160px" }}>
           <div style={{ fontSize: 10, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>Adjustments</div>
@@ -2075,9 +2085,9 @@ function QofETab() {
                         <span style={{ color: COLORS.accent, marginRight: 6, fontSize: 9 }}>{isExp ? "\u25BE" : "\u25B8"}</span>
                         {row.name}
                       </td>
-                      <td style={{ textAlign: "right", padding: "6px 12px", fontFamily: "'IBM Plex Mono',monospace", color: COLORS.text }}>{fmtM(row.current_amount)}</td>
-                      <td style={{ textAlign: "right", padding: "6px 12px", fontFamily: "'IBM Plex Mono',monospace", color: COLORS.textMuted }}>{row.diligence_amount !== null ? fmtM(row.diligence_amount) : "—"}</td>
-                      <td style={{ textAlign: "right", padding: "6px 12px", fontFamily: "'IBM Plex Mono',monospace", color: COLORS.textMuted }}>{row.prior_amount !== null ? fmtM(row.prior_amount) : "—"}</td>
+                      <td style={{ textAlign: "right", padding: "6px 12px", fontFamily: "'IBM Plex Mono',monospace", color: COLORS.text }}>{fmtDollar(row.current_amount)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 12px", fontFamily: "'IBM Plex Mono',monospace", color: COLORS.textMuted }}>{row.diligence_amount !== null ? fmtDollar(row.diligence_amount) : "—"}</td>
+                      <td style={{ textAlign: "right", padding: "6px 12px", fontFamily: "'IBM Plex Mono',monospace", color: COLORS.textMuted }}>{row.prior_amount !== null ? fmtDollar(row.prior_amount) : "—"}</td>
                       <td style={{ textAlign: "center", padding: "6px 8px" }}>
                         <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 600, color: statusColor(row.status), background: statusBg(row.status) }}>{row.status.toUpperCase()}</span>
                       </td>
@@ -2090,7 +2100,7 @@ function QofETab() {
                       <tr style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
                         <td colSpan={7} style={{ padding: "8px 20px 12px 36px", background: COLORS.surface }}>
                           <div style={{ fontSize: 11, color: COLORS.textMuted, lineHeight: 1.6 }}>
-                            <div><span style={{ color: COLORS.textDim }}>Range:</span> {fmtM(row.amount_low)} — {fmtM(row.amount_high)}</div>
+                            <div><span style={{ color: COLORS.textDim }}>Range:</span> {fmtDollar(row.amount_low)} — {fmtDollar(row.amount_high)}</div>
                             <div><span style={{ color: COLORS.textDim }}>Category:</span> {row.category.replace(/_/g, " ")}</div>
                             <div><span style={{ color: COLORS.textDim }}>Entity:</span> {row.entity}</div>
                             <div><span style={{ color: COLORS.textDim }}>Lifecycle:</span> {row.lifecycle_stage}</div>
@@ -2257,7 +2267,7 @@ function QofETab() {
                 {data.new_items.map((item, i) => (
                   <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}15` }}>
                     <td style={{ padding: "6px 12px", color: COLORS.text }}>{item.description}</td>
-                    <td style={{ textAlign: "right", padding: "6px 12px", fontFamily: "'IBM Plex Mono',monospace", color: item.amount >= 0 ? COLORS.green : COLORS.red }}>{fmtM(item.amount)}</td>
+                    <td style={{ textAlign: "right", padding: "6px 12px", fontFamily: "'IBM Plex Mono',monospace", color: item.amount >= 0 ? COLORS.green : COLORS.red }}>{fmtDollar(item.amount)}</td>
                     <td style={{ textAlign: "center", padding: "6px 8px" }}>
                       <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 600, color: COLORS.accent, background: "rgba(199,120,64,0.08)" }}>{item.classification_suggestion.toUpperCase()}</span>
                     </td>
@@ -2281,7 +2291,7 @@ function QofETab() {
 
 function formatDashVal(v: unknown): string {
   if (v === null || v === undefined) return "\u2014";
-  if (typeof v === "number") return Math.abs(v) > 100_000 ? fmtM(v) : v.toLocaleString();
+  if (typeof v === "number") return fmtDollar(v);
   if (typeof v === "boolean") return v ? "Yes" : "No";
   return String(v);
 }
@@ -2453,7 +2463,7 @@ function DashboardsTab() {
                   {key.replace(/_/g, " ")}
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace", marginTop: 4 }}>
-                  {typeof val === "number" && Math.abs(val) > 100_000 ? fmtM(val) : typeof val === "number" ? val.toLocaleString() : String(val)}
+                  {typeof val === "number" ? fmtDollar(val) : String(val)}
                 </div>
               </div>
             ))}
