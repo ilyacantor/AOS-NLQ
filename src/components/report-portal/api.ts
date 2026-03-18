@@ -55,38 +55,6 @@ export async function fetchReportDimensions(): Promise<ReportDimensions> {
 
 // ── Report (P&L, BS, SOCF) ──────────────────────────────────────────────────
 
-function variantToQuery(
-  statement: 'income_statement' | 'balance_sheet' | 'cash_flow',
-  variant: ReportVariant,
-  quarter?: string,
-  segment?: string | null,
-): string {
-  const stmtName =
-    statement === 'income_statement' ? 'P&L' :
-    statement === 'balance_sheet' ? 'Balance Sheet' :
-    'Statement of Cash Flows'
-
-  let query = ''
-  switch (variant) {
-    case 'full_year_act_vs_py':
-      query = `Show me the ${stmtName} actual vs prior year`
-      break
-    case 'quarterly_act_vs_py':
-      query = `Show me the ${stmtName} for ${quarter || 'Q3 2025'} vs prior year`
-      break
-    case 'full_year_cf_vs_py_act':
-      query = `Show me the ${stmtName} current forecast vs prior year`
-      break
-    case 'quarterly_cf_vs_py':
-      query = `Show me the ${stmtName} forecast for ${quarter || 'Q2 2026'} vs prior year`
-      break
-  }
-  if (segment) {
-    query += ` for ${segment}`
-  }
-  return query
-}
-
 function transformFSLineItem(
   item: FinancialStatementLineItem,
   periods: string[],
@@ -146,20 +114,14 @@ export async function fetchReport(
   segment?: string | null,
   entity?: EntitySelection,
 ): Promise<{ reportData: ReportData; pyReportData: ReportData | null; rawFSData: FinancialStatementData }> {
-  const query = variantToQuery(statement, variant, quarter, segment)
-
-  const body: Record<string, unknown> = { question: query, persona: 'CFO' }
-  if (entity === 'combined') {
-    body.consolidate = true
-  } else if (entity) {
-    body.entity_id = entity
+  const params = new URLSearchParams({ statement, variant })
+  if (quarter) params.set('quarter', quarter)
+  if (segment) params.set('segment', segment)
+  if (entity && entity !== 'combined') {
+    params.set('entity_id', entity)
   }
 
-  const res = await fetch(`${NLQ_BASE}/query`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+  const res = await fetch(`/api/reports/financial-statement?${params}`)
 
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
@@ -172,8 +134,9 @@ export async function fetchReport(
 
   if (!data.financial_statement_data) {
     throw new Error(
-      `NLQ did not return financial statement data for query: "${query}". ` +
-      `Response type: ${data.response_type || 'unknown'}, answer: ${(data.answer || '').slice(0, 200)}`
+      `Structured endpoint did not return financial statement data for ` +
+      `statement=${statement}, variant=${variant}. ` +
+      `Response keys: ${Object.keys(data).join(', ')}`
     )
   }
 

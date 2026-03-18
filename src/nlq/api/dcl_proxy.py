@@ -1014,6 +1014,336 @@ async def dashboard(persona: str):
     })
 
 
+# ---------------------------------------------------------------------------
+# Financial Statements — structured endpoint (replaces NLQ query pipeline)
+# ---------------------------------------------------------------------------
+
+# P&L line items: key → (label, indent, format, is_subtotal)
+_PL_LINES = [
+    ("revenue",          "Revenue",                      0, "currency", False),
+    ("cogs",             "Cost of Goods Sold",           1, "currency", False),
+    ("gross_profit",     "Gross Profit",                 0, "currency", True),
+    ("sm_expense",       "Sales & Marketing",            1, "currency", False),
+    ("rd_expense",       "Research & Development",       1, "currency", False),
+    ("ga_expense",       "General & Administrative",     1, "currency", False),
+    ("opex",             "Total Operating Expenses",     0, "currency", True),
+    ("ebitda",           "EBITDA",                       0, "currency", True),
+    ("operating_profit", "Operating Profit",             0, "currency", True),
+    ("net_income",       "Net Income",                   0, "currency", True),
+]
+
+# BS line items
+_BS_LINES = [
+    ("cash",               "Cash & Equivalents",           0, "currency", False),
+    ("ar",                 "Accounts Receivable",          0, "currency", False),
+    ("unbilled_revenue",   "Unbilled Revenue",             0, "currency", False),
+    ("prepaid_expenses",   "Prepaid Expenses",             0, "currency", False),
+    ("pp_e",               "Property, Plant & Equipment",  0, "currency", False),
+    ("intangibles",        "Intangible Assets",            0, "currency", False),
+    ("goodwill",           "Goodwill",                     0, "currency", False),
+    ("total",              "Total Assets",                 0, "currency", True),
+    ("ap",                 "Accounts Payable",             0, "currency", False),
+    ("accrued_expenses",   "Accrued Expenses",             0, "currency", False),
+    ("deferred_revenue",   "Deferred Revenue",             0, "currency", False),
+    ("total_liabilities",  "Total Liabilities",            0, "currency", True),
+    ("retained_earnings",  "Retained Earnings",            0, "currency", False),
+    ("stockholders_equity","Stockholders' Equity",         0, "currency", True),
+]
+
+# CF line items
+_CF_LINES = [
+    ("net_income",              "Net Income",                  0, "currency", False),
+    ("da_expense",              "Depreciation & Amortization", 1, "currency", False),
+    ("change_in_ar",            "Change in A/R",               1, "currency", False),
+    ("change_in_ap",            "Change in A/P",               1, "currency", False),
+    ("change_in_deferred_rev",  "Change in Deferred Revenue",  1, "currency", False),
+    ("operating_total",         "Cash from Operations",        0, "currency", True),
+    ("capex",                   "Capital Expenditures",        0, "currency", False),
+    ("fcf",                     "Free Cash Flow",              0, "currency", True),
+]
+
+_STATEMENT_CONFIG = {
+    "income_statement": ("Income Statement", _PL_LINES, "/api/dcl/reports/v2/income-statement"),
+    "balance_sheet": ("Balance Sheet", _BS_LINES, "/api/dcl/reports/v2/balance-sheet"),
+    "cash_flow": ("Statement of Cash Flows", _CF_LINES, "/api/dcl/reports/v2/cash-flow"),
+}
+
+_QUARTERS = ["Q1", "Q2", "Q3", "Q4"]
+
+
+def _prior_year_period(period: str) -> str:
+    """2025-Q1 → 2024-Q1, used for act_vs_py comparison."""
+    parts = period.split("-")
+    return f"{int(parts[0]) - 1}-{parts[1]}"
+
+
+def _fy_periods(year: int) -> list:
+    """Return the 4 quarterly period strings for a fiscal year."""
+    return [f"{year}-Q{q}" for q in range(1, 5)]
+
+
+def _flatten_dcl_statement(dcl_data: dict, statement: str) -> dict:
+    """Flatten DCL's nested statement dict into {key: value} for line item lookup.
+
+    IS returns: {"revenue": {"total": X, "consulting": Y, ...}, "cogs": {...}, "ebitda": X, ...}
+    BS returns: {"assets": {"total": X, "cash": Y, ...}, "liabilities": {...}, "equity": {...}}
+    CF returns: {"operating": {"total": X}, "investing": {...}, "financing": {...}, "net_change": X}
+    """
+    flat: dict = {}
+    if statement == "income_statement":
+        for domain in ("revenue", "cogs", "opex"):
+            section = dcl_data.get(domain, {})
+            flat[domain] = section.get("total")
+            for k, v in section.items():
+                if k != "total":
+                    flat[f"{domain}_{k}"] = v
+        # pnl fields are at top level
+        for k in ("ebitda", "gross_profit", "operating_profit", "net_income",
+                   "ebitda_margin", "gross_margin", "net_margin",
+                   "sm_expense", "rd_expense", "ga_expense"):
+            if k in dcl_data:
+                flat[k] = dcl_data[k]
+    elif statement == "balance_sheet":
+        assets = dcl_data.get("assets", {})
+        for k, v in assets.items():
+            if k == "total":
+                flat["total"] = v
+            else:
+                flat[k] = v
+        liabilities = dcl_data.get("liabilities", {})
+        for k, v in liabilities.items():
+            if k == "total":
+                flat["total_liabilities"] = v
+            else:
+                flat[k] = v
+        equity = dcl_data.get("equity", {})
+        for k, v in equity.items():
+            if k == "total":
+                flat["stockholders_equity"] = v
+            else:
+                flat[k] = v
+    elif statement == "cash_flow":
+        operating = dcl_data.get("operating", {})
+        for k, v in operating.items():
+            if k == "total":
+                flat["operating_total"] = v
+            else:
+                flat[k] = v
+        investing = dcl_data.get("investing", {})
+        for k, v in investing.items():
+            if k == "total":
+                flat["investing_total"] = v
+            else:
+                flat[k] = v
+        financing = dcl_data.get("financing", {})
+        for k, v in financing.items():
+            if k == "total":
+                flat["financing_total"] = v
+            else:
+                flat[k] = v
+        if "net_change" in dcl_data:
+            flat["fcf"] = dcl_data["net_change"]
+        # Pull net_income from pnl if not already present
+        if "net_income" not in flat:
+            flat["net_income"] = dcl_data.get("net_income")
+    return flat
+
+
+def _build_fs_response(
+    title: str,
+    entity_name: str,
+    line_defs: list,
+    cy_label: str,
+    cy_values: dict,
+    py_label: str | None,
+    py_values: dict | None,
+) -> dict:
+    """Build FinancialStatementData-shaped dict."""
+    periods = [cy_label]
+    if py_values:
+        periods.extend([py_label, "Variance", "Variance %"])
+
+    line_items = []
+    for key, label, indent, fmt, is_sub in line_defs:
+        cv = cy_values.get(key)
+        values_dict: dict = {cy_label: cv}
+        if py_values:
+            pv = py_values.get(key)
+            values_dict[py_label] = pv
+            if cv is not None and pv is not None and pv != 0:
+                var = round(cv - pv, 2)
+                var_pct = round((var / abs(pv)) * 100, 1)
+                values_dict["Variance"] = var
+                values_dict["Variance %"] = var_pct
+            else:
+                values_dict["Variance"] = None
+                values_dict["Variance %"] = None
+        line_items.append({
+            "label": label,
+            "key": key,
+            "indent": indent,
+            "format": fmt,
+            "is_subtotal": is_sub,
+            "values": values_dict,
+        })
+
+    return {
+        "title": f"{title} — {cy_label}" + (f" vs {py_label}" if py_label else ""),
+        "entity": entity_name,
+        "periods": periods,
+        "line_items": line_items,
+        "currency": "USD",
+        "unit": "millions",
+    }
+
+
+@router.get("/api/reports/financial-statement")
+async def financial_statement(
+    statement: str = Query(..., description="income_statement | balance_sheet | cash_flow"),
+    variant: str = Query("full_year_act_vs_py"),
+    quarter: str = Query(None, description="e.g. 2025-Q3 for quarterly variants"),
+    entity_id: str = Query(None, description="Entity ID (omit for combined)"),
+    segment: str = Query(None),
+):
+    """Structured financial statement endpoint — no NLQ query pipeline.
+
+    Calls DCL's structured IS/BS/CF endpoints directly, assembles CY vs PY
+    comparison with variances, returns FinancialStatementData shape.
+    """
+    if statement not in _STATEMENT_CONFIG:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown statement '{statement}'. Valid: income_statement, balance_sheet, cash_flow",
+        )
+
+    title, line_defs, dcl_path = _STATEMENT_CONFIG[statement]
+
+    # Resolve entity_id from engagement if not provided
+    if not entity_id or entity_id == "combined":
+        entity_ids = await asyncio.to_thread(_get_entity_ids)
+        is_combined = True
+    else:
+        entity_ids = [entity_id]
+        is_combined = False
+
+    # Determine CY/PY periods from variant
+    from datetime import date
+    now = date.today()
+    current_year = now.year
+
+    if variant == "full_year_act_vs_py":
+        cy_periods = _fy_periods(current_year)
+        py_periods = _fy_periods(current_year - 1)
+        cy_label = f"FY {current_year} Actual"
+        py_label = f"FY {current_year - 1} Actual"
+    elif variant == "quarterly_act_vs_py":
+        if not quarter:
+            raise HTTPException(status_code=400, detail="quarter param required for quarterly variant")
+        cy_periods = [quarter]
+        py_periods = [_prior_year_period(quarter)]
+        parts = quarter.split("-")
+        cy_label = f"{parts[1]} {parts[0]} Actual"
+        py_label = f"{parts[1]} {int(parts[0]) - 1} Actual"
+    elif variant == "full_year_cf_vs_py_act":
+        cy_periods = _fy_periods(current_year)
+        py_periods = _fy_periods(current_year - 1)
+        cy_label = f"FY {current_year} (Act+CF)"
+        py_label = f"FY {current_year - 1} Actual"
+    elif variant == "quarterly_cf_vs_py":
+        if not quarter:
+            raise HTTPException(status_code=400, detail="quarter param required for quarterly variant")
+        cy_periods = [quarter]
+        py_periods = [_prior_year_period(quarter)]
+        parts = quarter.split("-")
+        cy_label = f"{parts[1]} {parts[0]} Forecast"
+        py_label = f"{parts[1]} {int(parts[0]) - 1} Actual"
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown variant '{variant}'")
+
+    # Fetch all periods from DCL in parallel
+    async def _fetch_period(eid: str, period: str) -> dict:
+        return await asyncio.to_thread(
+            _dcl_get, dcl_path, {"entity_id": eid, "period": period}
+        )
+
+    # Build tasks for all entity × period combinations
+    cy_tasks = []
+    py_tasks = []
+    for eid in entity_ids:
+        for p in cy_periods:
+            cy_tasks.append(_fetch_period(eid, p))
+        for p in py_periods:
+            py_tasks.append(_fetch_period(eid, p))
+
+    all_results = await asyncio.gather(*cy_tasks, *py_tasks)
+    n_cy = len(cy_tasks)
+    cy_results = all_results[:n_cy]
+    py_results = all_results[n_cy:]
+
+    # Flatten and aggregate
+    def _aggregate_periods(results: list, periods: list, entity_ids_list: list) -> dict:
+        """Sum across entities and periods, flatten into {key: value}."""
+        combined: dict = {}
+        idx = 0
+        for _ in entity_ids_list:
+            for _ in periods:
+                flat = _flatten_dcl_statement(results[idx], statement)
+                for k, v in flat.items():
+                    if v is not None:
+                        combined[k] = combined.get(k, 0) + v
+                idx += 1
+        return combined
+
+    cy_values = _aggregate_periods(cy_results, cy_periods, entity_ids)
+    py_values = _aggregate_periods(py_results, py_periods, entity_ids) if py_periods else None
+
+    # Compute derived margins for P&L
+    if statement == "income_statement":
+        rev = cy_values.get("revenue")
+        if rev and rev != 0:
+            gp = cy_values.get("gross_profit")
+            if gp is not None:
+                cy_values["gross_margin_pct"] = round(gp / rev * 100, 1)
+            ebitda = cy_values.get("ebitda")
+            if ebitda is not None:
+                cy_values["ebitda_margin_pct"] = round(ebitda / rev * 100, 1)
+            ni = cy_values.get("net_income")
+            if ni is not None:
+                cy_values["net_margin_pct"] = round(ni / rev * 100, 1)
+        if py_values:
+            py_rev = py_values.get("revenue")
+            if py_rev and py_rev != 0:
+                py_gp = py_values.get("gross_profit")
+                if py_gp is not None:
+                    py_values["gross_margin_pct"] = round(py_gp / py_rev * 100, 1)
+                py_ebitda = py_values.get("ebitda")
+                if py_ebitda is not None:
+                    py_values["ebitda_margin_pct"] = round(py_ebitda / py_rev * 100, 1)
+                py_ni = py_values.get("net_income")
+                if py_ni is not None:
+                    py_values["net_margin_pct"] = round(py_ni / py_rev * 100, 1)
+
+    # Add margin lines to P&L if not already in line_defs
+    actual_line_defs = list(line_defs)
+    if statement == "income_statement":
+        # Insert margin % lines after their parent
+        margin_inserts = [
+            (3, ("gross_margin_pct", "Gross Margin %", 0, "percent", False)),
+            (9, ("ebitda_margin_pct", "EBITDA Margin %", 0, "percent", False)),
+            (12, ("net_margin_pct", "Net Margin %", 0, "percent", False)),
+        ]
+        for offset, item in enumerate(margin_inserts):
+            actual_line_defs.insert(item[0] + offset, item[1])
+
+    entity_name = entity_ids[0].replace("_", " ").title() if not is_combined else "Combined"
+
+    result = _build_fs_response(
+        title, entity_name, actual_line_defs,
+        cy_label, cy_values, py_label, py_values,
+    )
+    return JSONResponse(content={"financial_statement_data": result})
+
+
 @router.get("/api/reports/{path:path}")
 async def proxy_dcl_report_get(path: str, request: Request):
     """Forward GET /api/reports/* to DCL backend."""
