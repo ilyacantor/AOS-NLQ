@@ -40,127 +40,60 @@ class EntityRegistry:
         self._client = httpx.Client(timeout=10.0)
 
     def _fetch_entities_from_dcl(self) -> list[dict]:
-        """
-        Fetch entity list from DCL.
+        """Fetch financial entity list from DCL's active engagement.
 
-        Tries multiple discovery strategies:
-        1. GET /api/dcl/resolution/v2/stats — parse entity breakdowns
-        2. POST /api/dcl/query with metric=revenue, no entity filter — collect distinct entity_ids
+        Uses engagement_state (entity_a, entity_b) — not a raw distinct
+        query on semantic_triples, which would include non-financial
+        entities like BlueWave HR data.
 
         MUST NOT fall back to hardcoded values. If DCL is unreachable,
         raises ConnectionError with message naming the DCL URL and what failed.
         """
-        # Strategy 1: resolution stats endpoint
-        stats_url = f"{self._dcl_base_url}/api/dcl/resolution/v2/stats"
+        engagement_url = f"{self._dcl_base_url}/api/dcl/triples/engagement"
         try:
-            resp = self._client.get(stats_url)
-            if resp.status_code == 200:
-                data = resp.json()
-                entities = self._parse_entities_from_stats(data)
-                if entities:
-                    return entities
+            resp = self._client.get(engagement_url)
         except httpx.ConnectError:
             raise ConnectionError(
-                f"EntityRegistry could not reach DCL at {stats_url} — "
+                f"EntityRegistry could not reach DCL at {engagement_url} — "
                 f"connection refused. Ensure DCL backend is running at "
                 f"{self._dcl_base_url}."
             )
         except httpx.TimeoutException:
             raise ConnectionError(
-                f"EntityRegistry timed out waiting for DCL at {stats_url}. "
+                f"EntityRegistry timed out waiting for DCL at {engagement_url}. "
                 f"DCL may be overloaded or unreachable."
             )
 
-        # Strategy 2: query DCL for revenue to discover entity_ids from data
-        query_url = f"{self._dcl_base_url}/api/dcl/query"
-        try:
-            resp = self._client.post(
-                query_url,
-                json={
-                    "metric": "revenue",
-                    "time_range": {"start": "2024-Q1", "end": "2026-Q4"},
-                },
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                entities = self._parse_entities_from_query(data)
-                if entities:
-                    return entities
-        except httpx.ConnectError:
+        if resp.status_code != 200:
             raise ConnectionError(
-                f"EntityRegistry could not reach DCL at {query_url} — "
-                f"connection refused after stats endpoint returned no entities. "
-                f"Ensure DCL backend is running at {self._dcl_base_url}."
-            )
-        except httpx.TimeoutException:
-            raise ConnectionError(
-                f"EntityRegistry timed out waiting for DCL at {query_url}. "
-                f"DCL may be overloaded or unreachable."
+                f"EntityRegistry got HTTP {resp.status_code} from {engagement_url}: "
+                f"{resp.text[:200]}"
             )
 
-        # DCL responded but returned no entity data — valid (empty engagement)
-        return []
-
-    def _parse_entities_from_stats(self, data: dict) -> list[dict]:
-        """Extract entity list from resolution/v2/stats response."""
+        data = resp.json()
         entities = []
 
-        # Try entity_stats field
-        if "entity_stats" in data and isinstance(data["entity_stats"], dict):
-            for eid, stats in data["entity_stats"].items():
-                if eid == "combined":
-                    continue
-                entities.append({
-                    "entity_id": eid,
-                    "display_name": stats.get("display_name", eid.replace("_", " ").title()),
-                    "role": stats.get("role", "entity"),
-                })
+        def _format_name(eid: str) -> str:
+            if any(c.isupper() for c in eid) or "-" in eid:
+                return eid
+            return eid.replace("_", " ").title()
 
-        # Try entities field (alternate format)
-        if not entities and "entities" in data and isinstance(data["entities"], list):
-            for item in data["entities"]:
-                if isinstance(item, dict) and item.get("entity_id"):
-                    eid = item["entity_id"]
-                    if eid == "combined":
-                        continue
-                    entities.append({
-                        "entity_id": eid,
-                        "display_name": item.get("display_name", eid.replace("_", " ").title()),
-                        "role": item.get("role", "entity"),
-                    })
-                elif isinstance(item, str) and item != "combined":
-                    entities.append({
-                        "entity_id": item,
-                        "display_name": item.replace("_", " ").title(),
-                        "role": "entity",
-                    })
+        ea = data.get("entity_a")
+        if ea and ea.get("id"):
+            entities.append({
+                "entity_id": ea["id"],
+                "display_name": ea.get("display_name") or _format_name(ea["id"]),
+                "role": "acquirer",
+            })
+        eb = data.get("entity_b")
+        if eb and eb.get("id"):
+            entities.append({
+                "entity_id": eb["id"],
+                "display_name": eb.get("display_name") or _format_name(eb["id"]),
+                "role": "target",
+            })
 
         return entities
-
-    def _parse_entities_from_query(self, data: dict) -> list[dict]:
-        """Extract distinct entity_ids from DCL query response data rows."""
-        entity_ids = set()
-        for row in data.get("data", []):
-            if isinstance(row, dict):
-                eid = row.get("entity_id")
-                if eid and eid != "combined":
-                    entity_ids.add(eid)
-
-        # Also check metadata
-        metadata = data.get("metadata", {})
-        if isinstance(metadata, dict):
-            eid = metadata.get("entity_id")
-            if eid and eid != "combined":
-                entity_ids.add(eid)
-
-        return [
-            {
-                "entity_id": eid,
-                "display_name": eid.replace("_", " ").title(),
-                "role": "entity",
-            }
-            for eid in sorted(entity_ids)
-        ]
 
     # ── Sync accessors (for use in sync code paths) ──────────────────────
 

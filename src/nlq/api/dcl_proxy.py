@@ -76,20 +76,28 @@ def _dcl_get(path: str, params: dict = None) -> dict:
 
 
 def _get_entity_ids() -> List[str]:
-    """Fetch real entity IDs from DCL triples overview — dynamic, never hardcoded.
+    """Fetch financial entity IDs from DCL's active engagement.
 
-    Excludes the synthetic 'combined' entity which is produced by NLQ at query
-    time and does not have its own financial data in the triple store.
+    Uses engagement_state (entity_a, entity_b) — not a raw distinct query
+    on semantic_triples, which would include non-financial entities like
+    BlueWave HR data.
     """
-    overview = _dcl_get("/api/dcl/triples/overview")
-    entities = [
-        e["entity_id"] for e in overview.get("entities", [])
-        if e["entity_id"] != "combined"
-    ]
+    engagement = _dcl_get("/api/dcl/triples/engagement")
+    entities = []
+    ea = engagement.get("entity_a")
+    if ea and ea.get("id"):
+        entities.append(ea["id"])
+    eb = engagement.get("entity_b")
+    if eb and eb.get("id"):
+        entities.append(eb["id"])
     if not entities:
         raise HTTPException(
             status_code=404,
-            detail="No entities found in DCL triples overview — cannot build report.",
+            detail=(
+                "No financial entities found in DCL engagement state — "
+                "cannot build report. Ensure an active engagement exists "
+                "with entity_a and entity_b set."
+            ),
         )
     return entities
 
