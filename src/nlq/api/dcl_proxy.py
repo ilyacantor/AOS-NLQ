@@ -67,6 +67,11 @@ def _dcl_get(path: str, params: dict = None) -> dict:
             status_code=504,
             detail=f"DCL timed out on GET {url}.",
         )
+    except httpx.RemoteProtocolError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"DCL disconnected during GET {url}: {exc}",
+        )
     if resp.status_code != 200:
         raise HTTPException(
             status_code=resp.status_code,
@@ -629,6 +634,11 @@ async def revenue_by_customer(
             status_code=504,
             detail=f"DCL timed out on revenue-by-customer query at {dcl_url}.",
         )
+    except httpx.RemoteProtocolError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"DCL disconnected during revenue-by-customer query at {dcl_url}: {exc}",
+        )
 
     if resp.status_code != 200:
         raise HTTPException(
@@ -1063,23 +1073,15 @@ _CF_LINES = [
 ]
 
 _STATEMENT_CONFIG = {
-    "income_statement": ("Income Statement", _PL_LINES, "/api/dcl/reports/v2/income-statement"),
-    "balance_sheet": ("Balance Sheet", _BS_LINES, "/api/dcl/reports/v2/balance-sheet"),
-    "cash_flow": ("Statement of Cash Flows", _CF_LINES, "/api/dcl/reports/v2/cash-flow"),
+    "income_statement": ("Income Statement", _PL_LINES, "/api/dcl/reports/v2/income-statement", "/api/dcl/reports/v2/combining/income-statement"),
+    "balance_sheet": ("Balance Sheet", _BS_LINES, "/api/dcl/reports/v2/balance-sheet", "/api/dcl/reports/v2/combining/balance-sheet"),
+    "cash_flow": ("Statement of Cash Flows", _CF_LINES, "/api/dcl/reports/v2/cash-flow", "/api/dcl/reports/v2/combining/cash-flow"),
 }
-
-_QUARTERS = ["Q1", "Q2", "Q3", "Q4"]
-
 
 def _prior_year_period(period: str) -> str:
     """2025-Q1 → 2024-Q1, used for act_vs_py comparison."""
     parts = period.split("-")
     return f"{int(parts[0]) - 1}-{parts[1]}"
-
-
-def _fy_periods(year: int) -> list:
-    """Return the 4 quarterly period strings for a fiscal year."""
-    return [f"{year}-Q{q}" for q in range(1, 5)]
 
 
 def _flatten_dcl_statement(dcl_data: dict, statement: str) -> dict:
@@ -1097,12 +1099,21 @@ def _flatten_dcl_statement(dcl_data: dict, statement: str) -> dict:
             for k, v in section.items():
                 if k != "total":
                     flat[f"{domain}_{k}"] = v
-        # pnl fields are at top level
+        # Map opex sub-items to expected line item keys
+        flat["sm_expense"] = flat.pop("opex_sales_marketing", None)
+        flat["rd_expense"] = flat.pop("opex_research_development", None)
+        flat["ga_expense"] = flat.pop("opex_general_admin", None)
+        # Top-level P&L fields from DCL
         for k in ("ebitda", "gross_profit", "operating_profit", "net_income",
-                   "ebitda_margin", "gross_margin", "net_margin",
-                   "sm_expense", "rd_expense", "ga_expense"):
+                   "depreciation_amortization", "tax"):
             if k in dcl_data:
                 flat[k] = dcl_data[k]
+        # Derive gross_profit if DCL doesn't return it
+        if flat.get("gross_profit") is None:
+            rev = flat.get("revenue")
+            cogs = flat.get("cogs")
+            if rev is not None and cogs is not None:
+                flat["gross_profit"] = round(rev - cogs, 2)
     elif statement == "balance_sheet":
         assets = dcl_data.get("assets", {})
         for k, v in assets.items():
@@ -1216,86 +1227,62 @@ async def financial_statement(
             detail=f"Unknown statement '{statement}'. Valid: income_statement, balance_sheet, cash_flow",
         )
 
-    title, line_defs, dcl_path = _STATEMENT_CONFIG[statement]
+    title, line_defs, dcl_single_path, dcl_combining_path = _STATEMENT_CONFIG[statement]
 
-    # Resolve entity_id from engagement if not provided
-    if not entity_id or entity_id == "combined":
-        entity_ids = await asyncio.to_thread(_get_entity_ids)
-        is_combined = True
-    else:
-        entity_ids = [entity_id]
-        is_combined = False
+    # Resolve entity selection
+    is_combined = not entity_id or entity_id == "combined"
 
-    # Determine CY/PY periods from variant
+    # Determine CY/PY periods from variant.
+    # DCL now supports year-level periods (e.g. "2026") and aggregates
+    # Q1-Q4 internally — no need for NLQ to make per-quarter calls.
     from datetime import date
-    now = date.today()
-    current_year = now.year
+    current_year = date.today().year
 
     if variant == "full_year_act_vs_py":
-        cy_periods = _fy_periods(current_year)
-        py_periods = _fy_periods(current_year - 1)
+        cy_period = str(current_year)
+        py_period = str(current_year - 1)
         cy_label = f"FY {current_year} Actual"
         py_label = f"FY {current_year - 1} Actual"
     elif variant == "quarterly_act_vs_py":
         if not quarter:
             raise HTTPException(status_code=400, detail="quarter param required for quarterly variant")
-        cy_periods = [quarter]
-        py_periods = [_prior_year_period(quarter)]
+        cy_period = quarter
+        py_period = _prior_year_period(quarter)
         parts = quarter.split("-")
         cy_label = f"{parts[1]} {parts[0]} Actual"
         py_label = f"{parts[1]} {int(parts[0]) - 1} Actual"
     elif variant == "full_year_cf_vs_py_act":
-        cy_periods = _fy_periods(current_year)
-        py_periods = _fy_periods(current_year - 1)
+        cy_period = str(current_year)
+        py_period = str(current_year - 1)
         cy_label = f"FY {current_year} (Act+CF)"
         py_label = f"FY {current_year - 1} Actual"
     elif variant == "quarterly_cf_vs_py":
         if not quarter:
             raise HTTPException(status_code=400, detail="quarter param required for quarterly variant")
-        cy_periods = [quarter]
-        py_periods = [_prior_year_period(quarter)]
+        cy_period = quarter
+        py_period = _prior_year_period(quarter)
         parts = quarter.split("-")
         cy_label = f"{parts[1]} {parts[0]} Forecast"
         py_label = f"{parts[1]} {int(parts[0]) - 1} Actual"
     else:
         raise HTTPException(status_code=400, detail=f"Unknown variant '{variant}'")
 
-    # Fetch all periods from DCL in parallel
-    async def _fetch_period(eid: str, period: str) -> dict:
-        return await asyncio.to_thread(
-            _dcl_get, dcl_path, {"entity_id": eid, "period": period}
-        )
+    # Two DCL calls total: CY and PY. DCL aggregates quarters internally.
+    if is_combined:
+        def _fetch() -> tuple:
+            cy = _dcl_get(dcl_combining_path, {"period": cy_period})
+            py = _dcl_get(dcl_combining_path, {"period": py_period})
+            return cy.get("combined", {}), py.get("combined", {})
+    else:
+        def _fetch() -> tuple:
+            cy = _dcl_get(dcl_single_path, {"entity_id": entity_id, "period": cy_period})
+            py = _dcl_get(dcl_single_path, {"entity_id": entity_id, "period": py_period})
+            return cy, py
 
-    # Build tasks for all entity × period combinations
-    cy_tasks = []
-    py_tasks = []
-    for eid in entity_ids:
-        for p in cy_periods:
-            cy_tasks.append(_fetch_period(eid, p))
-        for p in py_periods:
-            py_tasks.append(_fetch_period(eid, p))
+    cy_raw, py_raw = await asyncio.to_thread(_fetch)
 
-    all_results = await asyncio.gather(*cy_tasks, *py_tasks)
-    n_cy = len(cy_tasks)
-    cy_results = all_results[:n_cy]
-    py_results = all_results[n_cy:]
-
-    # Flatten and aggregate
-    def _aggregate_periods(results: list, periods: list, entity_ids_list: list) -> dict:
-        """Sum across entities and periods, flatten into {key: value}."""
-        combined: dict = {}
-        idx = 0
-        for _ in entity_ids_list:
-            for _ in periods:
-                flat = _flatten_dcl_statement(results[idx], statement)
-                for k, v in flat.items():
-                    if v is not None:
-                        combined[k] = combined.get(k, 0) + v
-                idx += 1
-        return combined
-
-    cy_values = _aggregate_periods(cy_results, cy_periods, entity_ids)
-    py_values = _aggregate_periods(py_results, py_periods, entity_ids) if py_periods else None
+    cy_values = _flatten_dcl_statement(cy_raw, statement)
+    py_values = _flatten_dcl_statement(py_raw, statement)
 
     # Compute derived margins for P&L
     if statement == "income_statement":
@@ -1335,7 +1322,7 @@ async def financial_statement(
         for offset, item in enumerate(margin_inserts):
             actual_line_defs.insert(item[0] + offset, item[1])
 
-    entity_name = entity_ids[0].replace("_", " ").title() if not is_combined else "Combined"
+    entity_name = entity_id.replace("_", " ").title() if not is_combined else "Combined"
 
     result = _build_fs_response(
         title, entity_name, actual_line_defs,
@@ -1374,6 +1361,11 @@ async def proxy_dcl_report_get(path: str, request: Request):
         raise HTTPException(
             status_code=504,
             detail=f"DCL report proxy timed out waiting for {dcl_url}.",
+        )
+    except httpx.RemoteProtocolError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"DCL disconnected during report proxy GET {dcl_url}: {exc}",
         )
 
     if resp.status_code != 200:
@@ -1419,6 +1411,11 @@ async def proxy_dcl_report_post(path: str, request: Request):
         raise HTTPException(
             status_code=504,
             detail=f"DCL report proxy timed out waiting for {dcl_url}.",
+        )
+    except httpx.RemoteProtocolError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"DCL disconnected during report proxy POST {dcl_url}: {exc}",
         )
 
     if resp.status_code != 200:
