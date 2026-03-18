@@ -52,8 +52,16 @@ export interface ReconCheck {
   mismatches: ReconMismatch[]
 }
 
+export interface ReconCoverage {
+  total_farm_metrics: number
+  in_scope: number
+  out_of_scope: number
+  out_of_scope_categories: Record<string, string[]>
+}
+
 export interface ReconReport {
   checks: ReconCheck[]
+  coverage?: ReconCoverage
   totalChecks: number
   totalGreen: number
   totalRed: number

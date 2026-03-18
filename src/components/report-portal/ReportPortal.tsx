@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { fetchReport, fetchDrillThrough, fetchReconciliation, fetchCombiningStatement, fetchOverlapData, fetchCrossSell, fetchRevenueByCustomer, fetchEBITDABridge, fetchWhatIf, fetchQofE, fetchDashboard, sendMaestraChat, fetchReportDimensions } from "./api";
 import type { PeriodDimension } from "./api";
 import React from "react";
-import type { ReportData, ReconReport, ReconCheck, DrillThroughItem, ReportVariant, EntitySelection, CombiningStatementData, OverlapData, CrossSellData, RevenueByCustomerData, EBITDABridgeData, BridgeAdjustment, WhatIfResult, QofEData, DashboardData, DashboardPersona, FinancialStatementData, FinancialStatementLineItem } from "./types";
+import type { ReportData, ReconReport, ReconCheck, ReconCoverage, DrillThroughItem, ReportVariant, EntitySelection, CombiningStatementData, OverlapData, CrossSellData, RevenueByCustomerData, EBITDABridgeData, BridgeAdjustment, WhatIfResult, QofEData, DashboardData, DashboardPersona, FinancialStatementData, FinancialStatementLineItem } from "./types";
 
 // ============================================================
 // FORMATTING
@@ -650,6 +650,50 @@ function ReconView() {
           })}
         </tbody>
       </table>
+      {recon.coverage && <CoverageSummary coverage={recon.coverage} />}
+    </div>
+  );
+}
+
+function CoverageSummary({ coverage }: { coverage: ReconCoverage }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div style={{ marginTop: 24, padding: "16px 20px", background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, color: COLORS.text }}>
+          Coverage: <span style={{ fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{coverage.in_scope}</span> of{" "}
+          <span style={{ fontFamily: "'IBM Plex Mono',monospace" }}>{coverage.total_farm_metrics}</span> Farm metrics reconciled
+          <span style={{ color: COLORS.textMuted }}> (financial statements only)</span>
+        </div>
+        {coverage.out_of_scope > 0 && (
+          <button
+            onClick={() => setExpanded((p) => !p)}
+            style={{
+              fontSize: 12, color: COLORS.accent, background: "transparent",
+              border: "none", cursor: "pointer", textDecoration: "underline",
+            }}
+          >
+            {expanded ? "Hide" : "Show"} {coverage.out_of_scope} out-of-scope metrics
+          </button>
+        )}
+      </div>
+      {expanded && coverage.out_of_scope_categories && (
+        <div style={{ marginTop: 12 }}>
+          {Object.entries(coverage.out_of_scope_categories).map(([cat, metrics]) => (
+            <div key={cat} style={{ marginBottom: 8 }}>
+              <div style={{
+                fontSize: 11, fontWeight: 600, color: COLORS.textMuted,
+                textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2,
+              }}>
+                {cat} ({metrics.length})
+              </div>
+              <div style={{ fontSize: 12, color: COLORS.textDim, fontFamily: "'IBM Plex Mono',monospace" }}>
+                {metrics.join(", ")}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

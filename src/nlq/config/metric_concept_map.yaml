@@ -111,6 +111,13 @@ operating_profit:
   unit: "usd"
   aliases: ["operating_income", "op_profit"]
 
+tax_expense:
+  concept: "pnl.tax_expense"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["income_tax", "taxes"]
+
 net_margin_pct:
   type: derived
   unit: "pct"
@@ -125,13 +132,13 @@ net_margin_pct:
 operating_margin_pct:
   type: derived
   unit: "pct"
-  formula: "pnl.ebitda / revenue.total * 100"
+  formula: "pnl.operating_profit / revenue.total * 100"
   components:
-    - concept: "pnl.ebitda"
+    - concept: "pnl.operating_profit"
       property: "amount"
     - concept: "revenue.total"
       property: "amount"
-  aliases: ["operating_margin", "ebitda_margin"]
+  aliases: ["operating_margin"]
 
 net_income:
   concept: "pnl.net_income"
@@ -257,6 +264,12 @@ deferred_revenue:
   type: direct
   unit: "usd"
 
+long_term_debt:
+  concept: "liability.noncurrent.long_term_debt"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
 total_liabilities:
   concept: "liability.total"
   property: "amount"
@@ -271,6 +284,12 @@ current_liabilities:
 
 retained_earnings:
   concept: "equity.retained_earnings"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+common_stock:
+  concept: "equity.common_stock"
   property: "amount"
   type: direct
   unit: "usd"

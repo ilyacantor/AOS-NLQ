@@ -686,8 +686,8 @@ class DCLSemanticClientV2:
                 )
             return (rev - cogs) / rev * 100
 
-        # operating_margin_pct / ebitda_margin_pct: pnl.ebitda / revenue.total * 100
-        if metric_name in ("operating_margin_pct", "ebitda_margin_pct"):
+        # ebitda_margin_pct: pnl.ebitda / revenue.total * 100
+        if metric_name == "ebitda_margin_pct":
             ebitda = values.get("pnl.ebitda", 0)
             rev = values.get("revenue.total", 0)
             if rev == 0:
@@ -695,6 +695,16 @@ class DCLSemanticClientV2:
                     f"Cannot compute {metric_name}: revenue.total is zero (division by zero)"
                 )
             return ebitda / rev * 100
+
+        # operating_margin_pct: pnl.operating_profit / revenue.total * 100
+        if metric_name == "operating_margin_pct":
+            op = values.get("pnl.operating_profit", 0)
+            rev = values.get("revenue.total", 0)
+            if rev == 0:
+                raise ValueError(
+                    f"Cannot compute {metric_name}: revenue.total is zero (division by zero)"
+                )
+            return op / rev * 100
 
         # net_margin_pct: pnl.net_income / revenue.total * 100
         if metric_name == "net_margin_pct":

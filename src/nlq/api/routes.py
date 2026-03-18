@@ -5027,9 +5027,48 @@ async def reconciliation():
             detail="Reconciliation aborted: ground truth contains no quarter data.",
         )
 
+    # ── Financial metrics scope ─────────────────────────────────────
+    # Only reconcile metrics that exist as triples in DCL (financial statements).
+    # Operational KPIs (SaaS, pipeline, people, etc.) are out of scope.
+    _FINANCIAL_METRICS = {
+        # P&L
+        "revenue", "cogs", "gross_profit", "gross_margin_pct",
+        "sm_expense", "rd_expense", "ga_expense", "total_opex", "sga",
+        "ebitda", "ebitda_margin_pct", "da_expense", "depreciation",
+        "operating_profit", "operating_margin_pct",
+        "tax_expense", "net_income", "net_margin_pct",
+        # BS
+        "cash", "ar", "unbilled_revenue", "prepaid_expenses",
+        "pp_e", "intangibles", "goodwill", "total_assets",
+        "ap", "accrued_expenses", "deferred_revenue", "long_term_debt", "total_liabilities",
+        "retained_earnings", "common_stock", "stockholders_equity",
+        # CF
+        "cfo", "capex", "fcf",
+    }
+    _BS_METRICS = {
+        "cash", "ar", "unbilled_revenue", "prepaid_expenses", "pp_e", "intangibles",
+        "goodwill", "total_assets", "ap", "accrued_expenses", "deferred_revenue",
+        "long_term_debt", "total_liabilities", "retained_earnings", "common_stock",
+        "stockholders_equity",
+    }
+    _CF_METRICS = {"cfo", "capex", "fcf"}
+
+    def _classify_statement(metric_name: str) -> str:
+        if metric_name in _BS_METRICS:
+            return "Balance Sheet"
+        if metric_name in _CF_METRICS:
+            return "Cash Flow"
+        return "Income Statement"
+
+    def _extract_metric_name(composite_key: str) -> str:
+        """Extract bare metric name from 'entity:metric' or 'metric'."""
+        return composite_key.split(":", 1)[1] if ":" in composite_key else composite_key
+
     # Build the full list of (metric, period, expected) checks upfront,
     # then fire ALL of them in parallel instead of sequentially.
     all_checks = []  # (composite_key, period, expected_value)
+    out_of_scope_metrics: set = set()
+    total_farm_metrics: set = set()
     for period in quarters:
         quarter_data = gt_data.get(period, {})
         for key, entry in quarter_data.items():
@@ -5037,6 +5076,11 @@ async def reconciliation():
                 continue
             expected = _extract_expected_value(entry)
             if expected is None:
+                continue
+            metric_name = _extract_metric_name(key)
+            total_farm_metrics.add(metric_name)
+            if metric_name not in _FINANCIAL_METRICS:
+                out_of_scope_metrics.add(metric_name)
                 continue
             all_checks.append((key, period, expected))
 
@@ -5236,91 +5280,132 @@ async def reconciliation():
 
     client.close()
 
-    # Aggregate results per quarter
+    # Aggregate results per (statement, period)
     tolerance_pct = 1.0
+    # group_key = (statement_type, period) → {passed, failed, errors, mismatches}
+    groups: Dict[tuple, dict] = {}
+
+    for composite_key, period, expected in all_checks:
+        metric_name = _extract_metric_name(composite_key)
+        stmt = _classify_statement(metric_name)
+        gk = (stmt, period)
+        if gk not in groups:
+            groups[gk] = {"passed": 0, "failed": 0, "errors": 0, "mismatches": []}
+        g = groups[gk]
+
+        actual_val, error_str = results.get((composite_key, period), (None, None))
+
+        if error_str:
+            g["errors"] += 1
+            g["mismatches"].append({
+                "metric": composite_key, "period": period,
+                "expected": expected, "actual": None,
+                "delta": None, "pct_delta": None,
+                "status": "error", "error": error_str,
+            })
+            continue
+
+        if actual_val is None:
+            g["errors"] += 1
+            g["mismatches"].append({
+                "metric": composite_key, "period": period,
+                "expected": expected, "actual": None,
+                "delta": None, "pct_delta": None,
+                "status": "missing",
+            })
+            continue
+
+        if not isinstance(actual_val, (int, float)):
+            g["errors"] += 1
+            g["mismatches"].append({
+                "metric": composite_key, "period": period,
+                "expected": expected, "actual": actual_val,
+                "delta": None, "pct_delta": None,
+                "status": "error",
+                "error": f"Non-numeric value (type={type(actual_val).__name__})",
+            })
+            continue
+
+        delta = abs(actual_val - expected)
+        pct_delta = (delta / abs(expected) * 100) if expected != 0 else (0.0 if delta == 0 else 100.0)
+
+        if pct_delta <= tolerance_pct:
+            g["passed"] += 1
+        else:
+            g["failed"] += 1
+            g["mismatches"].append({
+                "metric": composite_key, "period": period,
+                "expected": expected, "actual": actual_val,
+                "delta": round(delta, 4), "pct_delta": round(pct_delta, 2),
+                "status": "mismatch",
+            })
+
+    # Sort: IS first, then BS, then CF; within each, by period
+    _STMT_ORDER = {"Income Statement": 0, "Balance Sheet": 1, "Cash Flow": 2}
     checks_out = []
     total_checks_count = 0
     total_green = 0
     total_red = 0
 
-    for period in quarters:
-        quarter_data = gt_data.get(period, {})
-        passed = 0
-        failed = 0
-        errors = 0
-        mismatches = []
-
-        for key, entry in quarter_data.items():
-            if key in _QUARTER_META_KEYS:
-                continue
-            expected = _extract_expected_value(entry)
-            if expected is None:
-                continue
-
-            actual_val, error_str = results.get((key, period), (None, None))
-
-            if error_str:
-                errors += 1
-                mismatches.append({
-                    "metric": key, "period": period,
-                    "expected": expected, "actual": None,
-                    "delta": None, "pct_delta": None,
-                    "status": "error", "error": error_str,
-                })
-                continue
-
-            if actual_val is None:
-                errors += 1
-                mismatches.append({
-                    "metric": key, "period": period,
-                    "expected": expected, "actual": None,
-                    "delta": None, "pct_delta": None,
-                    "status": "missing",
-                })
-                continue
-
-            if not isinstance(actual_val, (int, float)):
-                errors += 1
-                mismatches.append({
-                    "metric": key, "period": period,
-                    "expected": expected, "actual": actual_val,
-                    "delta": None, "pct_delta": None,
-                    "status": "error",
-                    "error": f"Non-numeric value (type={type(actual_val).__name__})",
-                })
-                continue
-
-            delta = abs(actual_val - expected)
-            pct_delta = (delta / abs(expected) * 100) if expected != 0 else (0.0 if delta == 0 else 100.0)
-
-            if pct_delta <= tolerance_pct:
-                passed += 1
-            else:
-                failed += 1
-                mismatches.append({
-                    "metric": key, "period": period,
-                    "expected": expected, "actual": actual_val,
-                    "delta": round(delta, 4), "pct_delta": round(pct_delta, 2),
-                    "status": "mismatch",
-                })
-
-        total = passed + failed + errors
+    for (stmt, period) in sorted(groups.keys(), key=lambda k: (_STMT_ORDER.get(k[0], 9), k[1])):
+        g = groups[(stmt, period)]
+        total = g["passed"] + g["failed"] + g["errors"]
+        red = g["failed"] + g["errors"]
         checks_out.append({
-            "statement": "Income Statement",
+            "statement": stmt,
             "period": period,
             "total": total,
-            "green": passed,
-            "red": failed + errors,
-            "mismatches": mismatches,
+            "green": g["passed"],
+            "red": red,
+            "mismatches": g["mismatches"],
         })
         total_checks_count += total
-        total_green += passed
-        total_red += failed + errors
+        total_green += g["passed"]
+        total_red += red
+
+    # ── Coverage summary ─────────────────────────────────────────────
+    _OOS_CATEGORIES = {
+        "SaaS/ARR": {"beginning_arr", "new_arr", "new_logo_arr", "expansion_arr",
+                      "churned_arr", "ending_arr", "nrr", "gross_churn_pct",
+                      "logo_churn_pct", "mrr", "acv", "ltv", "cac",
+                      "ltv_cac_ratio", "magic_number", "burn_multiple",
+                      "rule_of_40", "revenue_per_employee", "arr_per_employee"},
+        "Sales/Pipeline": {"pipeline", "win_rate", "sales_cycle_days",
+                           "avg_deal_size", "quota_attainment", "sales_headcount",
+                           "bookings"},
+        "People": {"headcount", "hires", "terminations", "attrition_rate"},
+        "Support": {"support_tickets", "csat", "nps", "first_response_hours",
+                    "resolution_hours"},
+        "Engineering": {"sprint_velocity", "story_points", "features_shipped",
+                        "tech_debt_pct", "engineering_headcount"},
+        "Infrastructure": {"cloud_spend", "cloud_spend_pct_revenue",
+                           "p1_incidents", "p2_incidents", "mttr_p1_hours",
+                           "mttr_p2_hours", "uptime_pct", "downtime_hours"},
+    }
+    oos_by_category: Dict[str, list] = {}
+    uncategorized_oos: list = []
+    for m in sorted(out_of_scope_metrics):
+        found = False
+        for cat, members in _OOS_CATEGORIES.items():
+            if m in members:
+                oos_by_category.setdefault(cat, []).append(m)
+                found = True
+                break
+        if not found:
+            uncategorized_oos.append(m)
+    if uncategorized_oos:
+        oos_by_category["Other"] = uncategorized_oos
 
     from datetime import datetime
 
     return {
         "checks": checks_out,
+        "coverage": {
+            "total_farm_metrics": len(total_farm_metrics),
+            "in_scope": len(total_farm_metrics) - len(out_of_scope_metrics),
+            "out_of_scope": len(out_of_scope_metrics),
+            "out_of_scope_categories": oos_by_category,
+        },
         "totalChecks": total_checks_count,
         "totalGreen": total_green,
         "totalRed": total_red,
