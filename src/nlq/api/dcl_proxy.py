@@ -699,13 +699,13 @@ async def revenue_by_customer(
 # Combining Income Statement — transforms v2 hierarchical P&L into flat line_items
 # ---------------------------------------------------------------------------
 
-@router.get("/api/reports/combining-is")
-async def combining_income_statement(period: str = Query("2025-Q1")):
-    """Fetch combining IS from DCL v2 and transform into CombiningStatementData shape."""
-    dcl_data = await asyncio.to_thread(
-        _dcl_get, "/api/reports/combining-is", {"period": period}
-    )
+def _combining_is_to_line_items(dcl_data: dict) -> List[Dict]:
+    """Transform DCL's hierarchical combining-IS response into flat line_items.
 
+    DCL returns entity_a/entity_b/adjustments/combined with nested
+    revenue/cogs/opex sub-dicts. The frontend expects a flat list where each
+    row has columns named after the entities (e.g. meridian, cascadia).
+    """
     entity_a = dcl_data.get("entity_a", {})
     entity_b = dcl_data.get("entity_b", {})
     adjustments = dcl_data.get("adjustments", {})
@@ -747,15 +747,16 @@ async def combining_income_statement(period: str = Query("2025-Q1")):
     adj_dep = _sub(adjustments.get("depreciation", {}), "total")
     adj_ebitda = float(adjustments.get("total_ebitda_impact", 0))
 
-    # Revenue sub-lines: collect all sub-keys from both entities
     rev_a = entity_a.get("revenue", {})
     rev_b = entity_b.get("revenue", {})
     rev_c = combined.get("revenue", {})
-    rev_keys = sorted(set(k for k in list(rev_a.keys()) + list(rev_b.keys()) + list(rev_c.keys()) if k != "total"))
+    rev_keys = sorted(set(
+        k for k in list(rev_a.keys()) + list(rev_b.keys()) + list(rev_c.keys())
+        if k != "total"
+    ))
 
     line_items: List[Dict] = []
 
-    # Revenue sub-lines
     for key in rev_keys:
         display = key.replace("_", " ").title()
         line_items.append(_line(
@@ -769,11 +770,13 @@ async def combining_income_statement(period: str = Query("2025-Q1")):
         adj_rev, _sub(rev_c, "total"),
     ))
 
-    # COGS sub-lines
     cogs_a = entity_a.get("cogs", {})
     cogs_b = entity_b.get("cogs", {})
     cogs_c = combined.get("cogs", {})
-    cogs_keys = sorted(set(k for k in list(cogs_a.keys()) + list(cogs_b.keys()) + list(cogs_c.keys()) if k != "total"))
+    cogs_keys = sorted(set(
+        k for k in list(cogs_a.keys()) + list(cogs_b.keys()) + list(cogs_c.keys())
+        if k != "total"
+    ))
 
     for key in cogs_keys:
         display = key.replace("_", " ").title()
@@ -788,18 +791,19 @@ async def combining_income_statement(period: str = Query("2025-Q1")):
         adj_cogs, _sub(cogs_c, "total"),
     ))
 
-    # Gross Profit
     gp_a = _sub(rev_a, "total") - _sub(cogs_a, "total")
     gp_b = _sub(rev_b, "total") - _sub(cogs_b, "total")
     gp_adj = adj_rev - adj_cogs
     gp_c = _sub(rev_c, "total") - _sub(cogs_c, "total")
     line_items.append(_line("Gross Profit", gp_a, gp_b, gp_adj, gp_c))
 
-    # OpEx sub-lines
     opex_a = entity_a.get("opex", {})
     opex_b = entity_b.get("opex", {})
     opex_c = combined.get("opex", {})
-    opex_keys = sorted(set(k for k in list(opex_a.keys()) + list(opex_b.keys()) + list(opex_c.keys()) if k != "total"))
+    opex_keys = sorted(set(
+        k for k in list(opex_a.keys()) + list(opex_b.keys()) + list(opex_c.keys())
+        if k != "total"
+    ))
 
     for key in opex_keys:
         display = key.replace("_", " ").title()
@@ -814,44 +818,126 @@ async def combining_income_statement(period: str = Query("2025-Q1")):
         adj_opex, _sub(opex_c, "total"),
     ))
 
-    # EBITDA
     line_items.append(_line(
         "EBITDA",
         _val(entity_a, "ebitda"), _val(entity_b, "ebitda"),
         adj_ebitda, _val(combined, "ebitda"),
     ))
 
-    # D&A
     line_items.append(_line(
         "Depreciation & Amortization",
-        _val(entity_a, "depreciation_amortization"), _val(entity_b, "depreciation_amortization"),
+        _val(entity_a, "depreciation_amortization"),
+        _val(entity_b, "depreciation_amortization"),
         adj_dep, _val(combined, "depreciation_amortization"),
     ))
 
-    # Operating Profit
     line_items.append(_line(
         "Operating Profit",
         _val(entity_a, "operating_profit"), _val(entity_b, "operating_profit"),
         adj_ebitda - adj_dep, _val(combined, "operating_profit"),
     ))
 
-    # Tax
     line_items.append(_line(
         "Tax",
         _val(entity_a, "tax"), _val(entity_b, "tax"),
         0, _val(combined, "tax"),
     ))
 
-    # Net Income
     line_items.append(_line(
         "Net Income",
         _val(entity_a, "net_income"), _val(entity_b, "net_income"),
         adj_ebitda - adj_dep, _val(combined, "net_income"),
     ))
 
+    return line_items
+
+
+@router.get("/api/reports/combining-is")
+async def combining_income_statement(period: str = Query("2025-Q1")):
+    """Fetch combining IS from DCL, transform to flat line_items for frontend.
+
+    For year periods (e.g. "2025"), fetches all 4 quarters in parallel and
+    sums numeric fields across quarters per line_item.
+    """
+    import re
+    from concurrent.futures import ThreadPoolExecutor
+
+    year_match = re.fullmatch(r"(\d{4})", period)
+
+    if not year_match:
+        # Quarterly period — fetch, transform, return
+        dcl_data = await asyncio.to_thread(
+            _dcl_get, "/api/reports/combining-is", {"period": period}
+        )
+        return JSONResponse(content={
+            "period": dcl_data.get("period", period),
+            "line_items": _combining_is_to_line_items(dcl_data),
+        })
+
+    # Year period — aggregate quarters
+    year = year_match.group(1)
+
+    def _fetch_quarters() -> List[dict]:
+        results = []
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            futures = {
+                q: pool.submit(
+                    _dcl_get,
+                    "/api/reports/combining-is",
+                    {"period": f"{year}-Q{q}"},
+                )
+                for q in range(1, 5)
+            }
+            for q in range(1, 5):
+                try:
+                    data = futures[q].result()
+                    results.append(data)
+                except HTTPException as exc:
+                    if exc.status_code == 404:
+                        continue
+                    raise
+        return results
+
+    quarter_results = await asyncio.to_thread(_fetch_quarters)
+
+    if not quarter_results:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No quarterly data found in DCL for year {year} "
+                   f"(tried {year}-Q1 through {year}-Q4).",
+        )
+
+    # Transform each quarter's hierarchical data into flat line_items, then sum
+    all_quarter_items = [_combining_is_to_line_items(qdata) for qdata in quarter_results]
+
+    # Identify numeric columns from first quarter's first item
+    first_items = all_quarter_items[0]
+    numeric_cols: List[str] = []
+    if first_items:
+        numeric_cols = [
+            k for k, v in first_items[0].items()
+            if k != "line_item" and isinstance(v, (int, float))
+        ]
+
+    aggregated: Dict[str, Dict] = {}
+    ordered_names: List[str] = []
+
+    for q_items in all_quarter_items:
+        for item in q_items:
+            name = item.get("line_item", "")
+            if name not in aggregated:
+                aggregated[name] = {"line_item": name}
+                for col in numeric_cols:
+                    aggregated[name][col] = 0.0
+                ordered_names.append(name)
+            for col in numeric_cols:
+                aggregated[name][col] = round(
+                    aggregated[name][col] + float(item.get(col, 0)), 2
+                )
+
     return JSONResponse(content={
-        "period": dcl_data.get("period", period),
-        "line_items": line_items,
+        "period": f"FY{year}",
+        "line_items": [aggregated[n] for n in ordered_names],
     })
 
 
