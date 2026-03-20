@@ -73,6 +73,19 @@ def _dcl_get(path: str, params: dict = None) -> dict:
             detail=f"DCL disconnected during GET {url}: {exc}",
         )
     if resp.status_code != 200:
+        # When DCL returns 422 (data_incomplete), extract the clean detail
+        # message so the frontend displays a helpful error instead of raw JSON.
+        if resp.status_code == 422:
+            try:
+                body = resp.json()
+                detail_obj = body.get("detail", {})
+                if isinstance(detail_obj, dict) and detail_obj.get("error") == "data_incomplete":
+                    raise HTTPException(
+                        status_code=422,
+                        detail=detail_obj.get("detail", resp.text[:500]),
+                    )
+            except (ValueError, KeyError):
+                pass
         raise HTTPException(
             status_code=resp.status_code,
             detail=f"DCL returned {resp.status_code} for GET {url}: {resp.text[:500]}",
@@ -84,8 +97,7 @@ def _get_entity_ids() -> List[str]:
     """Fetch financial entity IDs from DCL's active engagement.
 
     Uses engagement_state (entity_a, entity_b) — not a raw distinct query
-    on semantic_triples, which would include non-financial entities like
-    BlueWave HR data.
+    on semantic_triples, which could include non-financial entities.
     """
     engagement = _dcl_get("/api/dcl/triples/engagement")
     entities = []
@@ -1489,6 +1501,17 @@ async def proxy_dcl_report_get(path: str, request: Request):
         )
 
     if resp.status_code != 200:
+        if resp.status_code == 422:
+            try:
+                body = resp.json()
+                detail_obj = body.get("detail", {})
+                if isinstance(detail_obj, dict) and detail_obj.get("error") == "data_incomplete":
+                    raise HTTPException(
+                        status_code=422,
+                        detail=detail_obj.get("detail", resp.text[:500]),
+                    )
+            except (ValueError, KeyError):
+                pass
         raise HTTPException(
             status_code=resp.status_code,
             detail=f"DCL returned {resp.status_code}: {resp.text[:500]}",
@@ -1539,6 +1562,17 @@ async def proxy_dcl_report_post(path: str, request: Request):
         )
 
     if resp.status_code != 200:
+        if resp.status_code == 422:
+            try:
+                body = resp.json()
+                detail_obj = body.get("detail", {})
+                if isinstance(detail_obj, dict) and detail_obj.get("error") == "data_incomplete":
+                    raise HTTPException(
+                        status_code=422,
+                        detail=detail_obj.get("detail", resp.text[:500]),
+                    )
+            except (ValueError, KeyError):
+                pass
         raise HTTPException(
             status_code=resp.status_code,
             detail=f"DCL returned {resp.status_code}: {resp.text[:500]}",

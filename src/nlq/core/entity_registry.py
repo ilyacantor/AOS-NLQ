@@ -43,8 +43,7 @@ class EntityRegistry:
         """Fetch financial entity list from DCL's active engagement.
 
         Uses engagement_state (entity_a, entity_b) — not a raw distinct
-        query on semantic_triples, which would include non-financial
-        entities like BlueWave HR data.
+        query on semantic_triples, which could include non-financial entities.
 
         MUST NOT fall back to hardcoded values. If DCL is unreachable,
         raises ConnectionError with message naming the DCL URL and what failed.
