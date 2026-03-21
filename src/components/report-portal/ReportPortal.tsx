@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { fetchReport, fetchDrillThrough, fetchReconciliation, fetchCombiningStatement, fetchOverlapData, fetchCrossSell, fetchRevenueByCustomer, fetchEBITDABridge, fetchWhatIf, fetchQofE, fetchDashboard, sendMaestraChat, fetchReportDimensions } from "./api";
 import type { PeriodDimension } from "./api";
@@ -3105,9 +3105,16 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
     return String(lastFullYear);
   }, [combiningVariant, combiningQuarter, lastFullYear, cfQuarters]);
 
-  // Fetch report data when tab/variant/quarter/segment changes
+  // Fetch report data when tab/variant/quarter/segment/entity changes.
+  // Uses a fetchId counter to discard stale responses — when the user switches
+  // tabs before the previous fetch completes, the old response is ignored
+  // because its fetchId no longer matches the current ref value.
+  const fetchIdRef = useRef(0);
+
   const loadReport = useCallback(async () => {
     if (!isStatementTab) return;
+    const fetchId = ++fetchIdRef.current;
+
     if (dimensionsError) {
       setError("Cannot load report: dimensions failed to load. Refresh the page to retry.");
       return;
@@ -3131,6 +3138,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
 
     try {
       const result = await fetchReport(statement, apiVariant, effectiveQuarter, seg, entity);
+      if (fetchIdRef.current !== fetchId) return; // stale response — discard
       setCurrentData(result.reportData);
       setRawFSData(result.rawFSData);
 
@@ -3142,12 +3150,15 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
         setPyData(null);
       }
     } catch (err) {
+      if (fetchIdRef.current !== fetchId) return; // stale error — discard
       setError(err instanceof Error ? err.message : String(err));
       setCurrentData(null);
       setPyData(null);
       setRawFSData(null);
     } finally {
-      setLoading(false);
+      if (fetchIdRef.current === fetchId) {
+        setLoading(false);
+      }
     }
   }, [tab, variant, effectiveQuarter, seg, isStatementTab, pyYear, lastFullYear, quarter, cfQuarters, entity, dimensionsError]);
 

@@ -868,88 +868,17 @@ def _combining_is_to_line_items(dcl_data: dict) -> List[Dict]:
 async def combining_income_statement(period: str = Query("2025-Q1")):
     """Fetch combining IS from DCL, transform to flat line_items for frontend.
 
-    For year periods (e.g. "2025"), fetches all 4 quarters in parallel and
-    sums numeric fields across quarters per line_item.
+    DCL's combining engine handles year-period aggregation natively
+    (e.g. "2025" sums Q1-Q4 internally), so we pass the period through as-is.
     """
+    dcl_data = await asyncio.to_thread(
+        _dcl_get, "/api/reports/combining-is", {"period": period}
+    )
     import re
-    from concurrent.futures import ThreadPoolExecutor
-
-    year_match = re.fullmatch(r"(\d{4})", period)
-
-    if not year_match:
-        # Quarterly period — fetch, transform, return
-        dcl_data = await asyncio.to_thread(
-            _dcl_get, "/api/reports/combining-is", {"period": period}
-        )
-        return JSONResponse(content={
-            "period": dcl_data.get("period", period),
-            "line_items": _combining_is_to_line_items(dcl_data),
-        })
-
-    # Year period — aggregate quarters
-    year = year_match.group(1)
-
-    def _fetch_quarters() -> List[dict]:
-        results = []
-        with ThreadPoolExecutor(max_workers=4) as pool:
-            futures = {
-                q: pool.submit(
-                    _dcl_get,
-                    "/api/reports/combining-is",
-                    {"period": f"{year}-Q{q}"},
-                )
-                for q in range(1, 5)
-            }
-            for q in range(1, 5):
-                try:
-                    data = futures[q].result()
-                    results.append(data)
-                except HTTPException as exc:
-                    if exc.status_code == 404:
-                        continue
-                    raise
-        return results
-
-    quarter_results = await asyncio.to_thread(_fetch_quarters)
-
-    if not quarter_results:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No quarterly data found in DCL for year {year} "
-                   f"(tried {year}-Q1 through {year}-Q4).",
-        )
-
-    # Transform each quarter's hierarchical data into flat line_items, then sum
-    all_quarter_items = [_combining_is_to_line_items(qdata) for qdata in quarter_results]
-
-    # Identify numeric columns from first quarter's first item
-    first_items = all_quarter_items[0]
-    numeric_cols: List[str] = []
-    if first_items:
-        numeric_cols = [
-            k for k, v in first_items[0].items()
-            if k != "line_item" and isinstance(v, (int, float))
-        ]
-
-    aggregated: Dict[str, Dict] = {}
-    ordered_names: List[str] = []
-
-    for q_items in all_quarter_items:
-        for item in q_items:
-            name = item.get("line_item", "")
-            if name not in aggregated:
-                aggregated[name] = {"line_item": name}
-                for col in numeric_cols:
-                    aggregated[name][col] = 0.0
-                ordered_names.append(name)
-            for col in numeric_cols:
-                aggregated[name][col] = round(
-                    aggregated[name][col] + float(item.get(col, 0)), 2
-                )
-
+    display_period = f"FY{period}" if re.fullmatch(r"\d{4}", period) else dcl_data.get("period", period)
     return JSONResponse(content={
-        "period": f"FY{year}",
-        "line_items": [aggregated[n] for n in ordered_names],
+        "period": display_period,
+        "line_items": _combining_is_to_line_items(dcl_data),
     })
 
 
@@ -1165,7 +1094,7 @@ _CF_LINES = [
     ("change_in_ar",            "Change in A/R",               1, "currency", False),
     ("change_in_ap",            "Change in A/P",               1, "currency", False),
     ("change_in_deferred_rev",  "Change in Deferred Revenue",  1, "currency", False),
-    ("operating_total",         "Cash from Operations",        0, "currency", True),
+    ("operating_total",         "Cash from Operating Activities", 0, "currency", True),
     ("capex",                   "Capital Expenditures",        0, "currency", False),
     ("fcf",                     "Free Cash Flow",              0, "currency", True),
 ]
