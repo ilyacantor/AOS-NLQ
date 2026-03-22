@@ -10,6 +10,7 @@ import { Widget, WidgetData } from '../../types/generated-dashboard';
 import { COLORS, CHART_COLORS } from '../../config/theme';
 
 const MapWidget = React.lazy(() => import('./MapWidget'));
+const SalesFunnel = React.lazy(() => import('../sales-funnel/SalesFunnel'));
 import {
   LineChart,
   Line,
@@ -186,6 +187,8 @@ function renderWidgetContent(
           <MapWidget widget={widget} data={data} height={200} onClick={onClick} />
         </Suspense>
       );
+    case 'pipeline_funnel':
+      return <PipelineFunnelContent widget={widget} data={data} />;
     default:
       return (
         <div className="p-4">
@@ -712,6 +715,34 @@ function SparklineContent({ widget, data }: { widget: Widget; data: WidgetData }
           </AreaChart>
         </ResponsiveContainer>
       </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Pipeline Funnel Component
+// =============================================================================
+
+function PipelineFunnelContent({ widget, data }: { widget: Widget; data: WidgetData }) {
+  const stages = (data.rows || []).map((row: Record<string, any>) => ({
+    label: String(row.label ?? ''),
+    value: Number(row.value ?? 0),
+    percent: Number(row.percent ?? 0),
+  }));
+
+  const funnelData = {
+    title: widget.title,
+    subtitle: widget.description || '',
+    stages,
+    unit: 'usd_millions' as const,
+    format: 'currency' as const,
+  };
+
+  return (
+    <div className="p-3 h-full flex flex-col">
+      <Suspense fallback={<div className="animate-pulse h-full bg-slate-800 rounded" />}>
+        <SalesFunnel data={funnelData} />
+      </Suspense>
     </div>
   );
 }

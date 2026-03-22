@@ -20,7 +20,8 @@ export type WidgetType =
   | 'filter_control'
   | 'time_range_selector'
   | 'text_block'
-  | 'map';
+  | 'map'
+  | 'pipeline_funnel';
 
 export type AggregationType = 'sum' | 'average' | 'min' | 'max' | 'count' | 'last' | 'first';
 

@@ -1218,6 +1218,84 @@ class DCLSemanticClientV2:
         })
 
     # ------------------------------------------------------------------
+    # Pipeline stages
+    # ------------------------------------------------------------------
+
+    # Canonical stage ordering for sales pipeline funnel
+    _PIPELINE_STAGE_ORDER = [
+        "lead", "qualified", "proposal", "negotiation", "closed_won",
+    ]
+
+    _PIPELINE_STAGE_LABELS = {
+        "lead": "Lead",
+        "qualified": "Qualified",
+        "proposal": "Proposal",
+        "negotiation": "Negotiation",
+        "closed_won": "Closed-Won",
+    }
+
+    def get_pipeline_stages(
+        self,
+        entity_id: Optional[str] = None,
+        period: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Fetch pipeline stage breakdown from customer.pipeline.* triples.
+
+        Returns ordered list of {label, value, percent} dicts.
+        Empty list if no stage triples found.
+        """
+        browse_result = self._browse_triple(
+            domain="customer",
+            entity_id=entity_id,
+            period=period,
+            property_name="amount",
+            limit=200,
+        )
+        triples = browse_result.get("triples", [])
+
+        # Filter to customer.pipeline.{stage} concepts (exclude bare customer.pipeline)
+        stage_values: Dict[str, float] = {}
+        for t in triples:
+            concept = t.get("concept", "")
+            if not concept.startswith("customer.pipeline."):
+                continue
+            suffix = concept[len("customer.pipeline."):]
+            if not suffix or "." in suffix:
+                continue
+            val = t.get("value")
+            if val is not None:
+                try:
+                    stage_values[suffix] = float(val)
+                except (TypeError, ValueError):
+                    continue
+
+        if not stage_values:
+            return []
+
+        # Order by canonical stage order, append any extras at end
+        ordered_keys = [
+            k for k in self._PIPELINE_STAGE_ORDER if k in stage_values
+        ]
+        extras = sorted(k for k in stage_values if k not in self._PIPELINE_STAGE_ORDER)
+        ordered_keys.extend(extras)
+
+        # Compute percentages relative to the first (largest) stage
+        first_val = stage_values.get(ordered_keys[0], 1.0) if ordered_keys else 1.0
+        if first_val == 0:
+            first_val = 1.0
+
+        stages = []
+        for key in ordered_keys:
+            val = stage_values[key]
+            stages.append({
+                "label": self._PIPELINE_STAGE_LABELS.get(key, key.replace("_", " ").title()),
+                "value": val,
+                "percent": round((val / first_val) * 100, 1),
+            })
+
+        return stages
+
+    # ------------------------------------------------------------------
     # Raw triple access
     # ------------------------------------------------------------------
 

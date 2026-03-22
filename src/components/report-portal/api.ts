@@ -23,6 +23,7 @@ import type {
   QofEData,
   DashboardData,
   MaestraStatus,
+  PipelineReportData,
 } from './types'
 
 const NLQ_BASE = '/api/v1'
@@ -290,6 +291,22 @@ export async function fetchQofE(): Promise<QofEData> {
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
     throw new Error(`QofE query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+  }
+  return res.json()
+}
+
+// ── Pipeline Report ─────────────────────────────────────────────────────────
+
+export async function fetchPipelineReport(
+  period: string,
+  entityId?: string,
+): Promise<PipelineReportData[]> {
+  const params = new URLSearchParams({ period })
+  if (entityId) params.set('entity_id', entityId)
+  const res = await fetch(`/api/reports/pipeline?${params}`)
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Unknown error')
+    throw new Error(`Pipeline report failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
   }
   return res.json()
 }

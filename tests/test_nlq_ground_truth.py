@@ -1,51 +1,59 @@
 """
 NLQ Ground Truth Harness.
 Tests that NLQ returns correct data from the v2 triple store.
-Ground truth is queried directly from PG — NLQ must match.
+Ground truth is fetched from DCL's HTTP API — NLQ must match.
 """
 import os
 import json
 import requests
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import httpx
 import pytest
 
 NLQ_URL = os.getenv("NLQ_URL", "http://localhost:8005")
-DB_URL = os.getenv("SUPABASE_DB_URL")  # Same PG that DCL uses
+DCL_URL = os.getenv("DCL_API_URL", "http://localhost:8004")
 
-TENANT_ID = "400aa910-a6b4-5d44-ab9f-e6aecde37721"
 ENTITY_A = "meridian"
 ENTITY_B = "cascadia"
+
+_dcl_client = httpx.Client(base_url=DCL_URL, timeout=15.0)
 
 
 # ═══════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════
 
-def get_pg_value(concept: str, entity_id: str, period: str, property: str = "amount") -> float:
-    """Query ground truth directly from PG."""
-    conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT value::text FROM semantic_triples
-        WHERE tenant_id = %s AND entity_id = %s AND concept = %s
-        AND property = %s AND period = %s AND is_active = true
-        LIMIT 1
-    """, (TENANT_ID, entity_id, concept, property, period))
-    row = cur.fetchone()
-    conn.close()
-    if row is None:
-        return None
-    # value is JSONB stored as text — parse it
-    val = json.loads(row["value"]) if isinstance(row["value"], str) else row["value"]
-    return float(val)
+def get_gt_value(concept: str, entity_id: str, period: str, property: str = "amount") -> float:
+    """Query ground truth from DCL's browse API.
+
+    Browse filters by domain prefix (LIKE '{domain}.%'), so we pass the
+    top-level domain and then match the exact concept client-side.
+    """
+    domain = concept.split(".")[0]
+    resp = _dcl_client.get(
+        "/api/dcl/triples/browse",
+        params={
+            "domain": domain,
+            "entity_id": entity_id,
+            "period": period,
+            "property": property,
+            "limit": 50,
+        },
+    )
+    resp.raise_for_status()
+    for triple in resp.json().get("triples", []):
+        if triple.get("concept") == concept:
+            val = triple.get("value")
+            if val is None:
+                return None
+            return float(val)
+    return None
 
 
-def get_pg_sum(concept: str, entity_id: str, periods: list, property: str = "amount") -> float:
+def get_gt_sum(concept: str, entity_id: str, periods: list, property: str = "amount") -> float:
     """Sum ground truth across periods (for annual totals)."""
     total = 0
     for p in periods:
-        v = get_pg_value(concept, entity_id, p, property)
+        v = get_gt_value(concept, entity_id, p, property)
         if v is not None:
             total += v
     return total
@@ -119,28 +127,28 @@ class TestAskRevenue:
     """Revenue queries must return exact values from triples."""
 
     def test_meridian_revenue_q1(self):
-        expected = get_pg_value("revenue.total", ENTITY_A, "2025-Q1")
+        expected = get_gt_value("revenue.total", ENTITY_A, "2025-Q1")
         assert expected is not None, "Ground truth missing: meridian revenue Q1 2025"
         resp = query_nlq("What is meridian's revenue for Q1 2025?")
         actual = extract_value(resp)
         assert_close(actual, expected, "Meridian Q1 2025 revenue")
 
     def test_cascadia_revenue_q1(self):
-        expected = get_pg_value("revenue.total", ENTITY_B, "2025-Q1")
+        expected = get_gt_value("revenue.total", ENTITY_B, "2025-Q1")
         assert expected is not None, "Ground truth missing: cascadia revenue Q1 2025"
         resp = query_nlq("What is cascadia's revenue for Q1 2025?")
         actual = extract_value(resp)
         assert_close(actual, expected, "Cascadia Q1 2025 revenue")
 
     def test_meridian_annual_revenue(self):
-        expected = get_pg_sum("revenue.total", ENTITY_A, FY2025_QUARTERS)
+        expected = get_gt_sum("revenue.total", ENTITY_A, FY2025_QUARTERS)
         resp = query_nlq("What is meridian's revenue for FY 2025?")
         actual = extract_value(resp)
         assert_close(actual, expected, "Meridian FY2025 revenue")
 
     def test_combined_revenue_q1(self):
-        m = get_pg_value("revenue.total", ENTITY_A, "2025-Q1")
-        c = get_pg_value("revenue.total", ENTITY_B, "2025-Q1")
+        m = get_gt_value("revenue.total", ENTITY_A, "2025-Q1")
+        c = get_gt_value("revenue.total", ENTITY_B, "2025-Q1")
         expected = m + c
         resp = query_nlq("What is combined revenue for Q1 2025?")
         actual = extract_value(resp)
@@ -151,14 +159,14 @@ class TestAskCosts:
     """Cost queries must return exact values."""
 
     def test_meridian_cogs(self):
-        expected = get_pg_value("cogs.total", ENTITY_A, "2025-Q1")
+        expected = get_gt_value("cogs.total", ENTITY_A, "2025-Q1")
         assert expected is not None, "Ground truth missing"
         resp = query_nlq("What is meridian's cost of goods sold for Q1 2025?")
         actual = extract_value(resp)
         assert_close(actual, expected, "Meridian Q1 COGS")
 
     def test_meridian_opex(self):
-        expected = get_pg_value("opex.total", ENTITY_A, "2025-Q1")
+        expected = get_gt_value("opex.total", ENTITY_A, "2025-Q1")
         assert expected is not None, "Ground truth missing"
         resp = query_nlq("What is meridian's total operating expenses for Q1 2025?")
         actual = extract_value(resp)
@@ -169,17 +177,17 @@ class TestAskDerived:
     """Derived metrics must be correctly computed from components."""
 
     def test_gross_margin_pct(self):
-        rev = get_pg_value("revenue.total", ENTITY_A, "2025-Q1")
-        cogs = get_pg_value("cogs.total", ENTITY_A, "2025-Q1")
+        rev = get_gt_value("revenue.total", ENTITY_A, "2025-Q1")
+        cogs = get_gt_value("cogs.total", ENTITY_A, "2025-Q1")
         expected_pct = ((rev - cogs) / rev) * 100
         resp = query_nlq("What is meridian's gross margin for Q1 2025?")
         actual = extract_value(resp)
         assert_close(actual, expected_pct, "Meridian Q1 gross margin %", tolerance_pct=0.02)
 
     def test_ebitda(self):
-        rev = get_pg_value("revenue.total", ENTITY_A, "2025-Q1")
-        cogs = get_pg_value("cogs.total", ENTITY_A, "2025-Q1")
-        opex = get_pg_value("opex.total", ENTITY_A, "2025-Q1")
+        rev = get_gt_value("revenue.total", ENTITY_A, "2025-Q1")
+        cogs = get_gt_value("cogs.total", ENTITY_A, "2025-Q1")
+        opex = get_gt_value("opex.total", ENTITY_A, "2025-Q1")
         expected = rev - cogs - opex
         resp = query_nlq("What is meridian's EBITDA for Q1 2025?")
         actual = extract_value(resp)
@@ -259,8 +267,8 @@ class TestReportsProxy:
 
     def test_combining_is_has_revenue(self):
         """Combined P&L should have revenue matching ground truth."""
-        m_rev = get_pg_sum("revenue.total", ENTITY_A, FY2025_QUARTERS)
-        c_rev = get_pg_sum("revenue.total", ENTITY_B, FY2025_QUARTERS)
+        m_rev = get_gt_sum("revenue.total", ENTITY_A, FY2025_QUARTERS)
+        c_rev = get_gt_sum("revenue.total", ENTITY_B, FY2025_QUARTERS)
         expected_combined = m_rev + c_rev
 
         # Hit the reports proxy endpoint directly

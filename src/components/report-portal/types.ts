@@ -307,6 +307,21 @@ export interface WhatIfResult {
   presets: Record<string, Record<string, number>>
 }
 
+// ── Pipeline ─────────────────────────────────────────────────────────────
+
+export interface PipelineStage {
+  label: string
+  value: number
+  percent: number
+}
+
+export interface PipelineReportData {
+  entity_id: string
+  entity_name: string
+  period: string
+  stages: PipelineStage[]
+}
+
 // ── Dashboards ─────────────────────────────────────────────────────────────
 
 export type DashboardPersona = 'cfo' | 'cro' | 'coo' | 'cto' | 'chro'

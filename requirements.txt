@@ -5,7 +5,6 @@ pydantic>=2.10.0
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 httpx>=0.28.0
-psycopg2-binary>=2.9.11
 pinecone>=8.0.0
 openai>=2.16.0
 supabase>=2.27.2

@@ -1392,6 +1392,84 @@ async def financial_statement(
     return JSONResponse(content={"financial_statement_data": result})
 
 
+# ---------------------------------------------------------------------------
+# Pipeline Report
+# ---------------------------------------------------------------------------
+
+def _fetch_pipeline_stages(entity_id: str, period: str) -> List[Dict[str, Any]]:
+    """Fetch pipeline stages for one entity from DCL via the semantic client."""
+    from src.nlq.services.dcl_client_router import get_routed_client
+    client = get_routed_client()
+    return client.get_pipeline_stages(entity_id=entity_id, period=period)
+
+
+def _sum_pipeline_stages(stage_lists: List[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    """Sum pipeline stages across multiple entities and recompute percentages."""
+    totals: Dict[str, float] = {}
+    label_map: Dict[str, str] = {}
+    # Preserve insertion order from first list that has data
+    ordered_keys: List[str] = []
+    for stages in stage_lists:
+        for s in stages:
+            key = s["label"]
+            label_map[key] = key
+            if key not in totals:
+                ordered_keys.append(key)
+                totals[key] = 0.0
+            totals[key] += s["value"]
+
+    if not ordered_keys:
+        return []
+
+    first_val = totals[ordered_keys[0]]
+    if first_val == 0:
+        first_val = 1.0
+
+    return [
+        {
+            "label": label_map[k],
+            "value": round(totals[k], 2),
+            "percent": round((totals[k] / first_val) * 100, 1),
+        }
+        for k in ordered_keys
+    ]
+
+
+@router.get("/api/reports/pipeline")
+async def pipeline_report(period: str = Query(...)):
+    """Pipeline funnel data — per-entity panels plus a combined panel."""
+    engagement = await asyncio.to_thread(_dcl_get, "/api/dcl/triples/engagement")
+    entity_ids = await asyncio.to_thread(_get_entity_ids)
+
+    # Build name lookup from engagement
+    entity_names: Dict[str, str] = {}
+    for key in ("entity_a", "entity_b"):
+        ent = engagement.get(key)
+        if ent and ent.get("id"):
+            entity_names[ent["id"]] = str(ent.get("name", ent["id"]))
+
+    panels = []
+    for eid in entity_ids:
+        stages = await asyncio.to_thread(_fetch_pipeline_stages, eid, period)
+        panels.append({
+            "entity_id": eid,
+            "entity_name": entity_names.get(eid, eid),
+            "period": period,
+            "stages": stages,
+        })
+
+    # Combined panel: sum stages across entities
+    combined_stages = _sum_pipeline_stages([p["stages"] for p in panels])
+    panels.append({
+        "entity_id": "combined",
+        "entity_name": "Combined",
+        "period": period,
+        "stages": combined_stages,
+    })
+
+    return JSONResponse(content=panels)
+
+
 @router.get("/api/reports/{path:path}")
 async def proxy_dcl_report_get(path: str, request: Request):
     """Forward GET /api/reports/* to DCL backend."""

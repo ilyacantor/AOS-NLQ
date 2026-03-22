@@ -38,7 +38,7 @@ from src.nlq.knowledge.synonyms import normalize_metric
 from src.nlq.knowledge.display import get_display_name
 from src.nlq.llm.client import ClaudeClient
 from src.nlq.models.query import NLQRequest, QueryIntent, ParsedQuery, PeriodType, QueryMode
-from src.nlq.models.response import AmbiguityType, Domain, IntentMapResponse, IntentNode, MatchType, NLQResponse, RelatedMetric
+from src.nlq.models.response import AmbiguityType, Domain, IntentMapResponse, IntentNode, MatchType, NLQResponse, RelatedMetric, SalesFunnelData, SalesFunnelStage
 from src.nlq.core.personality import (
     generate_personality_response,
     handle_off_topic_or_easter_egg,
@@ -3403,8 +3403,33 @@ def _handle_ambiguous_query_text(
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="customer_count", resolved_period=current_year,
                 related_metrics=related_metrics)
 
-        # "pipeline" or "sales pipeline" -> "$575M pipeline, $345M qualified, 44% win rate"
+        # "pipeline" or "sales pipeline" -> funnel visualization (preferred) or text fallback
         if "pipeline" in q:
+            # Try funnel visualization from stage triples
+            from src.nlq.services.dcl_semantic_client_v2 import DCLSemanticClientV2
+            _v2 = DCLSemanticClientV2()
+            _stages = _v2.get_pipeline_stages(entity_id=entity_id, period=current_quarter())
+            if _stages:
+                _funnel = SalesFunnelData(
+                    title="Sales Pipeline",
+                    subtitle=current_quarter(),
+                    stages=[SalesFunnelStage(**s) for s in _stages],
+                    entity_id=entity_id,
+                    period=current_quarter(),
+                    data_source="dcl_v2",
+                )
+                _total = _stages[0]["value"] if _stages else None
+                return NLQResponse(
+                    success=True,
+                    answer=f"Sales pipeline by stage for {current_quarter()}",
+                    value=_total, unit="$M",
+                    confidence=0.95, parsed_intent="SHORTHAND",
+                    resolved_metric="pipeline", resolved_period=current_quarter(),
+                    related_metrics=related_metrics, data_source="dcl_v2",
+                    response_type="sales_funnel",
+                    sales_funnel_data=_funnel,
+                )
+            # Fallback: text response from aggregate pipeline metrics
             pipeline = get_val("pipeline", current_year)
             qualified = get_val("qualified_pipeline", current_year)
             win_rate = get_val("win_rate_pct", current_year)

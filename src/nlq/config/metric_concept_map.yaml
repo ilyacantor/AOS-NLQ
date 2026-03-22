@@ -480,6 +480,36 @@ pipeline:
   unit: "usd"
   aliases: ["qualified_pipeline", "sales_pipeline"]
 
+pipeline_lead:
+  concept: "customer.pipeline.lead"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+pipeline_qualified:
+  concept: "customer.pipeline.qualified"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+pipeline_proposal:
+  concept: "customer.pipeline.proposal"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+pipeline_negotiation:
+  concept: "customer.pipeline.negotiation"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
+pipeline_closed_won:
+  concept: "customer.pipeline.closed_won"
+  property: "amount"
+  type: direct
+  unit: "usd"
+
 win_rate_pct:
   concept: "customer.win_rate"
   property: "rate"

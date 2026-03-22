@@ -1,20 +1,23 @@
 """
 Dashboard Data Resolver - Populates dashboard widgets with data from DCL.
 
-This module routes all data access through DCL's query API.
-NLQ holds no local data - it's a stateless UI layer.
+Uses a single batch browse call to DCL (via get_all_metrics_by_period),
+replacing 60+ concurrent requests that previously exhausted DCL's connection pool.
+
+Dimensional queries (bar charts by dimension, donut, map) still use individual
+DCL calls since they require server-side grouping.
 """
 
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
 from src.nlq.core.dates import current_year, current_quarter
 
 from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
-from src.nlq.services.dcl_semantic_client import propagate_context
+from src.nlq.services.dcl_semantic_client import get_entity_id
 from src.nlq.knowledge.schema import get_metric_unit
 from src.nlq.knowledge.display import get_display_name
+from src.nlq.knowledge.synonyms import normalize_metric
 from src.nlq.models.dashboard_schema import (
     DashboardSchema,
     MetricBinding,
@@ -42,11 +45,19 @@ def _quarter_range(num_quarters: int) -> List[str]:
     return quarters
 
 
+def _lookup(prefetched: Dict[str, Optional[float]], metric: str, period: str) -> Optional[float]:
+    """Look up a pre-fetched metric value by canonical name and period."""
+    canonical = normalize_metric(metric)
+    return prefetched.get(f"{canonical}|{period}")
+
+
 class DashboardDataResolver:
     """
     Resolves dashboard widget data from DCL.
 
-    All data access goes through DCL's query API.
+    All data access goes through DCL's query API.  Batch-eligible widgets
+    (KPI, time series, stacked bar, quarter tables) are resolved from a
+    single browse-batch call.  Dimensional widgets use individual queries.
     """
 
     def __init__(self):
@@ -66,7 +77,7 @@ class DashboardDataResolver:
         active_filters: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Dict[str, Any]]:
         """
-        Resolve data for all widgets in a dashboard schema.
+        Resolve data for all widgets via batch prefetch + sequential dimensional queries.
 
         Args:
             schema: The dashboard schema with widget definitions
@@ -77,39 +88,61 @@ class DashboardDataResolver:
             Dict mapping widget_id to widget data
         """
         reference_year = reference_year or current_year()
-        widget_data = {}
+        entity_id = get_entity_id()
+        cq = current_quarter()
+        quarters_8 = _quarter_range(8)
+        quarters_4 = _quarter_range(4)
+        prior_q = quarters_8[-2] if len(quarters_8) >= 2 else None
         filters = active_filters or {}
 
-        def _resolve_one(widget: Widget) -> tuple:
-            """Resolve a single widget, returning (widget_id, data_dict)."""
+        # Phase 1: Collect all metric names from all widgets
+        all_metrics: set = set()
+        for w in schema.widgets:
+            if not w.data or not w.data.metrics:
+                continue
+            for mb in w.data.metrics:
+                canonical = normalize_metric(mb.metric)
+                if canonical:
+                    all_metrics.add(canonical)
+
+        # Phase 2: Single batch fetch — 1 HTTP call replaces 60+
+        prefetched: Dict[str, Optional[float]] = {}
+        if all_metrics:
             try:
-                data = self._resolve_widget_data(widget, reference_year, filters)
+                batch_result, _ = self.dcl_client.v2.get_all_metrics_by_period(
+                    list(all_metrics), entity_id=entity_id,
+                )
+                prefetched = batch_result
+            except (RuntimeError, OSError) as e:
+                logger.error(f"Batch prefetch failed: {e}")
+                # Widget resolvers will surface "No data" errors for each widget
+
+        # Phase 3 & 4: Resolve each widget sequentially
+        widget_data: Dict[str, Dict[str, Any]] = {}
+        for widget in schema.widgets:
+            try:
+                data = self._resolve_widget_data(
+                    widget, reference_year, filters, prefetched,
+                    cq, prior_q, quarters_8, quarters_4,
+                )
                 if isinstance(data, dict) and data.get("error"):
                     logger.error(
                         f"Widget {widget.id} data resolution failed: {data['error']}"
                     )
-                    return widget.id, {
+                    widget_data[widget.id] = {
                         "error": data["error"],
                         "widget_id": widget.id,
                         "status": "dcl_error",
                     }
-                return widget.id, data
+                else:
+                    widget_data[widget.id] = data
             except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
                 logger.error(f"Error resolving data for widget {widget.id}: {e}")
-                return widget.id, {
+                widget_data[widget.id] = {
                     "error": str(e),
                     "widget_id": widget.id,
                     "status": "resolution_error",
                 }
-
-        with ThreadPoolExecutor(max_workers=6) as pool:
-            futures = [
-                pool.submit(propagate_context(_resolve_one), w)
-                for w in schema.widgets
-            ]
-            for future in futures:
-                wid, data = future.result()
-                widget_data[wid] = data
 
         return widget_data
 
@@ -117,117 +150,82 @@ class DashboardDataResolver:
         self,
         widget: Widget,
         reference_year: str,
-        filters: Optional[Dict[str, str]] = None,
+        filters: Dict[str, str],
+        prefetched: Dict[str, Optional[float]],
+        cq: str,
+        prior_q: Optional[str],
+        quarters_8: List[str],
+        quarters_4: List[str],
     ) -> Dict[str, Any]:
         """Resolve data for a single widget based on its type."""
-        filters = filters or {}
-
         widget_type = widget.type
         if isinstance(widget_type, str):
-            widget_type_str = widget_type
+            wt = widget_type
         else:
-            widget_type_str = widget_type.value
+            wt = widget_type.value
 
-        if widget_type_str == "kpi_card":
-            return self._resolve_kpi_data(widget, reference_year, filters)
-        elif widget_type_str in ["line_chart", "area_chart"]:
-            return self._resolve_time_series_data(widget, reference_year, filters)
-        elif widget_type_str in ["bar_chart", "horizontal_bar"]:
-            return self._resolve_category_data(widget, reference_year, filters)
-        elif widget_type_str == "stacked_bar":
-            return self._resolve_stacked_data(widget, reference_year, filters)
-        elif widget_type_str == "donut_chart":
-            return self._resolve_donut_data(widget, reference_year, filters)
-        elif widget_type_str == "data_table":
-            return self._resolve_table_data(widget, reference_year, filters)
-        elif widget_type_str == "map":
+        if wt == "kpi_card":
+            return self._resolve_kpi_data(widget, prefetched, cq, prior_q, quarters_8)
+        elif wt in ("line_chart", "area_chart"):
+            return self._resolve_time_series_data(widget, prefetched, quarters_8)
+        elif wt in ("bar_chart", "horizontal_bar"):
+            return self._resolve_category_data(widget, reference_year, filters, prefetched, cq)
+        elif wt == "stacked_bar":
+            return self._resolve_stacked_data(widget, prefetched, quarters_4)
+        elif wt == "donut_chart":
+            return self._resolve_category_data(widget, reference_year, filters, prefetched, cq)
+        elif wt == "data_table":
+            return self._resolve_table_data(widget, reference_year, filters, prefetched, quarters_4)
+        elif wt == "map":
             return self._resolve_map_data(widget, reference_year, filters)
+        elif wt == "pipeline_funnel":
+            return self._resolve_pipeline_funnel_data(widget, reference_year, filters)
         else:
-            return {"loading": False, "error": f"Unsupported widget type: {widget_type_str}"}
+            return {"loading": False, "error": f"Unsupported widget type: {wt}"}
 
-    def _query_dcl(
-        self,
-        metric: str,
-        dimensions: List[str] = None,
-        filters: Dict[str, Any] = None,
-        time_range: Dict[str, Any] = None,
-        grain: str = None,
-    ) -> Dict[str, Any]:
-        """Execute query against DCL and handle errors."""
-        from src.nlq.knowledge.synonyms import normalize_metric
-        from src.nlq.services.dcl_semantic_client import get_entity_id
-        canonical = normalize_metric(metric)
-        if canonical != metric:
-            logger.info(f"Resolved metric alias '{metric}' -> '{canonical}'")
-        result = self.dcl_client.query(
-            metric=canonical,
-            dimensions=dimensions,
-            filters=filters,
-            time_range=time_range,
-            grain=grain,
-            entity_id=get_entity_id(),
-        )
-
-        if result.get("status") == "error" or result.get("error"):
-            logger.warning(f"DCL query error for '{canonical}': {result.get('error')}")
-        elif self._provenance is None and result.get("run_provenance"):
-            # Capture provenance from the first successful DCL query (set-once)
-            self._provenance = result["run_provenance"]
-
-        return result
+    # ------------------------------------------------------------------
+    # Batch-resolved widget types (use prefetched data, no DCL calls)
+    # ------------------------------------------------------------------
 
     def _resolve_kpi_data(
         self,
         widget: Widget,
-        reference_year: str,
-        filters: Optional[Dict[str, str]] = None,
+        prefetched: Dict[str, Optional[float]],
+        cq: str,
+        prior_q: Optional[str],
+        quarters_8: List[str],
     ) -> Dict[str, Any]:
-        """Resolve KPI card data from DCL."""
-        filters = filters or {}
+        """Resolve KPI card data from prefetched batch."""
         metrics = widget.data.metrics
         if not metrics:
             return {"loading": False, "error": "No metric specified"}
 
         metric = metrics[0].metric
-        cq = current_quarter()
-        quarters = _quarter_range(8)
-        prior_q = quarters[-2] if len(quarters) >= 2 else None
 
-        # Parallel: fetch current value, prior value, and sparkline concurrently
-        def _fetch_current():
-            result = self._query_dcl(
-                metric=metric, filters=filters,
-                time_range={"period": cq, "granularity": "quarterly"},
-            )
-            if result.get("error") or not result.get("data"):
-                result = self._query_dcl(
-                    metric=metric, filters=filters,
-                    time_range={"period": reference_year, "granularity": "yearly"},
-                )
-            return self._extract_value_from_result(result)
-
-        def _fetch_prior():
-            if not prior_q:
-                return None
-            result = self._query_dcl(
-                metric=metric, filters=filters,
-                time_range={"period": prior_q, "granularity": "quarterly"},
-            )
-            return self._extract_value_from_result(result)
-
-        def _fetch_sparkline():
-            return self._query_quarters_sparkline(metric, filters, 8)
-
-        with ThreadPoolExecutor(max_workers=3) as pool:
-            fut_current = pool.submit(propagate_context(_fetch_current))
-            fut_prior = pool.submit(propagate_context(_fetch_prior))
-            fut_sparkline = pool.submit(propagate_context(_fetch_sparkline))
-            value = fut_current.result()
-            prior_value = fut_prior.result()
-            sparkline_data = fut_sparkline.result()
+        # Current value: try current quarter, then sum the year
+        value = _lookup(prefetched, metric, cq)
+        if value is None:
+            # Try annual: sum 4 most recent quarters
+            recent_4 = quarters_8[-4:]
+            qvals = [_lookup(prefetched, metric, q) for q in recent_4]
+            non_none = [v for v in qvals if v is not None]
+            if non_none:
+                value = sum(non_none)
 
         if value is None:
             return {"loading": False, "error": f"No data for '{metric}'"}
+
+        # Prior quarter value for trend
+        prior_value = _lookup(prefetched, metric, prior_q) if prior_q else None
+
+        # Sparkline: values for each of 8 quarters
+        sparkline_data = None
+        spark_values = []
+        for q in quarters_8:
+            v = _lookup(prefetched, metric, q)
+            spark_values.append(round(v, 1) if v is not None else 0)
+        if any(v != 0 for v in spark_values):
+            sparkline_data = spark_values
 
         # Compute trend
         trend = None
@@ -241,72 +239,34 @@ class DashboardDataResolver:
 
         formatted_value = self._format_value(metric, value)
 
-        filter_label = None
-        if filters:
-            filter_label = ", ".join(f"{k}: {v}" for k, v in filters.items())
-
         return {
             "loading": False,
             "value": value,
             "formatted_value": formatted_value,
             "trend": trend,
             "sparkline_data": sparkline_data,
-            "active_filter": filter_label,
         }
-
-    def _query_quarters_sparkline(self, metric: str, filters: dict, num_quarters: int) -> Optional[List[float]]:
-        """Query individual quarters in parallel and build sparkline data."""
-        quarters = _quarter_range(num_quarters)
-
-        def _fetch_quarter(q: str) -> float:
-            result = self._query_dcl(
-                metric=metric,
-                filters=filters,
-                time_range={"period": q, "granularity": "quarterly"},
-            )
-            val = self._extract_value_from_result(result)
-            return round(val, 1) if val is not None else 0
-
-        with ThreadPoolExecutor(max_workers=num_quarters) as pool:
-            values = list(pool.map(propagate_context(_fetch_quarter), quarters))
-
-        if any(v != 0 for v in values):
-            return values
-        return None
 
     def _resolve_time_series_data(
         self,
         widget: Widget,
-        reference_year: str,
-        filters: Optional[Dict[str, str]] = None,
+        prefetched: Dict[str, Optional[float]],
+        quarters_8: List[str],
     ) -> Dict[str, Any]:
-        """Resolve time series data for line/area charts."""
-        filters = filters or {}
+        """Resolve time series data for line/area charts from prefetched batch."""
         metrics = widget.data.metrics
         if not metrics:
             return {"loading": False, "error": "No metric specified"}
 
         metric = metrics[0].metric
 
-        # Query all quarters in parallel
-        quarters = _quarter_range(8)
-
-        def _fetch_quarter(q: str):
-            result = self._query_dcl(
-                metric=metric, filters=filters,
-                time_range={"period": q, "granularity": "quarterly"},
-            )
-            val = self._extract_value_from_result(result)
+        data_points = []
+        for q in quarters_8:
+            val = _lookup(prefetched, metric, q)
             if val is not None:
                 parts = q.split("-")
                 label = f"{parts[1]} {parts[0]}" if len(parts) == 2 else q
-                return {"label": label, "value": round(val, 1)}
-            return None
-
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            results = list(pool.map(propagate_context(_fetch_quarter), quarters))
-
-        data_points = [r for r in results if r is not None]
+                data_points.append({"label": label, "value": round(val, 1)})
 
         if not data_points:
             return {"loading": False, "error": f"No time series data for '{metric}'"}
@@ -320,14 +280,106 @@ class DashboardDataResolver:
             }]
         }
 
+    def _resolve_stacked_data(
+        self,
+        widget: Widget,
+        prefetched: Dict[str, Optional[float]],
+        quarters_4: List[str],
+    ) -> Dict[str, Any]:
+        """Resolve stacked bar chart data from prefetched batch."""
+        metrics = widget.data.metrics
+        if not metrics:
+            return {"loading": False, "error": "No metrics specified"}
+
+        categories = [q.split("-")[1] for q in quarters_4]
+        active_metrics = metrics[:3]
+
+        series = []
+        for mb in active_metrics:
+            metric = mb.metric
+            data_points = []
+            for q in quarters_4:
+                val = _lookup(prefetched, metric, q)
+                label = q.split("-")[1]
+                data_points.append({"label": label, "value": round(val, 1) if val else 0})
+            series.append({
+                "name": get_display_name(metric),
+                "data": data_points,
+            })
+
+        return {
+            "loading": False,
+            "categories": categories,
+            "series": series,
+        }
+
+    def _resolve_table_data(
+        self,
+        widget: Widget,
+        reference_year: str,
+        filters: Dict[str, str],
+        prefetched: Dict[str, Optional[float]],
+        quarters_4: List[str],
+    ) -> Dict[str, Any]:
+        """Resolve data table content — batch path for quarter dimension, DCL for others."""
+        metrics = widget.data.metrics
+        dimensions = widget.data.dimensions
+        dimension = dimensions[0].dimension if dimensions else "quarter"
+
+        rows = []
+
+        if dimension == "quarter":
+            # Batch-eligible: look up from prefetched data
+            for q in quarters_4:
+                row = {"quarter": q.replace("-", " ")}
+                for mb in metrics:
+                    val = _lookup(prefetched, mb.metric, q)
+                    row[mb.metric] = round(val, 1) if val else None
+                rows.append(row)
+        else:
+            # Dimensional: use individual DCL calls (1-2 per metric)
+            cq = current_quarter()
+            for metric_binding in metrics[:1]:
+                metric = metric_binding.metric
+                result = self._query_dcl(
+                    metric=metric,
+                    dimensions=[dimension],
+                    filters=filters,
+                    time_range={"period": cq},
+                )
+                if result.get("error") or not result.get("data"):
+                    logger.info(f"Table quarterly query failed for '{metric}', retrying with yearly")
+                    result = self._query_dcl(
+                        metric=metric,
+                        dimensions=[dimension],
+                        filters=filters,
+                        time_range={"period": reference_year},
+                    )
+
+                breakdown = self._extract_dimensional_data(result, dimension, metric)
+                for item in breakdown:
+                    row = {dimension: item["label"]}
+                    row[metric] = item["value"]
+                    rows.append(row)
+
+        return {
+            "loading": False,
+            "rows": rows,
+        }
+
+    # ------------------------------------------------------------------
+    # Dimensional widget types (still need individual DCL calls)
+    # ------------------------------------------------------------------
+
     def _resolve_category_data(
         self,
         widget: Widget,
         reference_year: str,
-        filters: Optional[Dict[str, str]] = None,
+        filters: Dict[str, str],
+        prefetched: Dict[str, Optional[float]],
+        cq: str,
     ) -> Dict[str, Any]:
-        """Resolve categorical data for bar charts."""
-        filters = filters or {}
+        """Resolve categorical data for bar/donut charts."""
         metrics = widget.data.metrics
         if not metrics:
             return {"loading": False, "error": "No metric specified"}
@@ -336,17 +388,15 @@ class DashboardDataResolver:
         dimensions = widget.data.dimensions
         dimension = dimensions[0].dimension if dimensions else None
         if dimension is None:
-            # Multi-metric comparison bar chart (no dimensional breakdown)
-            # Each metric becomes a category with its total value
+            # Multi-metric comparison — batch-eligible
             if len(metrics) > 1:
-                return self._resolve_multi_metric_comparison(metrics, reference_year, filters)
+                return self._resolve_multi_metric_comparison(metrics, prefetched, cq)
             return {"loading": False, "error": f"No dimension specified for '{metric}' breakdown"}
 
-        # Validate dimension — if it has no data, try valid dimensions for this metric
+        # Dimensional breakdown — requires individual DCL calls
         breakdown = self._try_dimensional_query(metric, dimension, filters, reference_year)
 
         if not breakdown:
-            # Requested dimension failed — try each valid dimension as fallback
             valid_dims = self.dcl_client.get_valid_dimensions(metric) if hasattr(self.dcl_client, 'get_valid_dimensions') else []
             for fallback_dim in valid_dims:
                 if fallback_dim != dimension:
@@ -368,6 +418,35 @@ class DashboardDataResolver:
             }],
             "clickable": True,
             "filter_dimension": dimension,
+        }
+
+    def _resolve_multi_metric_comparison(
+        self,
+        metrics: List[MetricBinding],
+        prefetched: Dict[str, Optional[float]],
+        cq: str,
+    ) -> Dict[str, Any]:
+        """Resolve multi-metric comparison bar chart from prefetched batch."""
+        data_points = []
+        for metric_binding in metrics:
+            metric = metric_binding.metric
+            value = _lookup(prefetched, metric, cq)
+            if value is not None:
+                data_points.append({
+                    "label": get_display_name(metric),
+                    "value": round(value, 1),
+                })
+
+        if not data_points:
+            return {"loading": False, "error": "No data for any of the requested metrics"}
+
+        return {
+            "loading": False,
+            "categories": [p["label"] for p in data_points],
+            "series": [{
+                "name": "Metrics",
+                "data": data_points,
+            }],
         }
 
     def _try_dimensional_query(
@@ -399,204 +478,19 @@ class DashboardDataResolver:
 
         return self._extract_dimensional_data(result, dimension, metric) or None
 
-    def _resolve_multi_metric_comparison(
-        self,
-        metrics: List[MetricBinding],
-        reference_year: str,
-        filters: Dict[str, str],
-    ) -> Dict[str, Any]:
-        """Resolve multi-metric comparison bar chart — each metric is a category."""
-        cq = current_quarter()
-        data_points = []
-        for metric_binding in metrics:
-            metric = metric_binding.metric
-            result = self._query_dcl(
-                metric=metric,
-                filters=filters,
-                time_range={"period": cq, "granularity": "quarterly"},
-            )
-            value = self._extract_value_from_result(result)
-            if value is not None:
-                data_points.append({
-                    "label": get_display_name(metric),
-                    "value": round(value, 1),
-                })
-
-        if not data_points:
-            return {"loading": False, "error": "No data for any of the requested metrics"}
-
-        return {
-            "loading": False,
-            "categories": [p["label"] for p in data_points],
-            "series": [{
-                "name": "Metrics",
-                "data": data_points,
-            }],
-        }
-
-    def _resolve_stacked_data(
-        self,
-        widget: Widget,
-        reference_year: str,
-        filters: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
-        """Resolve stacked bar chart data."""
-        filters = filters or {}
-        metrics = widget.data.metrics
-        if not metrics:
-            return {"loading": False, "error": "No metrics specified"}
-
-        quarters = _quarter_range(4)
-        categories = [q.split("-")[1] for q in quarters]  # ["Q1", "Q2", ...]
-        active_metrics = metrics[:3]
-
-        # Build all (metric, quarter) pairs for parallel fetch
-        tasks = [
-            (mb.metric, q)
-            for mb in active_metrics
-            for q in quarters
-        ]
-
-        def _fetch_pair(pair):
-            metric, q = pair
-            result = self._query_dcl(
-                metric=metric,
-                filters=filters,
-                time_range={"period": q, "granularity": "quarterly"},
-            )
-            val = self._extract_value_from_result(result)
-            return (metric, q, val)
-
-        with ThreadPoolExecutor(max_workers=len(tasks)) as pool:
-            results = list(pool.map(propagate_context(_fetch_pair), tasks))
-
-        # Reassemble into series by metric
-        val_map: Dict[str, Dict[str, Optional[float]]] = {}
-        for metric, q, val in results:
-            val_map.setdefault(metric, {})[q] = val
-
-        series = []
-        for mb in active_metrics:
-            metric = mb.metric
-            data_points = []
-            for q in quarters:
-                val = val_map.get(metric, {}).get(q)
-                label = q.split("-")[1]
-                data_points.append({"label": label, "value": round(val, 1) if val else 0})
-            series.append({
-                "name": get_display_name(metric),
-                "data": data_points,
-            })
-
-        return {
-            "loading": False,
-            "categories": categories,
-            "series": series,
-        }
-
-    def _resolve_donut_data(
-        self,
-        widget: Widget,
-        reference_year: str,
-        filters: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
-        """Resolve donut chart data."""
-        return self._resolve_category_data(widget, reference_year, filters)
-
-    def _resolve_table_data(
-        self,
-        widget: Widget,
-        reference_year: str,
-        filters: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
-        """Resolve data table content."""
-        filters = filters or {}
-        metrics = widget.data.metrics
-        dimensions = widget.data.dimensions
-        dimension = dimensions[0].dimension if dimensions else "quarter"
-
-        rows = []
-
-        if dimension == "quarter":
-            quarters = _quarter_range(4)
-
-            # Build all (metric, quarter) pairs for parallel fetch
-            tasks = [
-                (mb.metric, q)
-                for mb in metrics
-                for q in quarters
-            ]
-
-            def _fetch_pair(pair):
-                metric, q = pair
-                result = self._query_dcl(
-                    metric=metric,
-                    filters=filters,
-                    time_range={"period": q, "granularity": "quarterly"},
-                )
-                val = self._extract_value_from_result(result)
-                return (metric, q, val)
-
-            with ThreadPoolExecutor(max_workers=len(tasks)) as pool:
-                results = list(pool.map(propagate_context(_fetch_pair), tasks))
-
-            # Reassemble into rows by quarter
-            val_map: Dict[str, Dict[str, Optional[float]]] = {}
-            for metric, q, val in results:
-                val_map.setdefault(q, {})[metric] = val
-
-            for q in quarters:
-                row = {"quarter": q.replace("-", " ")}
-                for mb in metrics:
-                    val = val_map.get(q, {}).get(mb.metric)
-                    row[mb.metric] = round(val, 1) if val else None
-                rows.append(row)
-        else:
-            # Get dimensional breakdown using current quarter
-            cq = current_quarter()
-            for metric_binding in metrics[:1]:  # Primary metric
-                metric = metric_binding.metric
-                result = self._query_dcl(
-                    metric=metric,
-                    dimensions=[dimension],
-                    filters=filters,
-                    time_range={"period": cq},
-                )
-                if result.get("error") or not result.get("data"):
-                    logger.info(f"Table quarterly query failed for '{metric}', retrying with yearly")
-                    result = self._query_dcl(
-                        metric=metric,
-                        dimensions=[dimension],
-                        filters=filters,
-                        time_range={"period": reference_year},
-                    )
-
-                breakdown = self._extract_dimensional_data(result, dimension, metric)
-                for item in breakdown:
-                    row = {dimension: item["label"]}
-                    row[metric] = item["value"]
-                    rows.append(row)
-
-        return {
-            "loading": False,
-            "rows": rows,
-        }
-
     def _resolve_map_data(
         self,
         widget: Widget,
         reference_year: str,
-        filters: Optional[Dict[str, str]] = None,
+        filters: Dict[str, str],
     ) -> Dict[str, Any]:
         """Resolve geographic map data showing revenue by region."""
-        filters = filters or {}
         metrics = widget.data.metrics
         if not metrics:
             return {"loading": False, "error": "No metric specified"}
 
         metric = metrics[0].metric
 
-        # Query DCL for regional breakdown using current quarter
         cq = current_quarter()
         result = self._query_dcl(
             metric=metric,
@@ -608,13 +502,11 @@ class DashboardDataResolver:
         if result.get("error"):
             return {"loading": False, "error": result["error"]}
 
-        # Extract regional data
         regional_data = self._extract_dimensional_data(result, "region", metric)
 
         if not regional_data:
             return {"loading": False, "error": f"No regional data for '{metric}'"}
 
-        # Calculate total and percentages
         total = sum(item.get("value", 0) for item in regional_data)
         regions = []
 
@@ -627,7 +519,6 @@ class DashboardDataResolver:
                 "percentage": round(percentage, 1),
             })
 
-        # Sort by value descending
         regions.sort(key=lambda r: r["value"], reverse=True)
 
         return {
@@ -637,7 +528,6 @@ class DashboardDataResolver:
                 "metric": metric,
                 "regions": regions,
             },
-            # Also provide series format for fallback rendering
             "series": [{
                 "name": get_display_name(metric),
                 "data": [{"label": r["region"], "value": r["value"]} for r in regions],
@@ -645,81 +535,65 @@ class DashboardDataResolver:
             "categories": [r["region"] for r in regions],
         }
 
+    def _resolve_pipeline_funnel_data(
+        self,
+        widget: Widget,
+        reference_year: str,
+        filters: Dict[str, str],
+    ) -> Dict[str, Any]:
+        """Resolve pipeline funnel data from customer.pipeline.* stage triples."""
+        from src.nlq.services.dcl_semantic_client_v2 import DCLSemanticClientV2
+
+        v2 = DCLSemanticClientV2()
+        entity_id = get_entity_id()
+        cq = current_quarter()
+
+        stages = v2.get_pipeline_stages(entity_id=entity_id, period=cq)
+
+        if not stages:
+            return {"loading": False, "error": "Pipeline data not available"}
+
+        return {
+            "loading": False,
+            "rows": stages,
+            "formatted_value": f"{len(stages)} stages",
+        }
+
+    # ------------------------------------------------------------------
+    # DCL query helper (used only by dimensional widget types)
+    # ------------------------------------------------------------------
+
+    def _query_dcl(
+        self,
+        metric: str,
+        dimensions: List[str] = None,
+        filters: Dict[str, Any] = None,
+        time_range: Dict[str, Any] = None,
+        grain: str = None,
+    ) -> Dict[str, Any]:
+        """Execute query against DCL and handle errors."""
+        canonical = normalize_metric(metric)
+        if canonical != metric:
+            logger.info(f"Resolved metric alias '{metric}' -> '{canonical}'")
+        result = self.dcl_client.query(
+            metric=canonical,
+            dimensions=dimensions,
+            filters=filters,
+            time_range=time_range,
+            grain=grain,
+            entity_id=get_entity_id(),
+        )
+
+        if result.get("status") == "error" or result.get("error"):
+            logger.warning(f"DCL query error for '{canonical}': {result.get('error')}")
+        elif self._provenance is None and result.get("run_provenance"):
+            self._provenance = result["run_provenance"]
+
+        return result
+
     # =========================================================================
     # HELPER METHODS FOR EXTRACTING DATA FROM DCL RESPONSES
     # =========================================================================
-
-    def _extract_value_from_result(self, result: Dict[str, Any]) -> Optional[float]:
-        """Extract a single value from DCL query result."""
-        if result.get("error"):
-            raise RuntimeError(f"DCL query error: {result['error']}")
-
-        data = result.get("data", [])
-        if not data:
-            return None
-
-        # Handle different response formats
-        if isinstance(data, list):
-            if len(data) > 0:
-                item = data[-1] if len(data) > 1 else data[0]  # Latest value
-                if isinstance(item, dict):
-                    return item.get("value", item.get("val"))
-                return item
-        elif isinstance(data, dict):
-            return data.get("value", data.get("val"))
-        elif isinstance(data, (int, float)):
-            return data
-
-        return None
-
-    def _extract_time_series(self, result: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Extract time series data points from DCL result."""
-        if result.get("error"):
-            raise RuntimeError(f"DCL query error: {result['error']}")
-
-        data = result.get("data", [])
-        if not data:
-            return []
-
-        data_points = []
-        for item in data:
-            if isinstance(item, dict):
-                period = item.get("period", item.get("label", ""))
-                value = item.get("value", item.get("val", 0))
-
-                # Format label nicely (Q1 2024 -> Q1 2024)
-                if "-Q" in str(period):
-                    parts = period.split("-")
-                    label = f"{parts[1]} {parts[0]}" if len(parts) == 2 else period
-                else:
-                    label = str(period)
-
-                data_points.append({
-                    "label": label,
-                    "value": round(value, 1) if value else 0
-                })
-
-        return data_points
-
-    def _extract_time_series_values(self, result: Dict[str, Any]) -> Optional[List[float]]:
-        """Extract just the values from time series for sparklines."""
-        data_points = self._extract_time_series(result)
-        if not data_points:
-            return None
-        return [p["value"] for p in data_points]
-
-    def _extract_quarterly_values(
-        self, result: Dict[str, Any], reference_year: str
-    ) -> List[Dict[str, Any]]:
-        """Extract quarterly values from result."""
-        data_points = self._extract_time_series(result)
-
-        # If we got time series data, filter to requested year
-        if data_points:
-            return data_points[-4:] if len(data_points) > 4 else data_points
-
-        # No data available — return empty list (callers handle empty gracefully)
-        return []
 
     def _extract_dimensional_data(
         self, result: Dict[str, Any], dimension: str, metric: str = None
@@ -737,8 +611,6 @@ class DashboardDataResolver:
 
         for item in data:
             if isinstance(item, dict):
-                # DCL returns dimensions nested: {"dimensions": {"region": "AMER"}, "value": 24.0}
-                # Local/legacy returns flat: {"region": "AMER", "value": 24.0}
                 dims_dict = item.get("dimensions", {})
                 label = (
                     (dims_dict.get(dimension) if isinstance(dims_dict, dict) else None)
@@ -747,13 +619,10 @@ class DashboardDataResolver:
                 )
                 value = item.get("value", item.get("val", 0))
 
-                # Handle nested value dicts (e.g., {'pipeline': 6.4, 'qualified': 3.84})
                 if isinstance(value, dict):
-                    # Try to get the metric value, or first numeric value
                     if metric in value:
                         value = value[metric]
                     else:
-                        # Get first numeric value from the dict
                         for v in value.values():
                             if isinstance(v, (int, float)):
                                 value = v
@@ -765,7 +634,6 @@ class DashboardDataResolver:
                     breakdown.append({"label": str(label), "value": round(value, 2)})
                     total += value
 
-        # Add ratios
         for item in breakdown:
             item["ratio"] = round(item["value"] / total, 2) if total > 0 else 0
 

@@ -82,6 +82,9 @@ class DCLClientRouter:
     def get_qoe(self, **kwargs) -> Dict[str, Any]:
         return self.v2.get_qoe(**kwargs)
 
+    def get_pipeline_stages(self, **kwargs) -> List[Dict[str, Any]]:
+        return self.v2.get_pipeline_stages(**kwargs)
+
     # ------------------------------------------------------------------
     # Catalog / search — old client (v2 doesn't replace these yet)
     # ------------------------------------------------------------------
