@@ -38,6 +38,7 @@ ENV/
 htmlcov/
 .tox/
 .nox/
+tests/harness/results/
 
 # Node
 node_modules/
