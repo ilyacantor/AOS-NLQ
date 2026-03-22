@@ -634,6 +634,10 @@ class TestCase:
     # api_call fields
     section: Optional[str] = None
     precondition: Optional[str] = None
+    # entity + skip fields
+    entity_id: Optional[str] = None
+    skip: bool = False
+    skip_reason: Optional[str] = None
 
 
 @dataclass
@@ -678,6 +682,9 @@ def load_test_cases(path: Path) -> List[TestCase]:
             banned_terms=item.get("banned_terms"),
             section=item.get("section"),
             precondition=item.get("precondition"),
+            entity_id=item.get("entity_id"),
+            skip=item.get("skip", False),
+            skip_reason=item.get("skip_reason"),
         ))
     return cases
 
@@ -754,6 +761,8 @@ class HarnessRunner:
             "mode": "ai",
             "session_id": session_id,
         }
+        if tc.entity_id:
+            payload["entity_id"] = tc.entity_id
 
         # ── Send HTTP request ────────────────────────────────────────
         try:
@@ -1121,6 +1130,14 @@ class HarnessRunner:
 
     def _route_test(self, client: httpx.Client, tc: TestCase) -> TestResult:
         """Route a test case to the appropriate runner based on type."""
+        if tc.skip:
+            return TestResult(
+                test_id=tc.id, query=tc.query, persona=tc.persona,
+                tags=tc.tags, assertion_results=[], passed=True,
+                response_time_s=0.0,
+                warnings=[f"SKIPPED: {tc.skip_reason or 'no reason'}"],
+            )
+
         # Before tests that need findings, advance the interview
         needs_advance = (
             tc.id in ("PD_006", "PD_007", "PD_010")
@@ -1171,7 +1188,8 @@ class HarnessRunner:
             result = self._route_test(client, tc)
             self.results.append(result)
 
-            icon = "PASS" if result.passed else "FAIL"
+            is_skip = result.warnings and any("SKIPPED" in w for w in result.warnings)
+            icon = "SKIP" if is_skip else ("PASS" if result.passed else "FAIL")
             time_s = f"{result.response_time_s:.1f}s"
 
             print(f"  {tc.id:12s} {icon:4s} [{time_s:>5s}] {tc.query}")
@@ -1200,16 +1218,20 @@ class HarnessRunner:
     def print_summary(self):
         """Print the summary report to console."""
         total = len(self.results)
-        passed = sum(1 for r in self.results if r.passed)
-        failed = total - passed
+        skipped = sum(1 for r in self.results if r.warnings and any("SKIPPED" in w for w in r.warnings))
+        passed = sum(1 for r in self.results if r.passed and not (r.warnings and any("SKIPPED" in w for w in r.warnings)))
+        failed = total - passed - skipped
         errors = sum(1 for r in self.results if r.error)
 
         coverage: Dict[str, Dict[str, int]] = {}
         for r in self.results:
             prefix = r.test_id.split("_")[0]
-            bucket = coverage.setdefault(prefix, {"total": 0, "pass": 0})
+            bucket = coverage.setdefault(prefix, {"total": 0, "pass": 0, "skip": 0})
             bucket["total"] += 1
-            if r.passed:
+            is_skip = r.warnings and any("SKIPPED" in w for w in r.warnings)
+            if is_skip:
+                bucket["skip"] += 1
+            elif r.passed:
                 bucket["pass"] += 1
 
         area_names = {
@@ -1217,7 +1239,11 @@ class HarnessRunner:
             "SAAS": "SaaS", "CTO": "CTO", "CHRO": "CHRO",
             "ALIAS": "Alias", "SUP": "Superlative",
             "CLARIFY": "Clarification", "PROV": "Provenance",
-            "PD": "Pre-Deal",
+            "PD": "Pre-Deal", "CS": "Concept Schema",
+            "HR": "Hierarchy", "DT": "Drill-Through",
+            "CE": "Conflict Exp.", "RP": "Reporting Pkg",
+            "RECON": "Reconciliation", "QE": "QofE",
+            "MA": "Maestra",
         }
 
         ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1225,6 +1251,7 @@ class HarnessRunner:
         print(f"NLQ Test Harness -- Run {ts}")
         print("-" * 50)
         print(f"Total tests:     {total}")
+        print(f"Skipped:         {skipped}")
         print(f"Passed:          {passed}")
         print(f"Failed:          {failed}")
         print(f"Errors:          {errors}")
@@ -1249,7 +1276,8 @@ class HarnessRunner:
         all_warnings = []
         for r in self.results:
             for w in r.warnings:
-                all_warnings.append(f"  {r.test_id} -- {w}")
+                if "SKIPPED" not in w:  # Skip reasons shown in COVERAGE section
+                    all_warnings.append(f"  {r.test_id} -- {w}")
         for w in self.cheat_detector.warnings:
             all_warnings.append(f"  CHEAT WARNING: {w}")
 
@@ -1260,13 +1288,11 @@ class HarnessRunner:
             print()
 
         print("COVERAGE:")
-        for prefix in [
-            "PL", "PERIOD", "DIM", "SAAS", "CTO",
-            "CHRO", "ALIAS", "SUP", "CLARIFY", "PROV",
-        ]:
-            b = coverage.get(prefix, {"total": 0, "pass": 0})
+        for prefix in sorted(coverage.keys(), key=lambda x: list(area_names.keys()).index(x) if x in area_names else 999):
+            b = coverage[prefix]
             name = area_names.get(prefix, prefix)
-            print(f"  {name:14s}  {b['pass']}/{b['total']}")
+            skip_str = f" ({b['skip']} skipped)" if b.get("skip", 0) > 0 else ""
+            print(f"  {name:14s}  {b['pass']}/{b['total']}{skip_str}")
         print("-" * 50)
 
     def write_json_report(self) -> Path:

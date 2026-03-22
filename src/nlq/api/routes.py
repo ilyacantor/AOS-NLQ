@@ -1894,7 +1894,44 @@ def _try_report_query(question: str, session_id: Optional[str] = None, entity_id
     return result
 
 
-def _try_pl_statement_query(question: str, session_id: Optional[str] = None, entity_id: Optional[str] = None) -> Optional[NLQResponse]:
+def _execute_pl_batch(periods: list, entity_id: Optional[str]) -> Optional["NLQResponse"]:
+    """Fetch all P&L line items via DCL batch browse (1 HTTP call) and assemble response.
+
+    Replaces the thread pool approach (52 individual HTTP requests) with a single
+    browse-batch call to DCL, then feeds the pre-fetched values to PLStatementHandler.
+    """
+    from src.nlq.core.composite_query import PL_LINE_ITEMS, PLStatementHandler
+    from src.nlq.services.dcl_client_router import get_routed_client
+    from src.nlq.api.query_helpers import SimpleMetricResult
+
+    dcl_client = get_routed_client()
+    batch_result, _ = dcl_client.v2.get_all_metrics_by_period(
+        list(PL_LINE_ITEMS), entity_id=entity_id,
+    )
+
+    # Create a query_fn that returns pre-fetched values from the batch result
+    def batch_query_fn(metric: str, period: str):
+        key = f"{metric}|{period}"
+        value = batch_result.get(key)
+        if value is None:
+            return None
+        return SimpleMetricResult(
+            metric=metric,
+            value=value,
+            formatted_value=f"${round(value, 1)}M",
+            unit="millions",
+            display_name=metric,
+            domain="finance",
+            answer="",
+            period=period,
+            data_source="dcl_v2",
+        )
+
+    handler = PLStatementHandler(periods=periods, query_fn=batch_query_fn, entity_id=entity_id)
+    return handler.execute()
+
+
+def _try_pl_statement_query(question: str, session_id: Optional[str] = None, entity_id: Optional[str] = None) -> Optional["NLQResponse"]:
     """
     Detect P&L / income statement queries and fan out DCL queries for all line items.
 
@@ -1912,16 +1949,17 @@ def _try_pl_statement_query(question: str, session_id: Optional[str] = None, ent
         period_spec = None  # signals "show all periods"
 
     entity_id = entity_id or _detect_entity_id(question)
-    if entity_id == "combined":
-        query_fn = _build_combined_metric_result
-    elif entity_id:
-        query_fn = functools.partial(_build_simple_metric_result, entity_id=entity_id)
-    else:
-        query_fn = _build_simple_metric_result
 
     periods = determine_pl_periods(period_spec)
-    handler = PLStatementHandler(periods=periods, query_fn=query_fn, entity_id=entity_id)
-    result = handler.execute()
+
+    if entity_id == "combined":
+        # Combined requires per-entity aggregation — use thread pool path
+        query_fn = _build_combined_metric_result
+        handler = PLStatementHandler(periods=periods, query_fn=query_fn, entity_id=entity_id)
+        result = handler.execute()
+    else:
+        # Single entity: use DCL batch browse (1 HTTP call instead of 52)
+        result = _execute_pl_batch(periods, entity_id)
 
     if result and result.financial_statement_data and session_id:
         from src.nlq.api.session import get_dashboard_session_store
@@ -2829,13 +2867,54 @@ def _handle_ambiguous_query_text(
             return data
         return None
 
+    # ── Formatting helpers for shorthand handlers ──
+    # Replaces the prohibited `round(val, N) if val else 0` pattern.
+    # When val is None (metric not in DCL), renders "N/A" instead of a fake 0.
+    def _fmt(val: Optional[float], fmt_type: str = "currency", precision: int = 0) -> str:
+        if val is None:
+            return "N/A"
+        if fmt_type == "currency":
+            return f"${round(val, precision)}M"
+        if fmt_type == "currency_k":
+            return f"${round(val, precision)}K"
+        if fmt_type == "pct":
+            return f"{round(val, precision)}%"
+        if fmt_type == "ratio":
+            return f"{round(val, precision)}"
+        if fmt_type == "int":
+            return f"{int(val)}"
+        if fmt_type == "float":
+            return f"{round(val, precision)}"
+        return f"{round(val, precision)}"
+
+    def _all_none(*vals) -> bool:
+        """True if every value is None — signals data is completely unavailable."""
+        return all(v is None for v in vals)
+
+    def _data_unavailable_response(
+        metric_names: list, handler_type: str, period: str,
+    ) -> NLQResponse:
+        """Return an explicit 'data not available' response (A1 compliance)."""
+        names = ", ".join(metric_names)
+        return NLQResponse(
+            success=True,
+            answer=f"Data not available for: {names}. These metrics have not been ingested into the data store.",
+            value=None, unit=None,
+            confidence=0.3,
+            parsed_intent=handler_type,
+            resolved_metric=metric_names[0],
+            resolved_period=period,
+        )
+
     # ===== BURN_RATE =====
     # Ground truth: "Our COGS of $70M and SG&A of $60M total $130M annually. We are quite profitable, however, and have been for a long time, therefore we do not report burn_rate discretely."
     if ambiguity_type == AmbiguityType.BURN_RATE:
         cogs = get_val("cogs", current_year)
         sga = get_val("sga", current_year)
-        total = (cogs or 0) + (sga or 0)
-        answer = f"Our COGS of ${round(cogs, 0) if cogs else 0}M and SG&A of ${round(sga, 0) if sga else 0}M total ${round(total, 0)}M annually. We are quite profitable, however, and have been for a long time, therefore we do not report burn_rate discretely."
+        if _all_none(cogs, sga):
+            return _data_unavailable_response(["cogs", "sga"], "BURN_RATE", current_year)
+        total = sum(v for v in [cogs, sga] if v is not None)
+        answer = f"Our COGS of {_fmt(cogs, 'currency', 0)} and SG&A of {_fmt(sga, 'currency', 0)} total {_fmt(total, 'currency', 0)} annually. We are quite profitable, however, and have been for a long time, therefore we do not report burn_rate discretely."
         return NLQResponse(
             success=True,
             answer=answer,
@@ -2883,6 +2962,8 @@ def _handle_ambiguous_query_text(
             gross = get_val("gross_margin_pct", current_year)
             op = get_val("operating_margin_pct", current_year)
             net = get_val("net_margin_pct", current_year)
+            if _all_none(gross, op, net):
+                return _data_unavailable_response(["gross_margin_pct", "operating_margin_pct", "net_margin_pct"], "VAGUE_METRIC", current_year)
             answer = f"Gross: {fmt_val('gross_margin_pct', gross)}, Operating: {fmt_val('operating_margin_pct', op)}, Net: {fmt_val('net_margin_pct', net)}"
             return NLQResponse(success=True, answer=answer, value=None, unit="%",
                 confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="margin", resolved_period=current_year,
@@ -2892,7 +2973,10 @@ def _handle_ambiguous_query_text(
         if "new business" in q:
             new_logo_rev = get_val("new_logo_revenue", current_year)
             customers = get_val("customer_count", current_year)
-            answer = f"New logos: ${round(new_logo_rev, 0) if new_logo_rev else 0}M, {int(customers):,} customers"
+            if _all_none(new_logo_rev, customers):
+                return _data_unavailable_response(["new_logo_revenue", "customer_count"], "VAGUE_METRIC", current_year)
+            cust_str = f"{int(customers):,}" if customers is not None else "N/A"
+            answer = f"New logos: {_fmt(new_logo_rev, 'currency', 0)}, {cust_str} customers"
             return NLQResponse(success=True, answer=answer, value=new_logo_rev, unit="$M",
                 confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="new_logo_revenue", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -2902,8 +2986,10 @@ def _handle_ambiguous_query_text(
             reps_at_quota = get_val("reps_at_quota_pct", current_year)
             sales_quota = get_val("sales_quota", current_year)
             sales_hc = get_val("sales_headcount", current_year)
-            quota_per_rep = round(sales_quota / sales_hc, 0) if sales_quota and sales_hc else 0
-            answer = f"{round(reps_at_quota, 0) if reps_at_quota else 0}% at quota, ${round(quota_per_rep, 0)}M quota/rep"
+            if _all_none(reps_at_quota, sales_quota, sales_hc):
+                return _data_unavailable_response(["reps_at_quota_pct", "sales_quota", "sales_headcount"], "VAGUE_METRIC", current_year)
+            quota_per_rep_str = _fmt(round(sales_quota / sales_hc, 0), "currency", 0) if sales_quota and sales_hc else "N/A"
+            answer = f"{_fmt(reps_at_quota, 'pct', 0)} at quota, {quota_per_rep_str} quota/rep"
             return NLQResponse(success=True, answer=answer, value=reps_at_quota, unit="%",
                 confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="reps_at_quota_pct", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -2912,9 +2998,11 @@ def _handle_ambiguous_query_text(
         if "pipeline coverage" in q:
             pipeline = get_val("pipeline", current_year)
             quota = get_val("sales_quota", current_year)
-            coverage = round(pipeline / quota, 1) if pipeline and quota else 0
-            answer = f"Pipeline ${round(pipeline, 0) if pipeline else 0}M vs Quota ${round(quota, 0) if quota else 0}M = {coverage}x"
-            return NLQResponse(success=True, answer=answer, value=coverage, unit="ratio",
+            if _all_none(pipeline, quota):
+                return _data_unavailable_response(["pipeline", "sales_quota"], "VAGUE_METRIC", current_year)
+            coverage_str = f"{round(pipeline / quota, 1)}x" if pipeline and quota else "N/A"
+            answer = f"Pipeline {_fmt(pipeline, 'currency', 0)} vs Quota {_fmt(quota, 'currency', 0)} = {coverage_str}"
+            return NLQResponse(success=True, answer=answer, value=round(pipeline / quota, 1) if pipeline and quota else None, unit="ratio",
                 confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="pipeline", resolved_period=current_year,
                 related_metrics=related_metrics)
 
@@ -2922,7 +3010,9 @@ def _handle_ambiguous_query_text(
         if "sales efficiency" in q:
             magic = get_val("magic_number", current_year)
             payback = get_val("cac_payback_months", current_year)
-            answer = f"Magic: {round(magic, 1) if magic else 0}, CAC payback: {int(payback) if payback else 0}mo"
+            if _all_none(magic, payback):
+                return _data_unavailable_response(["magic_number", "cac_payback_months"], "VAGUE_METRIC", current_year)
+            answer = f"Magic: {_fmt(magic, 'ratio', 1)}, CAC payback: {_fmt(payback, 'int')}mo"
             return NLQResponse(success=True, answer=answer, value=magic, unit="ratio",
                 confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="magic_number", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -2933,7 +3023,9 @@ def _handle_ambiguous_query_text(
             sales = get_val("sales_headcount", current_year)
             cs = get_val("cs_headcount", current_year)
             ga = get_val("ga_headcount", current_year)
-            answer = f"Eng: {int(eng) if eng else 0}, Sales: {int(sales) if sales else 0}, CS: {int(cs) if cs else 0}, G&A: {int(ga) if ga else 0}..."
+            if _all_none(eng, sales, cs, ga):
+                return _data_unavailable_response(["engineering_headcount", "sales_headcount", "cs_headcount", "ga_headcount"], "VAGUE_METRIC", current_year)
+            answer = f"Eng: {_fmt(eng, 'int')}, Sales: {_fmt(sales, 'int')}, CS: {_fmt(cs, 'int')}, G&A: {_fmt(ga, 'int')}..."
             return NLQResponse(success=True, answer=answer, value=eng, unit="count",
                 confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="headcount", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -2943,7 +3035,9 @@ def _handle_ambiguous_query_text(
             ps_util = get_val("ps_utilization", current_year)
             eng_util = get_val("engineering_utilization", current_year)
             sup_util = get_val("support_utilization", current_year)
-            answer = f"PS: {round(ps_util, 0) if ps_util else 0}%, Eng: {round(eng_util, 0) if eng_util else 0}%, Support: {round(sup_util, 0) if sup_util else 0}%"
+            if _all_none(ps_util, eng_util, sup_util):
+                return _data_unavailable_response(["ps_utilization", "engineering_utilization", "support_utilization"], "VAGUE_METRIC", current_year)
+            answer = f"PS: {_fmt(ps_util, 'pct', 0)}, Eng: {_fmt(eng_util, 'pct', 0)}, Support: {_fmt(sup_util, 'pct', 0)}"
             return NLQResponse(success=True, answer=answer, value=ps_util, unit="%",
                 confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="ps_utilization", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -2952,7 +3046,9 @@ def _handle_ambiguous_query_text(
         if "incidents" in q:
             p1s = get_val("p1_incidents", current_year)
             p1s_yb = get_val("p1_incidents", year_before)
-            answer = f"{int(p1s) if p1s else 0} P1s ({current_year}F), down from {int(p1s_yb) if p1s_yb else 0}"
+            if _all_none(p1s, p1s_yb):
+                return _data_unavailable_response(["p1_incidents"], "VAGUE_METRIC", current_year)
+            answer = f"{_fmt(p1s, 'int')} P1s ({current_year}F), down from {_fmt(p1s_yb, 'int')}"
             return NLQResponse(success=True, answer=answer, value=p1s, unit="count",
                 confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="p1_incidents", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -2962,7 +3058,9 @@ def _handle_ambiguous_query_text(
             coverage = get_val("code_coverage_pct", current_year)
             escape = get_val("bug_escape_rate", current_year)
             debt = get_val("tech_debt_pct", current_year)
-            answer = f"Coverage: {round(coverage, 0) if coverage else 0}%, Bug escape: {round(escape, 0) if escape else 0}%, Tech debt: {round(debt, 0) if debt else 0}%"
+            if _all_none(coverage, escape, debt):
+                return _data_unavailable_response(["code_coverage_pct", "bug_escape_rate", "tech_debt_pct"], "VAGUE_METRIC", current_year)
+            answer = f"Coverage: {_fmt(coverage, 'pct', 0)}, Bug escape: {_fmt(escape, 'pct', 0)}, Tech debt: {_fmt(debt, 'pct', 0)}"
             return NLQResponse(success=True, answer=answer, value=coverage, unit="%",
                 confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="code_coverage_pct", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -2971,7 +3069,9 @@ def _handle_ambiguous_query_text(
         if "security" in q:
             vulns = get_val("security_vulns", current_year)
             coverage = get_val("code_coverage_pct", current_year)
-            answer = f"{int(vulns) if vulns else 0} vulnerability (target), {round(coverage, 0) if coverage else 0}% coverage"
+            if _all_none(vulns, coverage):
+                return _data_unavailable_response(["security_vulns", "code_coverage_pct"], "VAGUE_METRIC", current_year)
+            answer = f"{_fmt(vulns, 'int')} vulnerability (target), {_fmt(coverage, 'pct', 0)} coverage"
             return NLQResponse(success=True, answer=answer, value=vulns, unit="count",
                 confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="security_vulns", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -2981,7 +3081,9 @@ def _handle_ambiguous_query_text(
             velocity = get_val("sprint_velocity", current_year)
             features = get_val("features_shipped", current_year)
             deploys = get_val("deploys_per_week", current_year)
-            answer = f"{int(velocity) if velocity else 0} velocity, {int(features) if features else 0} features, {int(deploys) if deploys else 0} deploys/week"
+            if _all_none(velocity, features, deploys):
+                return _data_unavailable_response(["sprint_velocity", "features_shipped", "deploys_per_week"], "VAGUE_METRIC", current_year)
+            answer = f"{_fmt(velocity, 'int')} velocity, {_fmt(features, 'int')} features, {_fmt(deploys, 'int')} deploys/week"
             return NLQResponse(success=True, answer=answer, value=velocity, unit="count",
                 confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="sprint_velocity", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -2990,7 +3092,9 @@ def _handle_ambiguous_query_text(
         if "last year" in q or "how" in q:
             rev = get_val("revenue", last_year)
             ni = get_val("net_income", last_year)
-            answer = f"${round(rev, 1) if rev else 0}M revenue, ${round(ni, 2) if ni else 0}M net income"
+            if _all_none(rev, ni):
+                return _data_unavailable_response(["revenue", "net_income"], "VAGUE_METRIC", last_year)
+            answer = f"{_fmt(rev, 'currency', 1)} revenue, {_fmt(ni, 'currency', 2)} net income"
             return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
                 confidence=0.9, parsed_intent="VAGUE_METRIC", resolved_metric="revenue", resolved_period=last_year,
                 related_metrics=related_metrics)
@@ -2999,9 +3103,12 @@ def _handle_ambiguous_query_text(
         if "ratio" in q or "quick" in q:
             ca = get_val("total_current_assets", f"Q4 {last_year}")
             cl = get_val("current_liabilities", f"Q4 {last_year}")
-            ratio = round(ca / cl, 1) if ca and cl else 0
-            answer = f"Current Assets ${round(ca, 2) if ca else 0}M, Current Liabilities ${round(cl, 2) if cl else 0}M, Ratio ~{ratio}x"
-            return NLQResponse(success=True, answer=answer, value=ratio, unit="x",
+            if _all_none(ca, cl):
+                return _data_unavailable_response(["total_current_assets", "current_liabilities"], "VAGUE_METRIC", f"Q4 {last_year}")
+            ratio_val = round(ca / cl, 1) if ca and cl else None
+            ratio_str = f"{ratio_val}x" if ratio_val is not None else "N/A"
+            answer = f"Current Assets {_fmt(ca, 'currency', 2)}, Current Liabilities {_fmt(cl, 'currency', 2)}, Ratio ~{ratio_str}"
+            return NLQResponse(success=True, answer=answer, value=ratio_val, unit="x",
                 confidence=0.85, parsed_intent="VAGUE_METRIC", resolved_metric="quick_ratio", resolved_period=f"Q4 {last_year}",
                 related_metrics=related_metrics)
 
@@ -3010,6 +3117,8 @@ def _handle_ambiguous_query_text(
         # "are we profitable" -> "Yes, 22.5% net margin in 2026 forecast"
         if "profitable" in q:
             margin = get_val("net_margin_pct", current_year)
+            if _all_none(margin):
+                return _data_unavailable_response(["net_margin_pct"], "YES_NO", current_year)
             answer = f"Yes, {fmt_val('net_margin_pct', margin)} net margin in {current_year} forecast"
             return NLQResponse(success=True, answer=answer, value=margin, unit="%",
                 confidence=0.95, parsed_intent="YES_NO", resolved_metric="net_margin_pct", resolved_period=current_year,
@@ -3018,7 +3127,9 @@ def _handle_ambiguous_query_text(
         # "are we hitting quota" -> "Yes, 95.8% attainment"
         if "quota" in q or "hitting" in q:
             attainment = get_val("quota_attainment_pct", current_year)
-            answer = f"Yes, {round(attainment, 1) if attainment else 0}% attainment"
+            if _all_none(attainment):
+                return _data_unavailable_response(["quota_attainment_pct"], "YES_NO", current_year)
+            answer = f"Yes, {_fmt(attainment, 'pct', 1)} attainment"
             return NLQResponse(success=True, answer=answer, value=attainment, unit="%",
                 confidence=0.95, parsed_intent="YES_NO", resolved_metric="quota_attainment_pct", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3026,7 +3137,9 @@ def _handle_ambiguous_query_text(
         # "are we efficient" -> "Yes, Rev/employee up to $444K"
         if "efficient" in q and "overstaffed" not in q:
             rev_per_emp = get_val("revenue_per_employee", current_year)
-            answer = f"Yes, Rev/employee up to ${round(rev_per_emp/1000, 0) if rev_per_emp else 0}K"
+            if _all_none(rev_per_emp):
+                return _data_unavailable_response(["revenue_per_employee"], "YES_NO", current_year)
+            answer = f"Yes, Rev/employee up to {_fmt(rev_per_emp / 1000 if rev_per_emp else None, 'currency_k', 0)}"
             return NLQResponse(success=True, answer=answer, value=rev_per_emp, unit="$K",
                 confidence=0.95, parsed_intent="YES_NO", resolved_metric="revenue_per_employee", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3035,7 +3148,9 @@ def _handle_ambiguous_query_text(
         if "stable" in q:
             uptime = get_val("uptime_pct", current_year)
             mttr = get_val("mttr_p1_hours", current_year)
-            answer = f"Yes, {round(uptime, 2) if uptime else 0}% uptime, MTTR {round(mttr, 0) if mttr else 0}hr"
+            if _all_none(uptime, mttr):
+                return _data_unavailable_response(["uptime_pct", "mttr_p1_hours"], "YES_NO", current_year)
+            answer = f"Yes, {_fmt(uptime, 'pct', 2)} uptime, MTTR {_fmt(mttr, 'ratio', 0)}hr"
             return NLQResponse(success=True, answer=answer, value=uptime, unit="%",
                 confidence=0.95, parsed_intent="YES_NO", resolved_metric="uptime_pct", resolved_period=current_year,
                 related_metrics=related_metrics, data_source="live")
@@ -3045,8 +3160,10 @@ def _handle_ambiguous_query_text(
             eng_yb = get_val("engineering_headcount", year_before)
             eng_ly = get_val("engineering_headcount", last_year)
             eng_cy = get_val("engineering_headcount", current_year)
-            growth = round((eng_cy - eng_yb) / eng_yb * 100) if eng_cy and eng_yb else 0
-            answer = f"Yes, {int(eng_yb) if eng_yb else 0} → {int(eng_ly) if eng_ly else 0} → {int(eng_cy) if eng_cy else 0} (+{growth}% over 2 years)"
+            if _all_none(eng_yb, eng_ly, eng_cy):
+                return _data_unavailable_response(["engineering_headcount"], "YES_NO", current_year)
+            growth_str = f"{round((eng_cy - eng_yb) / eng_yb * 100)}%" if eng_cy and eng_yb else "N/A"
+            answer = f"Yes, {_fmt(eng_yb, 'int')} → {_fmt(eng_ly, 'int')} → {_fmt(eng_cy, 'int')} (+{growth_str} over 2 years)"
             return NLQResponse(success=True, answer=answer, value=eng_cy, unit="count",
                 confidence=0.95, parsed_intent="YES_NO", resolved_metric="engineering_headcount", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3056,7 +3173,9 @@ def _handle_ambiguous_query_text(
             u_yb = get_val("uptime_pct", year_before)
             u_ly = get_val("uptime_pct", last_year)
             u_cy = get_val("uptime_pct", current_year)
-            answer = f"Yes, uptime {round(u_yb, 1) if u_yb else 0}% → {round(u_ly, 1) if u_ly else 0}% → {round(u_cy, 2) if u_cy else 0}%"
+            if _all_none(u_yb, u_ly, u_cy):
+                return _data_unavailable_response(["uptime_pct"], "YES_NO", current_year)
+            answer = f"Yes, uptime {_fmt(u_yb, 'pct', 1)} → {_fmt(u_ly, 'pct', 1)} → {_fmt(u_cy, 'pct', 2)}"
             return NLQResponse(success=True, answer=answer, value=u_cy, unit="%",
                 confidence=0.95, parsed_intent="YES_NO", resolved_metric="uptime_pct", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3065,7 +3184,9 @@ def _handle_ambiguous_query_text(
         if "bugs" in q:
             bugs = get_val("critical_bugs", current_year)
             escape = get_val("bug_escape_rate", current_year)
-            answer = f"Yes, {int(bugs) if bugs else 0} critical bugs, {round(escape, 0) if escape else 0}% escape rate"
+            if _all_none(bugs, escape):
+                return _data_unavailable_response(["critical_bugs", "bug_escape_rate"], "YES_NO", current_year)
+            answer = f"Yes, {_fmt(bugs, 'int')} critical bugs, {_fmt(escape, 'pct', 0)} escape rate"
             return NLQResponse(success=True, answer=answer, value=bugs, unit="count",
                 confidence=0.95, parsed_intent="YES_NO", resolved_metric="critical_bugs", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3075,8 +3196,10 @@ def _handle_ambiguous_query_text(
             i_yb = get_val("implementation_days", year_before)
             i_ly = get_val("implementation_days", last_year)
             i_cy = get_val("implementation_days", current_year)
-            change = round((i_cy - i_yb) / i_yb * 100) if i_yb and i_cy else 0
-            answer = f"Yes, {int(i_yb) if i_yb else 0} → {int(i_ly) if i_ly else 0} → {int(i_cy) if i_cy else 0} days ({change}%)"
+            if _all_none(i_yb, i_ly, i_cy):
+                return _data_unavailable_response(["implementation_days"], "YES_NO", current_year)
+            change_str = f"{round((i_cy - i_yb) / i_yb * 100)}%" if i_yb and i_cy else "N/A"
+            answer = f"Yes, {_fmt(i_yb, 'int')} → {_fmt(i_ly, 'int')} → {_fmt(i_cy, 'int')} days ({change_str})"
             return NLQResponse(success=True, answer=answer, value=i_cy, unit="days",
                 confidence=0.95, parsed_intent="YES_NO", resolved_metric="implementation_days", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3088,7 +3211,7 @@ def _handle_ambiguous_query_text(
             bookings_cy = get_val("bookings", current_year)
             bookings_ly = get_val("bookings", last_year)
             if bookings_cy and bookings_ly:
-                growth = round((bookings_cy - bookings_ly) / bookings_ly * 100) if bookings_ly else 0
+                growth = round((bookings_cy - bookings_ly) / bookings_ly * 100)
                 answer = f"Yes, +{growth}% bookings YoY forecast"
                 return NLQResponse(success=True, answer=answer, value=growth, unit="%",
                     confidence=0.95, parsed_intent="YES_NO", resolved_metric="bookings_growth", resolved_period=current_year,
@@ -3097,10 +3220,13 @@ def _handle_ambiguous_query_text(
             rev_ly = get_val("revenue", last_year)
             rev_yb = get_val("revenue", year_before)
             rev_cy = get_val("revenue", current_year)
-            growth1 = round((rev_ly - rev_yb) / rev_yb * 100) if rev_ly and rev_yb else 0
-            growth2 = round((rev_cy - rev_ly) / rev_ly * 100) if rev_cy and rev_ly else 0
-            answer = f"Yes, {growth1}% revenue growth {year_before}→{last_year}, {growth2}% forecast {last_year}→{current_year}"
-            return NLQResponse(success=True, answer=answer, value=growth2, unit="%",
+            if _all_none(rev_ly, rev_yb, rev_cy):
+                return _data_unavailable_response(["revenue", "bookings"], "YES_NO", current_year)
+            growth1_str = f"{round((rev_ly - rev_yb) / rev_yb * 100)}%" if rev_ly and rev_yb else "N/A"
+            growth2_str = f"{round((rev_cy - rev_ly) / rev_ly * 100)}%" if rev_cy and rev_ly else "N/A"
+            growth2_val = round((rev_cy - rev_ly) / rev_ly * 100) if rev_cy and rev_ly else None
+            answer = f"Yes, {growth1_str} revenue growth {year_before}→{last_year}, {growth2_str} forecast {last_year}→{current_year}"
+            return NLQResponse(success=True, answer=answer, value=growth2_val, unit="%",
                 confidence=0.95, parsed_intent="YES_NO", resolved_metric="revenue_growth", resolved_period=current_year,
                 related_metrics=related_metrics)
 
@@ -3111,12 +3237,14 @@ def _handle_ambiguous_query_text(
         if match:
             target = float(match.group(1))
             rev = get_val("revenue", last_year)
+            if _all_none(rev):
+                return _data_unavailable_response(["revenue"], "IMPLIED_CONTEXT", last_year)
             if rev and abs(rev - target) < 1:
-                answer = f"Yes, {last_year} revenue was exactly ${round(rev, 1)}M"
+                answer = f"Yes, {last_year} revenue was exactly {_fmt(rev, 'currency', 1)}"
             elif rev and rev >= target:
-                answer = f"Yes, {last_year} revenue was ${round(rev, 1)}M (exceeded {target})"
+                answer = f"Yes, {last_year} revenue was {_fmt(rev, 'currency', 1)} (exceeded {target})"
             else:
-                answer = f"No, {last_year} revenue was ${round(rev, 1) if rev else 0}M (target was {target})"
+                answer = f"No, {last_year} revenue was {_fmt(rev, 'currency', 1)} (target was {target})"
             return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
                 confidence=0.95, parsed_intent="IMPLIED_CONTEXT", resolved_metric="revenue", resolved_period=last_year,
                 related_metrics=related_metrics)
@@ -3135,9 +3263,11 @@ def _handle_ambiguous_query_text(
             rev = get_val("revenue", current_year)
             cogs = get_val("cogs", current_year)
             sga = get_val("sga", current_year)
-            cogs_pct = round(cogs / rev * 100) if cogs and rev else 0
-            sga_pct = round(sga / rev * 100) if sga and rev else 0
-            answer = f"COGS {cogs_pct}% of revenue, SG&A {sga_pct}% - consistent with targets"
+            if _all_none(rev, cogs, sga):
+                return _data_unavailable_response(["revenue", "cogs", "sga"], "JUDGMENT_CALL", current_year)
+            cogs_pct_str = f"{round(cogs / rev * 100)}%" if cogs and rev else "N/A"
+            sga_pct_str = f"{round(sga / rev * 100)}%" if sga and rev else "N/A"
+            answer = f"COGS {cogs_pct_str} of revenue, SG&A {sga_pct_str} - consistent with targets"
             return NLQResponse(success=True, answer=answer, value=None, unit=None,
                 confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="costs", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3146,7 +3276,9 @@ def _handle_ambiguous_query_text(
         if "retention" in q:
             nrr = get_val("nrr", current_year)
             churn = get_val("churn_rate_pct", current_year)
-            answer = f"Yes, NRR {round(nrr, 0) if nrr else 0}%, churn down to {round(churn, 0) if churn else 0}%"
+            if _all_none(nrr, churn):
+                return _data_unavailable_response(["nrr", "churn_rate_pct"], "JUDGMENT_CALL", current_year)
+            answer = f"Yes, NRR {_fmt(nrr, 'pct', 0)}, churn down to {_fmt(churn, 'pct', 0)}"
             return NLQResponse(success=True, answer=answer, value=nrr, unit="%",
                 confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="nrr", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3155,7 +3287,9 @@ def _handle_ambiguous_query_text(
         if "forecast" in q:
             bookings = get_val("bookings", current_year)
             win_rate = get_val("win_rate_pct", current_year)
-            answer = f"Yes, on track: ${round(bookings, 0) if bookings else 0}M bookings, {round(win_rate, 0) if win_rate else 0}% win rate"
+            if _all_none(bookings, win_rate):
+                return _data_unavailable_response(["bookings", "win_rate_pct"], "JUDGMENT_CALL", current_year)
+            answer = f"Yes, on track: {_fmt(bookings, 'currency', 0)} bookings, {_fmt(win_rate, 'pct', 0)} win rate"
             return NLQResponse(success=True, answer=answer, value=bookings, unit="$M",
                 confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="bookings", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3163,7 +3297,9 @@ def _handle_ambiguous_query_text(
         # "attrition bad?" -> "Moderate - 2.7% Q4, manageable"
         if "attrition" in q:
             attrition = get_val("attrition_rate_pct", f"Q4 {current_year}")
-            answer = f"Moderate - {round(attrition, 1) if attrition else 0}% Q4, manageable"
+            if _all_none(attrition):
+                return _data_unavailable_response(["attrition_rate_pct"], "JUDGMENT_CALL", f"Q4 {current_year}")
+            answer = f"Moderate - {_fmt(attrition, 'pct', 1)} Q4, manageable"
             return NLQResponse(success=True, answer=answer, value=attrition, unit="%",
                 confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="attrition_rate_pct", resolved_period=f"Q4 {current_year}",
                 related_metrics=related_metrics)
@@ -3171,7 +3307,9 @@ def _handle_ambiguous_query_text(
         # "are we overstaffed" -> "No, Rev/emp improving to $444K"
         if "overstaffed" in q:
             rev_per_emp = get_val("revenue_per_employee", current_year)
-            answer = f"No, Rev/emp improving to ${round(rev_per_emp/1000, 0) if rev_per_emp else 0}K"
+            if _all_none(rev_per_emp):
+                return _data_unavailable_response(["revenue_per_employee"], "JUDGMENT_CALL", current_year)
+            answer = f"No, Rev/emp improving to {_fmt(rev_per_emp / 1000 if rev_per_emp else None, 'currency_k', 0)}"
             return NLQResponse(success=True, answer=answer, value=rev_per_emp, unit="$K",
                 confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="revenue_per_employee", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3179,7 +3317,9 @@ def _handle_ambiguous_query_text(
         # "burn rate ok?" -> "Yes, burn multiple 0.7x (efficient)"
         if "burn rate" in q and "ok" in q:
             burn = get_val("burn_multiple", current_year)
-            answer = f"Yes, burn multiple {round(burn, 1) if burn else 0}x (efficient)"
+            if _all_none(burn):
+                return _data_unavailable_response(["burn_multiple"], "JUDGMENT_CALL", current_year)
+            answer = f"Yes, burn multiple {_fmt(burn, 'ratio', 1)}x (efficient)"
             return NLQResponse(success=True, answer=answer, value=burn, unit="ratio",
                 confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="burn_multiple", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3188,7 +3328,9 @@ def _handle_ambiguous_query_text(
         if "overwhelmed" in q or "support" in q:
             util = get_val("support_utilization", current_year)
             frt = get_val("first_response_hours", current_year)
-            answer = f"No, utilization at {round(util, 0) if util else 0}%, response times improving"
+            if _all_none(util, frt):
+                return _data_unavailable_response(["support_utilization", "first_response_hours"], "JUDGMENT_CALL", current_year)
+            answer = f"No, utilization at {_fmt(util, 'pct', 0)}, response times improving"
             return NLQResponse(success=True, answer=answer, value=util, unit="%",
                 confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="support_utilization", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3197,8 +3339,10 @@ def _handle_ambiguous_query_text(
         if "features" in q or "shipping" in q:
             features = get_val("features_shipped", current_year)
             features_ly = get_val("features_shipped", last_year)
-            growth = round((features - features_ly) / features_ly * 100) if features and features_ly else 0
-            answer = f"Yes, {int(features) if features else 0} planned (+{growth}% YoY)"
+            if _all_none(features, features_ly):
+                return _data_unavailable_response(["features_shipped"], "JUDGMENT_CALL", current_year)
+            growth_str = f"+{round((features - features_ly) / features_ly * 100)}%" if features and features_ly else "N/A"
+            answer = f"Yes, {_fmt(features, 'int')} planned ({growth_str} YoY)"
             return NLQResponse(success=True, answer=answer, value=features, unit="count",
                 confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="features_shipped", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3206,7 +3350,9 @@ def _handle_ambiguous_query_text(
         # "infra efficient?" -> "Yes, cost/transaction down to $0.007"
         if "infra" in q:
             cpt = get_val("cost_per_transaction", current_year)
-            answer = f"Yes, cost/transaction down to ${round(cpt, 3) if cpt else 0}"
+            if _all_none(cpt):
+                return _data_unavailable_response(["cost_per_transaction"], "JUDGMENT_CALL", current_year)
+            answer = f"Yes, cost/transaction down to ${round(cpt, 3)}"
             return NLQResponse(success=True, answer=answer, value=cpt, unit="$",
                 confidence=0.85, parsed_intent="JUDGMENT_CALL", resolved_metric="cost_per_transaction", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3216,7 +3362,9 @@ def _handle_ambiguous_query_text(
         # "cash position" -> "$41.42M as of Q4 2025"
         if "cash" in q:
             cash = get_val("cash", f"Q4 {last_year}")
-            answer = f"${round(cash, 2) if cash else 0}M as of Q4 {last_year}"
+            if _all_none(cash):
+                return _data_unavailable_response(["cash"], "SHORTHAND", f"Q4 {last_year}")
+            answer = f"{_fmt(cash, 'currency', 2)} as of Q4 {last_year}"
             return NLQResponse(success=True, answer=answer, value=cash, unit="$M",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="cash", resolved_period=f"Q4 {last_year}",
                 related_metrics=related_metrics)
@@ -3226,7 +3374,9 @@ def _handle_ambiguous_query_text(
             gross_churn = get_val("churn_rate_pct", current_year)
             logo_churn = get_val("logo_churn_pct", current_year)
             nrr = get_val("nrr", current_year)
-            answer = f"Gross: {round(gross_churn, 0) if gross_churn else 0}%, Logo: {round(logo_churn, 0) if logo_churn else 0}%, NRR: {round(nrr, 0) if nrr else 0}%"
+            if _all_none(gross_churn, logo_churn, nrr):
+                return _data_unavailable_response(["churn_rate_pct", "logo_churn_pct", "nrr"], "SHORTHAND", current_year)
+            answer = f"Gross: {_fmt(gross_churn, 'pct', 0)}, Logo: {_fmt(logo_churn, 'pct', 0)}, NRR: {_fmt(nrr, 'pct', 0)}"
             return NLQResponse(success=True, answer=answer, value=gross_churn, unit="%",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="churn_rate_pct", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3234,7 +3384,9 @@ def _handle_ambiguous_query_text(
         # "NRR" -> "120% (2026F)"
         if q == "nrr" or q.startswith("nrr"):
             nrr = get_val("nrr", current_year)
-            answer = f"{round(nrr, 0) if nrr else 0}% ({current_year}F)"
+            if _all_none(nrr):
+                return _data_unavailable_response(["nrr"], "SHORTHAND", current_year)
+            answer = f"{_fmt(nrr, 'pct', 0)} ({current_year}F)"
             return NLQResponse(success=True, answer=answer, value=nrr, unit="%",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="nrr", resolved_period=current_year,
                 related_metrics=related_metrics, data_source="live")
@@ -3243,7 +3395,10 @@ def _handle_ambiguous_query_text(
         if "logo" in q:
             customers = get_val("customer_count", current_year)
             new_logos = get_val("new_logos", current_year)
-            answer = f"{int(customers):,} total customers, +{int(new_logos) if new_logos else 0} net new"
+            if _all_none(customers, new_logos):
+                return _data_unavailable_response(["customer_count", "new_logos"], "SHORTHAND", current_year)
+            cust_str = f"{int(customers):,}" if customers is not None else "N/A"
+            answer = f"{cust_str} total customers, +{_fmt(new_logos, 'int')} net new"
             return NLQResponse(success=True, answer=answer, value=customers, unit="count",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="customer_count", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3253,7 +3408,9 @@ def _handle_ambiguous_query_text(
             pipeline = get_val("pipeline", current_year)
             qualified = get_val("qualified_pipeline", current_year)
             win_rate = get_val("win_rate_pct", current_year)
-            answer = f"${round(pipeline, 0) if pipeline else 0}M pipeline, ${round(qualified, 0) if qualified else 0}M qualified, {round(win_rate, 0) if win_rate else 0}% win rate"
+            if _all_none(pipeline, qualified, win_rate):
+                return _data_unavailable_response(["pipeline", "qualified_pipeline", "win_rate_pct"], "SHORTHAND", current_year)
+            answer = f"{_fmt(pipeline, 'currency', 0)} pipeline, {_fmt(qualified, 'currency', 0)} qualified, {_fmt(win_rate, 'pct', 0)} win rate"
             return NLQResponse(success=True, answer=answer, value=pipeline, unit="$M",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="pipeline", resolved_period=current_year,
                 related_metrics=related_metrics, data_source="live")
@@ -3261,7 +3418,9 @@ def _handle_ambiguous_query_text(
         # "magic number" -> "0.9 (2026F)"
         if "magic" in q:
             magic = get_val("magic_number", current_year)
-            answer = f"{round(magic, 1) if magic else 0} ({current_year}F)"
+            if _all_none(magic):
+                return _data_unavailable_response(["magic_number"], "SHORTHAND", current_year)
+            answer = f"{_fmt(magic, 'ratio', 1)} ({current_year}F)"
             return NLQResponse(success=True, answer=answer, value=magic, unit="ratio",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="magic_number", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3270,7 +3429,9 @@ def _handle_ambiguous_query_text(
         if "onboarding" in q:
             impl = get_val("implementation_days", current_year)
             ttv = get_val("time_to_value_days", current_year)
-            answer = f"Implementation: {int(impl) if impl else 0} days, TTV: {int(ttv) if ttv else 0} days"
+            if _all_none(impl, ttv):
+                return _data_unavailable_response(["implementation_days", "time_to_value_days"], "SHORTHAND", current_year)
+            answer = f"Implementation: {_fmt(impl, 'int')} days, TTV: {_fmt(ttv, 'int')} days"
             return NLQResponse(success=True, answer=answer, value=impl, unit="days",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="implementation_days", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3278,7 +3439,9 @@ def _handle_ambiguous_query_text(
         # "payback period" -> "CAC payback: 14 months (2026)"
         if "payback" in q:
             payback = get_val("cac_payback_months", current_year)
-            answer = f"CAC payback: {int(payback) if payback else 0} months ({current_year})"
+            if _all_none(payback):
+                return _data_unavailable_response(["cac_payback_months"], "SHORTHAND", current_year)
+            answer = f"CAC payback: {_fmt(payback, 'int')} months ({current_year})"
             return NLQResponse(success=True, answer=answer, value=payback, unit="months",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="cac_payback_months", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3286,7 +3449,9 @@ def _handle_ambiguous_query_text(
         # "LTV CAC" -> "3.8x (2026F)"
         if "ltv" in q:
             ltv_cac = get_val("ltv_cac", current_year)
-            answer = f"{round(ltv_cac, 1) if ltv_cac else 0}x ({current_year}F)"
+            if _all_none(ltv_cac):
+                return _data_unavailable_response(["ltv_cac"], "SHORTHAND", current_year)
+            answer = f"{_fmt(ltv_cac, 'ratio', 1)}x ({current_year}F)"
             return NLQResponse(success=True, answer=answer, value=ltv_cac, unit="ratio",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="ltv_cac", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3294,7 +3459,9 @@ def _handle_ambiguous_query_text(
         # "uptime?" -> "99.95% (2026 target)"
         if "uptime" in q:
             uptime = get_val("uptime_pct", current_year)
-            answer = f"{round(uptime, 2) if uptime else 0}% ({current_year} target)"
+            if _all_none(uptime):
+                return _data_unavailable_response(["uptime_pct"], "SHORTHAND", current_year)
+            answer = f"{_fmt(uptime, 'pct', 2)} ({current_year} target)"
             return NLQResponse(success=True, answer=answer, value=uptime, unit="%",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="uptime_pct", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3303,7 +3470,9 @@ def _handle_ambiguous_query_text(
         if "tech debt" in q:
             debt = get_val("tech_debt_pct", current_year)
             debt_yb = get_val("tech_debt_pct", year_before)
-            answer = f"{round(debt, 0) if debt else 0}% ({current_year} target), down from {round(debt_yb, 0) if debt_yb else 0}%"
+            if _all_none(debt, debt_yb):
+                return _data_unavailable_response(["tech_debt_pct"], "SHORTHAND", current_year)
+            answer = f"{_fmt(debt, 'pct', 0)} ({current_year} target), down from {_fmt(debt_yb, 'pct', 0)}"
             return NLQResponse(success=True, answer=answer, value=debt, unit="%",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="tech_debt_pct", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3311,7 +3480,9 @@ def _handle_ambiguous_query_text(
         # "deployment frequency" -> "25/week (2026 target)"
         if "deploy" in q:
             deploys = get_val("deploys_per_week", current_year)
-            answer = f"{int(deploys) if deploys else 0}/week ({current_year} target)"
+            if _all_none(deploys):
+                return _data_unavailable_response(["deploys_per_week"], "SHORTHAND", current_year)
+            answer = f"{_fmt(deploys, 'int')}/week ({current_year} target)"
             return NLQResponse(success=True, answer=answer, value=deploys, unit="count",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="deploys_per_week", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3320,7 +3491,9 @@ def _handle_ambiguous_query_text(
         if "mttr" in q:
             mttr_p1 = get_val("mttr_p1_hours", current_year)
             mttr_p2 = get_val("mttr_p2_hours", current_year)
-            answer = f"P1: {round(mttr_p1, 1) if mttr_p1 else 0}hr, P2: {round(mttr_p2, 1) if mttr_p2 else 0}hr ({current_year} targets)"
+            if _all_none(mttr_p1, mttr_p2):
+                return _data_unavailable_response(["mttr_p1_hours", "mttr_p2_hours"], "SHORTHAND", current_year)
+            answer = f"P1: {_fmt(mttr_p1, 'ratio', 1)}hr, P2: {_fmt(mttr_p2, 'ratio', 1)}hr ({current_year} targets)"
             return NLQResponse(success=True, answer=answer, value=mttr_p1, unit="hours",
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="mttr_p1_hours", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3332,10 +3505,13 @@ def _handle_ambiguous_query_text(
             rev_ly = get_val("revenue", last_year)
             rev_yb = get_val("revenue", year_before)
             rev_cy = get_val("revenue", current_year)
-            growth1 = round((rev_ly - rev_yb) / rev_yb * 100) if rev_ly and rev_yb else 0
-            growth2 = round((rev_cy - rev_ly) / rev_ly * 100) if rev_cy and rev_ly else 0
-            answer = f"Revenue +{growth1}% ({year_before}→{last_year}), +{growth2}% ({last_year}→{current_year}F)"
-            return NLQResponse(success=True, answer=answer, value=growth2, unit="%",
+            if _all_none(rev_ly, rev_yb, rev_cy):
+                return _data_unavailable_response(["revenue"], "CONTEXT_DEPENDENT", current_year)
+            growth1_str = f"+{round((rev_ly - rev_yb) / rev_yb * 100)}%" if rev_ly and rev_yb else "N/A"
+            growth2_str = f"+{round((rev_cy - rev_ly) / rev_ly * 100)}%" if rev_cy and rev_ly else "N/A"
+            growth2_val = round((rev_cy - rev_ly) / rev_ly * 100) if rev_cy and rev_ly else None
+            answer = f"Revenue {growth1_str} ({year_before}→{last_year}), {growth2_str} ({last_year}→{current_year}F)"
+            return NLQResponse(success=True, answer=answer, value=growth2_val, unit="%",
                 confidence=0.9, parsed_intent="CONTEXT_DEPENDENT", resolved_metric="revenue_growth", resolved_period=current_year,
                 related_metrics=related_metrics)
 
@@ -3394,12 +3570,15 @@ def _handle_ambiguous_query_text(
             eng_ly = get_val("engineering_headcount", last_year)
             sales_cy = get_val("sales_headcount", current_year)
             sales_ly = get_val("sales_headcount", last_year)
-            eng_growth = int(eng_cy - eng_ly) if eng_cy and eng_ly else 0
-            eng_pct = round((eng_cy - eng_ly) / eng_ly * 100) if eng_cy and eng_ly else 0
-            sales_growth = int(sales_cy - sales_ly) if sales_cy and sales_ly else 0
-            sales_pct = round((sales_cy - sales_ly) / sales_ly * 100) if sales_cy and sales_ly else 0
-            answer = f"Engineering +{eng_growth} ({eng_pct}%), Sales +{sales_growth} ({sales_pct}%)"
-            return NLQResponse(success=True, answer=answer, value=eng_growth, unit="count",
+            if _all_none(eng_cy, eng_ly, sales_cy, sales_ly):
+                return _data_unavailable_response(["engineering_headcount", "sales_headcount"], "CONTEXT_DEPENDENT", current_year)
+            eng_growth_str = f"+{int(eng_cy - eng_ly)}" if eng_cy and eng_ly else "N/A"
+            eng_pct_str = f"{round((eng_cy - eng_ly) / eng_ly * 100)}%" if eng_cy and eng_ly else "N/A"
+            sales_growth_str = f"+{int(sales_cy - sales_ly)}" if sales_cy and sales_ly else "N/A"
+            sales_pct_str = f"{round((sales_cy - sales_ly) / sales_ly * 100)}%" if sales_cy and sales_ly else "N/A"
+            eng_growth_val = int(eng_cy - eng_ly) if eng_cy and eng_ly else None
+            answer = f"Engineering {eng_growth_str} ({eng_pct_str}), Sales {sales_growth_str} ({sales_pct_str})"
+            return NLQResponse(success=True, answer=answer, value=eng_growth_val, unit="count",
                 confidence=0.9, parsed_intent="CONTEXT_DEPENDENT", resolved_metric="headcount_growth", resolved_period=current_year,
                 related_metrics=related_metrics)
 
@@ -3407,7 +3586,9 @@ def _handle_ambiguous_query_text(
         if "q2" in q:
             rev = get_val("revenue", f"Q2 {current_year}")
             ni = get_val("net_income", f"Q2 {current_year}")
-            answer = f"Q2 {current_year} forecast: Revenue ${round(rev, 1) if rev else 0}M, Net Income ${round(ni, 1) if ni else 0}M"
+            if _all_none(rev, ni):
+                return _data_unavailable_response(["revenue", "net_income"], "CONTEXT_DEPENDENT", f"Q2 {current_year}")
+            answer = f"Q2 {current_year} forecast: Revenue {_fmt(rev, 'currency', 1)}, Net Income {_fmt(ni, 'currency', 1)}"
             return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
                 confidence=0.85, parsed_intent="CONTEXT_DEPENDENT", resolved_metric="revenue", resolved_period=f"Q2 {current_year}",
                 related_metrics=related_metrics)
@@ -3418,9 +3599,12 @@ def _handle_ambiguous_query_text(
         if "bookings" in q and "revenue" in q:
             bookings = get_val("bookings", last_year)
             rev = get_val("revenue", last_year)
-            ratio = round(bookings / rev * 100) if bookings and rev else 0
-            answer = f"Bookings {ratio}% of revenue ({last_year}: ${round(bookings, 1) if bookings else 0}M bookings vs ${round(rev, 1) if rev else 0}M revenue)"
-            return NLQResponse(success=True, answer=answer, value=ratio, unit="%",
+            if _all_none(bookings, rev):
+                return _data_unavailable_response(["bookings", "revenue"], "COMPARISON", last_year)
+            ratio_val = round(bookings / rev * 100) if bookings and rev else None
+            ratio_str = f"{ratio_val}%" if ratio_val is not None else "N/A"
+            answer = f"Bookings {ratio_str} of revenue ({last_year}: {_fmt(bookings, 'currency', 1)} bookings vs {_fmt(rev, 'currency', 1)} revenue)"
+            return NLQResponse(success=True, answer=answer, value=ratio_val, unit="%",
                 confidence=0.9, parsed_intent="COMPARISON", resolved_metric="bookings_ratio", resolved_period=last_year,
                 related_metrics=related_metrics)
 
@@ -3440,25 +3624,30 @@ def _handle_ambiguous_query_text(
             ni_ly = get_val("net_income", _cmp_y1)
             om_cy = get_val("operating_margin_pct", _cmp_y2)
             om_ly = get_val("operating_margin_pct", _cmp_y1)
-            rev_chg = round((rev_cy - rev_ly) / rev_ly * 100) if rev_cy and rev_ly else 0
-            ni_chg = round((ni_cy - ni_ly) / ni_ly * 100) if ni_cy and ni_ly else 0
-            om_chg = "flat" if om_cy == om_ly else f"+{round(om_cy - om_ly, 1)}%" if om_cy > om_ly else f"{round(om_cy - om_ly, 1)}%"
-            answer = f"{_cmp_y2} vs {_cmp_y1}: Revenue ${round(rev_cy, 0) if rev_cy else 0}M vs ${round(rev_ly, 0) if rev_ly else 0}M (+{rev_chg}%), Net Income ${round(ni_cy, 0) if ni_cy else 0}M vs ${round(ni_ly, 2) if ni_ly else 0}M (+{ni_chg}%), Operating Margin {fmt_val('operating_margin_pct', om_cy)} vs {fmt_val('operating_margin_pct', om_ly)} ({om_chg})"
+            if _all_none(rev_cy, rev_ly, ni_cy, ni_ly, om_cy, om_ly):
+                return _data_unavailable_response(["revenue", "net_income", "operating_margin_pct"], "COMPARISON", _cmp_y2)
+            rev_chg_str = f"+{round((rev_cy - rev_ly) / rev_ly * 100)}%" if rev_cy and rev_ly else "N/A"
+            rev_chg_val = round((rev_cy - rev_ly) / rev_ly * 100) if rev_cy and rev_ly else None
+            ni_chg_str = f"+{round((ni_cy - ni_ly) / ni_ly * 100)}%" if ni_cy and ni_ly else "N/A"
+            om_chg = "N/A"
+            if om_cy is not None and om_ly is not None:
+                om_chg = "flat" if om_cy == om_ly else f"+{round(om_cy - om_ly, 1)}%" if om_cy > om_ly else f"{round(om_cy - om_ly, 1)}%"
+            answer = f"{_cmp_y2} vs {_cmp_y1}: Revenue {_fmt(rev_cy, 'currency', 0)} vs {_fmt(rev_ly, 'currency', 0)} ({rev_chg_str}), Net Income {_fmt(ni_cy, 'currency', 0)} vs {_fmt(ni_ly, 'currency', 2)} ({ni_chg_str}), Operating Margin {fmt_val('operating_margin_pct', om_cy)} vs {fmt_val('operating_margin_pct', om_ly)} ({om_chg})"
             # Add period-labeled nodes for comparison value extraction
             _cmp_related = list(related_metrics) if related_metrics else []
             _cmp_related.insert(0, {
                 "metric": "revenue", "value": rev_cy, "period": _cmp_y2,
                 "display_name": f"Revenue ({_cmp_y2})",
-                "formatted_value": f"${round(rev_cy, 0) if rev_cy else 0}M",
+                "formatted_value": _fmt(rev_cy, "currency", 0),
                 "confidence": 0.9, "match_type": "exact",
             })
             _cmp_related.insert(1, {
                 "metric": "revenue", "value": rev_ly, "period": _cmp_y1,
                 "display_name": f"Revenue ({_cmp_y1})",
-                "formatted_value": f"${round(rev_ly, 0) if rev_ly else 0}M",
+                "formatted_value": _fmt(rev_ly, "currency", 0),
                 "confidence": 0.9, "match_type": "exact",
             })
-            return NLQResponse(success=True, answer=answer, value=rev_chg, unit="pct",
+            return NLQResponse(success=True, answer=answer, value=rev_chg_val, unit="pct",
                 confidence=0.9, parsed_intent="COMPARISON", resolved_metric="comparison", resolved_period=_cmp_y2,
                 related_metrics=_cmp_related)
 
@@ -3473,10 +3662,12 @@ def _handle_ambiguous_query_text(
         rev_prev = get_val("revenue", prev_year)
         ni = get_val("net_income", year)
         om = get_val("operating_margin_pct", year)
-        yoy = round((rev - rev_prev) / rev_prev * 100) if rev and rev_prev else 0
-        ni_margin = round(ni / rev * 100, 1) if ni and rev else 0
+        if _all_none(rev, rev_prev, ni, om):
+            return _data_unavailable_response(["revenue", "net_income", "operating_margin_pct"], "SUMMARY", year)
+        yoy_str = f"+{round((rev - rev_prev) / rev_prev * 100)}%" if rev and rev_prev else "N/A"
+        ni_margin_str = f"{round(ni / rev * 100, 1)}%" if ni and rev else "N/A"
 
-        answer = f"Revenue ${round(rev, 0) if rev else 0}M (+{yoy}% YoY), Net Income ${round(ni, 2) if ni else 0}M ({ni_margin}% margin), Operating Margin {fmt_val('operating_margin_pct', om)}"
+        answer = f"Revenue {_fmt(rev, 'currency', 0)} ({yoy_str} YoY), Net Income {_fmt(ni, 'currency', 2)} ({ni_margin_str} margin), Operating Margin {fmt_val('operating_margin_pct', om)}"
         return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
             confidence=0.9, parsed_intent="SUMMARY", resolved_metric="summary", resolved_period=year,
             related_metrics=related_metrics)
@@ -3491,7 +3682,9 @@ def _handle_ambiguous_query_text(
             sga = get_val("sga", current_year)
             op = get_val("operating_profit", current_year)
             ni = get_val("net_income", current_year)
-            answer = f"{current_year}: Revenue ${round(rev, 0) if rev else 0}M, COGS ${round(cogs, 0) if cogs else 0}M, Gross Profit ${round(gp, 0) if gp else 0}M, SG&A ${round(sga, 0) if sga else 0}M, Operating Profit ${round(op, 0) if op else 0}M, Net Income ${round(ni, 0) if ni else 0}M"
+            if _all_none(rev, cogs, gp, sga, op, ni):
+                return _data_unavailable_response(["revenue", "cogs", "gross_profit", "sga", "operating_profit", "net_income"], "BROAD_REQUEST", current_year)
+            answer = f"{current_year}: Revenue {_fmt(rev, 'currency', 0)}, COGS {_fmt(cogs, 'currency', 0)}, Gross Profit {_fmt(gp, 'currency', 0)}, SG&A {_fmt(sga, 'currency', 0)}, Operating Profit {_fmt(op, 'currency', 0)}, Net Income {_fmt(ni, 'currency', 0)}"
             return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
                 confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="pl", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3501,7 +3694,9 @@ def _handle_ambiguous_query_text(
             frt = get_val("first_response_hours", current_year)
             resolution = get_val("resolution_hours", current_year)
             csat = get_val("csat", current_year)
-            answer = f"FRT: {round(frt, 1) if frt else 0}h, Resolution: {int(resolution) if resolution else 0}h, CSAT: {round(csat, 1) if csat else 0}"
+            if _all_none(frt, resolution, csat):
+                return _data_unavailable_response(["first_response_hours", "resolution_hours", "csat"], "BROAD_REQUEST", current_year)
+            answer = f"FRT: {_fmt(frt, 'ratio', 1)}h, Resolution: {_fmt(resolution, 'int')}h, CSAT: {_fmt(csat, 'ratio', 1)}"
             return NLQResponse(success=True, answer=answer, value=frt, unit="hours",
                 confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="support_metrics", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3512,7 +3707,10 @@ def _handle_ambiguous_query_text(
             rev_emp = get_val("revenue_per_employee", current_year)
             magic = get_val("magic_number", current_year)
             payback = get_val("cac_payback_months", current_year)
-            answer = f"{int(hc) if hc else 0} HC, ${round(rev_emp/1000, 0) if rev_emp else 0}K rev/emp, {round(magic, 1) if magic else 0} magic, {int(payback) if payback else 0}mo payback"
+            if _all_none(hc, rev_emp, magic, payback):
+                return _data_unavailable_response(["headcount", "revenue_per_employee", "magic_number", "cac_payback_months"], "BROAD_REQUEST", current_year)
+            rev_emp_str = _fmt(rev_emp / 1000 if rev_emp else None, "currency_k", 0)
+            answer = f"{_fmt(hc, 'int')} HC, {rev_emp_str} rev/emp, {_fmt(magic, 'ratio', 1)} magic, {_fmt(payback, 'int')}mo payback"
             return NLQResponse(success=True, answer=answer, value=hc, unit="count",
                 confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="ops_summary", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3525,20 +3723,22 @@ def _handle_ambiguous_query_text(
             ni = get_val("net_income", current_year)
             cash_val = get_val("cash", current_year)
             arr_val = get_val("arr", current_year)
+            if _all_none(rev, gm, op, ni, cash_val, arr_val):
+                return _data_unavailable_response(["revenue", "gross_margin_pct", "operating_profit", "net_income", "cash", "arr"], "BROAD_REQUEST", current_year)
             parts = []
             if rev is not None:
-                parts.append(f"Revenue ${round(rev, 1)}M")
+                parts.append(f"Revenue {_fmt(rev, 'currency', 1)}")
             if gm is not None:
-                parts.append(f"Gross Margin {round(gm, 1)}%")
+                parts.append(f"Gross Margin {_fmt(gm, 'pct', 1)}")
             if op is not None:
-                parts.append(f"Operating Profit ${round(op, 1)}M")
+                parts.append(f"Operating Profit {_fmt(op, 'currency', 1)}")
             if ni is not None:
-                parts.append(f"Net Income ${round(ni, 1)}M")
+                parts.append(f"Net Income {_fmt(ni, 'currency', 1)}")
             if cash_val is not None:
-                parts.append(f"Cash ${round(cash_val, 1)}M")
+                parts.append(f"Cash {_fmt(cash_val, 'currency', 1)}")
             if arr_val is not None:
-                parts.append(f"ARR ${round(arr_val, 1)}M")
-            answer = f"{current_year} Financial Health: {', '.join(parts)}" if parts else "Financial health data not available"
+                parts.append(f"ARR {_fmt(arr_val, 'currency', 1)}")
+            answer = f"{current_year} Financial Health: {', '.join(parts)}"
             return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
                 confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="financial_health", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3549,14 +3749,16 @@ def _handle_ambiguous_query_text(
             gm = get_val("gross_margin_pct", _cq)
             om = get_val("operating_margin_pct", _cq)
             nm = get_val("net_margin_pct", _cq)
+            if _all_none(gm, om, nm):
+                return _data_unavailable_response(["gross_margin_pct", "operating_margin_pct", "net_margin_pct"], "BROAD_REQUEST", _cq)
             parts = []
             if gm is not None:
-                parts.append(f"Gross Margin: {round(gm, 1)}%")
+                parts.append(f"Gross Margin: {_fmt(gm, 'pct', 1)}")
             if om is not None:
-                parts.append(f"Operating Margin: {round(om, 1)}%")
+                parts.append(f"Operating Margin: {_fmt(om, 'pct', 1)}")
             if nm is not None:
-                parts.append(f"Net Margin: {round(nm, 1)}%")
-            answer = f"{_cq}: {', '.join(parts)}" if parts else "Margin data not available"
+                parts.append(f"Net Margin: {_fmt(nm, 'pct', 1)}")
+            answer = f"{_cq}: {', '.join(parts)}"
             return NLQResponse(success=True, answer=answer, value=gm, unit="%",
                 confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="margins", resolved_period=_cq,
                 related_metrics=related_metrics)
@@ -3567,7 +3769,9 @@ def _handle_ambiguous_query_text(
             features = get_val("features_shipped", current_year)
             cloud = get_val("cloud_spend", current_year)
             eng = get_val("engineering_headcount", current_year)
-            answer = f"{round(uptime, 2) if uptime else 0}% uptime, {int(features) if features else 0} features, ${round(cloud, 0) if cloud else 0}M cloud, {int(eng) if eng else 0} eng"
+            if _all_none(uptime, features, cloud, eng):
+                return _data_unavailable_response(["uptime_pct", "features_shipped", "cloud_spend", "engineering_headcount"], "BROAD_REQUEST", current_year)
+            answer = f"{_fmt(uptime, 'pct', 2)} uptime, {_fmt(features, 'int')} features, {_fmt(cloud, 'currency', 0)} cloud, {_fmt(eng, 'int')} eng"
             return NLQResponse(success=True, answer=answer, value=uptime, unit="%",
                 confidence=0.95, parsed_intent="BROAD_REQUEST", resolved_metric="platform_overview", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3578,8 +3782,10 @@ def _handle_ambiguous_query_text(
         if "top line" in q:
             rev_cy = get_val("revenue", current_year)
             rev_ly = get_val("revenue", last_year)
-            growth = round((rev_cy - rev_ly) / rev_ly * 100) if rev_cy and rev_ly else 0
-            answer = f"${round(rev_cy, 1) if rev_cy else 0}M forecast for {current_year}, up {growth}% from {last_year}"
+            if _all_none(rev_cy, rev_ly):
+                return _data_unavailable_response(["revenue"], "CASUAL_LANGUAGE", current_year)
+            growth_str = f"up {round((rev_cy - rev_ly) / rev_ly * 100)}%" if rev_cy and rev_ly else "growth N/A"
+            answer = f"{_fmt(rev_cy, 'currency', 1)} forecast for {current_year}, {growth_str} from {last_year}"
             return NLQResponse(success=True, answer=answer, value=rev_cy, unit="$M",
                 confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="revenue", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3588,7 +3794,9 @@ def _handle_ambiguous_query_text(
         if "pipeline" in q:
             pipeline = get_val("pipeline", current_year)
             qualified = get_val("qualified_pipeline", current_year)
-            answer = f"${round(pipeline, 1) if pipeline else 0}M pipeline, ${round(qualified, 0) if qualified else 0}M qualified"
+            if _all_none(pipeline, qualified):
+                return _data_unavailable_response(["pipeline", "qualified_pipeline"], "CASUAL_LANGUAGE", current_year)
+            answer = f"{_fmt(pipeline, 'currency', 1)} pipeline, {_fmt(qualified, 'currency', 0)} qualified"
             return NLQResponse(success=True, answer=answer, value=pipeline, unit="$M",
                 confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="pipeline", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3598,7 +3806,9 @@ def _handle_ambiguous_query_text(
             pipeline = get_val("pipeline", current_year)
             win_rate = get_val("win_rate_pct", current_year)
             cycle = get_val("sales_cycle_days", current_year)
-            answer = f"Pipeline ${round(pipeline, 0) if pipeline else 0}M, Win rate {round(win_rate, 0) if win_rate else 0}%, Cycle {int(cycle) if cycle else 0} days"
+            if _all_none(pipeline, win_rate, cycle):
+                return _data_unavailable_response(["pipeline", "win_rate_pct", "sales_cycle_days"], "CASUAL_LANGUAGE", current_year)
+            answer = f"Pipeline {_fmt(pipeline, 'currency', 0)}, Win rate {_fmt(win_rate, 'pct', 0)}, Cycle {_fmt(cycle, 'int')} days"
             return NLQResponse(success=True, answer=answer, value=pipeline, unit="$M",
                 confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="pipeline", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3607,8 +3817,10 @@ def _handle_ambiguous_query_text(
         if "expansion" in q:
             exp = get_val("expansion_revenue", current_year)
             exp_ly = get_val("expansion_revenue", last_year)
-            growth = round((exp - exp_ly) / exp_ly * 100) if exp and exp_ly else 0
-            answer = f"${round(exp, 0) if exp else 0}M expansion revenue, +{growth}% YoY"
+            if _all_none(exp, exp_ly):
+                return _data_unavailable_response(["expansion_revenue"], "CASUAL_LANGUAGE", current_year)
+            growth_str = f"+{round((exp - exp_ly) / exp_ly * 100)}%" if exp and exp_ly else "N/A"
+            answer = f"{_fmt(exp, 'currency', 0)} expansion revenue, {growth_str} YoY"
             return NLQResponse(success=True, answer=answer, value=exp, unit="$M",
                 confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="expansion_revenue", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3618,7 +3830,9 @@ def _handle_ambiguous_query_text(
             bookings = get_val("bookings", f"Q4 {last_year}")
             logos = get_val("new_logos", f"Q4 {last_year}")
             win_rate = get_val("win_rate_pct", last_year)
-            answer = f"Bookings ${round(bookings, 1) if bookings else 0}M, {int(logos) if logos else 0} new logos, {round(win_rate, 0) if win_rate else 0}% win rate"
+            if _all_none(bookings, logos, win_rate):
+                return _data_unavailable_response(["bookings", "new_logos", "win_rate_pct"], "CASUAL_LANGUAGE", f"Q4 {last_year}")
+            answer = f"Bookings {_fmt(bookings, 'currency', 1)}, {_fmt(logos, 'int')} new logos, {_fmt(win_rate, 'pct', 0)} win rate"
             return NLQResponse(success=True, answer=answer, value=bookings, unit="$M",
                 confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="bookings", resolved_period=f"Q4 {last_year}",
                 related_metrics=related_metrics)
@@ -3627,7 +3841,9 @@ def _handle_ambiguous_query_text(
         if "hiring" in q:
             hires = get_val("hires", current_year)
             q4_hires = get_val("hires", f"Q4 {current_year}")
-            answer = f"+{int(hires) if hires else 0} hires planned, Q4: {int(q4_hires) if q4_hires else 0} hires"
+            if _all_none(hires, q4_hires):
+                return _data_unavailable_response(["hires"], "CASUAL_LANGUAGE", current_year)
+            answer = f"+{_fmt(hires, 'int')} hires planned, Q4: {_fmt(q4_hires, 'int')} hires"
             return NLQResponse(success=True, answer=answer, value=hires, unit="count",
                 confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="hires", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3637,7 +3853,9 @@ def _handle_ambiguous_query_text(
             cs_hc = get_val("cs_headcount", current_year)
             csat = get_val("csat", current_year)
             nps = get_val("nps", current_year)
-            answer = f"CS headcount {int(cs_hc) if cs_hc else 0}, CSAT {round(csat, 1) if csat else 0}, NPS {int(nps) if nps else 0}"
+            if _all_none(cs_hc, csat, nps):
+                return _data_unavailable_response(["cs_headcount", "csat", "nps"], "CASUAL_LANGUAGE", current_year)
+            answer = f"CS headcount {_fmt(cs_hc, 'int')}, CSAT {_fmt(csat, 'ratio', 1)}, NPS {_fmt(nps, 'int')}"
             return NLQResponse(success=True, answer=answer, value=cs_hc, unit="count",
                 confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="cs_headcount", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3646,7 +3864,9 @@ def _handle_ambiguous_query_text(
         if "velocity" in q:
             velocity = get_val("sprint_velocity", current_year)
             velocity_ly = get_val("sprint_velocity", last_year)
-            answer = f"{int(velocity) if velocity else 0} story points/sprint, up from {int(velocity_ly) if velocity_ly else 0}"
+            if _all_none(velocity, velocity_ly):
+                return _data_unavailable_response(["sprint_velocity"], "CASUAL_LANGUAGE", current_year)
+            answer = f"{_fmt(velocity, 'int')} story points/sprint, up from {_fmt(velocity_ly, 'int')}"
             return NLQResponse(success=True, answer=answer, value=velocity, unit="count",
                 confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="sprint_velocity", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3655,7 +3875,9 @@ def _handle_ambiguous_query_text(
         if "ship" in q or "how fast" in q:
             lead_time = get_val("lead_time_days", current_year)
             deploys = get_val("deploys_per_week", current_year)
-            answer = f"Lead time {int(lead_time) if lead_time else 0} days, {int(deploys) if deploys else 0} deploys/week"
+            if _all_none(lead_time, deploys):
+                return _data_unavailable_response(["lead_time_days", "deploys_per_week"], "CASUAL_LANGUAGE", current_year)
+            answer = f"Lead time {_fmt(lead_time, 'int')} days, {_fmt(deploys, 'int')} deploys/week"
             return NLQResponse(success=True, answer=answer, value=lead_time, unit="days",
                 confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="lead_time_days", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3664,8 +3886,10 @@ def _handle_ambiguous_query_text(
         if "ar" in q:
             ar = get_val("ar", f"Q4 {last_year}")
             rev = get_val("revenue", last_year)
-            dso = round(ar / rev * 365) if ar and rev else 45
-            answer = f"${round(ar, 2) if ar else 0}M as of Q4 {last_year}, ~{dso} days sales outstanding"
+            if _all_none(ar, rev):
+                return _data_unavailable_response(["ar", "revenue"], "CASUAL_LANGUAGE", f"Q4 {last_year}")
+            dso_str = f"~{round(ar / rev * 365)}" if ar and rev else "N/A"
+            answer = f"{_fmt(ar, 'currency', 2)} as of Q4 {last_year}, {dso_str} days sales outstanding"
             return NLQResponse(success=True, answer=answer, value=ar, unit="$M",
                 confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="ar", resolved_period=f"Q4 {last_year}",
                 related_metrics=related_metrics)
@@ -3673,9 +3897,11 @@ def _handle_ambiguous_query_text(
         # "opex breakdown pls" -> "2026: Selling $36M, G&A $24M, Total SG&A $60M"
         if "opex" in q or "breakdown" in q:
             sga = get_val("sga", current_year)
-            selling = round(sga * 0.6, 0) if sga else 0  # Approximate split
-            ga = round(sga * 0.4, 0) if sga else 0
-            answer = f"{current_year}: Selling ${selling}M, G&A ${ga}M, Total SG&A ${round(sga, 0) if sga else 0}M"
+            if _all_none(sga):
+                return _data_unavailable_response(["sga"], "CASUAL_LANGUAGE", current_year)
+            selling = round(sga * 0.6, 0) if sga else None  # Approximate split
+            ga = round(sga * 0.4, 0) if sga else None
+            answer = f"{current_year}: Selling {_fmt(selling, 'currency', 0)}, G&A {_fmt(ga, 'currency', 0)}, Total SG&A {_fmt(sga, 'currency', 0)}"
             return NLQResponse(success=True, answer=answer, value=sga, unit="$M",
                 confidence=0.9, parsed_intent="CASUAL_LANGUAGE", resolved_metric="sga", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3685,7 +3911,9 @@ def _handle_ambiguous_query_text(
         # "rev?" -> "$200.0M"
         if q.startswith("rev"):
             rev = get_val("revenue", current_year)
-            answer = f"${round(rev, 1) if rev else 0}M"
+            if _all_none(rev):
+                return _data_unavailable_response(["revenue"], "INCOMPLETE", current_year)
+            answer = _fmt(rev, "currency", 1)
             return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
                 confidence=0.95, parsed_intent="INCOMPLETE", resolved_metric="revenue", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3693,7 +3921,9 @@ def _handle_ambiguous_query_text(
         # "bookings?" -> "$230.0M (2026F)"
         if q.startswith("bookings"):
             bookings = get_val("bookings", current_year)
-            answer = f"${round(bookings, 1) if bookings else 0}M ({current_year}F)"
+            if _all_none(bookings):
+                return _data_unavailable_response(["bookings"], "INCOMPLETE", current_year)
+            answer = f"{_fmt(bookings, 'currency', 1)} ({current_year}F)"
             return NLQResponse(success=True, answer=answer, value=bookings, unit="$M",
                 confidence=0.95, parsed_intent="INCOMPLETE", resolved_metric="bookings", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3702,8 +3932,10 @@ def _handle_ambiguous_query_text(
         if q.startswith("headcount"):
             hc = get_val("headcount", current_year)
             hc_ly = get_val("headcount", last_year)
-            growth = round((hc - hc_ly) / hc_ly * 100) if hc and hc_ly else 0
-            answer = f"{int(hc) if hc else 0} ({current_year}F), up {growth}%"
+            if _all_none(hc, hc_ly):
+                return _data_unavailable_response(["headcount"], "INCOMPLETE", current_year)
+            growth_str = f"up {round((hc - hc_ly) / hc_ly * 100)}%" if hc and hc_ly else "growth N/A"
+            answer = f"{_fmt(hc, 'int')} ({current_year}F), {growth_str}"
             return NLQResponse(success=True, answer=answer, value=hc, unit="count",
                 confidence=0.95, parsed_intent="INCOMPLETE", resolved_metric="headcount", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3713,7 +3945,9 @@ def _handle_ambiguous_query_text(
             wr_yb = get_val("win_rate_pct", year_before)
             wr_ly = get_val("win_rate_pct", last_year)
             wr_cy = get_val("win_rate_pct", current_year)
-            answer = f"{round(wr_yb, 0) if wr_yb else 0}% → {round(wr_ly, 0) if wr_ly else 0}% → {round(wr_cy, 0) if wr_cy else 0}% (improving)"
+            if _all_none(wr_yb, wr_ly, wr_cy):
+                return _data_unavailable_response(["win_rate_pct"], "INCOMPLETE", current_year)
+            answer = f"{_fmt(wr_yb, 'pct', 0)} → {_fmt(wr_ly, 'pct', 0)} → {_fmt(wr_cy, 'pct', 0)} (improving)"
             return NLQResponse(success=True, answer=answer, value=wr_cy, unit="%",
                 confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="win_rate_pct", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3722,8 +3956,10 @@ def _handle_ambiguous_query_text(
         if "compare quarters" in q:
             q1 = get_val("bookings", f"Q1 {last_year}")
             q4 = get_val("bookings", f"Q4 {last_year}")
-            change = round((q4 - q1) / q1 * 100) if q1 and q4 else 0
-            answer = f"Q1 vs Q4 {last_year}: ${round(q1, 1) if q1 else 0}M → ${round(q4, 1) if q4 else 0}M (+{change}%)"
+            if _all_none(q1, q4):
+                return _data_unavailable_response(["bookings"], "INCOMPLETE", f"Q4 {last_year}")
+            change_str = f"+{round((q4 - q1) / q1 * 100)}%" if q1 and q4 else "N/A"
+            answer = f"Q1 vs Q4 {last_year}: {_fmt(q1, 'currency', 1)} → {_fmt(q4, 'currency', 1)} ({change_str})"
             return NLQResponse(success=True, answer=answer, value=q4, unit="$M",
                 confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="bookings", resolved_period=f"Q4 {last_year}",
                 related_metrics=related_metrics)
@@ -3731,7 +3967,9 @@ def _handle_ambiguous_query_text(
         # "Q4 hires" -> "27 hires in Q4 2026"
         if "q4 hires" in q:
             hires = get_val("hires", f"Q4 {current_year}")
-            answer = f"{int(hires) if hires else 0} hires in Q4 {current_year}"
+            if _all_none(hires):
+                return _data_unavailable_response(["hires"], "INCOMPLETE", f"Q4 {current_year}")
+            answer = f"{_fmt(hires, 'int')} hires in Q4 {current_year}"
             return NLQResponse(success=True, answer=answer, value=hires, unit="count",
                 confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="hires", resolved_period=f"Q4 {current_year}",
                 related_metrics=related_metrics)
@@ -3741,8 +3979,13 @@ def _handle_ambiguous_query_text(
             t_yb = get_val("support_tickets", year_before)
             t_ly = get_val("support_tickets", last_year)
             t_cy = get_val("support_tickets", current_year)
-            change = round((t_cy - t_yb) / t_yb * 100) if t_yb and t_cy else 0
-            answer = f"{int(t_yb/1000) if t_yb else 0}K → {int(t_ly/1000) if t_ly else 0}K → {int(t_cy/1000) if t_cy else 0}K (+{change}% over 2 years)"
+            if _all_none(t_yb, t_ly, t_cy):
+                return _data_unavailable_response(["support_tickets"], "INCOMPLETE", current_year)
+            t_yb_str = f"{int(t_yb/1000)}K" if t_yb else "N/A"
+            t_ly_str = f"{int(t_ly/1000)}K" if t_ly else "N/A"
+            t_cy_str = f"{int(t_cy/1000)}K" if t_cy else "N/A"
+            change_str = f"+{round((t_cy - t_yb) / t_yb * 100)}%" if t_yb and t_cy else "N/A"
+            answer = f"{t_yb_str} → {t_ly_str} → {t_cy_str} ({change_str} over 2 years)"
             return NLQResponse(success=True, answer=answer, value=t_cy, unit="count",
                 confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="support_tickets", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3751,7 +3994,9 @@ def _handle_ambiguous_query_text(
         if "cloud costs" in q:
             cloud = get_val("cloud_spend", current_year)
             cloud_pct = get_val("cloud_spend_pct_revenue", current_year)
-            answer = f"${round(cloud, 1) if cloud else 0}M ({current_year}), {round(cloud_pct, 1) if cloud_pct else 0}% of revenue"
+            if _all_none(cloud, cloud_pct):
+                return _data_unavailable_response(["cloud_spend", "cloud_spend_pct_revenue"], "INCOMPLETE", current_year)
+            answer = f"{_fmt(cloud, 'currency', 1)} ({current_year}), {_fmt(cloud_pct, 'pct', 1)} of revenue"
             return NLQResponse(success=True, answer=answer, value=cloud, unit="$M",
                 confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="cloud_spend", resolved_period=current_year,
                 related_metrics=related_metrics)
@@ -3762,7 +4007,9 @@ def _handle_ambiguous_query_text(
             points = get_val("story_points", f"Q4 {current_year}")
             p1s = get_val("p1_incidents", f"Q4 {current_year}")
             deploys = get_val("deploys_per_week", current_year)
-            answer = f"{int(features) if features else 0} features, {int(points) if points else 0} points, {int(p1s) if p1s else 0} P1, {int(deploys) if deploys else 0} deploys/wk"
+            if _all_none(features, points, p1s, deploys):
+                return _data_unavailable_response(["features_shipped", "story_points", "p1_incidents", "deploys_per_week"], "INCOMPLETE", f"Q4 {current_year}")
+            answer = f"{_fmt(features, 'int')} features, {_fmt(points, 'int')} points, {_fmt(p1s, 'int')} P1, {_fmt(deploys, 'int')} deploys/wk"
             return NLQResponse(success=True, answer=answer, value=features, unit="count",
                 confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="features_shipped", resolved_period=f"Q4 {current_year}",
                 related_metrics=related_metrics)
@@ -3771,7 +4018,9 @@ def _handle_ambiguous_query_text(
         if "q4" in q:
             rev = get_val("revenue", f"Q4 {last_year}")
             ni = get_val("net_income", f"Q4 {last_year}")
-            answer = f"Q4 {last_year}: Revenue ${round(rev, 1) if rev else 0}M, Net Income ${round(ni, 2) if ni else 0}M"
+            if _all_none(rev, ni):
+                return _data_unavailable_response(["revenue", "net_income"], "INCOMPLETE", f"Q4 {last_year}")
+            answer = f"Q4 {last_year}: Revenue {_fmt(rev, 'currency', 1)}, Net Income {_fmt(ni, 'currency', 2)}"
             return NLQResponse(success=True, answer=answer, value=rev, unit="$M",
                 confidence=0.9, parsed_intent="INCOMPLETE", resolved_metric="revenue", resolved_period=f"Q4 {last_year}",
                 related_metrics=related_metrics)
@@ -3806,14 +4055,14 @@ def _resolve_entity_id(request: NLQRequest) -> str:
     if not eid:
         eid = _detect_entity_id(request.question)
     if not eid:
-        # Default: single entity → use it; multi-entity → combined
+        # Default: use the first (primary) registered entity.
+        # Combined view is only used when explicitly requested via
+        # consolidate=true or entity_id="combined".
         registry = get_entity_registry()
         try:
             entity_ids = registry.get_entity_ids_sync()
-            if len(entity_ids) == 1:
+            if entity_ids:
                 eid = entity_ids[0]
-            elif len(entity_ids) > 1:
-                eid = "combined"
         except ConnectionError as e:
             raise HTTPException(
                 status_code=503,

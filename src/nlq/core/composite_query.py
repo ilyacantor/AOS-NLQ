@@ -86,7 +86,8 @@ LINE_ITEM_CONFIG: Dict[str, tuple] = {
 # ── Intent detection ──────────────────────────────────────────────────────
 _PL_PATTERN = re.compile(
     r"\b(?:p\s*&\s*l|p\s+and\s+l|profit\s+and\s+loss|profit\s*&\s*loss"
-    r"|income\s+statement|financial\s+statements?|full\s+financials)\b",
+    r"|income\s+statement|financial\s+statements?|full\s+financials"
+    r"|(?:\d{4}\s+)?(?:financial\s+)?forecast(?:\s+(?:for\s+)?\d{4})?)\b",
     re.IGNORECASE,
 )
 
@@ -151,15 +152,26 @@ class PLStatementHandler:
         first_result: Any = None
 
         def _fetch(metric: str, period: str):
-            try:
-                result = self.query_fn(metric, period)
-                return (metric, period, result)
-            except Exception as e:
-                logger.warning(f"P&L query failed for {metric}/{period}: {e}")
-                return (metric, period, None)
+            import time as _time
+            max_retries = 2
+            for attempt in range(max_retries + 1):
+                try:
+                    result = self.query_fn(metric, period)
+                    return (metric, period, result)
+                except (ConnectionError, OSError) as e:
+                    if attempt < max_retries:
+                        _time.sleep(0.2 * (attempt + 1))
+                        continue
+                    logger.warning(f"P&L query failed after {max_retries + 1} attempts for {metric}/{period}: {e}")
+                    return (metric, period, None)
+                except Exception as e:
+                    logger.warning(f"P&L query failed for {metric}/{period}: {e}")
+                    return (metric, period, None)
 
+        # Cap concurrency to avoid overwhelming DCL's single uvicorn worker.
+        # 32 workers caused connection resets ([Errno 104]); 8 is stable.
         total_queries = len(self.periods) * len(PL_LINE_ITEMS)
-        with ThreadPoolExecutor(max_workers=min(32, total_queries)) as pool:
+        with ThreadPoolExecutor(max_workers=min(8, total_queries)) as pool:
             wrapped = propagate_context(_fetch)
             futures = [
                 pool.submit(wrapped, metric, period)
@@ -257,12 +269,21 @@ class PLStatementHandler:
             unit="millions",
         )
 
-        # Build related_metrics for backward compat (first period values)
-        first_period = self.periods[0] if self.periods else None
+        # Determine the summary period for text answer and related_metrics.
+        # When FY totals exist (bare-year query like "2025 P&L"), use FY values.
+        # When single-quarter query (e.g., "Q3 2025 P&L"), use that quarter.
+        if fy_periods:
+            # Use FY label(s) — e.g., "FY 2025"
+            summary_periods = [label for label, _, _ in fy_periods]
+        else:
+            summary_periods = list(final_periods)
+
+        # Build related_metrics using summary period values
+        summary_period = summary_periods[0] if summary_periods else None
         related: List[RelatedMetric] = []
-        if first_period:
+        if summary_period:
             for metric_id in PL_LINE_ITEMS:
-                result_val = values.get(metric_id, {}).get(first_period)
+                result_val = values.get(metric_id, {}).get(summary_period)
                 if result_val is None:
                     continue
                 label, _, fmt, _ = LINE_ITEM_CONFIG[metric_id]
@@ -275,23 +296,26 @@ class PLStatementHandler:
                     display_name=label,
                     value=result_val,
                     formatted_value=fv,
-                    period=first_period,
+                    period=summary_period,
                     confidence=0.95,
                     match_type="exact",
                     rationale="P&L line item",
                     domain="finance",
                 ))
 
-        # Build human-readable text answer
-        lines = [f"**Income Statement — {', '.join(final_periods)}**\n"]
+        # Build human-readable text answer using summary periods
+        lines = [f"**Income Statement — {', '.join(summary_periods)}**\n"]
         for li in line_items:
             prefix = "  " * li.indent
-            first_val = next((li.values[p] for p in final_periods if li.values.get(p) is not None), None)
-            if first_val is not None:
+            summary_val = next(
+                (li.values[p] for p in summary_periods if li.values.get(p) is not None),
+                None,
+            )
+            if summary_val is not None:
                 if li.format == "percent":
-                    fv = f"{round(first_val, 1)}%"
+                    fv = f"{round(summary_val, 1)}%"
                 else:
-                    fv = f"${round(first_val, 1)}M"
+                    fv = f"${round(summary_val, 1)}M"
                 lines.append(f"{prefix}{li.label}: {fv}")
 
         return NLQResponse(
@@ -302,7 +326,7 @@ class PLStatementHandler:
             confidence=0.95,
             parsed_intent="PL_STATEMENT",
             resolved_metric="pl_statement",
-            resolved_period=self.periods[0] if self.periods else "",
+            resolved_period=summary_period or "",
             related_metrics=related if related else None,
             response_type="financial_statement",
             financial_statement_data=fs_data,
