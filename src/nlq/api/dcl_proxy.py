@@ -613,8 +613,8 @@ async def revenue_by_customer(
     """
     Revenue by customer pivoted into a quarterly table.
 
-    Queries DCL for revenue with dimensions=["customer"] across all available
-    quarters, then pivots into {customers: [{name, Q1, Q2, ..., total}], quarters, total_revenue, provenance}.
+    Queries DCL's PG triple store for revenue.by_customer triples, then pivots
+    into {customers: [{name, Q1, Q2, ..., total}], quarters, total_revenue, provenance}.
     """
     if not DCL_BASE_URL:
         raise HTTPException(
@@ -622,12 +622,10 @@ async def revenue_by_customer(
             detail="DCL_API_URL not set — cannot query revenue by customer.",
         )
 
-    dcl_url = f"{DCL_BASE_URL}/api/dcl/query"
+    dcl_url = f"{DCL_BASE_URL}/api/dcl/triples/browse-batch"
     payload = {
-        "metric": "revenue",
-        "dimensions": ["customer"],
-        "entity_id": entity_id,
-        "time_range": {"start": "2024-Q1", "end": "2026-Q4"},
+        "domains": ["revenue"],
+        "entity_ids": [entity_id],
     }
 
     try:
@@ -659,18 +657,20 @@ async def revenue_by_customer(
         )
 
     dcl_body = resp.json()
-    data = dcl_body.get("data", [])
-    metadata = dcl_body.get("metadata", {})
+    revenue_triples = dcl_body.get("triples_by_domain", {}).get("revenue", [])
 
-    # Pivot: {customer -> {quarter -> value}}
+    # Filter for revenue.by_customer triples only
+    # Each triple: concept="revenue.by_customer", property=customer_name, value=amount, period=quarter
     pivot: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
     quarters_set: set[str] = set()
-    for row in data:
-        dims = row.get("dimensions", {})
-        customer = dims.get("customer") if isinstance(dims, dict) else row.get("customer")
-        period = row.get("period")
-        value = row.get("value", 0)
-        if customer and period and isinstance(value, (int, float)):
+    for triple in revenue_triples:
+        if triple.get("concept") != "revenue.by_customer":
+            continue
+        customer = triple.get("property")
+        period = triple.get("period")
+        raw_value = triple.get("value")
+        value = float(raw_value) if raw_value is not None else None
+        if customer and period and value is not None:
             pivot[customer][period] += value
             quarters_set.add(period)
 
@@ -688,22 +688,17 @@ async def revenue_by_customer(
 
     total_revenue = sum(c["total"] for c in customers)
 
-    # Build provenance from DCL metadata
-    provenance = {
-        "run_id": metadata.get("run_id"),
-        "mode": metadata.get("mode"),
-        "source": metadata.get("source"),
-        "run_timestamp": metadata.get("run_timestamp"),
-        "entity_id": metadata.get("entity_id"),
-    }
-
     return JSONResponse(content={
         "entity_id": entity_id,
         "quarters": quarters,
         "customers": customers,
         "total_revenue": round(total_revenue, 2),
         "customer_count": len(customers),
-        "provenance": provenance,
+        "provenance": {
+            "source": "dcl_triple_store",
+            "entity_id": entity_id,
+            "triple_count": len([t for t in revenue_triples if t.get("concept") == "revenue.by_customer"]),
+        },
     })
 
 
