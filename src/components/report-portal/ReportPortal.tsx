@@ -1764,7 +1764,7 @@ function PipelineTab({ period }: { period: string }) {
           </div>
           {panel.stages.length > 0 ? (
             <React.Suspense fallback={<div style={{ height: 120, background: COLORS.bg, borderRadius: 4 }} />}>
-              <SalesFunnel data={{ title: panel.entity_name, subtitle: panel.period, stages: panel.stages, unit: "usd_millions", format: "currency" }} />
+              <SalesFunnel data={{ title: '', stages: panel.stages, unit: "usd_millions", format: "currency" }} />
             </React.Suspense>
           ) : (
             <div style={{ padding: 24, textAlign: "center", color: COLORS.textMuted, fontSize: 13 }}>
