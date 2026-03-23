@@ -393,6 +393,13 @@ class DashboardDataResolver:
                 return self._resolve_multi_metric_comparison(metrics, prefetched, cq)
             return {"loading": False, "error": f"No dimension specified for '{metric}' breakdown"}
 
+        # Pre-computed triple breakdown (e.g., revenue.by_customer triples in PG).
+        # These exist as concept="{metric}.by_{dimension}" with property=dimension_value,
+        # not as a queryable DCL dimension. Must be fetched via browse-batch directly.
+        triple_breakdown = self._resolve_triple_breakdown(metric, dimension)
+        if triple_breakdown is not None:
+            return triple_breakdown
+
         # Dimensional breakdown — requires individual DCL calls
         breakdown = self._try_dimensional_query(metric, dimension, filters, reference_year)
 
@@ -477,6 +484,73 @@ class DashboardDataResolver:
                 return None
 
         return self._extract_dimensional_data(result, dimension, metric) or None
+
+    def _resolve_triple_breakdown(
+        self,
+        metric: str,
+        dimension: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Resolve breakdown data stored as pre-computed triples.
+
+        Some breakdowns (e.g., revenue by customer) are stored as triples with
+        concept="{metric}.by_{dimension}" and property=dimension_value, rather
+        than as a queryable DCL dimension. This method fetches them via
+        browse-batch and returns category chart format, or None if no triples
+        match.
+        """
+        concept = f"{metric}.by_{dimension}"
+        domain = metric.split(".")[0]
+        entity_id = get_entity_id()
+
+        v2 = self.dcl_client.v2
+        resp = None
+        try:
+            resp = v2._http.post(
+                "/api/dcl/triples/browse-batch",
+                json={"domains": [domain], "entity_ids": [entity_id]},
+            )
+        except Exception as exc:
+            logger.warning("Triple breakdown browse-batch error: %s", exc)
+
+        if resp is None or resp.status_code >= 400:
+            if resp is not None:
+                logger.warning(
+                    "Triple breakdown browse-batch failed: %s %s",
+                    resp.status_code, resp.text[:300],
+                )
+            return None
+
+        triples = resp.json().get("triples_by_domain", {}).get(domain, [])
+
+        # Aggregate across all periods: dimension_value → total
+        totals: Dict[str, float] = {}
+        for t in triples:
+            if t.get("concept") != concept:
+                continue
+            label = t.get("property")
+            raw = t.get("value")
+            if label and raw is not None:
+                totals[label] = totals.get(label, 0.0) + float(raw)
+
+        if not totals:
+            return None
+
+        breakdown = sorted(
+            [{"label": k, "value": round(v, 2)} for k, v in totals.items()],
+            key=lambda p: p["value"],
+            reverse=True,
+        )
+
+        return {
+            "loading": False,
+            "categories": [p["label"] for p in breakdown],
+            "series": [{
+                "name": get_display_name(metric),
+                "data": breakdown,
+            }],
+            "clickable": True,
+            "filter_dimension": dimension,
+        }
 
     def _resolve_map_data(
         self,
