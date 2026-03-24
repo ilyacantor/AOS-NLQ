@@ -8,7 +8,6 @@
 import type {
   ReportData,
   ReportLine,
-  DrillThroughItem,
   ReconReport,
   ReportVariant,
   FinancialStatementData,
@@ -158,23 +157,40 @@ export async function fetchReport(
   }
 }
 
-// ── Drill-Through ────────────────────────────────────────────────────────────
+// ── Dimensional Detail (drill-through) ──────────────────────────────────────
 
-export async function fetchDrillThrough(
-  level: 'region' | 'rep' | 'customer' | 'project',
-  parent?: string,
-  quarter?: string,
-): Promise<DrillThroughItem[]> {
-  const params = new URLSearchParams({ level })
-  if (parent) params.set('parent', parent)
-  if (quarter) params.set('quarter', quarter)
+export interface DimensionalDetailItem {
+  property: string
+  value: number
+  pct_of_total: number | null
+}
 
-  const res = await fetch(`${NLQ_BASE}/drill-through?${params}`)
+export interface DimensionalSection {
+  name: string
+  items: DimensionalDetailItem[]
+  total: number
+}
+
+export interface DimensionalDetailResponse {
+  line_key: string
+  entity_id: string
+  dimensions: DimensionalSection[]
+}
+
+export async function fetchDimensionalDetail(
+  lineKey: string,
+  entityId: string,
+  period?: string,
+): Promise<DimensionalDetailResponse> {
+  const params = new URLSearchParams({ line_key: lineKey, entity_id: entityId })
+  if (period) params.set('period', period)
+
+  const res = await fetch(`/api/reports/dimensional-detail?${params}`)
 
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
     throw new Error(
-      `Drill-through query failed (HTTP ${res.status}) for level=${level}, parent=${parent || 'none'}: ${errText.slice(0, 500)}`
+      `Dimensional detail query failed (HTTP ${res.status}) for ${lineKey}: ${errText.slice(0, 500)}`
     )
   }
 

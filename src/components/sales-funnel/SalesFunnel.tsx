@@ -186,7 +186,7 @@ export default function SalesFunnel({ data }: SalesFunnelProps) {
                       textAnchor="end"
                       dominantBaseline="central"
                       fill="#cbd5e1"
-                      fontSize={medium ? 11 : 13}
+                      fontSize={medium ? 15 : 15}
                       fontFamily="system-ui, -apple-system, sans-serif"
                     >
                       {stage.label}
@@ -200,7 +200,7 @@ export default function SalesFunnel({ data }: SalesFunnelProps) {
                     textAnchor="middle"
                     dominantBaseline="central"
                     fill="#ffffff"
-                    fontSize={compact ? 11 : medium ? 12 : 14}
+                    fontSize={compact ? 15 : medium ? 14 : 16}
                     fontWeight={600}
                     fontFamily="system-ui, -apple-system, sans-serif"
                   >
@@ -215,7 +215,7 @@ export default function SalesFunnel({ data }: SalesFunnelProps) {
                       textAnchor="start"
                       dominantBaseline="central"
                       fill="#64748b"
-                      fontSize={medium ? 10 : 12}
+                      fontSize={medium ? 14 : 14}
                       fontFamily="system-ui, -apple-system, sans-serif"
                     >
                       {stage.percent.toFixed(0)}%
@@ -243,10 +243,10 @@ export default function SalesFunnel({ data }: SalesFunnelProps) {
               whiteSpace: 'nowrap',
             }}
           >
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: '#f1f5f9' }}>
               {stages[hovered].label}
             </div>
-            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+            <div style={{ fontSize: 14, color: '#94a3b8', marginTop: 2 }}>
               {formatCurrency(stages[hovered].value)} &mdash; {stages[hovered].percent.toFixed(1)}% conversion
             </div>
           </div>

@@ -703,6 +703,166 @@ async def revenue_by_customer(
 
 
 # ---------------------------------------------------------------------------
+# Dimensional Detail — drill-through for P&L line items via triple store
+# ---------------------------------------------------------------------------
+
+# Map P&L line keys to the domain + how to extract dimensional data.
+# Two patterns:
+#   "property_based": concept uses property field as dimension key (e.g. revenue.by_customer)
+#   "concept_based":  each sub-concept IS a component (e.g. cogs.direct_labor, cogs.bench)
+_DIMENSIONAL_MAP: dict[str, dict] = {
+    "revenue": {
+        "domain": "revenue",
+        "sections": [
+            {"label": "By Customer", "mode": "property_based", "concept": "revenue.by_customer"},
+            {"label": "By Stream", "mode": "concept_based", "exclude": ["revenue.total", "revenue.by_customer"]},
+        ],
+    },
+    "total_revenue": {
+        "domain": "revenue",
+        "sections": [
+            {"label": "By Customer", "mode": "property_based", "concept": "revenue.by_customer"},
+            {"label": "By Stream", "mode": "concept_based", "exclude": ["revenue.total", "revenue.by_customer"]},
+        ],
+    },
+    "cogs": {
+        "domain": "cogs",
+        "sections": [
+            {"label": "By Category", "mode": "concept_based", "exclude": ["cogs.total"]},
+        ],
+    },
+    "opex": {
+        "domain": "opex",
+        "sections": [
+            {"label": "By Category", "mode": "concept_based", "exclude": ["opex.total"]},
+        ],
+    },
+}
+
+
+@router.get("/api/reports/dimensional-detail")
+async def dimensional_detail(
+    line_key: str = Query(..., description="P&L line item key"),
+    entity_id: str = Query(..., description="Entity ID"),
+    period: str = Query(None, description="Period filter (e.g. 2024-Q4)"),
+):
+    """
+    Dimensional breakdown for a P&L line item.
+
+    Queries DCL's triple store for dimensional triples (e.g. revenue.by_customer,
+    revenue.by_region) and returns them grouped by dimension.
+    """
+    mapping = _DIMENSIONAL_MAP.get(line_key)
+    if not mapping:
+        return JSONResponse(content={
+            "line_key": line_key,
+            "entity_id": entity_id,
+            "dimensions": [],
+        })
+
+    if not DCL_BASE_URL:
+        raise HTTPException(
+            status_code=503,
+            detail="DCL_API_URL not set — cannot query dimensional detail.",
+        )
+
+    dcl_url = f"{DCL_BASE_URL}/api/dcl/triples/browse-batch"
+    entity_ids = _get_entity_ids() if entity_id == "combined" else [entity_id]
+    payload: dict[str, Any] = {
+        "domains": [mapping["domain"]],
+        "entity_ids": entity_ids,
+    }
+    if period:
+        payload["period"] = period
+
+    try:
+        resp = await asyncio.to_thread(
+            _proxy_client.post, dcl_url,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+        )
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not connect to DCL at {dcl_url} for dimensional-detail query.",
+        )
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail=f"DCL timed out on dimensional-detail query at {dcl_url}.",
+        )
+    except httpx.RemoteProtocolError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"DCL disconnected during dimensional-detail query at {dcl_url}: {exc}",
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(
+            status_code=resp.status_code,
+            detail=f"DCL returned {resp.status_code}: {resp.text[:500]}",
+        )
+
+    dcl_body = resp.json()
+    domain_triples = dcl_body.get("triples_by_domain", {}).get(mapping["domain"], [])
+
+    dimensions = []
+    for section in mapping["sections"]:
+        mode = section["mode"]
+        totals: dict[str, float] = defaultdict(float)
+
+        if mode == "property_based":
+            # Single concept, property field varies (e.g. revenue.by_customer)
+            for t in domain_triples:
+                if t.get("concept") != section["concept"]:
+                    continue
+                prop = t.get("property")
+                raw_val = t.get("value")
+                val = float(raw_val) if raw_val is not None else None
+                if prop and val is not None:
+                    totals[prop] += val
+        elif mode == "concept_based":
+            # Each sub-concept is a component (e.g. cogs.direct_labor, cogs.bench)
+            exclude = set(section.get("exclude", []))
+            for t in domain_triples:
+                concept = t.get("concept", "")
+                if concept in exclude:
+                    continue
+                raw_val = t.get("value")
+                val = float(raw_val) if raw_val is not None else None
+                if val is not None:
+                    # Use concept suffix as label (e.g. "cogs.direct_labor" → "Direct Labor")
+                    suffix = concept.split(".", 1)[1] if "." in concept else concept
+                    label = suffix.replace("_", " ").title()
+                    totals[label] += val
+
+        if not totals:
+            continue
+
+        grand_total = sum(totals.values())
+        items = [
+            {
+                "property": prop,
+                "value": round(val, 2),
+                "pct_of_total": round((val / abs(grand_total)) * 100, 1) if grand_total else None,
+            }
+            for prop, val in sorted(totals.items(), key=lambda x: abs(x[1]), reverse=True)
+        ]
+
+        dimensions.append({
+            "name": section["label"],
+            "items": items,
+            "total": round(grand_total, 2),
+        })
+
+    return JSONResponse(content={
+        "line_key": line_key,
+        "entity_id": entity_id,
+        "dimensions": dimensions,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Combining Income Statement — transforms v2 hierarchical P&L into flat line_items
 # ---------------------------------------------------------------------------
 

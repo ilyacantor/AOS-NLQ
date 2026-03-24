@@ -96,7 +96,7 @@ export interface FinancialStatementData {
 
 // ── Entity Selection ────────────────────────────────────────────────────────
 
-export type EntitySelection = 'meridian' | 'cascadia' | 'combined'
+export type EntitySelection = string
 
 // ── Combining Statement ─────────────────────────────────────────────────────
 
