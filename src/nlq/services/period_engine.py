@@ -292,21 +292,12 @@ def _quarterly_cf_vs_py(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Balance Sheet variant validation
+# Statement variant validation
 # ═══════════════════════════════════════════════════════════════════════════════
-
-VALID_BS_VARIANTS = {"full_year_act_vs_py", "quarterly_act_vs_py"}
 
 def validate_statement_variant(statement: str, variant: str) -> Optional[str]:
     """Validate that a statement type supports the requested variant.
 
     Returns None if valid, or an error message if not.
     """
-    if statement == "balance_sheet" and variant not in VALID_BS_VARIANTS:
-        return (
-            f"Balance sheet does not support variant '{variant}'. "
-            "Balance sheet is point-in-time actuals only — "
-            "no forecast variants are available. "
-            f"Valid BS variants: {', '.join(sorted(VALID_BS_VARIANTS))}"
-        )
     return None

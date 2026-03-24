@@ -1731,7 +1731,7 @@ function EBITDABridgeTab() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 15 }}>
           <thead>
             <tr style={{ borderBottom: `2px solid ${COLORS.accent}` }}>
-              <th style={bridgeThS}>EBITDA Bridge</th>
+              <th style={bridgeThS}>Proforma EBITDA</th>
               <th style={{ ...bridgeThS, textAlign: "right" }}>Amount</th>
               <th style={{ ...bridgeThS, textAlign: "center" }}>Confidence</th>
             </tr>
@@ -2145,7 +2145,7 @@ function QofETab() {
   const summary = data.summary;
 
   const subTabs: { id: QofESubView; label: string }[] = [
-    { id: "bridge", label: "Bridge" },
+    { id: "bridge", label: "QofE" },
     { id: "sustainability", label: "Sustainability" },
     { id: "revenue", label: "Revenue Quality" },
     { id: "working_capital", label: "Working Capital" },
@@ -2169,15 +2169,6 @@ function QofETab() {
         <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "14px 18px", flex: "1 1 160px" }}>
           <div style={{ fontSize: 14, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>Adjusted EBITDA</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace", marginTop: 4 }}>{fmtDollar(summary.entity_adjusted_ebitda)}</div>
-        </div>
-        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "14px 18px", flex: "1 1 160px" }}>
-          <div style={{ fontSize: 14, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>Adjustments</div>
-          <div style={{ display: "flex", gap: 8, marginTop: 4, fontSize: 14, fontFamily: "'IBM Plex Mono',monospace" }}>
-            <span style={{ color: COLORS.green }}>{summary.active_adjustments} active</span>
-            <span style={{ color: COLORS.textDim }}>{summary.resolved_adjustments} resolved</span>
-            <span style={{ color: COLORS.accent }}>{summary.new_adjustments} new</span>
-            <span style={{ color: COLORS.red }}>{summary.changed_adjustments} changed</span>
-          </div>
         </div>
         <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "14px 18px", flex: "1 1 160px" }}>
           <div style={{ fontSize: 14, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>Period</div>
@@ -3132,10 +3123,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
 
   const handleTabChange = useCallback((t: string) => {
     setTab(t);
-    if (t === "bs" && variant !== "act_vs_py" && variant !== "quarterly") {
-      setVariant("act_vs_py");
-    }
-  }, [variant]);
+  }, []);
 
   // ── Parent iframe navigation via custom events ────────────────────
   // Dispatched by App.tsx postMessage handler when it receives 'reportNavigate'
@@ -3171,7 +3159,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
         { id: "overlap", label: "Overlap" },
         { id: "crosssell", label: "X-Sell", title: "Cross-Sell Pipeline" },
         { id: "pipeline", label: "Pipeline" },
-        { id: "bridge", label: "Bridge", title: "EBITDA Bridge" },
+        { id: "bridge", label: "Proforma EBITDA", title: "Proforma EBITDA" },
         { id: "whatif", label: "What-If" },
         { id: "qoe", label: "QofE", title: "Quality of Earnings" },
       ];
@@ -3183,10 +3171,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
     ];
   }, [entity]);
 
-  const variantOptions = tab === "bs" ? [
-    { value: "act_vs_py", label: `FY${lastFullYear} Act vs FY${pyYear}` },
-    { value: "quarterly", label: "Quarterly Actuals" },
-  ] : [
+  const variantOptions = [
     { value: "act_vs_py", label: `FY${lastFullYear} Act vs FY${pyYear}` },
     { value: "q_act_vs_py", label: "Quarterly Act vs PY" },
     { value: "cf_vs_py", label: `FY${wallClockDate().getFullYear()} CF vs FY${lastFullYear}` },
