@@ -351,6 +351,7 @@ export interface QofEAdjustmentRow {
   status: 'active' | 'resolved' | 'new' | 'changed'
   lifecycle_stage: string
   trend: 'improving' | 'stable' | 'worsening'
+  lifecycle_history?: { stage: string; amount: number; amount_low: number; amount_high: number; confidence: number }[]
 }
 
 export interface QofESustainabilityScore {

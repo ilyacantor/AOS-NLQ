@@ -515,6 +515,31 @@ def _build_revenue_quality(
 # QoE — transforms v2 combined QoE into QofEData
 # ---------------------------------------------------------------------------
 
+_TREND_MAP = {"increasing": "improving", "decreasing": "worsening", "stable": "stable", "neutral": "stable"}
+
+
+def _map_trend(dcl_trend: str) -> str:
+    """Map DCL trend labels to frontend labels."""
+    return _TREND_MAP.get(dcl_trend, "stable")
+
+
+def _derive_adj_status(adj: dict) -> str:
+    """Derive adjustment status from lifecycle_history.
+
+    - 1 entry → 'new' (no prior to compare)
+    - 2+ entries and latest amount differs from prior → 'changed'
+    - otherwise → 'active'
+    """
+    history = adj.get("lifecycle_history", [])
+    if len(history) <= 1:
+        return "new"
+    latest = history[-1].get("amount", 0)
+    prior = history[-2].get("amount", 0)
+    if latest != prior:
+        return "changed"
+    return "active"
+
+
 @router.get("/api/reports/qoe")
 async def quality_of_earnings(entity_id: str = Query(None)):
     """Fetch QoE from DCL v2 and transform into QofEData shape."""
@@ -536,16 +561,17 @@ async def quality_of_earnings(entity_id: str = Query(None)):
             "entity": "combined",
             "confidence": str(adj.get("confidence", 0.5)),
             "current_amount": adj.get("amount", 0),
-            "diligence_amount": None,
-            "prior_amount": None,
+            "diligence_amount": adj.get("diligence_amount"),
+            "prior_amount": adj.get("prior_amount"),
             "amount_low": adj.get("amount_low", 0),
             "amount_high": adj.get("amount_high", 0),
             "lever": adj.get("lever"),
             "support_reference": adj.get("support_reference", ""),
             "rationale": adj.get("rationale", ""),
-            "status": "active",
-            "lifecycle_stage": "initial_diligence",
-            "trend": "stable",
+            "status": _derive_adj_status(adj),
+            "lifecycle_stage": adj.get("lifecycle_stage", "initial_diligence"),
+            "trend": _map_trend(adj.get("trend", "stable")),
+            "lifecycle_history": adj.get("lifecycle_history", []),
         })
 
     # Revenue quality — merge both entities' streams for combined view
@@ -565,11 +591,11 @@ async def quality_of_earnings(entity_id: str = Query(None)):
         "period": "2025-Q1",
         "is_initial_diligence": True,
         "ebitda_bridge": adjustments,
-        "adjustment_lifecycle": {
-            "lifecycle_stages": {"initial_diligence": {"count": len(adjustments), "items": [a["name"] for a in adjustments]}},
-            "status_counts": {"active": len(adjustments)},
+        "adjustment_lifecycle": combined.get("adjustment_lifecycle", {
+            "lifecycle_stages": {},
+            "status_counts": {},
             "total_adjustments": len(adjustments),
-        },
+        }),
         "revenue_quality": _build_revenue_quality(
             entity_a, entity_b, combined, total_rev, by_stream, cross_sell,
         ),
@@ -595,10 +621,10 @@ async def quality_of_earnings(entity_id: str = Query(None)):
             "pro_forma_year_1": round(adjusted + synergy * 0.5, 2),
             "pro_forma_steady_state": round(adjusted + synergy, 2),
             "total_adjustments": len(adjustments),
-            "active_adjustments": len(adjustments),
-            "resolved_adjustments": 0,
-            "new_adjustments": 0,
-            "changed_adjustments": 0,
+            "active_adjustments": sum(1 for a in adjustments if a["status"] == "active"),
+            "resolved_adjustments": sum(1 for a in adjustments if a["status"] == "resolved"),
+            "new_adjustments": sum(1 for a in adjustments if a["status"] == "new"),
+            "changed_adjustments": sum(1 for a in adjustments if a["status"] == "changed"),
             "sustainability_score": round(combined.get("confidence_weighted_ebitda", adjusted) / max(adjusted, 1) * 100, 1) if adjusted else 0,
             "sustainability_grade": "B",
         },

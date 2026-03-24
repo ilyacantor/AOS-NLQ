@@ -2246,6 +2246,29 @@ function QofETab() {
                             {row.lever && <div><span style={{ color: COLORS.textDim }}>Lever:</span> {row.lever}</div>}
                             <div style={{ marginTop: 4 }}><span style={{ color: COLORS.textDim }}>Support:</span> {row.support_reference}</div>
                             <div style={{ marginTop: 4, fontStyle: "italic" }}>{row.rationale}</div>
+                            {row.lifecycle_history && row.lifecycle_history.length > 0 && (
+                              <div style={{ marginTop: 10, borderTop: `1px solid ${COLORS.border}`, paddingTop: 8 }}>
+                                <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Lifecycle History</div>
+                                {row.lifecycle_history.map((entry, idx) => {
+                                  const prev = idx > 0 ? row.lifecycle_history![idx - 1] : null;
+                                  const delta = prev ? entry.amount - prev.amount : null;
+                                  const deltaPct = prev && prev.amount !== 0 ? (delta! / Math.abs(prev.amount)) * 100 : null;
+                                  const stageName = entry.stage.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+                                  return (
+                                    <div key={entry.stage} style={{ display: "flex", gap: 12, alignItems: "baseline", fontSize: 14, fontFamily: "'IBM Plex Mono',monospace", marginBottom: 2 }}>
+                                      <span style={{ width: 160, color: COLORS.textMuted, fontFamily: "'IBM Plex Sans',sans-serif" }}>{stageName}</span>
+                                      <span style={{ color: COLORS.text }}>{"\u2192"} {fmtDollar(entry.amount)}</span>
+                                      <span style={{ color: COLORS.textDim, fontSize: 12 }}>(conf: {entry.confidence.toFixed(2)})</span>
+                                      {delta !== null && (
+                                        <span style={{ color: delta >= 0 ? COLORS.green : COLORS.red, fontSize: 12 }}>
+                                          {delta >= 0 ? "+" : ""}{fmtDollar(delta)} ({deltaPct!.toFixed(1)}%)
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
