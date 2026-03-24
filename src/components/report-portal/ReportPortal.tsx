@@ -93,6 +93,8 @@ const COLORS = {
   totalBg: "rgba(255,255,255,0.02)",
 };
 
+const CONTENT_MAX_WIDTH = 1024;
+
 // ============================================================
 // VARIANT MAPPING — portal variant keys → API ReportVariant
 // ============================================================
@@ -152,20 +154,32 @@ function Select({ value, onChange, options, label, width = 180 }: SelectProps) {
   );
 }
 
-function TabBar({ tabs, active, onChange }: { tabs: { id: string; label: string }[]; active: string; onChange: (id: string) => void }) {
+function TabBar({ tabs, active, onChange, noBorder }: { tabs: { id: string; label: string; title?: string }[]; active: string; onChange: (id: string) => void; noBorder?: boolean }) {
   return (
-    <div style={{ display: "flex", gap: 2, borderBottom: `1px solid ${COLORS.border}`, marginBottom: 20 }}>
-      {tabs.map((t) => (
-        <button key={t.id} onClick={() => onChange(t.id)} style={{
-          padding: "10px 20px", background: active === t.id ? COLORS.surface : "transparent",
-          color: active === t.id ? COLORS.accent : COLORS.textMuted, border: "none",
-          borderBottom: active === t.id ? `2px solid ${COLORS.accent}` : "2px solid transparent",
-          cursor: "pointer", fontSize: 13, fontFamily: "'IBM Plex Sans',sans-serif",
-          fontWeight: active === t.id ? 600 : 400, transition: "all 0.15s", letterSpacing: "0.02em",
-        }}>
-          {t.label}
-        </button>
-      ))}
+    <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+      <div style={{
+        display: "flex", gap: 2,
+        borderBottom: noBorder ? "none" : `1px solid ${COLORS.border}`,
+        overflowX: "auto", scrollbarWidth: "none", msOverflowStyle: "none" as any,
+      }}>
+        {tabs.map((t) => (
+          <button key={t.id} onClick={() => onChange(t.id)} title={t.title || t.label} style={{
+            padding: "8px 14px", background: active === t.id ? COLORS.surface : "transparent",
+            color: active === t.id ? COLORS.accent : COLORS.textMuted, border: "none",
+            borderBottom: active === t.id ? `2px solid ${COLORS.accent}` : "2px solid transparent",
+            cursor: "pointer", fontSize: 13, fontFamily: "'IBM Plex Sans',sans-serif",
+            fontWeight: active === t.id ? 600 : 400, transition: "all 0.15s", letterSpacing: "0.02em",
+            whiteSpace: "nowrap",
+          }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div style={{
+        position: "absolute", right: 0, top: 0, bottom: 0, width: 40,
+        background: `linear-gradient(to right, transparent, ${COLORS.headerBg})`,
+        pointerEvents: "none",
+      }} />
     </div>
   );
 }
@@ -549,12 +563,16 @@ function ReconView() {
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
-  useEffect(() => {
+  const loadRecon = useCallback(() => {
+    setLoading(true);
+    setError(null);
     fetchReconciliation()
       .then(setRecon)
       .catch((err) => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { loadRecon(); }, [loadRecon]);
 
   function toggleExpand(i: number) {
     setExpanded((prev) => {
@@ -575,10 +593,24 @@ function ReconView() {
 
   if (error || !recon) {
     return (
-      <div style={{ padding: "20px", background: COLORS.redBg, borderRadius: 8, border: `1px solid ${COLORS.red}33` }}>
-        <p style={{ fontSize: 13, color: COLORS.red, fontFamily: "'IBM Plex Sans',sans-serif", margin: 0 }}>Error loading reconciliation: {error || "No data returned"}</p>
-        <button onClick={() => { setLoading(true); setError(null); fetchReconciliation().then(setRecon).catch((e) => setError(String(e))).finally(() => setLoading(false)); }}
-          style={{ marginTop: 8, fontSize: 12, color: COLORS.red, background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>Retry</button>
+      <div style={{ maxWidth: CONTENT_MAX_WIDTH, margin: "20px auto" }}>
+        <div style={{ padding: "40px 32px", background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, textAlign: "center" }}>
+          <div style={{ width: 40, height: 40, borderRadius: "50%", background: COLORS.redBg, border: `1px solid ${COLORS.red}44`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 20, fontWeight: 700, color: COLORS.red }}>!</div>
+          <p style={{ fontSize: 15, fontWeight: 600, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif", margin: "0 0 8px" }}>
+            Unable to load reconciliation data
+          </p>
+          <p style={{ fontSize: 12, color: COLORS.textMuted, fontFamily: "'IBM Plex Mono',monospace", margin: "0 0 20px", whiteSpace: "pre-wrap", maxWidth: 500, marginLeft: "auto", marginRight: "auto" }}>
+            {error || "No data returned from reconciliation engine"}
+          </p>
+          <button onClick={loadRecon} style={{
+            fontSize: 13, color: COLORS.text, background: COLORS.surfaceHover,
+            border: `1px solid ${COLORS.border}`, padding: "8px 20px",
+            borderRadius: 6, cursor: "pointer", fontWeight: 500,
+            fontFamily: "'IBM Plex Sans',sans-serif", transition: "all 0.15s",
+          }}>
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -728,24 +760,23 @@ function EntitySelector({ selected, onChange }: { selected: EntitySelection; onC
   }, []);
 
   return (
-    <div style={{ display: "flex", gap: 4, padding: "12px 32px 0", background: COLORS.headerBg }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
       {entities.map((e) => (
         <button key={e.id} onClick={() => onChange(e.id)} style={{
-          padding: "7px 18px", fontSize: 12, fontWeight: selected === e.id ? 600 : 400,
+          padding: "6px 14px", fontSize: 12, fontWeight: selected === e.id ? 600 : 400,
           fontFamily: "'IBM Plex Sans',sans-serif", letterSpacing: "0.03em", cursor: "pointer",
-          transition: "all 0.15s", borderRadius: "6px 6px 0 0",
+          transition: "all 0.15s", borderRadius: 4,
           background: selected === e.id ? COLORS.surface : "transparent",
           color: selected === e.id ? COLORS.text : COLORS.textMuted,
           border: selected === e.id
             ? `1px solid ${COLORS.borderLight}`
             : `1px solid transparent`,
-          borderBottom: selected === e.id
-            ? `1px solid ${COLORS.surface}`
-            : `1px solid transparent`,
+          whiteSpace: "nowrap" as const,
         }}>
           {e.label}
         </button>
       ))}
+      <span style={{ width: 1, height: 20, background: COLORS.border, marginLeft: 8, marginRight: 4, flexShrink: 0 }} />
     </div>
   );
 }
@@ -3090,27 +3121,26 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
 
   const statementTabs = useMemo(() => {
     const base = [
-      { id: "pl", label: "Income Statement" },
-      { id: "bs", label: "Balance Sheet" },
-      { id: "cf", label: "Cash Flow" },
-      { id: "recon", label: "Reconciliation" },
+      { id: "pl", label: "P&L", title: "Income Statement" },
+      { id: "bs", label: "BS", title: "Balance Sheet" },
+      { id: "cf", label: "CF", title: "Cash Flow Statement" },
+      { id: "recon", label: "Recon", title: "Reconciliation" },
     ];
     if (entity === "combined") {
       return [
         ...base,
         { id: "combining", label: "Combining" },
         { id: "overlap", label: "Overlap" },
-        { id: "crosssell", label: "Cross-Sell" },
+        { id: "crosssell", label: "X-Sell", title: "Cross-Sell Pipeline" },
         { id: "pipeline", label: "Pipeline" },
-        { id: "bridge", label: "EBITDA Bridge" },
+        { id: "bridge", label: "Bridge", title: "EBITDA Bridge" },
         { id: "whatif", label: "What-If" },
-        { id: "qoe", label: "QofE" },
-        { id: "dashboards", label: "Dashboards" },
+        { id: "qoe", label: "QofE", title: "Quality of Earnings" },
       ];
     }
     return [
       ...base,
-      { id: "rev_by_customer", label: "Revenue by Customer" },
+      { id: "rev_by_customer", label: "Rev/Cust", title: "Revenue by Customer" },
       { id: "pipeline", label: "Pipeline" },
     ];
   }, [entity]);
@@ -3276,88 +3306,80 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: COLORS.bg, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif", padding: 0, overflow: "hidden" }}>
       <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 
-      {/* Header */}
-      <div style={{ padding: "20px 32px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", background: COLORS.headerBg }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <span style={{ fontSize: 18, fontWeight: 700, color: COLORS.accent, letterSpacing: "-0.02em" }}>AOS</span>
-          <span style={{ color: COLORS.textDim }}>|</span>
-          <span style={{ fontSize: 14, fontWeight: 500, color: COLORS.text }}>Financial Report Portal</span>
-          <span style={{ fontSize: 11, padding: "3px 10px", background: "rgba(199,120,64,0.12)", color: COLORS.accent, borderRadius: 4, fontWeight: 600 }}>PHASE 1</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <span style={{ fontSize: 12, color: COLORS.textMuted }}>
-            {entity === "combined" ? "Combined View" : entity.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())} {"\u2022"} {entity === "combined" ? "Multi-Entity" : "Single Entity"} {"\u2022"} {wallClockDate().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-          </span>
-          <button onClick={onClose} style={{ background: "transparent", border: `1px solid ${COLORS.border}`, color: COLORS.textMuted, cursor: "pointer", padding: "4px 12px", borderRadius: 4, fontSize: 12 }}>
-            Close
-          </button>
-        </div>
-      </div>
-
-      {/* Entity Selector — above tab bar */}
-      <EntitySelector selected={entity} onChange={handleEntityChange} />
-
-      <div style={{ flex: 1, overflow: "auto", padding: "24px 32px" }}>
-        <TabBar tabs={statementTabs} active={tab} onChange={handleTabChange} />
-
-        {dimensionsLoading && isStatementTab && (
-          <div style={{ padding: "12px 16px", marginBottom: 16, background: "rgba(199,120,64,0.1)", border: `1px solid ${COLORS.accent}`, borderRadius: 6, fontSize: 13, color: COLORS.textMuted }}>
-            Loading available periods and segments...
-          </div>
-        )}
-        {dimensionsError && isStatementTab && (
-          <div style={{ padding: "12px 16px", marginBottom: 16, background: "rgba(220,60,60,0.1)", border: "1px solid rgba(220,60,60,0.5)", borderRadius: 6, fontSize: 13, color: "#e55" }}>
-            Failed to load report dimensions: {dimensionsError}. Report filters are unavailable.
-          </div>
-        )}
+      {/* Filter bar */}
+      <div style={{ padding: "8px 32px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "flex-end", alignItems: "center", background: COLORS.headerBg, gap: 12 }}>
         {isStatementTab && !dimensionsError && (
-          <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
-            <Select label="Report Variant" value={variant} onChange={setVariant} options={variantOptions} width={220} />
-            {showQuarterSelect && <Select label="Quarter" value={quarter} onChange={setQuarter} options={quarterOptions} width={140} />}
-            <Select label="Segment" value={segment} onChange={setSegment} width={180} options={[
+          <>
+            <Select value={variant} onChange={setVariant} options={variantOptions} width={180} />
+            {showQuarterSelect && <Select value={quarter} onChange={setQuarter} options={quarterOptions} width={120} />}
+            <Select value={segment} onChange={setSegment} width={150} options={[
               { value: "all", label: "All Segments" },
               ...availableSegments.map((s) => ({ value: s, label: s })),
             ]} />
-          </div>
+          </>
         )}
+      </div>
 
-        {isStatementTab && loading && <LoadingState message={`Loading ${tab === "pl" ? "Income Statement" : tab === "bs" ? "Balance Sheet" : "Cash Flow"}...`} />}
+      {/* Entity selector + Tab bar — merged into one band */}
+      <div style={{ display: "flex", alignItems: "center", padding: "0 32px", background: COLORS.headerBg, borderBottom: `1px solid ${COLORS.border}` }}>
+        <EntitySelector selected={entity} onChange={handleEntityChange} />
+        <TabBar tabs={statementTabs} active={tab} onChange={handleTabChange} noBorder />
+      </div>
 
-        {isStatementTab && error && !loading && <ErrorState error={error} onRetry={loadReport} />}
+      <div style={{ flex: 1, overflow: "auto", padding: "24px 32px" }}>
 
-        {isStatementTab && !loading && !error && currentData && (
-          <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-            <div style={{ padding: "12px 20px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>
-                {tab === "pl" ? "Income Statement" : tab === "bs" ? "Balance Sheet" : "Statement of Cash Flows"}
-              </span>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                {currentData.metadata.periodType === "forecast" && (
-                  <span style={{ fontSize: 11, padding: "3px 8px", background: "rgba(91,141,239,0.12)", color: COLORS.blue, borderRadius: 4, fontWeight: 600 }}>CONTAINS FORECAST</span>
-                )}
-                {segment !== "all" && (
-                  <span style={{ fontSize: 11, padding: "3px 8px", background: "rgba(199,120,64,0.12)", color: COLORS.accent, borderRadius: 4, fontWeight: 600 }}>FILTERED: {segment}</span>
-                )}
+        {isStatementTab && (
+          <div style={{ maxWidth: CONTENT_MAX_WIDTH, margin: "0 auto" }}>
+            {dimensionsLoading && (
+              <div style={{ padding: "12px 16px", marginBottom: 16, background: "rgba(199,120,64,0.1)", border: `1px solid ${COLORS.accent}`, borderRadius: 6, fontSize: 13, color: COLORS.textMuted }}>
+                Loading available periods and segments...
               </div>
-            </div>
-            <StatementTable data={currentData} pyData={pyData} showVariance={variant !== "quarterly"} onDrillLine={(id, name) => setDrillLine(drillLine?.id === id ? null : { id, name })} />
-          </div>
-        )}
+            )}
+            {dimensionsError && (
+              <div style={{ padding: "12px 16px", marginBottom: 16, background: "rgba(220,60,60,0.1)", border: "1px solid rgba(220,60,60,0.5)", borderRadius: 6, fontSize: 13, color: "#e55" }}>
+                Failed to load report dimensions: {dimensionsError}. Report filters are unavailable.
+              </div>
+            )}
 
-        {/* Inline drill-through below FS table */}
-        {isStatementTab && !loading && drillLine && (
-          <div style={{ marginTop: 12 }}>
-            {(drillLine.id === "revenue" || drillLine.id === "total_revenue") ? (
-              <DrillThrough onClose={() => setDrillLine(null)} />
-            ) : rawFSData ? (
-              <LineDetail lineKey={drillLine.id} lineName={drillLine.name} fsData={rawFSData} onClose={() => setDrillLine(null)} />
-            ) : null}
+            {loading && <LoadingState message={`Loading ${tab === "pl" ? "Income Statement" : tab === "bs" ? "Balance Sheet" : "Cash Flow"}...`} />}
+
+            {error && !loading && <ErrorState error={error} onRetry={loadReport} />}
+
+            {!loading && !error && currentData && (
+              <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
+                <div style={{ padding: "12px 20px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>
+                    {tab === "pl" ? "Income Statement" : tab === "bs" ? "Balance Sheet" : "Statement of Cash Flows"}
+                  </span>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    {currentData.metadata.periodType === "forecast" && (
+                      <span style={{ fontSize: 11, padding: "3px 8px", background: "rgba(91,141,239,0.12)", color: COLORS.blue, borderRadius: 4, fontWeight: 600 }}>CONTAINS FORECAST</span>
+                    )}
+                    {segment !== "all" && (
+                      <span style={{ fontSize: 11, padding: "3px 8px", background: "rgba(199,120,64,0.12)", color: COLORS.accent, borderRadius: 4, fontWeight: 600 }}>FILTERED: {segment}</span>
+                    )}
+                  </div>
+                </div>
+                <StatementTable data={currentData} pyData={pyData} showVariance={variant !== "quarterly"} onDrillLine={(id, name) => setDrillLine(drillLine?.id === id ? null : { id, name })} />
+              </div>
+            )}
+
+            {/* Inline drill-through below FS table */}
+            {!loading && drillLine && (
+              <div style={{ marginTop: 12 }}>
+                {(drillLine.id === "revenue" || drillLine.id === "total_revenue") ? (
+                  <DrillThrough onClose={() => setDrillLine(null)} />
+                ) : rawFSData ? (
+                  <LineDetail lineKey={drillLine.id} lineName={drillLine.name} fsData={rawFSData} onClose={() => setDrillLine(null)} />
+                ) : null}
+              </div>
+            )}
           </div>
         )}
 
         {tab === "recon" && <ReconView />}
         {tab === "combining" && entity === "combined" && (
-          <>
+          <div style={{ maxWidth: CONTENT_MAX_WIDTH, margin: "0 auto" }}>
             <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
               <Select label="Report Variant" value={combiningVariant} onChange={setCombiningVariant} options={[
                 { value: "act_vs_py", label: `FY${lastFullYear} Act vs FY${pyYear}` },
@@ -3378,17 +3400,23 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
               ]} />
             </div>
             <CombiningStatement data={combiningData} loading={combiningLoading} error={combiningError} onRetry={loadCombining} />
-          </>
+          </div>
         )}
         {tab === "overlap" && entity === "combined" && (
           <OverlapReport data={overlapData} loading={overlapLoading} error={overlapError} onRetry={loadOverlap} />
         )}
-        {tab === "crosssell" && entity === "combined" && <CrossSellTab />}
+        {tab === "crosssell" && entity === "combined" && (
+          <div style={{ maxWidth: CONTENT_MAX_WIDTH, margin: "0 auto" }}><CrossSellTab /></div>
+        )}
         {tab === "pipeline" && <PipelineTab period={String(lastFullYear)} />}
-        {tab === "bridge" && entity === "combined" && <EBITDABridgeTab />}
+        {tab === "bridge" && entity === "combined" && (
+          <div style={{ maxWidth: CONTENT_MAX_WIDTH, margin: "0 auto" }}><EBITDABridgeTab /></div>
+        )}
         {tab === "whatif" && entity === "combined" && <WhatIfTab />}
-        {tab === "qoe" && entity === "combined" && <QofETab />}
-        {tab === "dashboards" && entity === "combined" && <DashboardsTab />}
+        {tab === "qoe" && entity === "combined" && (
+          <div style={{ maxWidth: CONTENT_MAX_WIDTH, margin: "0 auto" }}><QofETab /></div>
+        )}
+
         {tab === "rev_by_customer" && entity !== "combined" && <RevenueByCustomerTab entityId={entity} />}
       </div>
 
