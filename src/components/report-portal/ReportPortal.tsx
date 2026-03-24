@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { fetchReport, fetchDimensionalDetail, fetchReconciliation, fetchCombiningStatement, fetchOverlapData, fetchCrossSell, fetchRevenueByCustomer, fetchEBITDABridge, fetchWhatIf, fetchQofE, fetchDashboard, sendMaestraChat, fetchReportDimensions, fetchPipelineReport } from "./api";
-import type { PeriodDimension, DimensionalDetailResponse, DimensionalSection } from "./api";
+import type { PeriodDimension, DimensionalDetailResponse } from "./api";
 import React from "react";
 import type { ReportData, ReconReport, ReconCheck, ReconCoverage, ReportVariant, EntitySelection, CombiningStatementData, OverlapData, CrossSellData, RevenueByCustomerData, EBITDABridgeData, BridgeAdjustment, WhatIfResult, QofEData, DashboardData, DashboardPersona, FinancialStatementData, FinancialStatementLineItem, PipelineReportData } from "./types";
 
@@ -193,9 +193,197 @@ function unitLabel(unit?: string): string {
   return `(${unit})`;
 }
 
-function StatementTable({ data, pyData, showVariance = true, onDrillLine }: { data: ReportData | null; pyData: ReportData | null; showVariance?: boolean; onDrillLine?: (lineId: string, lineName: string) => void }) {
+function StatementTable({ data, pyData, showVariance = true, entityId, period, fsData }: {
+  data: ReportData | null; pyData: ReportData | null; showVariance?: boolean;
+  entityId: string; period: string; fsData: FinancialStatementData | null;
+}) {
+  const [expandedLine, setExpandedLine] = useState<{ id: string; name: string } | null>(null);
+  const [dimData, setDimData] = useState<DimensionalDetailResponse | null>(null);
+  const [dimLoading, setDimLoading] = useState(false);
+  const [dimError, setDimError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState(0);
+
+  // Reset expansion when the underlying data changes (tab/quarter/entity switch)
+  useEffect(() => { setExpandedLine(null); }, [data]);
+
+  // Fetch dimensional detail when a line is expanded
+  useEffect(() => {
+    if (!expandedLine) { setDimData(null); return; }
+    let cancelled = false;
+    setDimLoading(true);
+    setDimError(null);
+    setDimData(null);
+    fetchDimensionalDetail(expandedLine.id, entityId, period)
+      .then((d) => { if (!cancelled) setDimData(d); })
+      .catch((err) => { if (!cancelled) setDimError(err instanceof Error ? err.message : String(err)); })
+      .finally(() => { if (!cancelled) setDimLoading(false); });
+    return () => { cancelled = true; };
+  }, [expandedLine?.id, entityId, period]);
+
   if (!data) return null;
   const denomLabel = unitLabel(data.metadata.unit);
+  const totalCols = showVariance && pyData ? 5 : 2;
+  const expansionBorder = `3px solid ${COLORS.accent}`;
+
+  // Build fallback children for component breakdown (lines without dimensional triples)
+  function getFallbackChildren(lineKey: string): { children: FinancialStatementLineItem[]; periods: string[]; parent: FinancialStatementLineItem | undefined } {
+    if (!fsData) return { children: [], periods: [], parent: undefined };
+    const lineItem = fsData.line_items.find((li) => li.key === lineKey);
+    if (!lineItem) return { children: [], periods: [], parent: undefined };
+    const idx = fsData.line_items.indexOf(lineItem);
+    const periods = fsData.periods.filter((p) => !p.toLowerCase().includes('variance'));
+    const kids: FinancialStatementLineItem[] = [];
+    if (lineItem.is_subtotal) {
+      for (let i = idx - 1; i >= 0; i--) {
+        const li = fsData.line_items[i];
+        if (li.is_subtotal || (li.indent === 0 && !li.key)) break;
+        if (li.format !== 'percent') kids.unshift(li);
+      }
+    } else {
+      for (let i = idx + 1; i < fsData.line_items.length; i++) {
+        const li = fsData.line_items[i];
+        if (li.indent <= lineItem.indent) break;
+        if (li.format !== 'percent') kids.push(li);
+      }
+    }
+    return { children: kids, periods, parent: lineItem };
+  }
+
+  function renderExpansionRows(lineId: string, lineName: string) {
+    if (expandedLine?.id !== lineId) return null;
+    const hasDimensions = dimData && dimData.dimensions.length > 0;
+
+    // Loading
+    if (dimLoading) {
+      return (
+        <tr key={`${lineId}-loading`} style={{ borderLeft: expansionBorder }}>
+          <td colSpan={totalCols} style={{ padding: "12px 16px 12px 56px", fontSize: 13, color: COLORS.textMuted }}>
+            Loading...
+          </td>
+        </tr>
+      );
+    }
+
+    // Error
+    if (dimError) {
+      return (
+        <tr key={`${lineId}-error`} style={{ borderLeft: expansionBorder }}>
+          <td colSpan={totalCols} style={{ padding: "8px 16px 8px 56px" }}>
+            <div style={{ padding: "8px 12px", background: COLORS.redBg, borderRadius: 4, fontSize: 13, color: COLORS.red }}>
+              {dimError}
+            </div>
+          </td>
+        </tr>
+      );
+    }
+
+    // Dimensional data
+    if (hasDimensions) {
+      const section = dimData.dimensions[activeTab];
+      const rows: React.ReactNode[] = [];
+
+      // Tab bar (only if multiple dimensions)
+      if (dimData.dimensions.length > 1) {
+        rows.push(
+          <tr key={`${lineId}-tabs`} style={{ borderLeft: expansionBorder, background: COLORS.highlight }}>
+            <td colSpan={totalCols} style={{ padding: "6px 16px 6px 56px" }}>
+              <div style={{ display: "flex", gap: 4 }}>
+                {dimData.dimensions.map((dim, idx) => (
+                  <button key={dim.name} onClick={() => setActiveTab(idx)} style={{
+                    background: "transparent", border: "none", cursor: "pointer",
+                    padding: "4px 12px", fontSize: 11, fontWeight: 600,
+                    textTransform: "uppercase", letterSpacing: "0.06em",
+                    fontFamily: "'JetBrains Mono',monospace",
+                    color: idx === activeTab ? COLORS.accent : COLORS.textMuted,
+                    borderBottom: idx === activeTab ? `2px solid ${COLORS.accent}` : "2px solid transparent",
+                  }}>{dim.name}</button>
+                ))}
+              </div>
+            </td>
+          </tr>
+        );
+      }
+
+      // Scrollable items
+      rows.push(
+        <tr key={`${lineId}-items`} style={{ borderLeft: expansionBorder }}>
+          <td colSpan={totalCols} style={{ padding: 0 }}>
+            <div style={{ maxHeight: 280, overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: `${COLORS.borderLight} transparent` }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'IBM Plex Mono',monospace", fontSize: 13 }}>
+                <tbody>
+                  {section.items.map((item) => (
+                    <tr key={item.property} style={{ borderBottom: `1px solid ${COLORS.border}22`, borderLeft: expansionBorder }}>
+                      <td style={{ padding: "6px 16px 6px 56px", color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, width: "40%" }}>{item.property}</td>
+                      <td style={{ textAlign: "right", padding: "6px 16px", color: COLORS.text }}>{fmtFull(item.value)}</td>
+                      <td style={{ textAlign: "right", padding: "6px 16px", color: COLORS.textMuted }}>{item.pct_of_total !== null ? item.pct_of_total.toFixed(1) + "%" : "\u2014"}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ borderTop: `1px solid ${COLORS.borderLight}`, borderLeft: expansionBorder, background: COLORS.totalBg }}>
+                    <td style={{ padding: "6px 16px 6px 56px", fontWeight: 600, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13 }}>Total</td>
+                    <td style={{ textAlign: "right", padding: "6px 16px", fontWeight: 600, color: COLORS.text }}>{fmtFull(section.total)}</td>
+                    <td style={{ textAlign: "right", padding: "6px 16px", fontWeight: 600, color: COLORS.textMuted }}>100.0%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
+      );
+
+      return <>{rows}</>;
+    }
+
+    // Component breakdown fallback
+    const { children, periods: fallbackPeriods, parent } = getFallbackChildren(lineId);
+    if (children.length > 0 && parent) {
+      return (
+        <>
+          <tr key={`${lineId}-label`} style={{ borderLeft: expansionBorder, background: COLORS.highlight }}>
+            <td colSpan={totalCols} style={{ padding: "6px 16px 6px 56px", fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace", fontWeight: 600 }}>
+              Component Breakdown
+            </td>
+          </tr>
+          <tr key={`${lineId}-breakdown`} style={{ borderLeft: expansionBorder }}>
+            <td colSpan={totalCols} style={{ padding: 0 }}>
+              <div style={{ maxHeight: 280, overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: `${COLORS.borderLight} transparent` }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'IBM Plex Mono',monospace", fontSize: 13 }}>
+                  <tbody>
+                    {children.map((child) => {
+                      const parentVal = parent.values[fallbackPeriods[0]];
+                      const childVal = child.values[fallbackPeriods[0]];
+                      const pctOfTotal = parentVal && childVal ? (childVal / Math.abs(parentVal)) * 100 : null;
+                      return (
+                        <tr key={child.key} style={{ borderBottom: `1px solid ${COLORS.border}22`, borderLeft: expansionBorder }}>
+                          <td style={{ padding: "6px 16px 6px 56px", color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13, width: "40%" }}>{child.label}</td>
+                          <td style={{ textAlign: "right", padding: "6px 16px", color: COLORS.text }}>{fmt(child.values[fallbackPeriods[0]])}</td>
+                          <td style={{ textAlign: "right", padding: "6px 16px", color: COLORS.textMuted }}>{pctOfTotal !== null ? pctOfTotal.toFixed(1) + "%" : "\u2014"}</td>
+                        </tr>
+                      );
+                    })}
+                    <tr style={{ borderTop: `1px solid ${COLORS.borderLight}`, borderLeft: expansionBorder, background: COLORS.totalBg }}>
+                      <td style={{ padding: "6px 16px 6px 56px", fontWeight: 600, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13 }}>{lineName}</td>
+                      <td style={{ textAlign: "right", padding: "6px 16px", fontWeight: 600, color: COLORS.text }}>{fmt(parent.values[fallbackPeriods[0]])}</td>
+                      <td style={{ textAlign: "right", padding: "6px 16px", fontWeight: 600, color: COLORS.textMuted }}>100.0%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        </>
+      );
+    }
+
+    // No breakdown available
+    return (
+      <tr key={`${lineId}-empty`} style={{ borderLeft: expansionBorder }}>
+        <td colSpan={totalCols} style={{ padding: "10px 16px 10px 56px", fontSize: 13, color: COLORS.textMuted }}>
+          No dimensional breakdown available for this line item.
+        </td>
+      </tr>
+    );
+  }
+
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'IBM Plex Mono','JetBrains Mono',monospace", fontSize: 15 }}>
@@ -221,209 +409,64 @@ function StatementTable({ data, pyData, showVariance = true, onDrillLine }: { da
             const pyLine = pyData?.lines?.[i];
             const varAmt = line.amount !== null && pyLine?.amount !== null && pyLine?.amount !== undefined ? line.amount - pyLine.amount : null;
             const isNeg = varAmt !== null && varAmt < 0;
-            const rowBg = line.isTotal ? COLORS.totalBg : line.highlight ? COLORS.highlight : "transparent";
-            const canDrill = line.drillable && onDrillLine;
+            const isExpanded = expandedLine?.id === line.id;
+            const rowBg = isExpanded ? COLORS.highlight : line.isTotal ? COLORS.totalBg : line.highlight ? COLORS.highlight : "transparent";
+            const canDrill = line.drillable;
             return (
-              <tr key={line.id} style={{
-                borderBottom: line.isFinal ? `2px double ${COLORS.accent}` : line.isTotal ? `1px solid ${COLORS.borderLight}` : `1px solid ${COLORS.border}22`,
-                background: rowBg,
-                cursor: canDrill ? "pointer" : "default",
-              }}
-                onClick={() => { if (canDrill) onDrillLine(line.id, line.name); }}
-              >
-                <td style={{
-                  padding: line.isHeader ? "14px 16px 6px" : "8px 16px",
-                  paddingLeft: line.level === 1 ? 40 : 16,
-                  color: line.isHeader ? COLORS.accent : line.bold ? COLORS.text : line.isPercent ? COLORS.textMuted : COLORS.text,
-                  fontWeight: line.bold || line.isHeader ? 600 : 400,
-                  fontSize: line.isHeader ? 14 : 15,
-                  letterSpacing: line.isHeader ? "0.06em" : "0",
-                  textTransform: line.isHeader ? "uppercase" as const : "none" as const,
-                  fontFamily: "'IBM Plex Sans',sans-serif",
+              <React.Fragment key={line.id}>
+                <tr style={{
+                  borderBottom: line.isFinal ? `2px double ${COLORS.accent}` : line.isTotal ? `1px solid ${COLORS.borderLight}` : `1px solid ${COLORS.border}22`,
+                  borderLeft: isExpanded ? expansionBorder : "3px solid transparent",
+                  background: rowBg,
                   cursor: canDrill ? "pointer" : "default",
-                }}>
-                  {canDrill && <span style={{ color: COLORS.accent, marginRight: 6, fontSize: 14 }}>{"\u25B8"}</span>}
-                  {line.name}
-                  {line.highlight && <span style={{ marginLeft: 8, fontSize: 14, color: COLORS.accent, background: "rgba(199,120,64,0.12)", padding: "2px 6px", borderRadius: 3 }}>SYNERGY</span>}
-                </td>
-                <td style={{ textAlign: "right", padding: "8px 16px", color: line.isPercent ? COLORS.textMuted : COLORS.text, fontWeight: line.bold ? 600 : 400 }}>
-                  {line.isHeader ? "" : fmt(line.amount, line.isPercent)}
-                  {data.metadata.periodType === "forecast" && !line.isHeader && !line.isPercent && (
-                    <span style={{ marginLeft: 4, fontSize: 11, color: COLORS.textDim }}>CF</span>
+                }}
+                  onClick={() => {
+                    if (!canDrill) return;
+                    if (isExpanded) { setExpandedLine(null); }
+                    else { setExpandedLine({ id: line.id, name: line.name }); setActiveTab(0); }
+                  }}
+                >
+                  <td style={{
+                    padding: line.isHeader ? "14px 16px 6px" : "8px 16px",
+                    paddingLeft: line.level === 1 ? 40 : 16,
+                    color: line.isHeader ? COLORS.accent : line.bold ? COLORS.text : line.isPercent ? COLORS.textMuted : COLORS.text,
+                    fontWeight: line.bold || line.isHeader ? 600 : 400,
+                    fontSize: line.isHeader ? 14 : 15,
+                    letterSpacing: line.isHeader ? "0.06em" : "0",
+                    textTransform: line.isHeader ? "uppercase" as const : "none" as const,
+                    fontFamily: "'IBM Plex Sans',sans-serif",
+                    cursor: canDrill ? "pointer" : "default",
+                  }}>
+                    {canDrill && <span style={{ color: COLORS.accent, marginRight: 6, fontSize: 14 }}>{isExpanded ? "\u25BE" : "\u25B8"}</span>}
+                    {line.name}
+                    {line.highlight && <span style={{ marginLeft: 8, fontSize: 14, color: COLORS.accent, background: "rgba(199,120,64,0.12)", padding: "2px 6px", borderRadius: 3 }}>SYNERGY</span>}
+                  </td>
+                  <td style={{ textAlign: "right", padding: "8px 16px", color: line.isPercent ? COLORS.textMuted : COLORS.text, fontWeight: line.bold ? 600 : 400 }}>
+                    {line.isHeader ? "" : fmt(line.amount, line.isPercent)}
+                    {data.metadata.periodType === "forecast" && !line.isHeader && !line.isPercent && (
+                      <span style={{ marginLeft: 4, fontSize: 11, color: COLORS.textDim }}>CF</span>
+                    )}
+                  </td>
+                  {showVariance && pyData && (
+                    <>
+                      <td style={{ textAlign: "right", padding: "8px 16px", color: COLORS.textMuted }}>
+                        {line.isHeader ? "" : fmt(pyLine?.amount, line.isPercent)}
+                      </td>
+                      <td style={{ textAlign: "right", padding: "8px 16px", color: varAmt === null ? COLORS.textDim : isNeg ? COLORS.red : COLORS.green }}>
+                        {line.isHeader || line.isPercent || varAmt === null ? "" : fmt(varAmt)}
+                      </td>
+                      <td style={{ textAlign: "right", padding: "8px 16px", color: varAmt === null ? COLORS.textDim : isNeg ? COLORS.red : COLORS.green }}>
+                        {line.isHeader || line.isPercent || !pyLine?.amount ? "" : variancePct(line.amount!, pyLine.amount)}
+                      </td>
+                    </>
                   )}
-                </td>
-                {showVariance && pyData && (
-                  <>
-                    <td style={{ textAlign: "right", padding: "8px 16px", color: COLORS.textMuted }}>
-                      {line.isHeader ? "" : fmt(pyLine?.amount, line.isPercent)}
-                    </td>
-                    <td style={{ textAlign: "right", padding: "8px 16px", color: varAmt === null ? COLORS.textDim : isNeg ? COLORS.red : COLORS.green }}>
-                      {line.isHeader || line.isPercent || varAmt === null ? "" : fmt(varAmt)}
-                    </td>
-                    <td style={{ textAlign: "right", padding: "8px 16px", color: varAmt === null ? COLORS.textDim : isNeg ? COLORS.red : COLORS.green }}>
-                      {line.isHeader || line.isPercent || !pyLine?.amount ? "" : variancePct(line.amount!, pyLine.amount)}
-                    </td>
-                  </>
-                )}
-              </tr>
+                </tr>
+                {renderExpansionRows(line.id, line.name)}
+              </React.Fragment>
             );
           })}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-// ============================================================
-// DIMENSIONAL DETAIL (drill-through for P&L line items)
-// ============================================================
-
-function DimensionTable({ section }: { section: DimensionalSection }) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, fontFamily: "'JetBrains Mono',monospace" }}>{section.name}</div>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'IBM Plex Mono',monospace", fontSize: 13 }}>
-        <thead>
-          <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-            <th style={{ textAlign: "left", padding: "8px 12px", color: COLORS.textMuted, fontWeight: 500, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase" }}>Name</th>
-            <th style={{ textAlign: "right", padding: "8px 12px", color: COLORS.textMuted, fontWeight: 500, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase" }}>Amount</th>
-            <th style={{ textAlign: "right", padding: "8px 12px", color: COLORS.textMuted, fontWeight: 500, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase" }}>% of Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {section.items.map((item) => (
-            <tr key={item.property} style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
-              <td style={{ padding: "8px 12px", color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13 }}>{item.property}</td>
-              <td style={{ textAlign: "right", padding: "8px 12px", color: COLORS.text }}>{fmtFull(item.value)}</td>
-              <td style={{ textAlign: "right", padding: "8px 12px", color: COLORS.textMuted }}>{item.pct_of_total !== null ? item.pct_of_total.toFixed(1) + "%" : "\u2014"}</td>
-            </tr>
-          ))}
-          <tr style={{ borderTop: `2px solid ${COLORS.accent}`, background: COLORS.totalBg }}>
-            <td style={{ padding: "8px 12px", fontWeight: 600, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13 }}>Total</td>
-            <td style={{ textAlign: "right", padding: "8px 12px", fontWeight: 600, color: COLORS.text }}>{fmtFull(section.total)}</td>
-            <td style={{ textAlign: "right", padding: "8px 12px", fontWeight: 600, color: COLORS.textMuted }}>100.0%</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function DimensionalDetail({ lineKey, lineName, entityId, period, fsData, onClose }: {
-  lineKey: string; lineName: string; entityId: string; period: string;
-  fsData: FinancialStatementData; onClose: () => void;
-}) {
-  const [dimData, setDimData] = useState<DimensionalDetailResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    fetchDimensionalDetail(lineKey, entityId, period)
-      .then((data) => { if (!cancelled) setDimData(data); })
-      .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : String(err)); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [lineKey, entityId, period]);
-
-  // Fallback: component breakdown from FS data (for lines without dimensional triples)
-  const lineItem = fsData.line_items.find((li) => li.key === lineKey);
-  const children: FinancialStatementLineItem[] = [];
-  if (lineItem) {
-    const idx = fsData.line_items.indexOf(lineItem);
-    const periods = fsData.periods.filter((p) => !p.toLowerCase().includes('variance'));
-    if (lineItem.is_subtotal) {
-      for (let i = idx - 1; i >= 0; i--) {
-        const li = fsData.line_items[i];
-        if (li.is_subtotal || (li.indent === 0 && !li.key)) break;
-        if (li.format !== 'percent') children.unshift(li);
-      }
-    } else {
-      for (let i = idx + 1; i < fsData.line_items.length; i++) {
-        const li = fsData.line_items[i];
-        if (li.indent <= lineItem.indent) break;
-        if (li.format !== 'percent') children.push(li);
-      }
-    }
-    // Build fallback periods for component breakdown table
-    var fallbackPeriods = periods;
-  }
-
-  const hasDimensions = dimData && dimData.dimensions.length > 0;
-  const hasChildren = children.length > 0 && lineItem;
-
-  return (
-    <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-      <div style={{ padding: "12px 20px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{lineName} — Detail</span>
-        <button onClick={onClose} style={{ background: "transparent", border: "none", color: COLORS.textMuted, cursor: "pointer", fontSize: 18 }}>{"\u2715"}</button>
-      </div>
-
-      <div style={{ padding: "12px 20px" }}>
-        {loading && (
-          <div style={{ padding: "20px 0", textAlign: "center" }}>
-            <span style={{ fontSize: 13, color: COLORS.textMuted }}>Loading dimensional detail...</span>
-          </div>
-        )}
-
-        {error && !loading && (
-          <div style={{ padding: "12px", background: COLORS.redBg, borderRadius: 6, marginBottom: 12 }}>
-            <p style={{ fontSize: 13, color: COLORS.red, margin: 0 }}>Error: {error}</p>
-          </div>
-        )}
-
-        {!loading && hasDimensions && dimData.dimensions.map((section) => (
-          <DimensionTable key={section.name} section={section} />
-        ))}
-
-        {!loading && !hasDimensions && hasChildren && (
-          <div>
-            <div style={{ fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, fontFamily: "'JetBrains Mono',monospace" }}>Component Breakdown</div>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'IBM Plex Mono',monospace", fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                  <th style={{ textAlign: "left", padding: "8px 12px", color: COLORS.textMuted, fontWeight: 500, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase" }}>Item</th>
-                  {fallbackPeriods!.map((p) => (
-                    <th key={p} style={{ textAlign: "right", padding: "8px 12px", color: COLORS.textMuted, fontWeight: 500, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase" }}>{p}</th>
-                  ))}
-                  <th style={{ textAlign: "right", padding: "8px 12px", color: COLORS.textMuted, fontWeight: 500, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase" }}>% of Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {children.map((child) => {
-                  const parentVal = lineItem!.values[fallbackPeriods![0]];
-                  const childVal = child.values[fallbackPeriods![0]];
-                  const pctOfTotal = parentVal && childVal ? (childVal / Math.abs(parentVal)) * 100 : null;
-                  return (
-                    <tr key={child.key} style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
-                      <td style={{ padding: "8px 12px", color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13 }}>{child.label}</td>
-                      {fallbackPeriods!.map((p) => (
-                        <td key={p} style={{ textAlign: "right", padding: "8px 12px", color: COLORS.text }}>{fmt(child.values[p])}</td>
-                      ))}
-                      <td style={{ textAlign: "right", padding: "8px 12px", color: COLORS.textMuted }}>{pctOfTotal !== null ? pctOfTotal.toFixed(1) + "%" : "\u2014"}</td>
-                    </tr>
-                  );
-                })}
-                <tr style={{ borderTop: `2px solid ${COLORS.accent}`, background: COLORS.totalBg }}>
-                  <td style={{ padding: "8px 12px", fontWeight: 600, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13 }}>{lineName}</td>
-                  {fallbackPeriods!.map((p) => (
-                    <td key={p} style={{ textAlign: "right", padding: "8px 12px", fontWeight: 600, color: COLORS.text }}>{fmt(lineItem!.values[p])}</td>
-                  ))}
-                  <td style={{ textAlign: "right", padding: "8px 12px", fontWeight: 600, color: COLORS.textMuted }}>100.0%</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {!loading && !hasDimensions && !hasChildren && (
-          <div style={{ padding: "12px 0", fontSize: 13, color: COLORS.textMuted }}>
-            No dimensional breakdown available for this line item.
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -3066,7 +3109,6 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
 
   const handleTabChange = useCallback((t: string) => {
     setTab(t);
-    setDrillLine(null);
     if (t === "bs" && variant !== "act_vs_py" && variant !== "quarterly") {
       setVariant("act_vs_py");
     }
@@ -3091,8 +3133,6 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('aos-report-navigate', handler)
   }, [handleEntityChange, handleTabChange])
 
-  // Drill-through state (inline under FS table)
-  const [drillLine, setDrillLine] = useState<{ id: string; name: string } | null>(null);
 
   const statementTabs = useMemo(() => {
     const base = [
@@ -3338,20 +3378,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
                     )}
                   </div>
                 </div>
-                {/* Dimensional drill-through — above the table so it's immediately visible */}
-                {!loading && drillLine && rawFSData && (
-                  <div style={{ margin: "0 20px 12px" }}>
-                    <DimensionalDetail
-                      lineKey={drillLine.id}
-                      lineName={drillLine.name}
-                      entityId={entity}
-                      period={effectiveQuarter}
-                      fsData={rawFSData}
-                      onClose={() => setDrillLine(null)}
-                    />
-                  </div>
-                )}
-                <StatementTable data={currentData} pyData={pyData} showVariance={variant !== "quarterly"} onDrillLine={(id, name) => setDrillLine(drillLine?.id === id ? null : { id, name })} />
+                <StatementTable data={currentData} pyData={pyData} showVariance={variant !== "quarterly"} entityId={entity} period={effectiveQuarter} fsData={rawFSData} />
               </div>
             )}
           </div>
