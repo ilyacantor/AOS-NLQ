@@ -16,6 +16,7 @@ import type {
   CombiningStatementData,
   OverlapData,
   CrossSellData,
+  UpsellData,
   RevenueByCustomerData,
   EBITDABridgeData,
   WhatIfResult,
@@ -255,6 +256,17 @@ export async function fetchCrossSell(): Promise<CrossSellData> {
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
     throw new Error(`Cross-sell query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+  }
+  return res.json()
+}
+
+// ── Upsell Pipeline ─────────────────────────────────────────────────────────
+
+export async function fetchUpsell(): Promise<UpsellData> {
+  const res = await fetch('/api/reports/upsell')
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Unknown error')
+    throw new Error(`Upsell query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
   }
   return res.json()
 }

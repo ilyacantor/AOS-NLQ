@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { fetchReport, fetchDimensionalDetail, fetchReconciliation, fetchCombiningStatement, fetchOverlapData, fetchCrossSell, fetchRevenueByCustomer, fetchEBITDABridge, fetchWhatIf, fetchQofE, fetchDashboard, sendMaestraChat, fetchReportDimensions, fetchPipelineReport } from "./api";
+import { fetchReport, fetchDimensionalDetail, fetchReconciliation, fetchCombiningStatement, fetchCrossSell, fetchUpsell, fetchRevenueByCustomer, fetchEBITDABridge, fetchWhatIf, fetchQofE, fetchDashboard, sendMaestraChat, fetchReportDimensions, fetchPipelineReport } from "./api";
 import type { PeriodDimension, DimensionalDetailResponse } from "./api";
 import React from "react";
-import type { ReportData, ReconReport, ReconCheck, ReconCoverage, ReportVariant, EntitySelection, CombiningStatementData, OverlapData, CrossSellData, RevenueByCustomerData, EBITDABridgeData, BridgeAdjustment, WhatIfResult, QofEData, DashboardData, DashboardPersona, FinancialStatementData, FinancialStatementLineItem, PipelineReportData } from "./types";
+import type { ReportData, ReconReport, ReconCheck, ReconCoverage, ReportVariant, EntitySelection, CombiningStatementData, CrossSellData, UpsellData, RevenueByCustomerData, EBITDABridgeData, BridgeAdjustment, WhatIfResult, QofEData, DashboardData, DashboardPersona, FinancialStatementData, FinancialStatementLineItem, PipelineReportData } from "./types";
 
 const SalesFunnel = React.lazy(() => import("../sales-funnel/SalesFunnel"));
 
@@ -883,355 +883,6 @@ function CombiningStatement({ data, loading, error, onRetry }: {
 }
 
 // ============================================================
-// OVERLAP REPORT
-// ============================================================
-
-function OverlapReport({ data, loading, error, onRetry }: {
-  data: OverlapData | null;
-  loading: boolean;
-  error: string | null;
-  onRetry: () => void;
-}) {
-  const [custExpanded, setCustExpanded] = useState(false);
-  const [vendExpanded, setVendExpanded] = useState(false);
-  const [custDetail, setCustDetail] = useState<string | null>(null);
-  const [vendDetail, setVendDetail] = useState<string | null>(null);
-  const [peopleExpanded, setPeopleExpanded] = useState(false);
-  const [funcDetail, setFuncDetail] = useState<string | null>(null);
-
-
-  if (loading) return <LoadingState message="Loading entity overlap data..." />;
-  if (error) return <ErrorState error={error} onRetry={onRetry} />;
-  if (!data) return null;
-
-  const co = data.customer_overlap;
-  const vo = data.vendor_overlap;
-  const po = data.people_overlap;
-
-  const matchCounts = { exact: 0, fuzzy: 0, manual: 0 };
-  for (const m of co.matches) {
-    if (m.match_type === "exact") matchCounts.exact++;
-    else if (m.match_type === "fuzzy") matchCounts.fuzzy++;
-    else matchCounts.manual++;
-  }
-
-  const thS: React.CSSProperties = { textAlign: "left", padding: "6px 10px", color: COLORS.textMuted, fontSize: 14, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "'JetBrains Mono',monospace" };
-  const thR: React.CSSProperties = { ...thS, textAlign: "right" };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      {/* Customer Overlap */}
-      <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-        <div style={{ padding: "12px 20px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 16, fontWeight: 600, color: COLORS.text }}>Customer Overlap</span>
-          <button onClick={() => setCustExpanded(!custExpanded)} style={{ background: "rgba(199,120,64,0.08)", border: `1px solid ${COLORS.accent}33`, borderRadius: 4, color: COLORS.accent, fontSize: 15, padding: "4px 12px", cursor: "pointer", fontWeight: 600 }}>
-            {custExpanded ? "Collapse" : `View All ${co.total_overlapping} Matches`}
-          </button>
-        </div>
-        {/* Summary cards — all clickable */}
-        <div style={{ padding: "16px 20px", display: "flex", gap: 16, cursor: "pointer" }} onClick={() => setCustExpanded(!custExpanded)}>
-          <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "14px 20px", flex: 1, textAlign: "center" }}>
-            <div style={{ fontSize: 30, fontWeight: 700, color: COLORS.accent, fontFamily: "'IBM Plex Mono',monospace" }}>{co.total_overlapping}</div>
-            <div style={{ fontSize: 15, color: COLORS.textMuted, marginTop: 4 }}>Overlapping Customers</div>
-          </div>
-          <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "14px 20px", flex: 1, textAlign: "center" }}>
-            <div style={{ fontSize: 30, fontWeight: 700, color: COLORS.textDim, fontFamily: "'IBM Plex Mono',monospace" }}>{co.overlap_pct_of_combined.toFixed(1)}%</div>
-            <div style={{ fontSize: 15, color: COLORS.textMuted, marginTop: 4 }}>of Combined Revenue</div>
-          </div>
-          <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "14px 20px", flex: 2 }}>
-            <div style={{ fontSize: 15, color: COLORS.textMuted, marginBottom: 6 }}>Match Type Breakdown</div>
-            <div style={{ display: "flex", gap: 16, fontSize: 15, fontFamily: "'IBM Plex Mono',monospace" }}>
-              <span style={{ color: COLORS.green }}>Exact: {matchCounts.exact}</span>
-              <span style={{ color: COLORS.accent }}>Fuzzy: {matchCounts.fuzzy}</span>
-              <span style={{ color: COLORS.red }}>Manual: {matchCounts.manual}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Expanded match table */}
-        {custExpanded && (
-          <div style={{ borderTop: `1px solid ${COLORS.border}` }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                  <th style={thS}>Customer</th>
-                  <th style={thS}>Match</th>
-                  <th style={thR}>M Rev ($M)</th>
-                  <th style={thR}>C Rev ($M)</th>
-                  <th style={thR}>Combined ($M)</th>
-                  <th style={thR}>% of Total</th>
-                  <th style={thS}>Industry</th>
-                  <th style={thS}>Flag</th>
-                </tr>
-              </thead>
-              <tbody>
-                {co.matches.map((m) => {
-                  const isExp = custDetail === m.canonical_name;
-                  return (
-                    <React.Fragment key={m.canonical_name}>
-                      <tr onClick={() => setCustDetail(isExp ? null : m.canonical_name)} style={{ borderBottom: `1px solid ${COLORS.border}15`, cursor: "pointer", background: isExp ? COLORS.surfaceHover : "transparent" }}>
-                        <td style={{ padding: "6px 10px", color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>
-                          <span style={{ color: COLORS.accent, marginRight: 6, fontSize: 11 }}>{isExp ? "\u25BE" : "\u25B8"}</span>
-                          {m.canonical_name}
-                        </td>
-                        <td style={{ padding: "6px 10px" }}>
-                          <span style={{ fontSize: 14, padding: "2px 6px", borderRadius: 3, fontWeight: 600, color: m.match_type === "exact" ? COLORS.green : m.match_type === "fuzzy" ? COLORS.accent : COLORS.red, background: m.match_type === "exact" ? COLORS.greenBg : m.match_type === "fuzzy" ? "rgba(199,120,64,0.08)" : COLORS.redBg }}>
-                            {m.match_type.toUpperCase()}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: "right", padding: "6px 10px", color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{m.meridian_revenue_M.toFixed(1)}</td>
-                        <td style={{ textAlign: "right", padding: "6px 10px", color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{m.cascadia_revenue_M.toFixed(1)}</td>
-                        <td style={{ textAlign: "right", padding: "6px 10px", color: COLORS.text, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{m.combined_revenue_M.toFixed(1)}</td>
-                        <td style={{ textAlign: "right", padding: "6px 10px", color: COLORS.textMuted, fontFamily: "'IBM Plex Mono',monospace" }}>{m.combined_pct_of_total.toFixed(2)}%</td>
-                        <td style={{ padding: "6px 10px", color: COLORS.textMuted, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 15 }}>{m.industry}</td>
-                        <td style={{ padding: "6px 10px" }}>
-                          {m.concentration_flag && <span style={{ fontSize: 14, padding: "2px 6px", borderRadius: 3, fontWeight: 600, color: COLORS.red, background: COLORS.redBg }}>CONC</span>}
-                        </td>
-                      </tr>
-                      {isExp && (
-                        <tr style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
-                          <td colSpan={8} style={{ padding: "10px 20px 14px 32px", background: COLORS.surface }}>
-                            <div style={{ fontSize: 14, color: COLORS.textMuted, lineHeight: 1.6, fontFamily: "'IBM Plex Sans',sans-serif" }}>
-                              <div><span style={{ color: COLORS.textDim }}>Meridian Name:</span> {m.meridian_name}</div>
-                              <div><span style={{ color: COLORS.textDim }}>Cascadia Name:</span> {m.cascadia_name}</div>
-                              <div><span style={{ color: COLORS.textDim }}>Confidence:</span> {(m.confidence * 100).toFixed(0)}%</div>
-                              <div><span style={{ color: COLORS.textDim }}>Notes:</span> {m.notes}</div>
-                              {m.engagement_detail && m.engagement_detail.length > 0 && (
-                                <div style={{ marginTop: 8 }}>
-                                  <div style={{ fontWeight: 600, color: COLORS.text, marginBottom: 4 }}>Engagement Detail:</div>
-                                  {m.engagement_detail.map((ed, i) => (
-                                    <div key={i} style={{ marginLeft: 12, marginBottom: 4, fontSize: 15 }}>
-                                      <span style={{ fontWeight: 600, color: COLORS.accent }}>{ed.entity}:</span> {ed.service_types?.join(", ")}
-                                      {Object.entries(ed).filter(([k]) => !["entity", "service_types"].includes(k)).map(([k, v]) => (
-                                        <span key={k} style={{ marginLeft: 8, color: COLORS.textDim }}>{k}: {typeof v === "number" ? v.toLocaleString() : String(v)}</span>
-                                      ))}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Vendor Overlap */}
-      <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-        <div style={{ padding: "12px 20px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 16, fontWeight: 600, color: COLORS.text }}>Vendor Overlap</span>
-          <button onClick={() => setVendExpanded(!vendExpanded)} style={{ background: "rgba(199,120,64,0.08)", border: `1px solid ${COLORS.accent}33`, borderRadius: 4, color: COLORS.accent, fontSize: 15, padding: "4px 12px", cursor: "pointer", fontWeight: 600 }}>
-            {vendExpanded ? "Collapse" : `View All ${vo.total_overlapping} Matches`}
-          </button>
-        </div>
-        <div style={{ padding: "16px 20px", display: "flex", gap: 16, cursor: "pointer" }} onClick={() => setVendExpanded(!vendExpanded)}>
-          <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "14px 20px", flex: 1, textAlign: "center" }}>
-            <div style={{ fontSize: 30, fontWeight: 700, color: COLORS.accent, fontFamily: "'IBM Plex Mono',monospace" }}>{vo.total_overlapping}</div>
-            <div style={{ fontSize: 15, color: COLORS.textMuted, marginTop: 4 }}>Overlapping Vendors</div>
-          </div>
-          <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "14px 20px", flex: 1, textAlign: "center" }}>
-            <div style={{ fontSize: 30, fontWeight: 700, color: COLORS.textDim, fontFamily: "'IBM Plex Mono',monospace" }}>{vo.overlap_pct_of_combined.toFixed(1)}%</div>
-            <div style={{ fontSize: 15, color: COLORS.textMuted, marginTop: 4 }}>of Combined Spend</div>
-          </div>
-        </div>
-
-        {vendExpanded && (
-          <div style={{ borderTop: `1px solid ${COLORS.border}` }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                  <th style={thS}>Vendor</th>
-                  <th style={thS}>Category</th>
-                  <th style={thS}>Match</th>
-                  <th style={thR}>M Spend ($M)</th>
-                  <th style={thR}>C Spend ($M)</th>
-                  <th style={thR}>Combined ($M)</th>
-                  <th style={thS}>Consolidation</th>
-                </tr>
-              </thead>
-              <tbody>
-                {vo.matches.map((v) => {
-                  const isExp = vendDetail === v.canonical_name;
-                  return (
-                    <React.Fragment key={v.canonical_name}>
-                      <tr onClick={() => setVendDetail(isExp ? null : v.canonical_name)} style={{ borderBottom: `1px solid ${COLORS.border}15`, cursor: "pointer", background: isExp ? COLORS.surfaceHover : "transparent" }}>
-                        <td style={{ padding: "6px 10px", color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>
-                          <span style={{ color: COLORS.accent, marginRight: 6, fontSize: 11 }}>{isExp ? "\u25BE" : "\u25B8"}</span>
-                          {v.canonical_name}
-                        </td>
-                        <td style={{ padding: "6px 10px", color: COLORS.textMuted, fontSize: 15 }}>{v.category?.replace(/_/g, " ")}</td>
-                        <td style={{ padding: "6px 10px" }}>
-                          <span style={{ fontSize: 14, padding: "2px 6px", borderRadius: 3, fontWeight: 600, color: v.match_type === "exact" ? COLORS.green : COLORS.accent, background: v.match_type === "exact" ? COLORS.greenBg : "rgba(199,120,64,0.08)" }}>
-                            {v.match_type.toUpperCase()}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: "right", padding: "6px 10px", color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{v.meridian_spend_M.toFixed(1)}</td>
-                        <td style={{ textAlign: "right", padding: "6px 10px", color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{v.cascadia_spend_M.toFixed(1)}</td>
-                        <td style={{ textAlign: "right", padding: "6px 10px", color: COLORS.text, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{v.combined_spend_M.toFixed(1)}</td>
-                        <td style={{ padding: "6px 10px" }}>
-                          {v.consolidation_opportunity && <span style={{ fontSize: 14, padding: "2px 6px", borderRadius: 3, fontWeight: 600, color: COLORS.green, background: COLORS.greenBg }}>YES</span>}
-                        </td>
-                      </tr>
-                      {isExp && !!v.consolidation_detail && (() => {
-                        const d = v.consolidation_detail as Record<string, unknown>;
-                        const savPct = typeof d.estimated_savings_pct === "number" ? d.estimated_savings_pct : null;
-                        const savM = typeof d.estimated_savings_M === "number" ? d.estimated_savings_M : null;
-                        const subcats = Array.isArray(d.service_subcategories) ? d.service_subcategories as string[] : [];
-                        return (
-                          <tr style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
-                            <td colSpan={7} style={{ padding: "12px 20px 16px 32px", background: COLORS.surface }}>
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 10 }}>
-                                <div>
-                                  <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 2 }}>Meridian Contract</div>
-                                  <div style={{ fontSize: 14, color: COLORS.text }}>{String(d.meridian_contract_type || "—")} · ends {String(d.meridian_contract_end || "—")}</div>
-                                </div>
-                                <div>
-                                  <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 2 }}>Cascadia Contract</div>
-                                  <div style={{ fontSize: 14, color: COLORS.text }}>{String(d.cascadia_contract_type || "—")} · ends {String(d.cascadia_contract_end || "—")}</div>
-                                </div>
-                                {savM !== null && (
-                                  <div>
-                                    <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 2 }}>Est. Savings</div>
-                                    <div style={{ fontSize: 15, color: COLORS.green, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>
-                                      ${savM.toFixed(1)}M{savPct !== null && <span style={{ fontWeight: 400, fontSize: 15, marginLeft: 4 }}>({savPct.toFixed(1)}%)</span>}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                              {!!d.savings_rationale && (
-                                <div style={{ fontSize: 15, color: COLORS.textMuted, marginBottom: 8, fontStyle: "italic" }}>{String(d.savings_rationale)}</div>
-                              )}
-                              {subcats.length > 0 && (
-                                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                                  {subcats.map((s) => (
-                                    <span key={s} style={{ fontSize: 14, padding: "2px 8px", borderRadius: 3, background: `${COLORS.accent}15`, color: COLORS.accent, border: `1px solid ${COLORS.accent}30` }}>{s}</span>
-                                  ))}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })()}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* People Overlap */}
-      <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-        <div style={{ padding: "12px 20px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 16, fontWeight: 600, color: COLORS.text }}>People Overlap</span>
-          <button onClick={() => setPeopleExpanded(!peopleExpanded)} style={{ background: "rgba(199,120,64,0.08)", border: `1px solid ${COLORS.accent}33`, borderRadius: 4, color: COLORS.accent, fontSize: 15, padding: "4px 12px", cursor: "pointer", fontWeight: 600 }}>
-            {peopleExpanded ? "Collapse" : `View All ${po.functions.length} Functions`}
-          </button>
-        </div>
-        {/* Summary cards */}
-        <div style={{ padding: "16px 20px", display: "flex", gap: 16, cursor: "pointer" }} onClick={() => setPeopleExpanded(!peopleExpanded)}>
-          <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "14px 20px", flex: 1, textAlign: "center" }}>
-            <div style={{ fontSize: 30, fontWeight: 700, color: COLORS.accent, fontFamily: "'IBM Plex Mono',monospace" }}>{po.total_meridian_corporate.toLocaleString()}</div>
-            <div style={{ fontSize: 15, color: COLORS.textMuted, marginTop: 4 }}>Meridian Headcount</div>
-          </div>
-          <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "14px 20px", flex: 1, textAlign: "center" }}>
-            <div style={{ fontSize: 30, fontWeight: 700, color: COLORS.accent, fontFamily: "'IBM Plex Mono',monospace" }}>{po.total_cascadia_corporate.toLocaleString()}</div>
-            <div style={{ fontSize: 15, color: COLORS.textMuted, marginTop: 4 }}>Cascadia Headcount</div>
-          </div>
-          <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "14px 20px", flex: 1, textAlign: "center" }}>
-            <div style={{ fontSize: 30, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{po.total_combined_corporate.toLocaleString()}</div>
-            <div style={{ fontSize: 15, color: COLORS.textMuted, marginTop: 4 }}>Combined Corporate</div>
-          </div>
-          <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "14px 20px", flex: 1, textAlign: "center" }}>
-            <div style={{ fontSize: 30, fontWeight: 700, color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{po.functions.length}</div>
-            <div style={{ fontSize: 15, color: COLORS.textMuted, marginTop: 4 }}>Functions Analyzed</div>
-          </div>
-        </div>
-
-        {/* Expanded function table */}
-        {peopleExpanded && (
-          <div style={{ borderTop: `1px solid ${COLORS.border}` }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                  <th style={thS}>Function</th>
-                  <th style={thR}>Meridian</th>
-                  <th style={thR}>Cascadia</th>
-                  <th style={thR}>Combined</th>
-                  <th style={thS}>Key Roles</th>
-                </tr>
-              </thead>
-              <tbody>
-                {po.functions.map((fn) => {
-                  const isFuncExp = funcDetail === fn.function;
-                  return (
-                    <React.Fragment key={fn.function}>
-                      <tr onClick={() => setFuncDetail(isFuncExp ? null : fn.function)} style={{ borderBottom: `1px solid ${COLORS.border}15`, cursor: "pointer", background: isFuncExp ? COLORS.surfaceHover : "transparent" }}>
-                        <td style={{ padding: "6px 10px", color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>
-                          <span style={{ color: COLORS.accent, marginRight: 6, fontSize: 11 }}>{isFuncExp ? "\u25BE" : "\u25B8"}</span>
-                          {fn.function}
-                        </td>
-                        <td style={{ textAlign: "right", padding: "6px 10px", color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fn.meridian_headcount.toLocaleString()}</td>
-                        <td style={{ textAlign: "right", padding: "6px 10px", color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{fn.cascadia_headcount.toLocaleString()}</td>
-                        <td style={{ textAlign: "right", padding: "6px 10px", color: COLORS.text, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{fn.combined_headcount.toLocaleString()}</td>
-                        <td style={{ padding: "6px 10px", color: COLORS.textMuted, fontSize: 15 }}>{fn.role_overlap_examples.slice(0, 3).join(", ")}{fn.role_overlap_examples.length > 3 ? "..." : ""}</td>
-                      </tr>
-                      {isFuncExp && (
-                        <tr style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
-                          <td colSpan={5} style={{ padding: "10px 20px 14px 32px", background: COLORS.surface }}>
-                            <div style={{ fontSize: 15, color: COLORS.textDim, fontStyle: "italic", marginBottom: 8 }}>{fn.definitional_note}</div>
-                            {fn.role_detail && fn.role_detail.length > 0 && (
-                              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 15 }}>
-                                <thead>
-                                  <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                                    <th style={thS}>Role</th>
-                                    <th style={thR}>Meridian</th>
-                                    <th style={thR}>Cascadia</th>
-                                    <th style={thR}>Combined</th>
-                                    <th style={thS}>Action</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {fn.role_detail.map((rd) => (
-                                    <tr key={rd.title} style={{ borderBottom: `1px solid ${COLORS.border}10` }}>
-                                      <td style={{ padding: "4px 10px", color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>{rd.title}</td>
-                                      <td style={{ textAlign: "right", padding: "4px 10px", color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rd.meridian_count}</td>
-                                      <td style={{ textAlign: "right", padding: "4px 10px", color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rd.cascadia_count}</td>
-                                      <td style={{ textAlign: "right", padding: "4px 10px", color: COLORS.text, fontWeight: 600, fontFamily: "'IBM Plex Mono',monospace" }}>{rd.combined_count}</td>
-                                      <td style={{ padding: "4px 10px" }}>
-                                        <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 3, fontWeight: 600,
-                                          color: rd.consolidation_action === "eliminate" ? COLORS.red : rd.consolidation_action === "merge" || rd.consolidation_action === "consolidate" ? COLORS.accent : COLORS.green,
-                                          background: rd.consolidation_action === "eliminate" ? COLORS.redBg : rd.consolidation_action === "merge" || rd.consolidation_action === "consolidate" ? "rgba(199,120,64,0.08)" : COLORS.greenBg,
-                                        }}>{rd.consolidation_action?.toUpperCase()}</span>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            )}
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
 // Loading spinner (themed)
 // ============================================================
 function LoadingState({ message = "Loading..." }: { message?: string }) {
@@ -1375,6 +1026,138 @@ function CrossSellTab() {
                             <span style={{ fontWeight: 600 }}>Comparable:</span> {c.comparable_customers.join(", ")}
                           </div>
                         )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// UPSELL TAB
+// ============================================================
+
+function UpsellTab() {
+  const [data, setData] = useState<UpsellData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [direction, setDirection] = useState<"m_to_c" | "c_to_m">("m_to_c");
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchUpsell()
+      .then(setData)
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <LoadingState message="Loading upsell opportunities..." />;
+  if (error || !data) return <ErrorState error={error || "No data"} onRetry={() => { setLoading(true); setError(null); fetchUpsell().then(setData).catch((e) => setError(String(e))).finally(() => setLoading(false)); }} />;
+
+  const s = data.summary;
+  const candidates = direction === "m_to_c" ? data.m_to_c : data.c_to_m;
+  const dirCount = direction === "m_to_c" ? s.m_to_c_count : s.c_to_m_count;
+  const dirAcv = direction === "m_to_c" ? s.m_to_c_acv : s.c_to_m_acv;
+  const thS: React.CSSProperties = { textAlign: "left", padding: "8px 12px", color: COLORS.textMuted, fontWeight: 500, fontSize: 14, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "'JetBrains Mono',monospace" };
+  const thR: React.CSSProperties = { ...thS, textAlign: "right" };
+
+  return (
+    <div>
+      {/* Summary cards */}
+      <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
+        {[
+          { label: "Shared Customers", value: String(s.total_shared_customers), sub: "served by both entities" },
+          { label: "Opportunities", value: String(dirCount), sub: `${direction === "m_to_c" ? "M\u2192C" : "C\u2192M"} direction` },
+          { label: "Expansion ACV", value: fmtDollar(dirAcv), sub: `${dirCount} gap services` },
+          { label: "Avg Score", value: String(s.avg_score), sub: "across all opportunities" },
+        ].map((card) => (
+          <div key={card.label} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "16px 20px", flex: "1 1 180px", minWidth: 180 }}>
+            <div style={{ fontSize: 15, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>{card.label}</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace", marginTop: 4 }}>{card.value}</div>
+            <div style={{ fontSize: 14, color: COLORS.textDim, marginTop: 2 }}>{card.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Direction toggle */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {(["m_to_c", "c_to_m"] as const).map((d) => (
+          <button key={d} onClick={() => setDirection(d)} style={{
+            padding: "6px 16px", fontSize: 14, fontWeight: direction === d ? 600 : 400,
+            background: direction === d ? "rgba(199,120,64,0.12)" : "transparent",
+            color: direction === d ? COLORS.accent : COLORS.textMuted,
+            border: `1px solid ${direction === d ? COLORS.accent + "44" : COLORS.border}`,
+            borderRadius: 4, cursor: "pointer", fontFamily: "'IBM Plex Sans',sans-serif",
+          }}>
+            {d === "m_to_c" ? "Meridian Services \u2192 Cascadia Clients" : "Cascadia Services \u2192 Meridian Clients"}
+          </button>
+        ))}
+      </div>
+
+      {/* Upsell table */}
+      <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'IBM Plex Mono','JetBrains Mono',monospace", fontSize: 14 }}>
+          <thead>
+            <tr style={{ borderBottom: `2px solid ${COLORS.accent}` }}>
+              <th style={thS}>Customer</th>
+              <th style={thS}>Gap Service</th>
+              <th style={thR}>Score</th>
+              <th style={thR}>Est. ACV</th>
+              <th style={thS}>Current Services</th>
+              <th style={thS}>Confidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            {candidates.map((c, idx) => {
+              const rowKey = `${c.customer_id}-${c.gap_service}-${idx}`;
+              const isExp = expanded === rowKey;
+              return (
+                <React.Fragment key={rowKey}>
+                  <tr onClick={() => setExpanded(isExp ? null : rowKey)} style={{
+                    borderBottom: `1px solid ${COLORS.border}22`, cursor: "pointer",
+                    background: isExp ? COLORS.surfaceHover : "transparent",
+                  }}>
+                    <td style={{ padding: "8px 12px", color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>
+                      <span style={{ color: COLORS.accent, marginRight: 6, fontSize: 14 }}>{isExp ? "\u25BE" : "\u25B8"}</span>
+                      {c.customer_name}
+                    </td>
+                    <td style={{ padding: "8px 12px", color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif" }}>{c.gap_service_name}</td>
+                    <td style={{ textAlign: "right", padding: "8px 12px", fontWeight: 600, color: c.upsell_score >= 80 ? COLORS.green : c.upsell_score >= 60 ? COLORS.accent : COLORS.textMuted }}>
+                      {c.upsell_score}
+                    </td>
+                    <td style={{ textAlign: "right", padding: "8px 12px", color: COLORS.text }}>{fmtDollar(c.typical_acv)}</td>
+                    <td style={{ padding: "8px 12px", color: COLORS.textMuted, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: 13 }}>
+                      {c.current_services.map(s => s.replace(/_/g, " ")).join(", ")}
+                    </td>
+                    <td style={{ padding: "8px 12px" }}>
+                      <span style={{ fontSize: 14, padding: "2px 8px", borderRadius: 3, fontWeight: 600,
+                        background: c.upsell_score >= 80 ? COLORS.greenBg : c.upsell_score >= 60 ? "rgba(199,120,64,0.08)" : COLORS.redBg,
+                        color: c.upsell_score >= 80 ? COLORS.green : c.upsell_score >= 60 ? COLORS.accent : COLORS.red,
+                      }}>{fmtScore(c.upsell_score)}</span>
+                    </td>
+                  </tr>
+                  {isExp && (
+                    <tr style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
+                      <td colSpan={6} style={{ padding: "12px 20px 16px", background: COLORS.surface }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: 14, fontFamily: "'IBM Plex Sans',sans-serif" }}>
+                          <div><span style={{ color: COLORS.textDim }}>Satisfaction:</span> <span style={{ color: COLORS.text }}>{c.satisfaction_score}/100</span></div>
+                          <div><span style={{ color: COLORS.textDim }}>Contract Type:</span> <span style={{ color: COLORS.text }}>{c.contract_type}</span></div>
+                          <div><span style={{ color: COLORS.textDim }}>Relationship Strength:</span> <span style={{ color: COLORS.text }}>{c.relationship_strength}/30</span></div>
+                          <div><span style={{ color: COLORS.textDim }}>Service Adjacency:</span> <span style={{ color: COLORS.text }}>{c.service_adjacency}/25</span></div>
+                          <div><span style={{ color: COLORS.textDim }}>Revenue Potential:</span> <span style={{ color: COLORS.text }}>{c.revenue_potential}/25</span></div>
+                          <div><span style={{ color: COLORS.textDim }}>Contract Recency:</span> <span style={{ color: COLORS.text }}>{c.contract_recency}/20</span></div>
+                          <div><span style={{ color: COLORS.textDim }}>Start Year:</span> <span style={{ color: COLORS.text }}>{c.engagement_start_year}</span></div>
+                          <div><span style={{ color: COLORS.textDim }}>Current Engagement:</span> <span style={{ color: COLORS.text }}>{fmtDollar(c.current_engagement_revenue_M)}</span></div>
+                        </div>
+                        <div style={{ marginTop: 12, padding: "10px 14px", background: COLORS.bg, borderRadius: 6, fontSize: 14, color: COLORS.textMuted, lineHeight: 1.5 }}>
+                          <span style={{ fontWeight: 600, color: COLORS.text }}>Rationale:</span> {c.rationale}
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -2357,6 +2140,18 @@ function QofETab() {
               <div><div style={{ fontSize: 14, color: COLORS.textDim }}>Converted</div><div style={{ fontSize: 20, fontWeight: 700, color: rq.cross_sell_penetration.converted_count > 0 ? COLORS.green : COLORS.textDim, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.cross_sell_penetration.converted_count}</div></div>
             </div>
           </div>
+
+          {/* Upsell penetration */}
+          {rq.upsell_penetration && (
+          <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, padding: "16px 20px" }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.accent, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em" }}>Upsell Penetration</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+              <div><div style={{ fontSize: 14, color: COLORS.textDim }}>Shared Customers</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.upsell_penetration.shared_customers}</div></div>
+              <div><div style={{ fontSize: 14, color: COLORS.textDim }}>Expansion ACV</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>${rq.upsell_penetration.total_expansion_acv_M}M</div></div>
+              <div><div style={{ fontSize: 14, color: COLORS.textDim }}>Avg Score</div><div style={{ fontSize: 20, fontWeight: 700, color: rq.upsell_penetration.avg_upsell_score >= 70 ? COLORS.green : COLORS.textDim, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.upsell_penetration.avg_upsell_score}</div></div>
+            </div>
+          </div>
+          )}
         </div>
       )}
 
@@ -2884,7 +2679,7 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
 
   const handleNavigate = useCallback((tab: string) => {
     if (onNavigate) onNavigate(tab);
-    const combinedTabs = ["combining", "overlap", "crosssell", "cross_sell", "bridge", "ebitda", "whatif", "what_if", "qoe", "dashboards"];
+    const combinedTabs = ["combining", "crosssell", "cross_sell", "upsell", "bridge", "ebitda", "whatif", "what_if", "qoe", "dashboards"];
     if (onEntityChange && combinedTabs.includes(tab)) {
       onEntityChange("combined");
     }
@@ -3079,11 +2874,6 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
   const [combiningQuarter, setCombiningQuarter] = useState("2025-Q3");
   const [combiningSegment, setCombiningSegment] = useState("all");
 
-  // Overlap report data states
-  const [overlapData, setOverlapData] = useState<OverlapData | null>(null);
-  const [overlapLoading, setOverlapLoading] = useState(false);
-  const [overlapError, setOverlapError] = useState<string | null>(null);
-
   // Derive available quarters from API dimensions, filtering by entity data availability
   const entityKey = entity === "combined" ? null : entity;
   const actQuarters = useMemo(() => {
@@ -3160,8 +2950,8 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
       return [
         ...base,
         { id: "combining", label: "Combining" },
-        { id: "overlap", label: "Overlap" },
         { id: "crosssell", label: "X-Sell", title: "Cross-Sell Pipeline" },
+        { id: "upsell", label: "Upsell", title: "Upsell Opportunities" },
         { id: "pipeline", label: "Pipeline" },
         { id: "bridge", label: "Proforma EBITDA", title: "Proforma EBITDA" },
         { id: "whatif", label: "What-If" },
@@ -3307,27 +3097,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
     }
   }, [loadCombining, tab, entity]);
 
-  // Load overlap data when the overlap tab is active
-  const loadOverlap = useCallback(async () => {
-    if (tab !== "overlap" || entity !== "combined") return;
-    setOverlapLoading(true);
-    setOverlapError(null);
-    try {
-      const result = await fetchOverlapData();
-      setOverlapData(result);
-    } catch (err) {
-      setOverlapError(err instanceof Error ? err.message : String(err));
-      setOverlapData(null);
-    } finally {
-      setOverlapLoading(false);
-    }
-  }, [tab, entity]);
 
-  useEffect(() => {
-    if (tab === "overlap" && entity === "combined") {
-      loadOverlap();
-    }
-  }, [loadOverlap, tab, entity]);
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: COLORS.bg, color: COLORS.text, fontFamily: "'IBM Plex Sans',sans-serif", padding: 0, overflow: "hidden" }}>
@@ -3421,11 +3191,11 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
             <CombiningStatement data={combiningData} loading={combiningLoading} error={combiningError} onRetry={loadCombining} />
           </div>
         )}
-        {tab === "overlap" && entity === "combined" && (
-          <OverlapReport data={overlapData} loading={overlapLoading} error={overlapError} onRetry={loadOverlap} />
-        )}
         {tab === "crosssell" && entity === "combined" && (
           <div style={{ maxWidth: CONTENT_MAX_WIDTH, margin: "0 auto" }}><CrossSellTab /></div>
+        )}
+        {tab === "upsell" && entity === "combined" && (
+          <div style={{ maxWidth: CONTENT_MAX_WIDTH, margin: "0 auto" }}><UpsellTab /></div>
         )}
         {tab === "pipeline" && <PipelineTab period={String(lastFullYear)} />}
         {tab === "bridge" && entity === "combined" && (

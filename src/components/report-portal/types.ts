@@ -229,6 +229,47 @@ export interface CrossSellData {
   summary: CrossSellSummary
 }
 
+// ── Upsell Pipeline ──────────────────────────────────────────────────────
+
+export interface UpsellCandidate {
+  customer_id: string
+  customer_name: string
+  source_entity: string
+  target_entity: string
+  gap_service: string
+  gap_service_name: string
+  typical_acv: number
+  upsell_score: number
+  relationship_strength: number
+  service_adjacency: number
+  revenue_potential: number
+  contract_recency: number
+  current_services: string[]
+  current_engagement_revenue_M: number
+  satisfaction_score: number
+  contract_type: string
+  engagement_start_year: number
+  match_type: string
+  rationale: string
+}
+
+export interface UpsellSummary {
+  total_shared_customers: number
+  total_opportunities: number
+  total_expansion_acv: number
+  avg_score: number
+  m_to_c_count: number
+  m_to_c_acv: number
+  c_to_m_count: number
+  c_to_m_acv: number
+}
+
+export interface UpsellData {
+  m_to_c: UpsellCandidate[]
+  c_to_m: UpsellCandidate[]
+  summary: UpsellSummary
+}
+
 // ── Revenue by Customer ───────────────────────────────────────────────────
 
 export interface RevenueByCustomerRow {
@@ -399,6 +440,12 @@ export interface QofEData {
       converted_count: number
       converted_acv_M: number
       conversion_rate_pct: number
+    }
+    upsell_penetration?: {
+      shared_customers: number
+      total_gap_services: number
+      total_expansion_acv_M: number
+      avg_upsell_score: number
     }
   }
   sustainability_score: QofESustainabilityScore

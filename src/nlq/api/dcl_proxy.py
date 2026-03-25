@@ -369,6 +369,72 @@ async def cross_sell():
 
 
 # ---------------------------------------------------------------------------
+# Upsell — transforms v2 upsell into UpsellData shape
+# ---------------------------------------------------------------------------
+
+@router.get("/api/reports/upsell")
+async def upsell():
+    """Fetch upsell from DCL v2 and transform into UpsellData shape."""
+    opps_data, summary_data = await asyncio.gather(
+        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/upsell"),
+        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/upsell/summary"),
+    )
+
+    opportunities = opps_data.get("opportunities", [])
+
+    # Split into m_to_c and c_to_m by target_entity initial letter.
+    # Same heuristic as cross-sell: target starting with "c" = meridian→cascadia.
+    m_to_c = []
+    c_to_m = []
+    for opp in opportunities:
+        candidate = {
+            "customer_id": opp.get("customer_id", opp.get("customer", "")),
+            "customer_name": opp.get("customer_name", opp.get("customer", "")),
+            "source_entity": opp.get("source_entity", ""),
+            "target_entity": opp.get("target_entity", ""),
+            "gap_service": opp.get("gap_service", ""),
+            "gap_service_name": opp.get("gap_service_name", ""),
+            "typical_acv": _parse_float(opp.get("typical_acv")),
+            "upsell_score": opp.get("upsell_score", 0),
+            "relationship_strength": opp.get("relationship_strength", 0),
+            "service_adjacency": opp.get("service_adjacency", 0),
+            "revenue_potential": opp.get("revenue_potential", 0),
+            "contract_recency": opp.get("contract_recency", 0),
+            "current_services": opp.get("current_services", []),
+            "current_engagement_revenue_M": _parse_float(opp.get("current_engagement_revenue_M")),
+            "satisfaction_score": opp.get("satisfaction_score", 0),
+            "contract_type": opp.get("contract_type", ""),
+            "engagement_start_year": opp.get("engagement_start_year", 0),
+            "match_type": opp.get("match_type", "exact"),
+            "rationale": opp.get("rationale", ""),
+        }
+        if opp.get("target_entity", "").lower().startswith("c"):
+            m_to_c.append(candidate)
+        else:
+            c_to_m.append(candidate)
+
+    m_to_c_acv = sum(c["typical_acv"] for c in m_to_c)
+    c_to_m_acv = sum(c["typical_acv"] for c in c_to_m)
+
+    by_dir = summary_data.get("by_direction", {})
+    result = {
+        "m_to_c": m_to_c,
+        "c_to_m": c_to_m,
+        "summary": {
+            "total_shared_customers": summary_data.get("total_shared_customers", 0),
+            "total_opportunities": summary_data.get("total_opportunities", len(opportunities)),
+            "total_expansion_acv": m_to_c_acv + c_to_m_acv,
+            "avg_score": summary_data.get("avg_score", 0),
+            "m_to_c_count": len(m_to_c),
+            "m_to_c_acv": m_to_c_acv,
+            "c_to_m_count": len(c_to_m),
+            "c_to_m_acv": c_to_m_acv,
+        },
+    }
+    return JSONResponse(content=result)
+
+
+# ---------------------------------------------------------------------------
 # EBITDA Bridge — transforms v2 bridge into EBITDABridgeData
 # ---------------------------------------------------------------------------
 
@@ -450,9 +516,28 @@ async def ebitda_bridge(entity_id: str = Query(None)):
     return JSONResponse(content=result)
 
 
+def _build_upsell_penetration(upsell: Dict) -> Dict:
+    """Build upsell_penetration section from DCL upsell data."""
+    opps = upsell.get("opportunities", [])
+    total = len(opps)
+    gap_services = len({o.get("gap_service", "") for o in opps})
+    expansion_acv = round(sum(_parse_float(o.get("typical_acv", 0)) for o in opps), 2)
+    avg_score = round(
+        sum(o.get("upsell_score", 0) for o in opps) / total, 1
+    ) if total else 0.0
+
+    return {
+        "shared_customers": len({o.get("customer_id", "") for o in opps}),
+        "total_gap_services": gap_services,
+        "total_expansion_acv_M": expansion_acv,
+        "avg_upsell_score": avg_score,
+    }
+
+
 def _build_revenue_quality(
     entity_a: Dict, entity_b: Dict, combined: Dict,
     total_rev: float, by_stream: List[Dict], cross_sell: Dict,
+    upsell: Dict = None,
 ) -> Dict:
     """Build revenue_quality section from real DCL data."""
     # Revenue mix from by_stream
@@ -508,6 +593,7 @@ def _build_revenue_quality(
             "converted_acv_M": high_conf_acv,
             "conversion_rate_pct": round(len(high_conf) / cs_total * 100, 1) if cs_total else 0,
         },
+        "upsell_penetration": _build_upsell_penetration(upsell or {}),
     }
 
 
@@ -543,11 +629,12 @@ def _derive_adj_status(adj: dict) -> str:
 @router.get("/api/reports/qoe")
 async def quality_of_earnings(entity_id: str = Query(None)):
     """Fetch QoE from DCL v2 and transform into QofEData shape."""
-    # Fetch QoE, bridge, and cross-sell concurrently
-    qoe_data, bridge, cross_sell = await asyncio.gather(
+    # Fetch QoE, bridge, cross-sell, and upsell concurrently
+    qoe_data, bridge, cross_sell, upsell_data = await asyncio.gather(
         asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/qoe/combined"),
         asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/bridge"),
         asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/cross-sell"),
+        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/upsell"),
     )
 
     entity_a = qoe_data.get("entity_a", {})
@@ -598,6 +685,7 @@ async def quality_of_earnings(entity_id: str = Query(None)):
         }),
         "revenue_quality": _build_revenue_quality(
             entity_a, entity_b, combined, total_rev, by_stream, cross_sell,
+            upsell_data,
         ),
         "sustainability_score": {
             "overall": combined.get("confidence_weighted_ebitda", adjusted) / max(adjusted, 1) * 100 if adjusted else 0,
