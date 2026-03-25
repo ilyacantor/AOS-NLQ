@@ -698,7 +698,7 @@ async def quality_of_earnings(entity_id: str = Query(None)):
             "bench_cost_trend": [],
             "working_capital_pct_trend": [],
             "margin_trend": [
-                {"period": m["period"], "gross_margin_pct": 0, "ebitda_margin_pct": m.get("ebitda_margin", 0)}
+                {"period": m["period"], "gross_margin_pct": m.get("gross_margin", 0), "ebitda_margin_pct": m.get("ebitda_margin", 0)}
                 for m in margin_trend
             ],
         },

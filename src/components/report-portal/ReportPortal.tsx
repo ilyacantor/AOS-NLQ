@@ -4,6 +4,10 @@ import { fetchReport, fetchDimensionalDetail, fetchReconciliation, fetchCombinin
 import type { PeriodDimension, DimensionalDetailResponse } from "./api";
 import React from "react";
 import type { ReportData, ReconReport, ReconCheck, ReconCoverage, ReportVariant, EntitySelection, CombiningStatementData, CrossSellData, UpsellData, RevenueByCustomerData, EBITDABridgeData, BridgeAdjustment, WhatIfResult, QofEData, DashboardData, DashboardPersona, FinancialStatementData, FinancialStatementLineItem, PipelineReportData } from "./types";
+import {
+  BarChart, Bar, XAxis, YAxis, Cell, ResponsiveContainer,
+  PieChart, Pie,
+} from "recharts";
 
 const SalesFunnel = React.lazy(() => import("../sales-funnel/SalesFunnel"));
 
@@ -1513,6 +1517,63 @@ function EBITDABridgeTab() {
         )}
       </div>
 
+      {/* EBITDA Waterfall Chart */}
+      {(() => {
+        const waterfallBars: { label: string; base: number; value: number; rawValue: number; type: string }[] = [];
+        let running = rep.combined_reported;
+        waterfallBars.push({ label: "Reported EBITDA", base: 0, value: running, rawValue: running, type: "total" });
+        for (const adj of data.entity_adjustments) {
+          if (adj.amount >= 0) {
+            waterfallBars.push({ label: adj.name, base: running, value: adj.amount, rawValue: adj.amount, type: "increase" });
+          } else {
+            waterfallBars.push({ label: adj.name, base: running + adj.amount, value: Math.abs(adj.amount), rawValue: adj.amount, type: "decrease" });
+          }
+          running += adj.amount;
+        }
+        waterfallBars.push({ label: "Entity Adjusted", base: 0, value: ea.combined, rawValue: ea.combined, type: "total" });
+        running = ea.combined;
+        for (const syn of data.combination_synergies) {
+          if (syn.amount >= 0) {
+            waterfallBars.push({ label: syn.name, base: running, value: syn.amount, rawValue: syn.amount, type: "increase" });
+          } else {
+            waterfallBars.push({ label: syn.name, base: running + syn.amount, value: Math.abs(syn.amount), rawValue: syn.amount, type: "decrease" });
+          }
+          running += syn.amount;
+        }
+        waterfallBars.push({ label: "Pro Forma Yr 1", base: 0, value: pf.year_1.current, rawValue: pf.year_1.current, type: "total" });
+        const chartHeight = waterfallBars.length * 38 + 60;
+
+        return (
+          <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, padding: "20px", marginBottom: 20 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.accent, marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>EBITDA Waterfall</div>
+            <div style={{ width: "100%", height: chartHeight }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart layout="vertical" data={waterfallBars} margin={{ top: 10, right: 80, left: 10, bottom: 10 }} barCategoryGap="15%">
+                  <YAxis type="category" dataKey="label" tick={{ fontSize: 12, fill: COLORS.textMuted }} axisLine={false} tickLine={false} width={180} />
+                  <XAxis type="number" domain={[0, "auto"]} tickFormatter={(v: number) => { if (v === 0) return "$0"; const absM = Math.abs(v); return absM >= 1000 ? `$${(absM / 1000).toFixed(1)}B` : `$${absM.toFixed(0)}M`; }} tick={{ fontSize: 11, fill: COLORS.textDim }} axisLine={false} tickLine={false} />
+                  <Bar dataKey="base" stackId="stack" fill="transparent" isAnimationActive={false} />
+                  <Bar dataKey="value" stackId="stack" radius={[0, 4, 4, 0]} isAnimationActive={false}
+                    label={({ x, y, width: w, height: h, index }: any) => {
+                      const bar = waterfallBars[index];
+                      if (!bar) return null;
+                      return (
+                        <text x={x + w + 6} y={y + h / 2} dominantBaseline="middle" fill={bar.type === "total" ? COLORS.text : bar.rawValue >= 0 ? COLORS.green : COLORS.red} fontSize={12} fontWeight={bar.type === "total" ? 600 : 400} fontFamily="'IBM Plex Mono',monospace">
+                          {fmtDollar(bar.rawValue)}
+                        </text>
+                      );
+                    }}
+                  >
+                    {waterfallBars.map((bar, index) => (
+                      <Cell key={index} fill={bar.type === "total" ? COLORS.accent : bar.rawValue >= 0 ? COLORS.green : COLORS.red} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Bridge waterfall table */}
       <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 15 }}>
@@ -1907,7 +1968,7 @@ function WhatIfTab() {
 // QofE TAB
 // ============================================================
 
-type QofESubView = "bridge" | "sustainability" | "revenue" | "working_capital" | "new_items";
+type QofESubView = "bridge" | "ebitda_bridge" | "sustainability" | "revenue" | "working_capital" | "new_items";
 
 function QofETab() {
   const [data, setData] = useState<QofEData | null>(null);
@@ -1933,6 +1994,7 @@ function QofETab() {
 
   const subTabs: { id: QofESubView; label: string }[] = [
     { id: "bridge", label: "QofE" },
+    { id: "ebitda_bridge", label: "EBITDA Bridge" },
     { id: "sustainability", label: "Sustainability" },
     { id: "revenue", label: "Revenue Quality" },
     { id: "working_capital", label: "Working Capital" },
@@ -2060,75 +2122,117 @@ function QofETab() {
       )}
 
       {subView === "sustainability" && (
-        <div>
-          <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, padding: "20px", marginBottom: 16 }}>
-            <div style={{ textAlign: "center", marginBottom: 16 }}>
-              <div style={{ fontSize: 50, fontWeight: 700, color: sus.overall >= 65 ? COLORS.green : sus.overall >= 50 ? COLORS.accent : COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{sus.overall.toFixed(0)}</div>
-              <div style={{ fontSize: 15, color: COLORS.textMuted }}>Earnings Sustainability Score</div>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {sus.components.map((c) => (
-                <div key={c.name} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 160, fontSize: 15, color: COLORS.textMuted }}>{c.name}</div>
-                  <div style={{ flex: 1, height: 8, background: COLORS.bg, borderRadius: 4, overflow: "hidden" }}>
-                    <div style={{ width: `${c.score}%`, height: "100%", borderRadius: 4, background: c.score >= 70 ? COLORS.green : c.score >= 50 ? COLORS.accent : COLORS.red, transition: "width 0.3s" }} />
-                  </div>
-                  <div style={{ width: 50, textAlign: "right", fontSize: 14, fontWeight: 600, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{c.score.toFixed(0)}</div>
-                  <div style={{ width: 30, textAlign: "right", fontSize: 14, color: COLORS.textDim }}>/{c.max_points}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, padding: "40px 20px", textAlign: "center" }}>
+          <div style={{ fontSize: 15, color: COLORS.textDim, fontFamily: "'IBM Plex Sans',sans-serif" }}>Sustainability analysis — coming soon</div>
         </div>
       )}
 
-      {subView === "revenue" && (
+      {subView === "revenue" && (() => {
+        const revMixStreams = [
+          { name: "Managed Services", value: rq.revenue_mix.managed_services_M },
+          { name: "Per-FTE", value: rq.revenue_mix.per_fte_M },
+          { name: "Per-Transaction", value: rq.revenue_mix.per_transaction_M },
+          { name: "Advisory & Consulting", value: rq.revenue_mix.advisory_consulting_M },
+        ].filter(d => d.value > 0);
+        const revMixColors = [COLORS.accent, COLORS.green, COLORS.blue, "#A78BFA"];
+        const hasConcentrationData = rq.customer_concentration.total_customers > 0;
+        const hasContractData = rq.contract_quality.msa_pct > 0 || rq.contract_quality.sow_pct > 0 || rq.contract_quality.t_and_m_pct > 0;
+        const placeholderStyle: React.CSSProperties = { fontSize: 14, color: COLORS.textDim, fontStyle: "italic", padding: "8px 0" };
+
+        return (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Concentration */}
+          {/* Revenue mix with donut chart */}
+          <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, padding: "16px 20px" }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.accent, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em" }}>Revenue Mix</div>
+            {revMixStreams.length > 0 ? (
+              <div style={{ display: "flex", gap: 32, alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ width: 220, height: 220 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={revMixStreams} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value" nameKey="name" strokeWidth={0}
+                        label={({ name, percent }: any) => `${name || ""} ${((percent || 0) * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
+                        {revMixStreams.map((_entry, index) => (
+                          <Cell key={index} fill={revMixColors[index % revMixColors.length]} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 14, color: COLORS.textDim }}>Recurring</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.revenue_mix.recurring_pct}%</div>
+                      <div style={{ fontSize: 13, color: COLORS.textMuted }}>Managed ${rq.revenue_mix.managed_services_M}M · Per-FTE ${rq.revenue_mix.per_fte_M}M · Per-Txn ${rq.revenue_mix.per_transaction_M}M</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, color: COLORS.textDim }}>Non-Recurring</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.accent, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.revenue_mix.non_recurring_pct}%</div>
+                      <div style={{ fontSize: 13, color: COLORS.textMuted }}>Advisory & Consulting ${rq.revenue_mix.advisory_consulting_M}M</div>
+                    </div>
+                  </div>
+                  {/* Legend */}
+                  <div style={{ display: "flex", gap: 16, marginTop: 12, flexWrap: "wrap" }}>
+                    {revMixStreams.map((s, i) => (
+                      <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: 2, background: revMixColors[i % revMixColors.length] }} />
+                        <span style={{ fontSize: 12, color: COLORS.textMuted }}>{s.name} ${s.value}M</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={placeholderStyle}>Data not available — requires revenue sub-ledger enrichment input</div>
+            )}
+          </div>
+
+          {/* Customer concentration */}
           <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, padding: "16px 20px" }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.accent, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em" }}>Customer Concentration</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 12 }}>
-              <div><div style={{ fontSize: 14, color: COLORS.textDim }}>HHI Index</div><div style={{ fontSize: 20, fontWeight: 700, color: rq.customer_concentration.hhi < 1500 ? COLORS.green : COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.customer_concentration.hhi.toFixed(0)}</div></div>
-              <div><div style={{ fontSize: 14, color: COLORS.textDim }}>Top 10 %</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.customer_concentration.top_10_pct.toFixed(1)}%</div></div>
-              <div><div style={{ fontSize: 14, color: COLORS.textDim }}>Top 20 %</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.customer_concentration.top_20_pct.toFixed(1)}%</div></div>
-              <div><div style={{ fontSize: 14, color: COLORS.textDim }}>Customers</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.customer_concentration.total_customers.toLocaleString()}</div></div>
-            </div>
-            {rq.customer_concentration.threshold_alerts.length > 0 && (
-              <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.red, marginBottom: 4 }}>THRESHOLD ALERTS</div>
-                {rq.customer_concentration.threshold_alerts.map((a) => (
-                  <div key={a.customer} style={{ fontSize: 15, color: COLORS.textMuted }}>{a.customer}: {a.pct}% (crossed {a.threshold})</div>
-                ))}
-              </div>
+            {hasConcentrationData ? (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 12 }}>
+                  <div><div style={{ fontSize: 14, color: COLORS.textDim }}>HHI Index</div><div style={{ fontSize: 20, fontWeight: 700, color: rq.customer_concentration.hhi < 1500 ? COLORS.green : COLORS.red, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.customer_concentration.hhi.toFixed(0)}</div></div>
+                  <div><div style={{ fontSize: 14, color: COLORS.textDim }}>Top 10 %</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.customer_concentration.top_10_pct.toFixed(1)}%</div></div>
+                  <div><div style={{ fontSize: 14, color: COLORS.textDim }}>Top 20 %</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.customer_concentration.top_20_pct.toFixed(1)}%</div></div>
+                  <div><div style={{ fontSize: 14, color: COLORS.textDim }}>Customers</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.customer_concentration.total_customers.toLocaleString()}</div></div>
+                </div>
+                {rq.customer_concentration.threshold_alerts.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.red, marginBottom: 4 }}>THRESHOLD ALERTS</div>
+                    {rq.customer_concentration.threshold_alerts.map((a) => (
+                      <div key={a.customer} style={{ fontSize: 15, color: COLORS.textMuted }}>{a.customer}: {a.pct}% (crossed {a.threshold})</div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={placeholderStyle}>Data not available — requires customer-level revenue sub-ledger input</div>
             )}
           </div>
 
           {/* Contract quality */}
           <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, padding: "16px 20px" }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.accent, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em" }}>Contract Quality</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-              <div><div style={{ fontSize: 14, color: COLORS.textDim }}>MSA %</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.contract_quality.msa_pct}%</div></div>
-              <div><div style={{ fontSize: 14, color: COLORS.textDim }}>SOW %</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.contract_quality.sow_pct}%</div></div>
-              <div><div style={{ fontSize: 14, color: COLORS.textDim }}>T&M %</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.contract_quality.t_and_m_pct}%</div></div>
-              <div><div style={{ fontSize: 14, color: COLORS.textDim }}>Avg Tenure</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.contract_quality.avg_tenure_years} yrs</div></div>
-            </div>
+            {hasContractData ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+                <div><div style={{ fontSize: 14, color: COLORS.textDim }}>MSA %</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.contract_quality.msa_pct}%</div></div>
+                <div><div style={{ fontSize: 14, color: COLORS.textDim }}>SOW %</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.contract_quality.sow_pct}%</div></div>
+                <div><div style={{ fontSize: 14, color: COLORS.textDim }}>T&M %</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.contract_quality.t_and_m_pct}%</div></div>
+                <div><div style={{ fontSize: 14, color: COLORS.textDim }}>Avg Tenure</div><div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.contract_quality.avg_tenure_years} yrs</div></div>
+              </div>
+            ) : (
+              <div style={placeholderStyle}>Data not available — requires contract management system integration</div>
+            )}
           </div>
 
-          {/* Revenue mix */}
+          {/* Revenue trending */}
           <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, padding: "16px 20px" }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.accent, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em" }}>Revenue Mix (Quarterly)</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 14, color: COLORS.textDim }}>Recurring</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.green, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.revenue_mix.recurring_pct}%</div>
-                <div style={{ fontSize: 14, color: COLORS.textMuted }}>Managed ${rq.revenue_mix.managed_services_M}M · Per-FTE ${rq.revenue_mix.per_fte_M}M · Per-Txn ${rq.revenue_mix.per_transaction_M}M</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 14, color: COLORS.textDim }}>Non-Recurring</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.accent, fontFamily: "'IBM Plex Mono',monospace" }}>{rq.revenue_mix.non_recurring_pct}%</div>
-                <div style={{ fontSize: 14, color: COLORS.textMuted }}>Advisory & Consulting ${rq.revenue_mix.advisory_consulting_M}M</div>
-              </div>
-            </div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.accent, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em" }}>Revenue Trending</div>
+            <div style={placeholderStyle}>Data not available — requires quarterly revenue time series from sub-ledger</div>
           </div>
 
           {/* Cross-sell penetration */}
@@ -2153,7 +2257,8 @@ function QofETab() {
           </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {subView === "working_capital" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -2233,6 +2338,8 @@ function QofETab() {
           )}
         </div>
       )}
+
+      {subView === "ebitda_bridge" && <EBITDABridgeTab />}
     </div>
   );
 }
@@ -2679,7 +2786,7 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
 
   const handleNavigate = useCallback((tab: string) => {
     if (onNavigate) onNavigate(tab);
-    const combinedTabs = ["combining", "crosssell", "cross_sell", "upsell", "bridge", "ebitda", "whatif", "what_if", "qoe", "dashboards"];
+    const combinedTabs = ["combining", "crosssell", "cross_sell", "upsell", "ebitda", "whatif", "what_if", "qoe", "dashboards"];
     if (onEntityChange && combinedTabs.includes(tab)) {
       onEntityChange("combined");
     }
@@ -2909,7 +3016,7 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
   const handleEntityChange = useCallback((e: EntitySelection) => {
     setEntity(e);
     // Reset to a valid tab when switching entity mode
-    const combinedOnlyTabs = ["combining", "overlap", "crosssell", "bridge", "whatif", "qoe", "dashboards"];
+    const combinedOnlyTabs = ["combining", "overlap", "crosssell", "whatif", "qoe", "dashboards"];
     if (e !== "combined" && combinedOnlyTabs.includes(tab)) {
       setTab("pl");
     }
@@ -2953,7 +3060,6 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
         { id: "crosssell", label: "X-Sell", title: "Cross-Sell Pipeline" },
         { id: "upsell", label: "Upsell", title: "Upsell Opportunities" },
         { id: "pipeline", label: "Pipeline" },
-        { id: "bridge", label: "Proforma EBITDA", title: "Proforma EBITDA" },
         { id: "whatif", label: "What-If" },
         { id: "qoe", label: "QofE", title: "Quality of Earnings" },
       ];
@@ -3198,9 +3304,6 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
           <div style={{ maxWidth: CONTENT_MAX_WIDTH, margin: "0 auto" }}><UpsellTab /></div>
         )}
         {tab === "pipeline" && <PipelineTab period={String(lastFullYear)} />}
-        {tab === "bridge" && entity === "combined" && (
-          <div style={{ maxWidth: CONTENT_MAX_WIDTH, margin: "0 auto" }}><EBITDABridgeTab /></div>
-        )}
         {tab === "whatif" && entity === "combined" && <WhatIfTab />}
         {tab === "qoe" && entity === "combined" && (
           <div style={{ maxWidth: CONTENT_MAX_WIDTH, margin: "0 auto" }}><QofETab /></div>

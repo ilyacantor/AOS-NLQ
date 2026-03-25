@@ -786,7 +786,7 @@ PRESENTATION ORDER — follow this EXACT sequence (do NOT reorder):
    - Call query_engine with engine="ebitda_bridge"
    - Present: reported → adjusted → pro forma with each adjustment line
    - Show the bridge using show_table
-   - Navigate to EBITDA tab: call navigate_portal with tab="bridge"
+   - Navigate to EBITDA tab: call navigate_portal with tab="qoe" (EBITDA Bridge is now a sub-tab within QofE)
    - Mention what-if spread (conservative vs aggressive)
 
 4. VENDOR CONSOLIDATION

@@ -914,7 +914,7 @@ class ConversationService:
                 # Auto-navigate portal when engine data is returned during findings
                 engine_to_tab = {
                     "cross_sell": "crosssell",
-                    "ebitda_bridge": "bridge",
+                    "ebitda_bridge": "qoe",
                     "entity_resolution": "overlap",
                     "cofa_mapping": "overlap",
                     "qoe": "qoe",

@@ -259,7 +259,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                     "enum": [
                         "pl", "bs", "cf", "recon",
                         "combining", "overlap", "crosssell",
-                        "bridge", "whatif", "qoe", "dashboards",
+                        "whatif", "qoe", "dashboards",
                     ],
                     "description": "Which portal tab to navigate to.",
                 },
