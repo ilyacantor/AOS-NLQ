@@ -1275,18 +1275,22 @@ function CrossSellTab() {
 
   const s = data.summary;
   const candidates = direction === "m_to_c" ? data.m_to_c : data.c_to_m;
+  const dirCount = direction === "m_to_c" ? s.m_to_c_candidates : s.c_to_m_candidates;
+  const dirAcv = direction === "m_to_c" ? s.m_to_c_total_acv : s.c_to_m_total_acv;
+  const dirHighCount = direction === "m_to_c" ? s.m_to_c_high_conf_count : s.c_to_m_high_conf_count;
+  const dirHighAcv = direction === "m_to_c" ? s.m_to_c_high_conf_acv : s.c_to_m_high_conf_acv;
   const thS: React.CSSProperties = { textAlign: "left", padding: "8px 12px", color: COLORS.textMuted, fontWeight: 500, fontSize: 14, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "'JetBrains Mono',monospace" };
   const thR: React.CSSProperties = { ...thS, textAlign: "right" };
 
   return (
     <div>
-      {/* Summary cards */}
+      {/* Summary cards — first two filter by active direction, last two show combined */}
       <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
         {[
-          { label: "Total Pipeline", value: fmtDollar(s.total_pipeline_acv), sub: `${s.total_candidates} candidates` },
-          { label: "High Confidence", value: fmtDollar(s.total_high_conf_acv), sub: "Score > 80" },
-          { label: "M \u2192 C Candidates", value: String(s.m_to_c_candidates), sub: fmtDollar(s.m_to_c_total_acv) },
-          { label: "C \u2192 M Candidates", value: String(s.c_to_m_candidates), sub: fmtDollar(s.c_to_m_total_acv) },
+          { label: "Pipeline", value: fmtDollar(dirAcv), sub: `${dirCount} candidates` },
+          { label: "High Confidence", value: fmtDollar(dirHighAcv), sub: `${dirHighCount} candidates` },
+          { label: "Combined Pipeline", value: fmtDollar(s.total_pipeline_acv), sub: `${s.total_candidates} total` },
+          { label: "Combined High Conf", value: fmtDollar(s.total_high_conf_acv), sub: "Score \u2265 80" },
         ].map((card) => (
           <div key={card.label} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "16px 20px", flex: "1 1 180px", minWidth: 180 }}>
             <div style={{ fontSize: 15, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>{card.label}</div>
