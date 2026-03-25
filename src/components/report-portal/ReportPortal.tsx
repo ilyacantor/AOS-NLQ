@@ -1541,23 +1541,21 @@ function EBITDABridgeTab() {
           running += syn.amount;
         }
         waterfallBars.push({ label: "Pro Forma Yr 1", base: 0, value: pf.year_1.current, rawValue: pf.year_1.current, type: "total" });
-        const chartHeight = waterfallBars.length * 38 + 60;
-
         return (
           <div style={{ background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.border}`, padding: "20px", marginBottom: 20 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.accent, marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>EBITDA Waterfall</div>
-            <div style={{ width: "100%", height: chartHeight }}>
+            <div style={{ width: "100%", height: 400 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart layout="vertical" data={waterfallBars} margin={{ top: 10, right: 80, left: 10, bottom: 10 }} barCategoryGap="15%">
-                  <YAxis type="category" dataKey="label" tick={{ fontSize: 12, fill: COLORS.textMuted }} axisLine={false} tickLine={false} width={180} />
-                  <XAxis type="number" domain={[0, "auto"]} tickFormatter={(v: number) => { if (v === 0) return "$0"; const absM = Math.abs(v); return absM >= 1000 ? `$${(absM / 1000).toFixed(1)}B` : `$${absM.toFixed(0)}M`; }} tick={{ fontSize: 11, fill: COLORS.textDim }} axisLine={false} tickLine={false} />
+                <BarChart data={waterfallBars} margin={{ top: 30, right: 20, left: 20, bottom: 90 }} barCategoryGap="10%">
+                  <XAxis type="category" dataKey="label" tick={{ fontSize: 11, fill: COLORS.textMuted, angle: -40, textAnchor: "end" }} axisLine={{ stroke: COLORS.border }} tickLine={false} interval={0} height={90} />
+                  <YAxis type="number" domain={[0, "auto"]} tickFormatter={(v: number) => { if (v === 0) return "$0"; const absM = Math.abs(v); return absM >= 1000 ? `$${(absM / 1000).toFixed(1)}B` : `$${absM.toFixed(0)}M`; }} tick={{ fontSize: 11, fill: COLORS.textDim }} axisLine={false} tickLine={false} />
                   <Bar dataKey="base" stackId="stack" fill="transparent" isAnimationActive={false} />
-                  <Bar dataKey="value" stackId="stack" radius={[0, 4, 4, 0]} isAnimationActive={false}
-                    label={({ x, y, width: w, height: h, index }: any) => {
+                  <Bar dataKey="value" stackId="stack" radius={[4, 4, 0, 0]} isAnimationActive={false}
+                    label={({ x, y, width: w, index }: any) => {
                       const bar = waterfallBars[index];
                       if (!bar) return null;
                       return (
-                        <text x={x + w + 6} y={y + h / 2} dominantBaseline="middle" fill={bar.type === "total" ? COLORS.text : bar.rawValue >= 0 ? COLORS.green : COLORS.red} fontSize={12} fontWeight={bar.type === "total" ? 600 : 400} fontFamily="'IBM Plex Mono',monospace">
+                        <text x={x + w / 2} y={y - 8} textAnchor="middle" fill={bar.type === "total" ? COLORS.text : bar.rawValue >= 0 ? COLORS.green : COLORS.red} fontSize={12} fontWeight={bar.type === "total" ? 600 : 400} fontFamily="'IBM Plex Mono',monospace">
                           {fmtDollar(bar.rawValue)}
                         </text>
                       );
