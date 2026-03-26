@@ -3310,11 +3310,11 @@ export function ReportPortal({ onClose }: { onClose: () => void }) {
         {tab === "rev_by_customer" && entity !== "combined" && <RevenueByCustomerTab entityId={entity} />}
       </div>
 
-      {/* Maestra floating chat — always visible */}
+      {/* Maestra floating chat — hidden
       <MaestraFloatingChat
         onNavigate={(t) => { setTab(t); }}
         onEntityChange={(e) => { setEntity(e); }}
-      />
+      /> */}
     </div>
   );
 }
