@@ -629,10 +629,11 @@ def _derive_adj_status(adj: dict) -> str:
 @router.get("/api/reports/qoe")
 async def quality_of_earnings(entity_id: str = Query(None)):
     """Fetch QoE from DCL v2 and transform into QofEData shape."""
-    # Fetch QoE, bridge, cross-sell, and upsell concurrently
-    qoe_data, bridge, cross_sell, upsell_data = await asyncio.gather(
+    # Fetch QoE (includes bridge), cross-sell, and upsell concurrently.
+    # qoe/combined now returns a "bridge" key with the combined bridge data,
+    # so we no longer need a separate /bridge call (was causing pool contention).
+    qoe_data, cross_sell, upsell_data = await asyncio.gather(
         asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/qoe/combined"),
-        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/bridge"),
         asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/cross-sell"),
         asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/upsell"),
     )
@@ -640,6 +641,7 @@ async def quality_of_earnings(entity_id: str = Query(None)):
     entity_a = qoe_data.get("entity_a", {})
     entity_b = qoe_data.get("entity_b", {})
     combined = qoe_data.get("combined", {})
+    bridge = qoe_data.get("bridge", {})
     adjustments = []
     for adj in bridge.get("adjustments", []):
         adjustments.append({
@@ -1157,23 +1159,32 @@ async def combining_income_statement(period: str = Query("2025-Q1")):
 
 # Default lever definitions for the what-if UI
 _WHATIF_LEVER_DEFS = [
-    {"name": "revenue_growth", "label": "Revenue Growth", "min": -20, "max": 20, "default": 0, "unit": "%", "impact_per_point_M": None},
-    {"name": "cogs_change", "label": "COGS Change", "min": -20, "max": 20, "default": 0, "unit": "%", "impact_per_point_M": None},
-    {"name": "opex_change", "label": "OpEx Change", "min": -20, "max": 20, "default": 0, "unit": "%", "impact_per_point_M": None},
-    {"name": "synergy_realization", "label": "Synergy Realization", "min": 0, "max": 100, "default": 50, "unit": "%", "impact_per_point_M": None},
-    {"name": "headcount_change", "label": "Headcount Change", "min": -15, "max": 15, "default": 0, "unit": "%", "impact_per_point_M": None},
+    {"name": "revenue_growth", "label": "Revenue Growth", "min": -20, "max": 20, "default": 0, "unit": "%"},
+    {"name": "cogs_change", "label": "COGS Change", "min": -20, "max": 20, "default": 0, "unit": "%"},
+    {"name": "opex_change", "label": "OpEx Change", "min": -20, "max": 20, "default": 0, "unit": "%"},
+    {"name": "synergy_realization", "label": "Synergy Realization", "min": 0, "max": 100, "default": 50, "unit": "%"},
+    {"name": "ev_multiple", "label": "EV Multiple", "min": 4, "max": 14, "default": 8.0, "unit": "x"},
 ]
 
 _WHATIF_PRESETS = {
-    "conservative": {"revenue_growth": -5, "cogs_change": 5, "opex_change": 5, "synergy_realization": 30, "headcount_change": -5},
-    "base_case": {"revenue_growth": 0, "cogs_change": 0, "opex_change": 0, "synergy_realization": 50, "headcount_change": 0},
-    "optimistic": {"revenue_growth": 10, "cogs_change": -5, "opex_change": -5, "synergy_realization": 80, "headcount_change": 5},
+    "conservative": {"revenue_growth": -5, "cogs_change": 5, "opex_change": 5, "synergy_realization": 30, "ev_multiple": 6.0},
+    "base_case": {"revenue_growth": 0, "cogs_change": 0, "opex_change": 0, "synergy_realization": 50, "ev_multiple": 8.0},
+    "optimistic": {"revenue_growth": 10, "cogs_change": -5, "opex_change": -5, "synergy_realization": 80, "ev_multiple": 10.0},
 }
 
 
 @router.post("/api/reports/what-if")
 async def what_if_scenario(request: Request):
-    """Build WhatIfResult from DCL bridge + lever adjustments."""
+    """Build WhatIfResult from DCL bridge + combining IS lever adjustments.
+
+    Fetches both the EBITDA bridge and combining income statement from DCL
+    in parallel. Uses real P&L line items (revenue, COGS, OpEx) so lever
+    changes apply to actual amounts rather than arbitrary fractions of EBITDA.
+
+    If the IS is unavailable, enters degraded mode: COGS/OpEx levers are
+    disabled and a visible warning is returned. Revenue growth falls back
+    to a constant-margin assumption on adjusted EBITDA.
+    """
     body = await request.json() if await request.body() else {}
     preset = body.get("preset")
     levers = body.get("levers")
@@ -1183,29 +1194,117 @@ async def what_if_scenario(request: Request):
     elif not levers:
         levers = {d["name"]: d["default"] for d in _WHATIF_LEVER_DEFS}
 
-    # Get bridge data from DCL
-    bridge = await asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/bridge")
+    # Strip any legacy headcount_change that old frontends might still send
+    levers.pop("headcount_change", None)
+
+    # Fetch bridge (required) + combining IS (best-effort) in parallel.
+    # return_exceptions=True lets the IS fail without killing the bridge call.
+    from datetime import date
+    last_full_year = date.today().year - 1
+
+    bridge_result, pl_result = await asyncio.gather(
+        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/bridge"),
+        asyncio.to_thread(
+            _dcl_get,
+            "/api/dcl/reports/v2/combining/income-statement",
+            {"period": str(last_full_year)},
+        ),
+        return_exceptions=True,
+    )
+
+    # Bridge is required — if it failed, propagate the error
+    if isinstance(bridge_result, BaseException):
+        raise bridge_result
+    bridge = bridge_result
+
+    # IS is best-effort — if it failed, enter degraded mode
+    if isinstance(pl_result, BaseException):
+        logger.warning(
+            "DCL combining IS fetch failed: %s — entering degraded mode", pl_result,
+        )
+        pl_raw = None
+    else:
+        pl_raw = pl_result
 
     reported = bridge.get("reported_ebitda", 0)
     adjusted = bridge.get("adjusted_ebitda", 0)
     by_lever = bridge.get("by_lever", {})
     synergy_total = by_lever.get("synergy", 0)
 
-    # Apply levers to compute scenario
+    # Extract real P&L values from combining IS
+    base_revenue = None
+    base_cogs = None
+    base_opex = None
+    degraded = False
+    warning = None
+
+    if pl_raw is not None:
+        combined_pl = pl_raw.get("combined", {})
+        flat_pl = _flatten_dcl_statement(combined_pl, "income_statement")
+        base_revenue = flat_pl.get("revenue")
+        base_cogs = flat_pl.get("cogs")
+        base_opex = flat_pl.get("opex")
+
+    if base_revenue is None or base_cogs is None or base_opex is None:
+        degraded = True
+        warning = (
+            "Income statement data unavailable \u2014 COGS and OpEx levers disabled. "
+            "Revenue growth uses constant EBITDA margin assumption."
+        )
+        logger.warning("What-if degraded mode: %s", warning)
+
+    # Parse lever values
     rev_adj = levers.get("revenue_growth", 0) / 100
     cogs_adj = levers.get("cogs_change", 0) / 100
     opex_adj = levers.get("opex_change", 0) / 100
     synergy_pct = levers.get("synergy_realization", 50) / 100
+    ev_multiple = levers.get("ev_multiple", 8.0)
 
-    # Compute scenario EBITDA impact
-    rev_delta = reported * rev_adj
-    scenario_ebitda = adjusted + rev_delta - (adjusted * cogs_adj * 0.3) - (adjusted * opex_adj * 0.2)
+    # Compute scenario EBITDA from real P&L or degraded fallback
+    if not degraded:
+        new_revenue = base_revenue * (1 + rev_adj)
+        new_cogs = base_cogs * (1 + cogs_adj)
+        new_opex = base_opex * (1 + opex_adj)
+        adjustments_total = adjusted - reported
+        scenario_ebitda = new_revenue - new_cogs - new_opex + adjustments_total
+    else:
+        # Degraded: constant-margin assumption on adjusted EBITDA.
+        # COGS/OpEx levers forced to 0 — they are disabled in the UI.
+        rev_delta = adjusted * rev_adj
+        scenario_ebitda = adjusted + rev_delta
+        levers["cogs_change"] = 0
+        levers["opex_change"] = 0
+
     scenario_synergy = synergy_total * synergy_pct
 
     pf_year1 = round(scenario_ebitda + scenario_synergy * 0.5, 2)
     pf_steady = round(scenario_ebitda + scenario_synergy, 2)
 
-    ev_multiple = 8.0
+    # Compute impact_per_point_M: EV(SS) sensitivity per 1pp lever move
+    if not degraded:
+        impact_map = {
+            "revenue_growth": round(base_revenue * ev_multiple / 100, 2),
+            "cogs_change": round(-base_cogs * ev_multiple / 100, 2),
+            "opex_change": round(-base_opex * ev_multiple / 100, 2),
+            "synergy_realization": round(synergy_total * ev_multiple / 100, 2),
+            "ev_multiple": round(pf_steady, 2),
+        }
+    else:
+        impact_map = {
+            "revenue_growth": round(adjusted * ev_multiple / 100, 2),
+            "cogs_change": None,
+            "opex_change": None,
+            "synergy_realization": round(synergy_total * ev_multiple / 100, 2),
+            "ev_multiple": round(pf_steady, 2),
+        }
+
+    lever_defs_out = []
+    for d in _WHATIF_LEVER_DEFS:
+        ld = dict(d)
+        ld["impact_per_point_M"] = impact_map.get(d["name"])
+        if degraded and d["name"] in ("cogs_change", "opex_change"):
+            ld["disabled"] = True
+        lever_defs_out.append(ld)
 
     # Transform bridge adjustments
     entity_adjustments = []
@@ -1230,7 +1329,7 @@ async def what_if_scenario(request: Request):
 
     result = {
         "levers": levers,
-        "lever_definitions": _WHATIF_LEVER_DEFS,
+        "lever_definitions": lever_defs_out,
         "reported_ebitda": reported,
         "entity_adjusted_ebitda": adjusted,
         "adjustments": entity_adjustments,
@@ -1240,7 +1339,13 @@ async def what_if_scenario(request: Request):
             "year_1": round(pf_year1 * ev_multiple, 2),
             "steady_state": round(pf_steady * ev_multiple, 2),
         },
+        "ev_multiple": ev_multiple,
         "presets": _WHATIF_PRESETS,
+        "base_revenue": round(base_revenue, 2) if base_revenue is not None else None,
+        "base_cogs": round(base_cogs, 2) if base_cogs is not None else None,
+        "base_opex": round(base_opex, 2) if base_opex is not None else None,
+        "degraded": degraded,
+        "warning": warning,
     }
     return JSONResponse(content=result)
 

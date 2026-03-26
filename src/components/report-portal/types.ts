@@ -334,6 +334,7 @@ export interface LeverDefinition {
   default: number
   unit: string
   impact_per_point_M: number | null
+  disabled?: boolean
 }
 
 export interface WhatIfResult {
@@ -345,7 +346,13 @@ export interface WhatIfResult {
   synergies: BridgeAdjustment[]
   pro_forma_ebitda: { year_1: number; steady_state: number }
   ev_impact: { year_1: number; steady_state: number }
+  ev_multiple?: number
   presets: Record<string, Record<string, number>>
+  base_revenue?: number | null
+  base_cogs?: number | null
+  base_opex?: number | null
+  degraded?: boolean
+  warning?: string | null
 }
 
 // ── Pipeline ─────────────────────────────────────────────────────────────
