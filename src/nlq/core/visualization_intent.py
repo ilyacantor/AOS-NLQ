@@ -466,50 +466,53 @@ def _extract_metrics_from_query(query: str, persona: Optional[str] = None) -> Tu
     }
 
     # Try multi-word phrases first (e.g., "accounts receivable", "gross margin")
-    for i in range(len(words)):
-        if i in matched_indices:
-            continue
+    try:
+        for i in range(len(words)):
+            if i in matched_indices:
+                continue
 
-        # Try 3-word phrases — but skip if ALL words are stopwords
-        if i + 2 < len(words):
-            phrase_words = words[i:i+3]
-            if not all(w in _STOPWORDS for w in phrase_words):
-                # Skip phrases containing dimension words (e.g., "revenue by quarter")
-                if not any(w in dimension_words for w in phrase_words):
-                    phrase = " ".join(phrase_words)
-                    metric_id = _resolve_for_viz(phrase, semantic_client, local_only=True)
-                    if metric_id and metric_id not in metrics:
-                        metrics.append(metric_id)
-                        matched_indices.update([i, i+1, i+2])
-                        logger.debug(f"Resolved '{phrase}' -> '{metric_id}'")
-                        continue
+            # Try 3-word phrases — but skip if ALL words are stopwords
+            if i + 2 < len(words):
+                phrase_words = words[i:i+3]
+                if not all(w in _STOPWORDS for w in phrase_words):
+                    # Skip phrases containing dimension words (e.g., "revenue by quarter")
+                    if not any(w in dimension_words for w in phrase_words):
+                        phrase = " ".join(phrase_words)
+                        metric_id = _resolve_for_viz(phrase, semantic_client, local_only=True)
+                        if metric_id and metric_id not in metrics:
+                            metrics.append(metric_id)
+                            matched_indices.update([i, i+1, i+2])
+                            logger.debug(f"Resolved '{phrase}' -> '{metric_id}'")
+                            continue
 
-        # Try 2-word phrases — skip if ALL words are stopwords
-        if i + 1 < len(words):
-            phrase_words = words[i:i+2]
-            if not all(w in _STOPWORDS for w in phrase_words):
-                # Skip phrases containing dimension words
-                if not any(w in dimension_words for w in phrase_words):
-                    phrase = " ".join(phrase_words)
-                    metric_id = _resolve_for_viz(phrase, semantic_client, local_only=True)
-                    if metric_id and metric_id not in metrics:
-                        metrics.append(metric_id)
-                        matched_indices.update([i, i+1])
-                        logger.debug(f"Resolved '{phrase}' -> '{metric_id}'")
-                        continue
+            # Try 2-word phrases — skip if ALL words are stopwords
+            if i + 1 < len(words):
+                phrase_words = words[i:i+2]
+                if not all(w in _STOPWORDS for w in phrase_words):
+                    # Skip phrases containing dimension words
+                    if not any(w in dimension_words for w in phrase_words):
+                        phrase = " ".join(phrase_words)
+                        metric_id = _resolve_for_viz(phrase, semantic_client, local_only=True)
+                        if metric_id and metric_id not in metrics:
+                            metrics.append(metric_id)
+                            matched_indices.update([i, i+1])
+                            logger.debug(f"Resolved '{phrase}' -> '{metric_id}'")
+                            continue
 
-        # Try single words
-        word = words[i]
-        if word in _STOPWORDS:
-            continue
-        # Skip dimension words (words after "by")
-        if word in dimension_words:
-            continue
-        metric_id = _resolve_for_viz(word, semantic_client, local_only=False)
-        if metric_id and metric_id not in metrics:
-            metrics.append(metric_id)
-            matched_indices.add(i)
-            logger.debug(f"Resolved '{word}' -> '{metric_id}'")
+            # Try single words
+            word = words[i]
+            if word in _STOPWORDS:
+                continue
+            # Skip dimension words (words after "by")
+            if word in dimension_words:
+                continue
+            metric_id = _resolve_for_viz(word, semantic_client, local_only=False)
+            if metric_id and metric_id not in metrics:
+                metrics.append(metric_id)
+                matched_indices.add(i)
+                logger.debug(f"Resolved '{word}' -> '{metric_id}'")
+    except ConnectionError:
+        logger.warning("DCL unreachable during viz metric extraction — continuing with %d metrics found so far", len(metrics))
 
     # Check for persona-specific dashboard requests FIRST so we can merge
     # resolved metrics with persona defaults for consistent layout

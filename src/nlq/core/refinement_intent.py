@@ -246,7 +246,7 @@ def _extract_metric(query: str) -> Optional[str]:
             resolved = semantic_client.resolve_metric(words[i])
             if resolved:
                 return resolved.id
-    except (ImportError, RuntimeError, OSError, KeyError, AttributeError) as e:
+    except (ImportError, RuntimeError, OSError, KeyError, AttributeError, ConnectionError) as e:
         import logging
         logging.getLogger(__name__).warning(f"DCL metric extraction failed, using legacy patterns: {e}")
 

@@ -649,14 +649,13 @@ class DCLSemanticClient:
                 ),
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code != 404:
-                logger.warning(f"DCL metric resolution error: {e}")
-                self._record_dcl_failure()
-            return None
+            logger.warning(f"DCL metric resolution error: {e}")
+            self._record_dcl_failure()
+            raise ConnectionError(f"DCL metric resolution error: {e}") from e
         except (httpx.RequestError, json.JSONDecodeError, KeyError) as e:
             logger.warning(f"DCL metric resolution failed: {e}")
             self._record_dcl_failure()
-            return None
+            raise ConnectionError(f"DCL metric resolution failed: {e}") from e
 
     def search(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """Search DCL for metrics and entities matching a free-text query.
@@ -690,8 +689,8 @@ class DCLSemanticClient:
             results = data.get("results", data) if isinstance(data, dict) else data
             return results if isinstance(results, list) else []
         except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError) as e:
-            logger.debug(f"DCL search failed for '{query}': {e}")
-            return []
+            logger.warning(f"DCL search failed for '{query}': {e}")
+            raise ConnectionError(f"DCL search failed: {e}") from e
 
     def _resolve_metric_locally(self, user_term: str) -> Optional[MetricDefinition]:
         """Resolve metric using local catalog."""
@@ -737,8 +736,8 @@ class DCLSemanticClient:
             # Data isolation is handled by entity_id, not tenant_id. If DCL has data, it's live.
             return True
         except (RuntimeError, AttributeError, KeyError, TypeError) as e:
-            logger.debug("Ingest summary check failed: %s", e)
-            return False
+            logger.warning("Ingest summary check failed — cannot determine live data status: %s", e)
+            raise ConnectionError(f"Cannot determine DCL live data status: {e}") from e
 
     def get_ingest_summary(self) -> Optional[IngestSummary]:
         """Return the ingest summary from the cached catalog, or None."""
@@ -865,8 +864,8 @@ class DCLSemanticClient:
             response.raise_for_status()
             return response.json()
         except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError) as e:
-            logger.debug(f"DCL entity resolution failed for '{user_term}': {e}")
-            return None
+            logger.warning(f"DCL entity resolution failed for '{user_term}': {e}")
+            raise ConnectionError(f"DCL entity resolution failed: {e}") from e
 
     def validate_dimension(self, metric_id: str, dimension: str) -> Tuple[bool, Optional[str]]:
         """
@@ -1376,6 +1375,7 @@ class DCLSemanticClient:
         normalized["run_provenance"] = {
             "run_id": metadata.get("run_id"),
             "tenant_id": metadata.get("tenant_id"),
+            "entity_id": metadata.get("entity_id"),
             "snapshot_name": metadata.get("snapshot_name"),
             "run_timestamp": metadata.get("run_timestamp"),
             "source_systems": source_systems,

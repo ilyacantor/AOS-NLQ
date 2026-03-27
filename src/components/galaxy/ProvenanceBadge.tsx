@@ -201,10 +201,10 @@ export const ProvenanceBadge: React.FC<ProvenanceBadgeProps> = ({
                   <span className="text-slate-300">{formatTimestamp(provenance.run_timestamp)}</span>
                 </div>
               )}
-              {provenance?.snapshot_name && (
+              {(provenance?.entity_id || provenance?.snapshot_name) && (
                 <div>
-                  <span className="text-slate-500">Snapshot: </span>
-                  <span className="text-slate-300">{provenance.snapshot_name}</span>
+                  <span className="text-slate-500">Entity: </span>
+                  <span className="text-slate-300">{provenance.entity_id || provenance.snapshot_name}</span>
                 </div>
               )}
               {provenance?.tenant_id && (
