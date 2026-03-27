@@ -114,10 +114,18 @@ const quickActions = [
   'arr',
 ]
 
+function getInitialView(): ViewMode {
+  const params = new URLSearchParams(window.location.search)
+  const v = params.get('view')
+  const valid: ViewMode[] = ['galaxy', 'dashboard', 'guide', 'reports']
+  if (v && valid.includes(v as ViewMode)) return v as ViewMode
+  return 'galaxy'
+}
+
 function App() {
   // Core state
   const [query, setQuery] = useState('')
-  const [viewMode, setViewMode] = useState<ViewMode>('galaxy')
+  const [viewMode, setViewMode] = useState<ViewMode>(getInitialView())
   const [selectedPersona, setSelectedPersona] = useState<Persona>('CFO')
   const [panelTab, setPanelTab] = useState<PanelTab>('History')
   const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([])
