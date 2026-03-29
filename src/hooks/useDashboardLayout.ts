@@ -64,6 +64,7 @@ export function useDashboardLayout({
     donut_chart: halfGrid,
     horizontal_bar: halfGrid,
     data_table: halfGrid,
+    pipeline_funnel: halfGrid,
   };
 
   const maxSpanForType = (type: string) => {

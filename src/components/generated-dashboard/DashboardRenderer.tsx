@@ -81,21 +81,22 @@ function normalizeSchema(s: DashboardSchema): DashboardSchema {
   const maxH: Record<string, number> = { kpi_card: 2, data_table: 5, map: 3 };
   const maxW: Record<string, number> = { map: 6 };
   const defaultMaxH = 4; // charts
+  const defaultMaxW = 6; // half grid — no card wider than half screen
   const changed = s.widgets.some(w => {
     const capH = maxH[w.type] ?? defaultMaxH;
-    const capW = maxW[w.type];
-    return w.position.row_span > capH || (capW && w.position.col_span > capW);
+    const capW = maxW[w.type] ?? defaultMaxW;
+    return w.position.row_span > capH || w.position.col_span > capW;
   });
   if (!changed) return s;
   return {
     ...s,
     widgets: s.widgets.map(w => {
       const capH = maxH[w.type] ?? defaultMaxH;
-      const capW = maxW[w.type];
+      const capW = maxW[w.type] ?? defaultMaxW;
       const needsH = w.position.row_span > capH;
-      const needsW = capW && w.position.col_span > capW;
+      const needsW = w.position.col_span > capW;
       if (!needsH && !needsW) return w;
-      return { ...w, position: { ...w.position, row_span: needsH ? capH : w.position.row_span, col_span: (needsW && capW) ? capW : w.position.col_span } };
+      return { ...w, position: { ...w.position, row_span: needsH ? capH : w.position.row_span, col_span: needsW ? capW : w.position.col_span } };
     }),
   };
 }

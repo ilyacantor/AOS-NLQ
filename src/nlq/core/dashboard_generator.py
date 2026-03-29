@@ -734,7 +734,7 @@ def _generate_full_dashboard(
             data=DataBinding(
                 metrics=[MetricBinding(metric="pipeline", format="$0.0M")],
             ),
-            position=GridPosition(column=1, row=max_row + 1, col_span=12, row_span=3),
+            position=GridPosition(column=1, row=max_row + 1, col_span=6, row_span=3),
         ))
         if debug_info:
             debug_info.add_decision(
