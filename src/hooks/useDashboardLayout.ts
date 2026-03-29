@@ -17,6 +17,8 @@ export type LayoutItem = {
 interface UseDashboardLayoutProps {
   schema: DashboardSchema | null;
   setSchema: React.Dispatch<React.SetStateAction<DashboardSchema | null>>;
+  /** Called after every edit-mode layout change with the updated layoutMap, for sessionStorage persistence */
+  onLayoutPersist?: (layoutMap: Record<string, LayoutItem>) => void;
 }
 
 interface UseDashboardLayoutReturn {
@@ -34,6 +36,7 @@ interface UseDashboardLayoutReturn {
 export function useDashboardLayout({
   schema,
   setSchema,
+  onLayoutPersist,
 }: UseDashboardLayoutProps): UseDashboardLayoutReturn {
   const [layoutMap, setLayoutMap] = useState<Record<string, LayoutItem>>({});
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,6 +69,11 @@ export function useDashboardLayout({
     data_table: halfGrid,
     pipeline_funnel: halfGrid,
   };
+
+  const CHART_TYPES = [
+    'line_chart', 'bar_chart', 'area_chart', 'stacked_bar',
+    'donut_chart', 'horizontal_bar', 'pipeline_funnel',
+  ];
 
   const maxSpanForType = (type: string) => {
     if (type === 'kpi_card') return 2;
@@ -110,6 +118,9 @@ export function useDashboardLayout({
         }
         newMap[item.i] = item;
       });
+      if (changed && onLayoutPersist) {
+        onLayoutPersist(newMap);
+      }
       return changed ? newMap : prevMap;
     });
 
@@ -160,13 +171,11 @@ export function useDashboardLayout({
 
       // ----- Categorise widgets by type -----
       const kpis = prevSchema.widgets.filter(w => w.type === 'kpi_card');
-      const charts = prevSchema.widgets.filter(w =>
-        ['line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar'].includes(w.type)
-      );
+      const charts = prevSchema.widgets.filter(w => CHART_TYPES.includes(w.type));
       const maps = prevSchema.widgets.filter(w => w.type === 'map');
       const tables = prevSchema.widgets.filter(w => w.type === 'data_table');
       const others = prevSchema.widgets.filter(w =>
-        !['kpi_card', 'line_chart', 'bar_chart', 'area_chart', 'stacked_bar', 'donut_chart', 'horizontal_bar', 'data_table', 'map'].includes(w.type)
+        !['kpi_card', ...CHART_TYPES, 'data_table', 'map'].includes(w.type)
       );
 
       // ----- Grid helpers -----

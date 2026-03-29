@@ -73,26 +73,65 @@ import { ForecastComparison } from './ForecastComparison';
 import type { ForecastRow } from './ForecastComparison';
 
 // =============================================================================
+// Layout Persistence (sessionStorage)
+// =============================================================================
+
+const LAYOUT_STORAGE_KEY = 'aos_dashboard_layout';
+
+/** Deterministic fingerprint from widget IDs — stable across re-generations of the same persona dashboard */
+function schemaFingerprint(s: DashboardSchema): string {
+  return JSON.stringify(s.widgets.map(w => w.id).sort());
+}
+
+function persistLayout(schema: DashboardSchema, layoutMap: Record<string, any>): void {
+  try {
+    sessionStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify({
+      fingerprint: schemaFingerprint(schema),
+      layout: layoutMap,
+    }));
+  } catch { /* sessionStorage full — non-fatal */ }
+}
+
+function restoreLayout(schema: DashboardSchema): Record<string, any> | null {
+  try {
+    const stored = sessionStorage.getItem(LAYOUT_STORAGE_KEY);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    if (parsed.fingerprint === schemaFingerprint(schema)) {
+      return parsed.layout;
+    }
+  } catch { /* corrupt data — ignore */ }
+  return null;
+}
+
+// =============================================================================
 // Main Component
 // =============================================================================
 
-/** Cap widget row_span and col_span at the schema level so every downstream consumer gets compact sizes */
+/** Normalize widget sizes at the schema level so every downstream consumer gets consistent dimensions.
+ *  Charts are set to exactly 6×4 (half-grid width, uniform height).
+ *  KPIs, tables, and maps are capped at their type-specific maximums. */
 function normalizeSchema(s: DashboardSchema): DashboardSchema {
+  const CHART_TYPES = new Set([
+    'line_chart', 'bar_chart', 'area_chart', 'stacked_bar',
+    'donut_chart', 'horizontal_bar', 'pipeline_funnel',
+  ]);
+  const CHART_W = 6; // half grid — two charts per row
+  const CHART_H = 4;
   const maxH: Record<string, number> = { kpi_card: 2, data_table: 5, map: 3 };
-  const maxW: Record<string, number> = { map: 6 };
-  const defaultMaxH = 4; // charts
-  const defaultMaxW = 6; // half grid — no card wider than half screen
-  const changed = s.widgets.some(w => {
-    const capH = maxH[w.type] ?? defaultMaxH;
-    const capW = maxW[w.type] ?? defaultMaxW;
-    return w.position.row_span > capH || w.position.col_span > capW;
-  });
-  if (!changed) return s;
+  const maxW: Record<string, number> = { map: 6, data_table: 6 };
+
   return {
     ...s,
     widgets: s.widgets.map(w => {
-      const capH = maxH[w.type] ?? defaultMaxH;
-      const capW = maxW[w.type] ?? defaultMaxW;
+      // Charts: enforce exact uniform size
+      if (CHART_TYPES.has(w.type)) {
+        if (w.position.col_span === CHART_W && w.position.row_span === CHART_H) return w;
+        return { ...w, position: { ...w.position, col_span: CHART_W, row_span: CHART_H } };
+      }
+      // Non-charts: cap at type-specific maximums
+      const capH = maxH[w.type] ?? 4;
+      const capW = maxW[w.type] ?? 6;
       const needsH = w.position.row_span > capH;
       const needsW = w.position.col_span > capW;
       if (!needsH && !needsW) return w;
@@ -218,7 +257,13 @@ export function DashboardRenderer({
     gridLayout,
     handleLayoutChange,
     handleAutoArrange,
-  } = useDashboardLayout({ schema, setSchema });
+  } = useDashboardLayout({
+    schema,
+    setSchema,
+    onLayoutPersist: useCallback((map: Record<string, any>) => {
+      if (schema) persistLayout(schema, map);
+    }, [schema]),
+  });
 
   // Populate widget data from pre-resolved backend data.
   // Widgets without backend data show an explicit error — no mock data substitution.
@@ -274,6 +319,27 @@ export function DashboardRenderer({
     fetchWidgetData,
   });
 
+  // Wrap handleLoad to sync loaded dashboard to App.tsx (sessionStorage) so it survives view switches
+  const handleLoadWithSync = useCallback((item: SavedDashboard | SavedTemplate) => {
+    handleLoad(item);
+    const saved = item as SavedDashboard;
+    // Sync to App.tsx → updates dashboardSchema + sessionStorage
+    onRefinement?.(item.schema, saved.widgetData);
+    // Persist loaded layout to sessionStorage for view-switch survival
+    if (saved.layoutMap && Object.keys(saved.layoutMap).length > 0) {
+      persistLayout(item.schema, saved.layoutMap);
+    }
+  }, [handleLoad, onRefinement]);
+
+  // Wrap handleSave to also persist layout to sessionStorage and sync to App.tsx
+  const handleSaveWithSync = useCallback(() => {
+    handleSave();
+    if (schema) {
+      persistLayout(schema, layoutMap);
+      onRefinement?.(schema, widgetData);
+    }
+  }, [handleSave, schema, layoutMap, widgetData, onRefinement]);
+
   // Escape key closes the topmost modal/overlay (prevents stuck states)
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -293,14 +359,22 @@ export function DashboardRenderer({
       setShowTestModal, setShowSaveModal, setShowTemplateModal, setShowLoadModal]);
 
   // Sync with initialSchema/initialWidgetData prop changes (for persona switching)
+  // Restores persisted layout if widget fingerprint matches; otherwise auto-arranges.
   useEffect(() => {
     if (initialSchema) {
       setSchema(initialSchema);
-      setLayoutMap({}); // Clear custom positions when new schema is loaded
       setError(null);
       defaultSchemaRef.current = initialSchema;
-      // Auto-arrange after schema is set (runs on next render via setTimeout)
-      setTimeout(() => handleAutoArrange(), 0);
+
+      // Check for a persisted layout that matches this schema's widgets
+      const restored = restoreLayout(initialSchema);
+      if (restored && Object.keys(restored).length > 0) {
+        setLayoutMap(restored);
+        // Skip auto-arrange — user's layout is preserved
+      } else {
+        setLayoutMap({});
+        setTimeout(() => handleAutoArrange(), 0);
+      }
     }
   }, [initialSchema]);
 
@@ -775,7 +849,7 @@ export function DashboardRenderer({
                 Cancel
               </button>
               <button
-                onClick={handleSave}
+                onClick={handleSaveWithSync}
                 disabled={!saveName.trim()}
                 className="flex-1 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 transition-colors"
               >
@@ -829,7 +903,7 @@ export function DashboardRenderer({
       {showLoadModal && (
         <LoadModal
           onClose={() => setShowLoadModal(false)}
-          onLoad={handleLoad}
+          onLoad={handleLoadWithSync}
           onDelete={(id, type) => {
             if (type === 'dashboard') deleteSavedDashboard(id);
             else deleteSavedTemplate(id);
