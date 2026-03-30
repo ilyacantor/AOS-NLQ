@@ -43,6 +43,7 @@ export interface RunProvenance {
   run_id?: string | null;           // AAM-generated run ID (e.g., "run_555_sf_revenue")
   tenant_id?: string | null;        // Tenant/snapshot owner
   snapshot_name?: string | null;    // Logical dataset name
+  entity_id?: string | null;        // Entity identifier from DCL ingestion
   run_timestamp?: string | null;    // ISO 8601 extraction time
   source_systems?: string[];        // Contributing source systems
   freshness?: string | null;        // Human-friendly age (e.g., "2h")

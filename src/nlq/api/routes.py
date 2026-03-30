@@ -471,7 +471,7 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None, entity
             elif isinstance(data, (int, float)):
                 return data
             return None
-        except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
+        except (RuntimeError, KeyError, TypeError, ValueError, OSError, ConnectionError) as e:
             logger.warning(f"Dashboard metric '{metric}' query failed: {e}")
             raise
 
@@ -494,7 +494,7 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None, entity
         for metric in metrics_to_query:
             try:
                 value = _query_metric_value(metric, period)
-            except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
+            except (RuntimeError, KeyError, TypeError, ValueError, OSError, ConnectionError) as e:
                 logger.debug(f"Dashboard metric '{metric}' unavailable: {e}")
                 continue
             if value is not None:
@@ -1582,7 +1582,7 @@ def _try_tiered_metric_query_core(question: str, entity_id: Optional[str] = None
                     return _query_fn(result.canonical_metric, period=_extracted_period)
     except ImportError:
         pass  # Embedding index not available, fall through
-    except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
+    except (RuntimeError, KeyError, TypeError, ValueError, OSError, ConnectionError) as e:
         logger.warning(f"Embedding lookup failed: {e}")
 
     return None  # No match, let normal flow handle it
@@ -4576,7 +4576,17 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
         # generate proper dashboard widgets. Only text-mode dashboard summaries go through the old handler.
         if _is_dashboard_query(request.question):
             # Check if this should be a visual dashboard first
-            should_viz, viz_requirements = should_generate_visualization(request.question, persona=request.persona)
+            try:
+                should_viz, viz_requirements = should_generate_visualization(request.question, persona=request.persona)
+            except (RuntimeError, ConnectionError) as e:
+                logger.error(f"Dashboard intent detection failed — DCL unavailable: {e}")
+                return NLQResponse(
+                    success=False,
+                    answer=f"Data is currently unavailable — the semantic layer could not be reached ({e}). Check that DCL is running.",
+                    confidence=0.0,
+                    error_code="DCL_UNAVAILABLE",
+                    error_details={"exception": str(e), "category": FailureCategory.INTENT_DETECTION.value},
+                )
             if should_viz and viz_requirements.intent != VisualizationIntent.SIMPLE_ANSWER:
                 # Generate dashboard directly — don't fall through intermediate checks
                 try:
@@ -4615,7 +4625,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
                         data_source="live",
                         provenance=data_resolver.provenance,
                     )
-                except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
+                except (RuntimeError, KeyError, TypeError, ValueError, OSError, ConnectionError) as e:
                     logger.error(f"Dashboard generation failed (early path): {e}", exc_info=True)
                     # Fall through to intermediate checks and downstream viz handler
             else:
@@ -4806,7 +4816,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
                     data_source="live",
                     provenance=data_resolver.provenance,
                 )
-            except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
+            except (RuntimeError, KeyError, TypeError, ValueError, OSError, ConnectionError) as e:
                 logger.error(f"Dashboard refinement failed: {e}", exc_info=True)
                 if is_strict_mode():
                     # In strict mode, return error response instead of falling through
@@ -4820,7 +4830,17 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
                 # In production, fall through to new dashboard generation
 
         # Check for new visualization request
-        should_viz, viz_requirements = should_generate_visualization(request.question, persona=request.persona)
+        try:
+            should_viz, viz_requirements = should_generate_visualization(request.question, persona=request.persona)
+        except (RuntimeError, ConnectionError) as e:
+            logger.error(f"Visualization intent detection failed — DCL unavailable: {e}")
+            return NLQResponse(
+                success=False,
+                answer=f"Data is currently unavailable — the semantic layer could not be reached ({e}). Check that DCL is running.",
+                confidence=0.0,
+                error_code="DCL_UNAVAILABLE",
+                error_details={"exception": str(e), "category": FailureCategory.INTENT_DETECTION.value},
+            )
 
         if should_viz and viz_requirements.intent != VisualizationIntent.SIMPLE_ANSWER:
             logger.info(f"Visualization intent detected: {viz_requirements.intent.value}")
@@ -4864,7 +4884,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
                     provenance=data_resolver.provenance,
                     debug_info=debug_info.to_dict() if is_strict_mode() else None,
                 )
-            except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
+            except (RuntimeError, KeyError, TypeError, ValueError, OSError, ConnectionError) as e:
                 logger.error(f"Dashboard generation failed: {e}", exc_info=True)
                 if is_strict_mode():
                     # In strict mode, return error response instead of falling through
@@ -5078,7 +5098,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
             for key, val in enrichment.items():
                 if key not in dcl_data:
                     dcl_data[key] = val
-        except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
+        except (RuntimeError, KeyError, TypeError, ValueError, OSError, ConnectionError) as e:
             logger.debug(f"DCL enrichment skipped: {e}")
 
         response = NLQResponse(

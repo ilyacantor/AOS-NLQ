@@ -111,7 +111,7 @@ async def filter_dashboard(request: DashboardFilterRequest) -> DashboardFilterRe
             error=None,
         )
 
-    except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
+    except (RuntimeError, KeyError, TypeError, ValueError, OSError, ConnectionError) as e:
         logger.error(f"Filter failed: {e}", exc_info=True)
         return DashboardFilterResponse(
             success=False,
@@ -136,7 +136,13 @@ async def check_intent(question: str) -> dict:
 
     Returns the detected intent without generating a full dashboard.
     """
-    should_viz, requirements = should_generate_visualization(question)
+    try:
+        should_viz, requirements = should_generate_visualization(question)
+    except (RuntimeError, ConnectionError) as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Cannot check visualization intent — DCL unavailable: {e}",
+        )
 
     return {
         "query": question,

@@ -78,7 +78,7 @@ async def health() -> HealthResponse:
         catalog = dcl_client.get_catalog()
         dcl_available = len(catalog.metrics) > 0
         diag(f"[NLQ-DIAG] /health: dcl_available={dcl_available}, metrics={len(catalog.metrics)}, source={dcl_client.catalog_source}")
-    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as e:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError, ConnectionError) as e:
         print(f"[NLQ-DIAG] /health: DCL check FAILED: {e}")
         logger.warning(f"DCL health check failed: {e}")
 
@@ -137,7 +137,7 @@ async def pipeline_status() -> PipelineStatusResponse:
         catalog = dcl_client.get_catalog()
         metric_count = len(catalog.metrics)
         catalog_source = dcl_client.catalog_source  # re-read after load
-    except (RuntimeError, KeyError, TypeError, AttributeError, OSError) as e:
+    except (RuntimeError, KeyError, TypeError, AttributeError, OSError, ConnectionError) as e:
         logger.warning("DCL catalog check failed in pipeline_status: %s", e)
 
     # Provenance: from health response (real-time) + catalog ingest summary

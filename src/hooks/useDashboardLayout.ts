@@ -1,18 +1,10 @@
 // *Last updated: 2026-02-07*
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { Layout } from 'react-grid-layout';
+import type { Layout, LayoutItem } from 'react-grid-layout/legacy';
 import { DashboardSchema } from '../types/generated-dashboard';
 
-export type LayoutItem = {
-  i: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  minW?: number;
-  minH?: number;
-};
+export type { LayoutItem };
 
 interface UseDashboardLayoutProps {
   schema: DashboardSchema | null;
@@ -29,7 +21,7 @@ interface UseDashboardLayoutReturn {
   editMode: boolean;
   setEditMode: React.Dispatch<React.SetStateAction<boolean>>;
   gridLayout: LayoutItem[];
-  handleLayoutChange: (newLayout: Layout[]) => void;
+  handleLayoutChange: (newLayout: Layout) => void;
   handleAutoArrange: () => void;
 }
 
@@ -103,7 +95,7 @@ export function useDashboardLayout({
     });
   }, [schema, layoutMap]);
 
-  const handleLayoutChange = useCallback((newLayout: Layout[]) => {
+  const handleLayoutChange = useCallback((newLayout: Layout) => {
     if (!editModeRef.current) {
       return;
     }

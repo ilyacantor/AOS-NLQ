@@ -426,7 +426,7 @@ class NLQQueryRouter:
                 }
             )
 
-        except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
+        except (RuntimeError, KeyError, TypeError, ValueError, OSError, ConnectionError) as e:
             logger.error(f"LLM processing error: {e}")
 
             if self.learning_log:

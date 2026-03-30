@@ -113,7 +113,7 @@ class DashboardDataResolver:
                     list(all_metrics), entity_id=entity_id,
                 )
                 prefetched = batch_result
-            except (RuntimeError, OSError) as e:
+            except (RuntimeError, OSError, ConnectionError) as e:
                 logger.error(f"Batch prefetch failed: {e}")
                 # Widget resolvers will surface "No data" errors for each widget
 
@@ -136,7 +136,7 @@ class DashboardDataResolver:
                     }
                 else:
                     widget_data[widget.id] = data
-            except (RuntimeError, KeyError, TypeError, ValueError, OSError) as e:
+            except (RuntimeError, KeyError, TypeError, ValueError, OSError, ConnectionError) as e:
                 logger.error(f"Error resolving data for widget {widget.id}: {e}")
                 widget_data[widget.id] = {
                     "error": str(e),
