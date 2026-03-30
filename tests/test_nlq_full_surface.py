@@ -4,7 +4,7 @@ Full surface harness — tests all three NLQ user-facing surfaces.
 Covers: Ask tab (metric queries), Dashboard tab, Reports tab (financial
 statements, combining statements, overlap, cross-sell, bridge, QoE).
 
-Per HARNESS_RULES:
+Per CLAUDE.md:
 - B1/B2: Tests hit NLQ's user-facing endpoints, not DCL directly
 - B4: Assert positive expected outcome, not just absence of bad
 - B6: No cross-repo imports — DCL queries go via HTTP

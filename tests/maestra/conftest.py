@@ -13,7 +13,7 @@ SEED_CUSTOMER_ID = "00000000-0000-0000-0000-000000000001"
 def maestra_ready(client):
     """Verify Maestra prerequisites before running integration tests.
 
-    Uses pytest.fail (not skip) — per HARNESS_RULES, missing infrastructure
+    Uses pytest.fail (not skip) — per CLAUDE.md, missing infrastructure
     is a test failure, not a reason to skip.
     """
     try:

@@ -2,7 +2,7 @@
 Dashboard & Provenance Test Harness
 
 Tests the CFO dashboard widget path and provenance badge through /api/v1/query
-with natural language queries. All assertions follow HARNESS_RULES.md.
+with natural language queries. All assertions follow CLAUDE.md.
 
 Ground truth: DCL is queried at startup to confirm revenue-by-customer data exists.
 
