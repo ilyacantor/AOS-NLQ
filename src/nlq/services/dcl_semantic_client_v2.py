@@ -124,7 +124,15 @@ class DCLSemanticClientV2:
     # ------------------------------------------------------------------
 
     def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """GET request to DCL. Raises on non-2xx."""
+        """GET request to DCL. Raises on non-2xx.
+
+        For v2 report paths, auto-injects tenant_id and pipeline_run_id
+        so Convergence v2 endpoints receive the required identity pair (I2/I6).
+        """
+        if path.startswith("/api/dcl/reports/v2/"):
+            from nlq.config import get_tenant_id, get_pipeline_run_id
+            identity = {"tenant_id": get_tenant_id(), "pipeline_run_id": get_pipeline_run_id()}
+            params = {**identity, **(params or {})}
         resp = self._http.get(path, params=params)
         if resp.status_code >= 400:
             raise RuntimeError(
@@ -134,7 +142,18 @@ class DCLSemanticClientV2:
         return resp.json()
 
     def _post(self, path: str, body: Dict[str, Any]) -> Dict[str, Any]:
-        """POST request to DCL. Raises on non-2xx."""
+        """POST request to DCL. Raises on non-2xx.
+
+        For v2 report paths, auto-injects tenant_id and pipeline_run_id
+        into the JSON body so Convergence v2 endpoints receive identity (I2/I6).
+        """
+        if path.startswith("/api/dcl/reports/v2/"):
+            from nlq.config import get_tenant_id, get_pipeline_run_id
+            body = {
+                "tenant_id": get_tenant_id(),
+                "pipeline_run_id": get_pipeline_run_id(),
+                **body,
+            }
         resp = self._http.post(path, json=body)
         if resp.status_code >= 400:
             raise RuntimeError(

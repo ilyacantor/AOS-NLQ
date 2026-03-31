@@ -84,14 +84,12 @@ def get_tenant_id() -> Optional[str]:
     try:
         _uuid_mod.UUID(raw_tid)
     except (ValueError, AttributeError):
-        _config_logger.error(
+        raise RuntimeError(
             f"FATAL CONFIG: get_tenant_id() resolved '{raw_tid}' from {source}, "
             f"but this is NOT a valid UUID. The rag_sessions/rag_cache_entries tables "
             f"require UUID tenant_id columns. "
-            f"Set AOS_TENANT_ID to a valid UUID (e.g. '00000000-0000-0000-0000-000000000001'). "
-            f"Returning None — all tenant-filtered queries will be skipped."
+            f"Set AOS_TENANT_ID to a valid UUID (e.g. '00000000-0000-0000-0000-000000000001')."
         )
-        return None
 
     _tenant_id_cache = raw_tid
     return _tenant_id_cache
@@ -101,6 +99,81 @@ def reset_tenant_cache() -> None:
     """Clear the cached tenant ID. For testing only."""
     global _tenant_id_cache
     _tenant_id_cache = None
+
+
+# ---------------------------------------------------------------------------
+# Pipeline run ID resolution (from Convergence engagement/active endpoint)
+# ---------------------------------------------------------------------------
+
+_pipeline_run_id_cache: Optional[str] = None
+
+
+def get_pipeline_run_id() -> str:
+    """Resolve the active pipeline_run_id from Convergence.
+
+    Calls Convergence's /engagement/active?tenant_id=<UUID> to get the
+    current_pipeline_run_id from convergence_tenant_runs. This is the
+    run pointer that v2 report endpoints require (I2/I6).
+
+    The result is cached after first resolution. Call reset_pipeline_run_cache()
+    to clear (useful in tests or after a new pipeline ingest).
+    """
+    global _pipeline_run_id_cache
+    if _pipeline_run_id_cache is not None:
+        return _pipeline_run_id_cache
+
+    import httpx
+
+    tenant_id = get_tenant_id()
+    if not tenant_id:
+        raise RuntimeError(
+            "Cannot resolve pipeline_run_id — tenant_id is not available. "
+            "Set AOS_TENANT_ID env var first."
+        )
+
+    convergence_url = os.environ.get("CONVERGENCE_API_URL", "").rstrip("/")
+    if not convergence_url:
+        raise RuntimeError(
+            "CONVERGENCE_API_URL environment variable is not set — "
+            "cannot resolve pipeline_run_id from Convergence."
+        )
+
+    url = f"{convergence_url}/api/convergence/engagement/active"
+    try:
+        resp = httpx.get(url, params={"tenant_id": tenant_id}, timeout=10.0)
+    except httpx.ConnectError:
+        raise RuntimeError(
+            f"Cannot connect to Convergence at {convergence_url} — "
+            f"is the Convergence service running on port 8010?"
+        )
+
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"Convergence engagement/active returned {resp.status_code}: "
+            f"{resp.text[:500]}"
+        )
+
+    data = resp.json()
+    run_id = data.get("current_pipeline_run_id")
+    if not run_id:
+        raise RuntimeError(
+            "Convergence engagement/active did not return current_pipeline_run_id — "
+            "no pipeline run has been ingested for this tenant. "
+            "Run the ingest pipeline first."
+        )
+
+    _pipeline_run_id_cache = run_id
+    _config_logger.info(
+        "Resolved pipeline_run_id=%s from Convergence engagement/active",
+        run_id,
+    )
+    return _pipeline_run_id_cache
+
+
+def reset_pipeline_run_cache() -> None:
+    """Clear the cached pipeline_run_id. For testing or after new pipeline ingest."""
+    global _pipeline_run_id_cache
+    _pipeline_run_id_cache = None
 
 
 class Settings(BaseSettings):

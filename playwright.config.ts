@@ -5,11 +5,12 @@ export default defineConfig({
   timeout: 90_000,
   retries: 0,
   use: {
-    baseURL: 'http://localhost:5000',
+    baseURL: 'http://localhost:3005',
     headless: true,
     viewport: { width: 1280, height: 720 },
+    screenshot: 'only-on-failure',
     launchOptions: {
-      executablePath: '/root/.cache/ms-playwright/chromium-1194/chrome-linux/chrome',
+      executablePath: '/home/ilyac/.cache/ms-playwright/chromium-1208/chrome-linux64/chrome',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',

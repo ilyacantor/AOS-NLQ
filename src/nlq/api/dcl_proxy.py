@@ -48,12 +48,24 @@ _proxy_client = httpx.Client(timeout=30.0, follow_redirects=True)
 # ---------------------------------------------------------------------------
 
 def _dcl_get(path: str, params: dict = None) -> dict:
-    """GET a DCL endpoint, raise HTTPException on failure."""
+    """GET a DCL endpoint, raise HTTPException on failure.
+
+    For v2 report paths (/api/dcl/reports/v2/*), automatically injects
+    tenant_id and pipeline_run_id into query params. This ensures every
+    Convergence v2 call carries the identity pair per I2/I6.
+    """
     if not DCL_BASE_URL:
         raise HTTPException(
             status_code=503,
             detail="DCL_API_URL not set — cannot proxy report request.",
         )
+    if path.startswith("/api/dcl/reports/v2/"):
+        from nlq.config import get_tenant_id, get_pipeline_run_id
+        identity = {
+            "tenant_id": get_tenant_id(),
+            "pipeline_run_id": get_pipeline_run_id(),
+        }
+        params = {**identity, **(params or {})}
     url = f"{DCL_BASE_URL}{path}"
     try:
         resp = _proxy_client.get(url, params=params)
@@ -1143,7 +1155,7 @@ async def combining_income_statement(period: str = Query("2025-Q1")):
     (e.g. "2025" sums Q1-Q4 internally), so we pass the period through as-is.
     """
     dcl_data = await asyncio.to_thread(
-        _dcl_get, "/api/reports/combining-is", {"period": period}
+        _dcl_get, "/api/dcl/reports/v2/combining/income-statement", {"period": period}
     )
     import re
     display_period = f"FY{period}" if re.fullmatch(r"\d{4}", period) else dcl_data.get("period", period)
