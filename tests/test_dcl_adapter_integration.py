@@ -92,7 +92,7 @@ MOCK_DCL_QUERY_RESPONSE = {
         "freshness": "2026-02-15T08:30:00Z",
         "quality_score": 0.95,
         "record_count": 1,
-        "run_id": "run_555_sf_revenue",
+        "dcl_ingest_id": "run_555_sf_revenue",
         "tenant_id": "acme_corp",
         "snapshot_name": "revenue_q4_2025",
         "run_timestamp": "2026-02-15T06:00:00Z",
@@ -140,7 +140,7 @@ MOCK_DCL_QUERY_RESPONSE_WITH_ENTITY = {
         "freshness": "2026-02-15T08:00:00Z",
         "quality_score": 0.93,
         "record_count": 1,
-        "run_id": "run_556_sf_revenue_amer",
+        "dcl_ingest_id": "run_556_sf_revenue_amer",
         "tenant_id": "acme_corp",
         "snapshot_name": "revenue_q4_amer",
         "run_timestamp": "2026-02-15T06:30:00Z",
@@ -411,7 +411,7 @@ class TestQueryResponseNormalization:
         """run_provenance block is extracted from metadata + provenance."""
         result = self.client._normalize_dcl_query_response(MOCK_DCL_QUERY_RESPONSE)
         rp = result["run_provenance"]
-        assert rp["run_id"] == "run_555_sf_revenue"
+        assert rp["dcl_ingest_id"] == "run_555_sf_revenue"
         assert rp["tenant_id"] == "acme_corp"
         assert rp["snapshot_name"] == "revenue_q4_2025"
         assert rp["run_timestamp"] == "2026-02-15T06:00:00Z"
@@ -426,7 +426,7 @@ class TestQueryResponseNormalization:
         result = self.client._normalize_dcl_query_response(MOCK_DCL_QUERY_RESPONSE_NO_PROVENANCE)
         rp = result["run_provenance"]
         assert rp["source_systems"] == []
-        assert rp["run_id"] is None  # No run_id in metadata
+        assert rp["dcl_ingest_id"] is None  # No dcl_ingest_id in metadata
         assert rp["freshness"] == ""
 
     def test_metadata_sources_fallback(self):
@@ -436,7 +436,7 @@ class TestQueryResponseNormalization:
             "data": [{"period": "2025-Q4", "value": 42.0}],
             "metadata": {
                 "mode": "Ingest",
-                "run_id": "run_999",
+                "dcl_ingest_id": "run_999",
                 "freshness": "2026-02-15T10:00:00Z",
                 "sources": ["salesforce", "netsuite"],
             },
@@ -503,7 +503,7 @@ class TestProvenancePipeline:
     def test_provenance_on_intent_map_response(self):
         """IntentMapResponse.provenance is set from SimpleMetricResult.run_provenance."""
         prov = {
-            "run_id": "run_555_sf_revenue",
+            "dcl_ingest_id": "run_555_sf_revenue",
             "tenant_id": "acme_corp",
             "snapshot_name": "revenue_q4_2025",
             "run_timestamp": "2026-02-15T06:00:00Z",
@@ -516,7 +516,7 @@ class TestProvenancePipeline:
         galaxy = simple_metric_to_galaxy_response(result, "What is revenue?")
 
         assert galaxy.provenance is not None
-        assert galaxy.provenance["run_id"] == "run_555_sf_revenue"
+        assert galaxy.provenance["dcl_ingest_id"] == "run_555_sf_revenue"
         assert galaxy.provenance["tenant_id"] == "acme_corp"
         assert galaxy.provenance["snapshot_name"] == "revenue_q4_2025"
         assert galaxy.provenance["source_systems"] == ["Salesforce CRM", "SAP ERP"]
@@ -720,7 +720,7 @@ class TestEndToEndDCLQuery:
 
         # Verify provenance extraction
         rp = result["run_provenance"]
-        assert rp["run_id"] == "run_555_sf_revenue"
+        assert rp["dcl_ingest_id"] == "run_555_sf_revenue"
         assert rp["tenant_id"] == "acme_corp"
         assert rp["snapshot_name"] == "revenue_q4_2025"
         assert len(rp["source_systems"]) == 2
@@ -796,7 +796,7 @@ class TestEndToEndDCLQuery:
         assert galaxy.query_type == "POINT_QUERY"
         assert galaxy.overall_data_quality == 0.95
         assert galaxy.provenance is not None
-        assert galaxy.provenance["run_id"] == "run_555_sf_revenue"
+        assert galaxy.provenance["dcl_ingest_id"] == "run_555_sf_revenue"
         assert galaxy.provenance["tenant_id"] == "acme_corp"
         assert galaxy.provenance["snapshot_name"] == "revenue_q4_2025"
         assert galaxy.provenance["source_systems"] == ["Salesforce CRM", "SAP ERP"]
@@ -842,7 +842,7 @@ class TestEdgeCases:
         }
         result = self.client._normalize_dcl_query_response(response)
         assert result["status"] == "ok"
-        assert result["run_provenance"]["run_id"] is None
+        assert result["run_provenance"]["dcl_ingest_id"] is None
 
     def test_normalize_partial_provenance(self):
         """Normalize handles provenance with some fields missing."""

@@ -285,7 +285,7 @@ export interface RevenueByCustomerData {
   total_revenue: number
   customer_count: number
   provenance: {
-    run_id?: string | null
+    dcl_ingest_id?: string | null
     mode?: string | null
     source?: string | null
     run_timestamp?: string | null

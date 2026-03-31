@@ -5,7 +5,7 @@ interface PipelineStatus {
   dcl_mode: string | null;
   metric_count: number;
   catalog_source: string | null;
-  last_run_id: string | null;
+  last_dcl_ingest_id: string | null;
   last_run_timestamp: string | null;
   last_source_systems: string[] | null;
   freshness: string | null;
@@ -192,14 +192,14 @@ export const DataPipelineStatus: React.FC = () => {
                 </span>
               </div>
 
-              {status?.last_run_id && (
+              {status?.last_dcl_ingest_id && (
                 <>
                   <div className="border-t border-slate-800 pt-2.5 mt-2.5">
                     <span className="text-slate-500 text-[10px] uppercase tracking-wider">Last Ingestion</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Run ID</span>
-                    <span className="text-slate-400 font-mono text-[10px] truncate max-w-[140px]">{status.last_run_id}</span>
+                    <span className="text-slate-400 font-mono text-[10px] truncate max-w-[140px]">{status.last_dcl_ingest_id}</span>
                   </div>
                   {status.last_source_systems && status.last_source_systems.length > 0 && (
                     <div className="flex items-center justify-between">

@@ -85,7 +85,7 @@ export const ProvenanceBadge: React.FC<ProvenanceBadgeProps> = ({
         chevronClass: 'text-emerald-500',
         label: 'Verified',
         compactLabel: 'Verified',
-        tooltip: `Data Verified from Run ${provenance?.run_id ?? 'N/A'}`,
+        tooltip: `Data Verified from Run ${provenance?.dcl_ingest_id ?? 'N/A'}`,
       }
     : isRun
       ? {
@@ -193,7 +193,7 @@ export const ProvenanceBadge: React.FC<ProvenanceBadgeProps> = ({
               )}
               <div>
                 <span className="text-slate-500">Run ID: </span>
-                <span className="text-slate-400 font-mono">{provenance!.run_id}</span>
+                <span className="text-slate-400 font-mono">{provenance!.dcl_ingest_id}</span>
               </div>
               {provenance?.run_timestamp && (
                 <div>

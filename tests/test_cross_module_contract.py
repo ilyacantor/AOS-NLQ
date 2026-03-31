@@ -75,7 +75,7 @@ DCL_QUERY_RESPONSE_PATH_B = {
         "freshness": "2026-02-15T08:30:00Z",
         "quality_score": 0.97,
         "record_count": 4,
-        "run_id": "run_777_sf_revenue_q4",
+        "dcl_ingest_id": "run_777_sf_revenue_q4",
         "tenant_id": "acme_corp",
         "snapshot_name": "sf_revenue_q4_2025",
         "run_timestamp": "2026-02-15T06:00:00Z",
@@ -175,8 +175,8 @@ class TestAAMIngestContract:
         assert "source_system" in AAM_INGEST_PAYLOAD["metadata"]
 
     def test_run_id_carries_through_to_dcl_response(self):
-        """run_id from ingest appears in DCL query response metadata."""
-        assert DCL_QUERY_RESPONSE_PATH_B["metadata"]["run_id"] == AAM_INGEST_PAYLOAD["run_id"]
+        """run_id from ingest appears in DCL query response metadata as dcl_ingest_id."""
+        assert DCL_QUERY_RESPONSE_PATH_B["metadata"]["dcl_ingest_id"] == AAM_INGEST_PAYLOAD["run_id"]
 
     def test_tenant_id_carries_through(self):
         """tenant_id from ingest appears in DCL query response."""
@@ -226,7 +226,7 @@ class TestDCLToNLQContract:
         """Path B response carries full run provenance."""
         result = self.client._normalize_dcl_query_response(DCL_QUERY_RESPONSE_PATH_B)
         rp = result["run_provenance"]
-        assert rp["run_id"] == "run_777_sf_revenue_q4"
+        assert rp["dcl_ingest_id"] == "run_777_sf_revenue_q4"
         assert rp["tenant_id"] == "acme_corp"
         assert rp["snapshot_name"] == "sf_revenue_q4_2025"
         assert rp["run_timestamp"] == "2026-02-15T06:00:00Z"
@@ -235,11 +235,11 @@ class TestDCLToNLQContract:
         assert rp["quality_score"] == 0.97
         assert rp["mode"] == "Live"
 
-    def test_path_a_has_no_run_id(self):
-        """Path A (Demo mode) has no run_id — it's static data."""
+    def test_path_a_has_no_dcl_ingest_id(self):
+        """Path A (Demo mode) has no dcl_ingest_id — it's static data."""
         result = self.client._normalize_dcl_query_response(DCL_QUERY_RESPONSE_PATH_A)
         rp = result["run_provenance"]
-        assert rp["run_id"] is None
+        assert rp["dcl_ingest_id"] is None
         assert rp["source_systems"] == []
         assert rp["mode"] == "Demo"
 
@@ -263,7 +263,7 @@ class TestDCLToNLQContract:
             "data": [{"period": "2025-Q4", "value": 42.0}],
             "metadata": {
                 "mode": "Ingest",
-                "run_id": "run_888",
+                "dcl_ingest_id": "run_888",
                 "freshness": "2026-02-15T09:00:00Z",
                 "sources": ["salesforce"],
             },
@@ -273,7 +273,7 @@ class TestDCLToNLQContract:
         rp = result["run_provenance"]
         # metadata.sources should be used when provenance[] is empty
         assert rp["source_systems"] == ["salesforce"]
-        assert rp["run_id"] == "run_888"
+        assert rp["dcl_ingest_id"] == "run_888"
         assert rp["mode"] == "Ingest"
 
     def test_mode_drives_badge_state(self):
@@ -458,9 +458,9 @@ class TestFullPipelineContract:
         # The value matches what AAM ingested
         assert galaxy.nodes[0].value == 42.0
 
-        # Trust Badge: provenance carries the AAM Runner's run_id
+        # Trust Badge: provenance carries the AAM Runner's dcl_ingest_id
         assert galaxy.provenance is not None
-        assert galaxy.provenance["run_id"] == "run_777_sf_revenue_q4"
+        assert galaxy.provenance["dcl_ingest_id"] == "run_777_sf_revenue_q4"
 
         # Trust Badge: tenant and snapshot from the ingest payload
         assert galaxy.provenance["tenant_id"] == "acme_corp"
@@ -518,10 +518,10 @@ class TestFullPipelineContract:
 
         galaxy = simple_metric_to_galaxy_response(smr, "What is revenue?")
 
-        # Provenance exists but has no run_id (Demo mode)
+        # Provenance exists but has no dcl_ingest_id (Demo mode)
         rp = galaxy.provenance
         assert rp is not None
-        assert rp["run_id"] is None
+        assert rp["dcl_ingest_id"] is None
         assert rp["source_systems"] == []
         assert rp["mode"] == "Demo"
 
@@ -549,9 +549,9 @@ class TestFullPipelineContract:
         total = sum(d["value"] for d in data)
         assert total == 150.0  # 33 + 36 + 39 + 42
 
-    def test_run_id_traces_back_to_aam_runner(self):
+    def test_dcl_ingest_id_traces_back_to_aam_runner(self):
         """
-        The run_id in the Galaxy response can be traced back to the
+        The dcl_ingest_id in the Galaxy response can be traced back to the
         specific AAM Runner execution that produced the data.
         """
         client = DCLSemanticClient(dcl_base_url="http://mock-dcl:8000")
@@ -566,8 +566,8 @@ class TestFullPipelineContract:
         dcl_result = client.query(metric="revenue")
         rp = dcl_result["run_provenance"]
 
-        # The run_id matches what AAM sent in x-run-id header
-        assert rp["run_id"] == AAM_INGEST_HEADERS["x-run-id"]
+        # The dcl_ingest_id matches what AAM sent in x-run-id header
+        assert rp["dcl_ingest_id"] == AAM_INGEST_HEADERS["x-run-id"]
 
         # The tenant_id matches the ingest payload
         assert rp["tenant_id"] == AAM_INGEST_PAYLOAD["tenant_id"]
@@ -607,7 +607,7 @@ class TestErrorPathContracts:
         result = client._normalize_dcl_query_response(empty_response)
         assert result["status"] == "ok"
         assert result["data"] == []
-        assert result["run_provenance"]["run_id"] is None
+        assert result["run_provenance"]["dcl_ingest_id"] is None
 
     def test_local_fallback_when_no_dcl_url(self):
         """NLQ falls back to fact_base.json when DCL_API_URL not set."""

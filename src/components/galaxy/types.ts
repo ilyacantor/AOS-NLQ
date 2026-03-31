@@ -40,7 +40,7 @@ export interface IntentNode {
 
 /** Structured run provenance from DCL ingestion pipeline. */
 export interface RunProvenance {
-  run_id?: string | null;           // AAM-generated run ID (e.g., "run_555_sf_revenue")
+  dcl_ingest_id?: string | null;    // DCL namespaced run identifier (I1)
   tenant_id?: string | null;        // Tenant/snapshot owner
   snapshot_name?: string | null;    // Logical dataset name
   entity_id?: string | null;        // Entity identifier from DCL ingestion

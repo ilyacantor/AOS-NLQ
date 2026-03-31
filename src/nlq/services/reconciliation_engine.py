@@ -16,7 +16,7 @@ silently swallowed.
 Ground truth manifest structure (from Farm v2.0):
   {
     "manifest_version": "2.0",
-    "run_id": "...",
+    "farm_manifest_id": "...",
     "ground_truth": {
       "2024-Q1": {
         "revenue": {"value": 25.5, "unit": "millions_usd", "primary_source": "netsuite"},
@@ -688,8 +688,12 @@ class ReconciliationEngine:
         if self._ground_truth is not None:
             return self._ground_truth
 
-        # Try Farm API
-        gt = self._fetch_from_farm_api()
+        # Try Farm API — RuntimeError on failure, fall through to local file
+        try:
+            gt = self._fetch_from_farm_api()
+        except RuntimeError as exc:
+            logger.warning("Farm API unavailable, will try local file: %s", exc)
+            gt = None
         if gt is not None:
             self._ground_truth = gt
             return gt
@@ -713,22 +717,20 @@ class ReconciliationEngine:
     def _fetch_from_farm_api(self) -> Optional[Dict]:
         """Fetch ground truth from Farm's API. Returns None on failure with logging.
 
-        Farm's ground truth requires a run_id. Resolution:
+        Farm's ground truth requires a farm_manifest_id. Resolution:
         1. Fetch the runs list from /api/business-data/runs
-        2. Use the latest run_id
-        3. Fetch ground truth from /api/business-data/ground-truth/{run_id}
+        2. Use the latest farm_manifest_id
+        3. Fetch ground truth from /api/business-data/ground-truth/{farm_manifest_id}
         """
         try:
             import httpx
-        except ImportError:
-            logger.error(
-                "httpx not installed -- cannot fetch ground truth from Farm API at %s. "
-                "Install httpx or provide ground_truth dict directly.",
-                self._farm_url,
-            )
-            return None
+        except ImportError as exc:
+            raise RuntimeError(
+                f"httpx not installed -- cannot fetch ground truth from Farm API at {self._farm_url}. "
+                "Install httpx or provide ground_truth dict directly."
+            ) from exc
 
-        # Step 1: Get the latest run_id
+        # Step 1: Get the latest farm_manifest_id
         runs_url = f"{self._farm_url}/api/business-data/runs"
         try:
             runs_response = httpx.get(runs_url, timeout=15)
@@ -749,20 +751,18 @@ class ReconciliationEngine:
                 return None
 
             # Use the first (most recent) run
-            run_id = runs[0].get("run_id")
+            run_id = runs[0].get("farm_manifest_id")
             if not run_id:
                 logger.error(
-                    "Farm runs API at %s returned a run with no run_id: %s",
+                    "Farm runs API at %s returned a run with no farm_manifest_id: %s",
                     runs_url, runs[0],
                 )
                 return None
 
         except Exception as exc:
-            logger.error(
-                "Failed to fetch Farm runs from %s: %s: %s",
-                runs_url, type(exc).__name__, exc,
-            )
-            return None
+            raise RuntimeError(
+                f"Failed to fetch Farm runs from {runs_url}: {type(exc).__name__}: {exc}"
+            ) from exc
 
         # Step 2: Fetch ground truth for this run
         gt_url = f"{self._farm_url}/api/business-data/ground-truth/{run_id}"

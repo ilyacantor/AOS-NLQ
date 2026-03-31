@@ -751,7 +751,7 @@ class DCLSemanticClient:
           connected: bool — DCL responded to health check
           phase: str|None — DCL startup phase (ready, warming, degraded)
           data_mode: str|None — DCL data mode (Empty, Ingest, Farm, AAM)
-          last_run_id: str|None — last DCL run ID
+          last_dcl_ingest_id: str|None — last DCL ingest identifier (I1)
           last_updated: str|None — last mode change timestamp
           error: str|None — error message if not connected
         """
@@ -773,7 +773,7 @@ class DCLSemanticClient:
                 "connected": True,
                 "phase": body.get("phase"),
                 "data_mode": body.get("data_mode"),
-                "last_run_id": body.get("last_run_id"),
+                "last_dcl_ingest_id": body.get("last_dcl_ingest_id"),
                 "last_updated": body.get("last_updated"),
                 "error": body.get("error"),
             }
@@ -1295,7 +1295,7 @@ class DCLSemanticClient:
           {metric, metric_name, unit, grain,
            data: [{period, value, dimensions, rank}],
            metadata: {freshness (ISO), quality_score, record_count,
-                      run_id, tenant_id, snapshot_name, run_timestamp, ...},
+                      dcl_ingest_id, tenant_id, snapshot_name, run_timestamp, ...},
            provenance: [{source_system, freshness ("2h"), quality_score}]}
 
         NLQ callers expect:
@@ -1373,7 +1373,7 @@ class DCLSemanticClient:
         else:
             primary_source = source_systems[0] if source_systems else None
         normalized["run_provenance"] = {
-            "run_id": metadata.get("run_id"),
+            "dcl_ingest_id": metadata.get("dcl_ingest_id"),
             "tenant_id": metadata.get("tenant_id"),
             "entity_id": metadata.get("entity_id"),
             "snapshot_name": metadata.get("snapshot_name"),

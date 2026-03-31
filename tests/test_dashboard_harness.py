@@ -231,11 +231,11 @@ def test_dashboard_provenance() -> TestResult:
     if not mode or mode.lower() not in ("ingest", "live"):
         return fail(name, "provenance.mode in (Ingest, Live)", f"mode={mode!r}", "Grey 'Local Data' badge on dashboard")
 
-    run_id = prov.get("run_id")
-    if not run_id:
-        return fail(name, "provenance.run_id present", "run_id=None", "No run traceability")
+    dcl_ingest_id = prov.get("dcl_ingest_id")
+    if not dcl_ingest_id:
+        return fail(name, "provenance.dcl_ingest_id present", "dcl_ingest_id=None", "No run traceability")
 
-    return ok(name, f"mode={mode}, run_id={run_id[:30]}...")
+    return ok(name, f"mode={mode}, dcl_ingest_id={dcl_ingest_id[:30]}...")
 
 
 def test_dashboard_kpi_cards_work() -> TestResult:

@@ -1236,7 +1236,7 @@ function RevenueByCustomerTab({ entityId }: { entityId: string }) {
           { label: "Total Revenue", value: `$${data.total_revenue.toFixed(1)}M` },
           { label: "Customers", value: String(data.customer_count) },
           { label: "Top 20 Coverage", value: `${coverageRatio.toFixed(1)}%`, sub: `$${top20Total.toFixed(1)}M of $${data.total_revenue.toFixed(1)}M` },
-          { label: "Data Source", value: isVerified ? "Verified" : data.provenance?.mode || "Unknown", sub: data.provenance?.run_id ? `Run: ${data.provenance.run_id.slice(0, 20)}...` : undefined },
+          { label: "Data Source", value: isVerified ? "Verified" : data.provenance?.mode || "Unknown", sub: data.provenance?.dcl_ingest_id ? `Run: ${data.provenance.dcl_ingest_id.slice(0, 20)}...` : undefined },
         ].map((card) => (
           <div key={card.label} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "16px 20px", flex: "1 1 180px", minWidth: 180 }}>
             <div style={{ fontSize: 15, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>{card.label}</div>
