@@ -118,6 +118,19 @@ from src.nlq.api.eval import router as _eval_router, EvalResult
 # awareness, and no module-level mutable globals. These re-exports maintain
 # backward compatibility for all call sites in this file.
 import time
+from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
+
+
+def _mode_data_source() -> str:
+    """Return 'convergence_v2' in ME mode, 'dcl_v2' in SE mode."""
+    return "convergence_v2" if _aos_mode_ctx.get() == "ME" else "dcl_v2"
+
+
+def _mode_source_label() -> str:
+    """Return 'convergence' in ME mode, 'dcl' in SE mode."""
+    return "convergence" if _aos_mode_ctx.get() == "ME" else "dcl"
+
+
 from src.nlq.api.session import (
     get_session_dashboard,
     set_session_dashboard,
@@ -1924,7 +1937,7 @@ def _execute_pl_batch(periods: list, entity_id: Optional[str]) -> Optional["NLQR
             domain="finance",
             answer="",
             period=period,
-            data_source="dcl_v2",
+            data_source=_mode_data_source(),
         )
 
     handler = PLStatementHandler(periods=periods, query_fn=batch_query_fn, entity_id=entity_id)
@@ -2356,7 +2369,7 @@ def _try_simple_breakdown_query(question: str) -> Optional[NLQResponse]:
                 resolved_metric=metric,
                 resolved_period=current_period,
                 response_type="text",
-                data_source="dcl" if graph_result.get("source") == "dcl_graph" else "graph_catalog",
+                data_source=_mode_source_label() if graph_result.get("source", "").endswith("_graph") else "graph_catalog",
                 provenance={
                     "source_systems": systems,
                     "join_paths": join_paths,
@@ -3416,7 +3429,7 @@ def _handle_ambiguous_query_text(
                     stages=[SalesFunnelStage(**s) for s in _stages],
                     entity_id=entity_id,
                     period=current_quarter(),
-                    data_source="dcl_v2",
+                    data_source=_mode_data_source(),
                 )
                 _total = _stages[0]["value"] if _stages else None
                 return NLQResponse(
@@ -3425,7 +3438,7 @@ def _handle_ambiguous_query_text(
                     value=_total, unit="$M",
                     confidence=0.95, parsed_intent="SHORTHAND",
                     resolved_metric="pipeline", resolved_period=current_quarter(),
-                    related_metrics=related_metrics, data_source="dcl_v2",
+                    related_metrics=related_metrics, data_source=_mode_data_source(),
                     response_type="sales_funnel",
                     sales_funnel_data=_funnel,
                 )
@@ -5212,20 +5225,32 @@ async def reconciliation():
         _extract_expected_value,
     )
 
-    dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+    from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
+
+    _mode = _aos_mode_ctx.get()
+    _conv_url = os.environ.get("CONVERGENCE_API_URL", "").rstrip("/")
+    if _mode == "ME" and _conv_url:
+        dcl_url = _conv_url
+        _path_prefix = "/api/convergence"
+        _svc = "Convergence"
+    else:
+        dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+        _path_prefix = "/api/dcl"
+        _svc = "DCL"
+
     if not dcl_url:
         raise HTTPException(
             status_code=503,
-            detail="DCL_API_URL environment variable is not set. "
-                   "Reconciliation requires a live DCL backend. "
-                   "Set DCL_API_URL to the DCL service URL (e.g. https://aos-dclv2.onrender.com).",
+            detail=f"{_svc} URL environment variable is not set. "
+                   f"Reconciliation requires a live {_svc} backend. "
+                   f"Set {'CONVERGENCE_API_URL' if _svc == 'Convergence' else 'DCL_API_URL'}.",
         )
 
     # Use a shared httpx client for connection pooling across all queries
     client = httpx.Client(timeout=60, limits=httpx.Limits(max_connections=16, max_keepalive_connections=8))
 
     def query_fn(metric_id: str, period: str, entity_id: str = None):
-        """Query DCL for a metric value. Returns object with .value attribute."""
+        """Query backend for a metric value. Returns object with .value attribute."""
         try:
             payload = {
                 "metric": metric_id,
@@ -5234,16 +5259,16 @@ async def reconciliation():
             if entity_id:
                 payload["entity_id"] = entity_id
             r = client.post(
-                f"{dcl_url}/api/dcl/query",
+                f"{dcl_url}{_path_prefix}/query",
                 json=payload,
             )
         except httpx.ConnectError as exc:
             raise RuntimeError(
-                f"DCL unreachable at {dcl_url}/api/dcl/query — connection refused: {exc}"
+                f"{_svc} unreachable at {dcl_url}{_path_prefix}/query — connection refused: {exc}"
             ) from exc
         except httpx.TimeoutException as exc:
             raise RuntimeError(
-                f"DCL request timed out at {dcl_url}/api/dcl/query "
+                f"{_svc} request timed out at {dcl_url}{_path_prefix}/query "
                 f"for metric='{metric_id}', period='{period}': {exc}"
             ) from exc
 
@@ -5449,7 +5474,7 @@ async def reconciliation():
         batch_body: Dict[str, Any] = {"domains": sorted(all_domains)}
         if all_entity_ids:
             batch_body["entity_ids"] = sorted(all_entity_ids)
-        r = client.post(f"{dcl_url}/api/dcl/triples/browse-batch", json=batch_body)
+        r = client.post(f"{dcl_url}{_path_prefix}/triples/browse-batch", json=batch_body)
         if r.status_code != 200:
             raise RuntimeError(f"browse-batch returned HTTP {r.status_code}: {r.text[:300]}")
         batch_data = r.json()
@@ -5466,8 +5491,8 @@ async def reconciliation():
     except Exception as exc:
         print(f"[RECON] batch-browse failed: {exc}", flush=True)
         raise RuntimeError(
-            f"Reconciliation aborted: DCL batch-browse call failed at "
-            f"{dcl_url}/api/dcl/triples/browse-batch — {exc}"
+            f"Reconciliation aborted: {_svc} batch-browse call failed at "
+            f"{dcl_url}{_path_prefix}/triples/browse-batch — {exc}"
         ) from exc
 
     _t1 = _time.monotonic()
@@ -5723,14 +5748,25 @@ async def drill_through(
     from the browser and ensuring consistency with other NLQ endpoints.
     """
     import httpx
+    from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
 
-    dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+    _dt_mode = _aos_mode_ctx.get()
+    _dt_conv_url = os.environ.get("CONVERGENCE_API_URL", "").rstrip("/")
+    if _dt_mode == "ME" and _dt_conv_url:
+        dcl_url = _dt_conv_url
+        _dt_prefix = "/api/convergence"
+        _dt_svc = "Convergence"
+    else:
+        dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+        _dt_prefix = "/api/dcl"
+        _dt_svc = "DCL"
+
     if not dcl_url:
         raise HTTPException(
             status_code=503,
-            detail="DCL_API_URL environment variable is not set. "
-                   "Drill-through requires a live DCL backend. "
-                   "Set DCL_API_URL to the DCL service URL (e.g. https://aos-dclv2.onrender.com).",
+            detail=f"{_dt_svc} URL environment variable is not set. "
+                   f"Drill-through requires a live {_dt_svc} backend. "
+                   f"Set {'CONVERGENCE_API_URL' if _dt_svc == 'Convergence' else 'DCL_API_URL'}.",
         )
     params = {"level": level}
     if parent:
@@ -5740,17 +5776,17 @@ async def drill_through(
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            r = await client.get(f"{dcl_url}/api/dcl/drill-through", params=params)
+            r = await client.get(f"{dcl_url}{_dt_prefix}/drill-through", params=params)
     except httpx.ConnectError:
         raise HTTPException(
             status_code=502,
-            detail=f"DCL unreachable at {dcl_url}/api/dcl/drill-through — "
-                   f"connection refused. Ensure DCL backend is running on port 8004.",
+            detail=f"{_dt_svc} unreachable at {dcl_url}{_dt_prefix}/drill-through — "
+                   f"connection refused. Ensure {_dt_svc} backend is running.",
         )
     except httpx.TimeoutException:
         raise HTTPException(
             status_code=504,
-            detail=f"DCL request timed out at {dcl_url}/api/dcl/drill-through "
+            detail=f"{_dt_svc} request timed out at {dcl_url}{_dt_prefix}/drill-through "
                    f"for level={level}, parent={parent}.",
         )
 

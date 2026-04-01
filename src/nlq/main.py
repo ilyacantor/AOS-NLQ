@@ -14,7 +14,7 @@ from typing import Optional
 from dotenv import load_dotenv
 load_dotenv()  # Load .env into os.environ before any service reads env vars
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -63,6 +63,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# SE/ME mode middleware — reads X-AOS-Mode header and sets the contextvar.
+# Uses pure ASGI middleware (not BaseHTTPMiddleware) because Starlette's
+# BaseHTTPMiddleware runs call_next() in a separate task, which breaks
+# contextvar propagation to route handlers.
+from src.nlq.config import get_default_mode
+from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
+
+
+class AOSModeMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            headers = dict(scope.get("headers", []))
+            raw = headers.get(b"x-aos-mode", b"").decode().upper().strip()
+            mode = raw if raw in ("SE", "ME") else get_default_mode()
+            _aos_mode_ctx.set(mode)
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(AOSModeMiddleware)
+
 
 # H7: Single canonical prefix — Vite proxy forwards /api/v1 as-is (no rewrite).
 # C1: Query routes (routes.py) + extracted health/eval routers

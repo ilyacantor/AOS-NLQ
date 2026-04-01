@@ -505,8 +505,9 @@ class DashboardDataResolver:
         v2 = self.dcl_client.v2
         resp = None
         try:
-            resp = v2._http.post(
-                "/api/dcl/triples/browse-batch",
+            bb_client, bb_path = v2._route("/api/dcl/triples/browse-batch")
+            resp = bb_client.post(
+                bb_path,
                 json={"domains": [domain], "entity_ids": [entity_id]},
             )
         except Exception as exc:

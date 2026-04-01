@@ -24,6 +24,25 @@ from pydantic_settings import BaseSettings
 _config_logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# SE/ME mode — default for requests that don't carry an X-AOS-Mode header
+# ---------------------------------------------------------------------------
+
+AOS_DEFAULT_MODE: str = os.environ.get("AOS_DEFAULT_MODE", "SE").upper()
+if AOS_DEFAULT_MODE not in ("SE", "ME"):
+    raise RuntimeError(
+        f"AOS_DEFAULT_MODE must be 'SE' or 'ME', got '{AOS_DEFAULT_MODE}'. "
+        f"SE = single entity (routes to DCL), ME = multi entity (routes to Convergence)."
+    )
+
+_config_logger.info("AOS_DEFAULT_MODE = %s", AOS_DEFAULT_MODE)
+
+
+def get_default_mode() -> str:
+    """Return the configured default mode ('SE' or 'ME')."""
+    return AOS_DEFAULT_MODE
+
+
+# ---------------------------------------------------------------------------
 # Tenant ID resolution (replaces the old DEFAULT_TENANT_ID constant)
 # ---------------------------------------------------------------------------
 

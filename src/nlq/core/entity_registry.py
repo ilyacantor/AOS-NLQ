@@ -35,32 +35,44 @@ class EntityRegistry:
             dcl_base_url
             or os.environ.get("DCL_API_URL", "http://localhost:8004")
         ).rstrip("/")
+        self._convergence_base_url = os.environ.get("CONVERGENCE_API_URL", "").rstrip("/") or None
         self._cache: Optional[list[dict]] = None
         self._cache_expires: float = 0.0
         self._client = httpx.Client(timeout=10.0)
 
-    def _fetch_entities_from_dcl(self) -> list[dict]:
-        """Fetch financial entity list from DCL's active engagement.
+    def _resolve_engagement_url(self) -> tuple:
+        """Return (base_url, engagement_url, service_name) based on SE/ME mode."""
+        from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
 
+        mode = _aos_mode_ctx.get()
+        if mode == "ME" and self._convergence_base_url:
+            base = self._convergence_base_url
+            return base, f"{base}/api/convergence/triples/engagement", "Convergence"
+        return self._dcl_base_url, f"{self._dcl_base_url}/api/dcl/triples/engagement", "DCL"
+
+    def _fetch_entities_from_dcl(self) -> list[dict]:
+        """Fetch financial entity list from active engagement.
+
+        Routes to Convergence in ME mode, DCL in SE mode.
         Uses engagement_state (entity_a, entity_b) — not a raw distinct
         query on semantic_triples, which could include non-financial entities.
 
-        MUST NOT fall back to hardcoded values. If DCL is unreachable,
-        raises ConnectionError with message naming the DCL URL and what failed.
+        MUST NOT fall back to hardcoded values. If the backend is unreachable,
+        raises ConnectionError with message naming the URL and what failed.
         """
-        engagement_url = f"{self._dcl_base_url}/api/dcl/triples/engagement"
+        base_url, engagement_url, svc = self._resolve_engagement_url()
         try:
             resp = self._client.get(engagement_url)
         except httpx.ConnectError:
             raise ConnectionError(
-                f"EntityRegistry could not reach DCL at {engagement_url} — "
-                f"connection refused. Ensure DCL backend is running at "
-                f"{self._dcl_base_url}."
+                f"EntityRegistry could not reach {svc} at {engagement_url} — "
+                f"connection refused. Ensure {svc} backend is running at "
+                f"{base_url}."
             )
         except httpx.TimeoutException:
             raise ConnectionError(
-                f"EntityRegistry timed out waiting for DCL at {engagement_url}. "
-                f"DCL may be overloaded or unreachable."
+                f"EntityRegistry timed out waiting for {svc} at {engagement_url}. "
+                f"{svc} may be overloaded or unreachable."
             )
 
         if resp.status_code != 200:

@@ -578,11 +578,21 @@ def process_query_engine(
     Each engine maps to a DCL /api/reports/* endpoint.
     If DCL is unavailable, raises — no silent fallback to seed data.
     """
-    dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
-    if not dcl_url:
+    from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
+
+    _mode = _aos_mode_ctx.get()
+    _conv_url = os.environ.get("CONVERGENCE_API_URL", "").rstrip("/")
+    if _mode == "ME" and _conv_url:
+        base_url = _conv_url
+        _svc = "Convergence"
+    else:
+        base_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+        _svc = "DCL"
+
+    if not base_url:
         raise RuntimeError(
-            "DCL_API_URL not set — cannot query engine. "
-            "Maestra requires a live DCL connection for engine data."
+            f"{_svc} URL not set — cannot query engine. "
+            f"Maestra requires a live {_svc} connection for engine data."
         )
 
     engine_endpoints: dict[str, tuple[str, str]] = {
@@ -602,7 +612,7 @@ def process_query_engine(
         )
 
     method, path = endpoint
-    url = f"{dcl_url}{path}"
+    url = f"{base_url}{path}"
 
     try:
         with httpx.Client(timeout=30.0) as client:
@@ -612,23 +622,24 @@ def process_query_engine(
                 resp = client.get(url, params=query or {})
     except httpx.ConnectError:
         raise RuntimeError(
-            f"Maestra engine '{engine}' failed: could not connect to DCL at {url}. "
-            f"Ensure DCL backend is running at {dcl_url}."
+            f"Maestra engine '{engine}' failed: could not connect to {_svc} at {url}. "
+            f"Ensure {_svc} backend is running at {base_url}."
         )
     except httpx.TimeoutException:
         raise RuntimeError(
-            f"Maestra engine '{engine}' timed out waiting for DCL at {url} (30s limit)."
+            f"Maestra engine '{engine}' timed out waiting for {_svc} at {url} (30s limit)."
         )
 
     if not resp.is_success:
         raise RuntimeError(
-            f"Maestra engine '{engine}' failed: DCL returned HTTP {resp.status_code} "
+            f"Maestra engine '{engine}' failed: {_svc} returned HTTP {resp.status_code} "
             f"from {url}: {resp.text[:500]}"
         )
 
+    source_label = "convergence_live" if _mode == "ME" else "dcl_live"
     data = resp.json()
     data["engine"] = engine
-    data["source"] = "dcl_live"
+    data["source"] = source_label
     # Add standard terminology labels so the LLM uses consistent terms
     engine_labels = {
         "cross_sell": "Cross-Sell Pipeline Analysis",
