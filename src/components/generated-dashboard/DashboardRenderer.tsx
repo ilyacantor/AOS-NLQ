@@ -143,10 +143,10 @@ function normalizeSchema(s: DashboardSchema): DashboardSchema {
 export function DashboardRenderer({
   initialSchema,
   initialWidgetData,
-  sourceQuery,
-  onDrillDown,
+  sourceQuery: _sourceQuery,
+  onDrillDown: _onDrillDown,
   onRefinement,
-  onNavigateToGalaxy,
+  onNavigateToGalaxy: _onNavigateToGalaxy,
   showRefinementInput = true,
   refinePresets = [],
   persona,
@@ -168,7 +168,7 @@ export function DashboardRenderer({
   // Store the default (initial) schema and data for reset-to-default
   const defaultSchemaRef = useRef<DashboardSchema | null>(initialSchema ? normalizeSchema(initialSchema) : null);
   const defaultWidgetDataRef = useRef<Record<string, WidgetData>>(initialWidgetData || {});
-  const [loading, setLoading] = useState(false);
+  const [loading, _setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
@@ -386,7 +386,7 @@ export function DashboardRenderer({
   }, [initialWidgetData]);
 
   const {
-    refinementQuery,
+    refinementQuery: _refinementQuery,
     setRefinementQuery,
     isRefining,
     refinementMessage,

@@ -21,11 +21,13 @@ import asyncio
 import os
 import logging
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
+
+from src.nlq.config import get_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +41,52 @@ if not DCL_BASE_URL:
         "Set DCL_API_URL to the DCL service URL (e.g. https://aos-dclv2.onrender.com)."
     )
 
-# Shared sync HTTP client — connection pool reused across proxy calls.
+# Convergence backend — ALL report endpoints route here (ME/MA surface).
+# Ask/Dashboard stay on DCL (SE surface). When unset, report endpoints
+# return 503 — no silent fallback to DCL. (A1)
+CONVERGENCE_BASE_URL = os.environ.get("CONVERGENCE_API_URL", "").rstrip("/")
+if not CONVERGENCE_BASE_URL:
+    logger.warning(
+        "CONVERGENCE_API_URL is not set — Report endpoints will return 503. "
+        "Ask/Dashboard (SE) are unaffected. "
+        "Set CONVERGENCE_API_URL to the Convergence service URL (e.g. http://localhost:8010)."
+    )
+
+# Shared sync HTTP clients — connection pools reused across proxy calls.
 _proxy_client = httpx.Client(timeout=30.0, follow_redirects=True)
+_convergence_client = httpx.Client(timeout=30.0, follow_redirects=True)
+
+
+# ---------------------------------------------------------------------------
+# Report identity — Convergence v2 endpoints require at least tenant_id
+# ---------------------------------------------------------------------------
+
+_report_tenant_id_cache: Optional[str] = None
+
+
+def _resolve_report_tenant_id() -> str:
+    """Resolve tenant_id for Convergence v2 report calls.
+
+    Cached for the process lifetime. Raises HTTPException if unresolvable.
+    """
+    global _report_tenant_id_cache
+    if _report_tenant_id_cache is not None:
+        return _report_tenant_id_cache
+
+    tenant_id = get_tenant_id()
+    if not tenant_id:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Cannot resolve tenant_id — AOS_TENANT_ID env var is not set "
+                "and no tenant JSON files found in data/tenants/. "
+                "Set AOS_TENANT_ID to a valid UUID."
+            ),
+        )
+
+    _report_tenant_id_cache = tenant_id
+    logger.info("Report tenant_id resolved: %s", tenant_id)
+    return _report_tenant_id_cache
 
 
 # ---------------------------------------------------------------------------
@@ -48,12 +94,24 @@ _proxy_client = httpx.Client(timeout=30.0, follow_redirects=True)
 # ---------------------------------------------------------------------------
 
 def _dcl_get(path: str, params: dict = None) -> dict:
-    """GET a DCL endpoint, raise HTTPException on failure."""
+    """GET a DCL endpoint, raise HTTPException on failure.
+
+    Auto-injects tenant_id + pipeline_run_id for /api/dcl/reports/v2/ paths
+    (Convergence requires these — returns 422 without them).
+    """
     if not DCL_BASE_URL:
         raise HTTPException(
             status_code=503,
             detail="DCL_API_URL not set — cannot proxy report request.",
         )
+
+    # Identity injection for Convergence v2 paths — tenant_id required,
+    # pipeline_run_id optional (Convergence falls back to is_active=true)
+    if "/api/dcl/reports/v2/" in path:
+        if params is None:
+            params = {}
+        params.setdefault("tenant_id", _resolve_report_tenant_id())
+
     url = f"{DCL_BASE_URL}{path}"
     try:
         resp = _proxy_client.get(url, params=params)
@@ -93,13 +151,123 @@ def _dcl_get(path: str, params: dict = None) -> dict:
     return resp.json()
 
 
+# ---------------------------------------------------------------------------
+# Convergence helpers — ME/MA report backend (port 8010)
+# ---------------------------------------------------------------------------
+
+def _convergence_get(path: str, params: dict = None) -> dict:
+    """GET a Convergence endpoint, raise HTTPException on failure.
+
+    Auto-injects tenant_id for /api/convergence/reports/v2/ paths.
+    Raises 503 if CONVERGENCE_API_URL is not configured — no silent fallback to DCL.
+    """
+    if not CONVERGENCE_BASE_URL:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Reports require Convergence but CONVERGENCE_API_URL is not configured. "
+                "Ask/Dashboard (SE) are unaffected — only Report endpoints need Convergence. "
+                "Set CONVERGENCE_API_URL to the Convergence service URL."
+            ),
+        )
+
+    # Identity injection for Convergence v2 report paths
+    if "/api/convergence/reports/v2/" in path:
+        if params is None:
+            params = {}
+        params.setdefault("tenant_id", _resolve_report_tenant_id())
+
+    url = f"{CONVERGENCE_BASE_URL}{path}"
+    try:
+        resp = _convergence_client.get(url, params=params)
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Could not connect to Convergence at {url} — "
+                f"is Convergence running on {CONVERGENCE_BASE_URL}?"
+            ),
+        )
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail=f"Convergence timed out on GET {url}.",
+        )
+    except httpx.RemoteProtocolError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Convergence disconnected during GET {url}: {exc}",
+        )
+    if resp.status_code != 200:
+        if resp.status_code == 422:
+            try:
+                body = resp.json()
+                detail_obj = body.get("detail", {})
+                if isinstance(detail_obj, dict) and detail_obj.get("error") == "data_incomplete":
+                    raise HTTPException(
+                        status_code=422,
+                        detail=detail_obj.get("detail", resp.text[:500]),
+                    )
+            except (ValueError, KeyError):
+                pass
+        raise HTTPException(
+            status_code=resp.status_code,
+            detail=f"Convergence returned {resp.status_code} for GET {url}: {resp.text[:500]}",
+        )
+    return resp.json()
+
+
+def _convergence_post(path: str, body: dict, params: dict = None) -> dict:
+    """POST to a Convergence endpoint, raise HTTPException on failure.
+
+    Raises 503 if CONVERGENCE_API_URL is not configured — no silent fallback to DCL.
+    """
+    if not CONVERGENCE_BASE_URL:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Reports require Convergence but CONVERGENCE_API_URL is not configured. "
+                "Set CONVERGENCE_API_URL to the Convergence service URL."
+            ),
+        )
+
+    url = f"{CONVERGENCE_BASE_URL}{path}"
+    try:
+        resp = _convergence_client.post(
+            url, json=body, params=params,
+            headers={"Content-Type": "application/json"},
+        )
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not connect to Convergence at {url}.",
+        )
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail=f"Convergence timed out on POST {url}.",
+        )
+    except httpx.RemoteProtocolError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Convergence disconnected during POST {url}: {exc}",
+        )
+    if resp.status_code != 200:
+        raise HTTPException(
+            status_code=resp.status_code,
+            detail=f"Convergence returned {resp.status_code} for POST {url}: {resp.text[:500]}",
+        )
+    return resp.json()
+
+
 def _get_entity_ids() -> List[str]:
-    """Fetch financial entity IDs from DCL's active engagement.
+    """Fetch financial entity IDs from Convergence's active engagement.
 
     Uses engagement_state (entity_a, entity_b) — not a raw distinct query
     on semantic_triples, which could include non-financial entities.
+    Routes to Convergence (ME surface) — all report endpoints call this.
     """
-    engagement = _dcl_get("/api/dcl/triples/engagement")
+    engagement = _convergence_get("/api/convergence/triples/engagement")
     entities = []
     ea = engagement.get("entity_a")
     if ea and ea.get("id"):
@@ -248,15 +416,15 @@ def _transform_people_overlap(concepts: List[Dict], summary: Dict) -> Dict:
 
 @router.get("/api/reports/entity-overlap")
 async def entity_overlap():
-    """Fetch overlap from DCL v2 and transform into OverlapData shape."""
+    """Fetch overlap from Convergence v2 and transform into OverlapData shape."""
     # Fetch summary (counts/percentages per domain)
-    summary = await asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/overlap/summary")
+    summary = await asyncio.to_thread(_convergence_get, "/api/convergence/reports/v2/overlap/summary")
 
     # Fetch per-domain detail concurrently
     cust_detail, vendor_detail, emp_detail = await asyncio.gather(
-        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/overlap/customer"),
-        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/overlap/vendor"),
-        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/overlap/employee"),
+        asyncio.to_thread(_convergence_get, "/api/convergence/reports/v2/overlap/customer"),
+        asyncio.to_thread(_convergence_get, "/api/convergence/reports/v2/overlap/vendor"),
+        asyncio.to_thread(_convergence_get, "/api/convergence/reports/v2/overlap/employee"),
     )
 
     cust_summary = summary.get("customer", {})
@@ -304,10 +472,10 @@ async def entity_overlap():
 
 @router.get("/api/reports/cross-sell")
 async def cross_sell():
-    """Fetch cross-sell from DCL v2 and transform into CrossSellData shape."""
+    """Fetch cross-sell from Convergence v2 and transform into CrossSellData shape."""
     opps_data, summary_data = await asyncio.gather(
-        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/cross-sell"),
-        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/cross-sell/summary"),
+        asyncio.to_thread(_convergence_get, "/api/convergence/reports/v2/cross-sell"),
+        asyncio.to_thread(_convergence_get, "/api/convergence/reports/v2/cross-sell/summary"),
     )
 
     opportunities = opps_data.get("opportunities", [])
@@ -374,10 +542,10 @@ async def cross_sell():
 
 @router.get("/api/reports/upsell")
 async def upsell():
-    """Fetch upsell from DCL v2 and transform into UpsellData shape."""
+    """Fetch upsell from Convergence v2 and transform into UpsellData shape."""
     opps_data, summary_data = await asyncio.gather(
-        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/upsell"),
-        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/upsell/summary"),
+        asyncio.to_thread(_convergence_get, "/api/convergence/reports/v2/upsell"),
+        asyncio.to_thread(_convergence_get, "/api/convergence/reports/v2/upsell/summary"),
     )
 
     opportunities = opps_data.get("opportunities", [])
@@ -440,16 +608,16 @@ async def upsell():
 
 @router.get("/api/reports/ebitda-bridge")
 async def ebitda_bridge(entity_id: str = Query(None)):
-    """Fetch EBITDA bridge from DCL v2 and transform into EBITDABridgeData shape."""
-    # Discover entities dynamically from DCL
+    """Fetch EBITDA bridge from Convergence v2 and transform into EBITDABridgeData shape."""
+    # Discover entities dynamically from Convergence
     entity_ids = await asyncio.to_thread(_get_entity_ids)
 
     # Fetch per-entity bridges + combined
     entity_bridges: Dict[str, Dict] = {}
     fetch_tasks = []
     for eid in entity_ids:
-        fetch_tasks.append(asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/bridge", {"entity_id": eid}))
-    fetch_tasks.append(asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/bridge"))
+        fetch_tasks.append(asyncio.to_thread(_convergence_get, "/api/convergence/reports/v2/bridge", {"entity_id": eid}))
+    fetch_tasks.append(asyncio.to_thread(_convergence_get, "/api/convergence/reports/v2/bridge"))
 
     results = await asyncio.gather(*fetch_tasks)
     for i, eid in enumerate(entity_ids):
@@ -628,14 +796,14 @@ def _derive_adj_status(adj: dict) -> str:
 
 @router.get("/api/reports/qoe")
 async def quality_of_earnings(entity_id: str = Query(None)):
-    """Fetch QoE from DCL v2 and transform into QofEData shape."""
+    """Fetch QoE from Convergence v2 and transform into QofEData shape."""
     # Fetch QoE (includes bridge), cross-sell, and upsell concurrently.
     # qoe/combined now returns a "bridge" key with the combined bridge data,
     # so we no longer need a separate /bridge call (was causing pool contention).
     qoe_data, cross_sell, upsell_data = await asyncio.gather(
-        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/qoe/combined"),
-        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/cross-sell"),
-        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/upsell"),
+        asyncio.to_thread(_convergence_get, "/api/convergence/reports/v2/qoe/combined"),
+        asyncio.to_thread(_convergence_get, "/api/convergence/reports/v2/cross-sell"),
+        asyncio.to_thread(_convergence_get, "/api/convergence/reports/v2/upsell"),
     )
 
     entity_a = qoe_data.get("entity_a", {})
@@ -724,55 +892,19 @@ async def quality_of_earnings(entity_id: str = Query(None)):
 
 @router.get("/api/reports/revenue-by-customer")
 async def revenue_by_customer(
-    entity_id: str = Query(..., description="Entity ID — dynamic, resolved from DCL engagement state"),
+    entity_id: str = Query(..., description="Entity ID — dynamic, resolved from Convergence engagement state"),
 ):
     """
     Revenue by customer pivoted into a quarterly table.
 
-    Queries DCL's PG triple store for revenue.by_customer triples, then pivots
+    Queries Convergence's triple store for revenue.by_customer triples, then pivots
     into {customers: [{name, Q1, Q2, ..., total}], quarters, total_revenue, provenance}.
     """
-    if not DCL_BASE_URL:
-        raise HTTPException(
-            status_code=503,
-            detail="DCL_API_URL not set — cannot query revenue by customer.",
-        )
-
-    dcl_url = f"{DCL_BASE_URL}/api/dcl/triples/browse-batch"
-    payload = {
-        "domains": ["revenue"],
-        "entity_ids": [entity_id],
-    }
-
-    try:
-        resp = await asyncio.to_thread(
-            _proxy_client.post, dcl_url,
-            json=payload,
-            headers={"Content-Type": "application/json"},
-        )
-    except httpx.ConnectError:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Could not connect to DCL at {dcl_url} for revenue-by-customer query.",
-        )
-    except httpx.TimeoutException:
-        raise HTTPException(
-            status_code=504,
-            detail=f"DCL timed out on revenue-by-customer query at {dcl_url}.",
-        )
-    except httpx.RemoteProtocolError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"DCL disconnected during revenue-by-customer query at {dcl_url}: {exc}",
-        )
-
-    if resp.status_code != 200:
-        raise HTTPException(
-            status_code=resp.status_code,
-            detail=f"DCL returned {resp.status_code}: {resp.text[:500]}",
-        )
-
-    dcl_body = resp.json()
+    dcl_body = await asyncio.to_thread(
+        _convergence_post,
+        "/api/convergence/triples/browse-batch",
+        {"domains": ["revenue"], "entity_ids": [entity_id]},
+    )
     revenue_triples = dcl_body.get("triples_by_domain", {}).get("revenue", [])
 
     # Filter for revenue.by_customer triples only
@@ -865,7 +997,7 @@ async def dimensional_detail(
     """
     Dimensional breakdown for a P&L line item.
 
-    Queries DCL's triple store for dimensional triples (e.g. revenue.by_customer,
+    Queries Convergence's triple store for dimensional triples (e.g. revenue.by_customer,
     revenue.by_region) and returns them grouped by dimension.
     """
     mapping = _DIMENSIONAL_MAP.get(line_key)
@@ -876,13 +1008,6 @@ async def dimensional_detail(
             "dimensions": [],
         })
 
-    if not DCL_BASE_URL:
-        raise HTTPException(
-            status_code=503,
-            detail="DCL_API_URL not set — cannot query dimensional detail.",
-        )
-
-    dcl_url = f"{DCL_BASE_URL}/api/dcl/triples/browse-batch"
     entity_ids = _get_entity_ids() if entity_id == "combined" else [entity_id]
     payload: dict[str, Any] = {
         "domains": [mapping["domain"]],
@@ -891,35 +1016,11 @@ async def dimensional_detail(
     if period:
         payload["period"] = period
 
-    try:
-        resp = await asyncio.to_thread(
-            _proxy_client.post, dcl_url,
-            json=payload,
-            headers={"Content-Type": "application/json"},
-        )
-    except httpx.ConnectError:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Could not connect to DCL at {dcl_url} for dimensional-detail query.",
-        )
-    except httpx.TimeoutException:
-        raise HTTPException(
-            status_code=504,
-            detail=f"DCL timed out on dimensional-detail query at {dcl_url}.",
-        )
-    except httpx.RemoteProtocolError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"DCL disconnected during dimensional-detail query at {dcl_url}: {exc}",
-        )
-
-    if resp.status_code != 200:
-        raise HTTPException(
-            status_code=resp.status_code,
-            detail=f"DCL returned {resp.status_code}: {resp.text[:500]}",
-        )
-
-    dcl_body = resp.json()
+    dcl_body = await asyncio.to_thread(
+        _convergence_post,
+        "/api/convergence/triples/browse-batch",
+        payload,
+    )
     domain_triples = dcl_body.get("triples_by_domain", {}).get(mapping["domain"], [])
 
     dimensions = []
@@ -1137,13 +1238,13 @@ def _combining_is_to_line_items(dcl_data: dict) -> List[Dict]:
 
 @router.get("/api/reports/combining-is")
 async def combining_income_statement(period: str = Query("2025-Q1")):
-    """Fetch combining IS from DCL, transform to flat line_items for frontend.
+    """Fetch combining IS from Convergence, transform to flat line_items for frontend.
 
-    DCL's combining engine handles year-period aggregation natively
+    Convergence's combining engine handles year-period aggregation natively
     (e.g. "2025" sums Q1-Q4 internally), so we pass the period through as-is.
     """
     dcl_data = await asyncio.to_thread(
-        _dcl_get, "/api/reports/combining-is", {"period": period}
+        _convergence_get, "/api/convergence/reports/v2/combining/income-statement", {"period": period}
     )
     import re
     display_period = f"FY{period}" if re.fullmatch(r"\d{4}", period) else dcl_data.get("period", period)
@@ -1203,10 +1304,10 @@ async def what_if_scenario(request: Request):
     last_full_year = date.today().year - 1
 
     bridge_result, pl_result = await asyncio.gather(
-        asyncio.to_thread(_dcl_get, "/api/dcl/reports/v2/bridge"),
+        asyncio.to_thread(_convergence_get, "/api/convergence/reports/v2/bridge"),
         asyncio.to_thread(
-            _dcl_get,
-            "/api/dcl/reports/v2/combining/income-statement",
+            _convergence_get,
+            "/api/convergence/reports/v2/combining/income-statement",
             {"period": str(last_full_year)},
         ),
         return_exceptions=True,
@@ -1220,7 +1321,7 @@ async def what_if_scenario(request: Request):
     # IS is best-effort — if it failed, enter degraded mode
     if isinstance(pl_result, BaseException):
         logger.warning(
-            "DCL combining IS fetch failed: %s — entering degraded mode", pl_result,
+            "Convergence combining IS fetch failed: %s — entering degraded mode", pl_result,
         )
         pl_raw = None
     else:
@@ -1474,9 +1575,9 @@ _CF_LINES = [
 ]
 
 _STATEMENT_CONFIG = {
-    "income_statement": ("Income Statement", _PL_LINES, "/api/dcl/reports/v2/income-statement", "/api/dcl/reports/v2/combining/income-statement"),
-    "balance_sheet": ("Balance Sheet", _BS_LINES, "/api/dcl/reports/v2/balance-sheet", "/api/dcl/reports/v2/combining/balance-sheet"),
-    "cash_flow": ("Statement of Cash Flows", _CF_LINES, "/api/dcl/reports/v2/cash-flow", "/api/dcl/reports/v2/combining/cash-flow"),
+    "income_statement": ("Income Statement", _PL_LINES, "/api/convergence/reports/v2/income-statement", "/api/convergence/reports/v2/combining/income-statement"),
+    "balance_sheet": ("Balance Sheet", _BS_LINES, "/api/convergence/reports/v2/balance-sheet", "/api/convergence/reports/v2/combining/balance-sheet"),
+    "cash_flow": ("Statement of Cash Flows", _CF_LINES, "/api/convergence/reports/v2/cash-flow", "/api/convergence/reports/v2/combining/cash-flow"),
 }
 
 def _prior_year_period(period: str) -> str:
@@ -1697,21 +1798,21 @@ async def financial_statement(
     else:
         raise HTTPException(status_code=400, detail=f"Unknown variant '{variant}'")
 
-    # Two DCL calls total: CY and PY. DCL aggregates quarters internally.
+    # Two Convergence calls total: CY and PY. Aggregates quarters internally.
     # Issue both in parallel via ThreadPoolExecutor to halve wall-clock time.
     from concurrent.futures import ThreadPoolExecutor
 
     if is_combined:
         def _fetch() -> tuple:
             with ThreadPoolExecutor(max_workers=2) as pool:
-                cy_f = pool.submit(_dcl_get, dcl_combining_path, {"period": cy_period})
-                py_f = pool.submit(_dcl_get, dcl_combining_path, {"period": py_period})
+                cy_f = pool.submit(_convergence_get, dcl_combining_path, {"period": cy_period})
+                py_f = pool.submit(_convergence_get, dcl_combining_path, {"period": py_period})
                 return cy_f.result().get("combined", {}), py_f.result().get("combined", {})
     else:
         def _fetch() -> tuple:
             with ThreadPoolExecutor(max_workers=2) as pool:
-                cy_f = pool.submit(_dcl_get, dcl_single_path, {"entity_id": entity_id, "period": cy_period})
-                py_f = pool.submit(_dcl_get, dcl_single_path, {"entity_id": entity_id, "period": py_period})
+                cy_f = pool.submit(_convergence_get, dcl_single_path, {"entity_id": entity_id, "period": cy_period})
+                py_f = pool.submit(_convergence_get, dcl_single_path, {"entity_id": entity_id, "period": py_period})
                 return cy_f.result(), py_f.result()
 
     cy_raw, py_raw = await asyncio.to_thread(_fetch)
@@ -1771,10 +1872,44 @@ async def financial_statement(
 # ---------------------------------------------------------------------------
 
 def _fetch_pipeline_stages(entity_id: str, period: str) -> List[Dict[str, Any]]:
-    """Fetch pipeline stages for one entity from DCL via the semantic client."""
-    from src.nlq.services.dcl_client_router import get_routed_client
-    client = get_routed_client()
-    return client.get_pipeline_stages(entity_id=entity_id, period=period)
+    """Fetch pipeline stages for one entity from Convergence triple browse.
+
+    Uses Convergence's browse endpoint for customer.pipeline.* triples.
+    """
+    browse_result = _convergence_get(
+        "/api/convergence/triples/browse",
+        {"domain": "customer", "entity_id": entity_id, "period": period, "limit": 200},
+    )
+    triples = browse_result.get("triples", [])
+
+    stage_values: Dict[str, float] = {}
+    for t in triples:
+        concept = t.get("concept", "")
+        if not concept.startswith("customer.pipeline."):
+            continue
+        suffix = concept[len("customer.pipeline."):]
+        if not suffix or "." in suffix:
+            continue
+        val = t.get("value")
+        if val is not None:
+            stage_values[suffix] = float(val)
+
+    if not stage_values:
+        return []
+
+    ordered = sorted(stage_values.items(), key=lambda x: x[1], reverse=True)
+    first_val = ordered[0][1] if ordered else 1.0
+    if first_val == 0:
+        first_val = 1.0
+
+    return [
+        {
+            "label": stage.replace("_", " ").title(),
+            "value": round(val, 2),
+            "percent": round((val / first_val) * 100, 1),
+        }
+        for stage, val in ordered
+    ]
 
 
 def _sum_pipeline_stages(stage_lists: List[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
@@ -1812,7 +1947,7 @@ def _sum_pipeline_stages(stage_lists: List[List[Dict[str, Any]]]) -> List[Dict[s
 @router.get("/api/reports/pipeline")
 async def pipeline_report(period: str = Query(...)):
     """Pipeline funnel data — per-entity panels plus a combined panel."""
-    engagement = await asyncio.to_thread(_dcl_get, "/api/dcl/triples/engagement")
+    engagement = await asyncio.to_thread(_convergence_get, "/api/convergence/triples/engagement")
     entity_ids = await asyncio.to_thread(_get_entity_ids)
 
     # Build name lookup from engagement
@@ -1845,16 +1980,33 @@ async def pipeline_report(period: str = Query(...)):
 
 
 @router.get("/api/reports/{path:path}")
-async def proxy_dcl_report_get(path: str, request: Request):
-    """Forward GET /api/reports/* to DCL backend."""
-    # Maestra is now native to NLQ — do not proxy to DCL
+async def proxy_report_get(path: str, request: Request):
+    """Forward GET /api/reports/* to the appropriate backend.
+
+    Dashboard stays on DCL (SE surface). All other report paths route to
+    Convergence (ME/MA surface). Maestra is native to NLQ.
+    """
     if path.startswith("maestra"):
         raise HTTPException(status_code=404, detail="Maestra routes have moved to /maestra/*")
+
+    # Dashboard stays on DCL (SE surface)
+    if path.startswith("dashboard/"):
+        return await _proxy_dcl_report_get(path, request)
+
+    # All other reports → Convergence
+    params = dict(request.query_params)
+    result = await asyncio.to_thread(
+        _convergence_get, f"/api/convergence/reports/{path}", params or None,
+    )
+    return JSONResponse(content=result, status_code=200)
+
+
+async def _proxy_dcl_report_get(path: str, request: Request):
+    """Forward a GET to DCL backend (SE surface — dashboard only)."""
     if not DCL_BASE_URL:
         raise HTTPException(
             status_code=503,
-            detail="DCL_API_URL environment variable is not set. "
-                   "Cannot proxy report requests to DCL.",
+            detail="DCL_API_URL environment variable is not set.",
         )
     dcl_url = f"{DCL_BASE_URL}/api/reports/{path}"
     if request.query_params:
@@ -1865,34 +2017,20 @@ async def proxy_dcl_report_get(path: str, request: Request):
     except httpx.ConnectError:
         raise HTTPException(
             status_code=502,
-            detail=(
-                f"DCL report proxy failed: could not connect to DCL at {dcl_url}. "
-                f"Ensure DCL backend is running on {DCL_BASE_URL}."
-            ),
+            detail=f"Could not connect to DCL at {dcl_url}.",
         )
     except httpx.TimeoutException:
         raise HTTPException(
             status_code=504,
-            detail=f"DCL report proxy timed out waiting for {dcl_url}.",
+            detail=f"DCL timed out on GET {dcl_url}.",
         )
     except httpx.RemoteProtocolError as exc:
         raise HTTPException(
             status_code=502,
-            detail=f"DCL disconnected during report proxy GET {dcl_url}: {exc}",
+            detail=f"DCL disconnected during GET {dcl_url}: {exc}",
         )
 
     if resp.status_code != 200:
-        if resp.status_code == 422:
-            try:
-                body = resp.json()
-                detail_obj = body.get("detail", {})
-                if isinstance(detail_obj, dict) and detail_obj.get("error") == "data_incomplete":
-                    raise HTTPException(
-                        status_code=422,
-                        detail=detail_obj.get("detail", resp.text[:500]),
-                    )
-            except (ValueError, KeyError):
-                pass
         raise HTTPException(
             status_code=resp.status_code,
             detail=f"DCL returned {resp.status_code}: {resp.text[:500]}",
@@ -1902,61 +2040,16 @@ async def proxy_dcl_report_get(path: str, request: Request):
 
 
 @router.post("/api/reports/{path:path}")
-async def proxy_dcl_report_post(path: str, request: Request):
-    """Forward POST /api/reports/* to DCL backend."""
-    # Maestra is now native to NLQ — do not proxy to DCL
+async def proxy_report_post(path: str, request: Request):
+    """Forward POST /api/reports/* to Convergence (ME/MA surface)."""
     if path.startswith("maestra"):
         raise HTTPException(status_code=404, detail="Maestra routes have moved to /maestra/*")
-    if not DCL_BASE_URL:
-        raise HTTPException(
-            status_code=503,
-            detail="DCL_API_URL environment variable is not set. "
-                   "Cannot proxy report requests to DCL.",
-        )
-    dcl_url = f"{DCL_BASE_URL}/api/reports/{path}"
 
-    body = await request.body()
+    raw = await request.body()
+    body_dict = (await request.json()) if raw else {}
 
-    try:
-        resp = await asyncio.to_thread(
-            _proxy_client.post, dcl_url,
-            content=body,
-            headers={"Content-Type": "application/json"},
-        )
-    except httpx.ConnectError:
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                f"DCL report proxy failed: could not connect to DCL at {dcl_url}. "
-                f"Ensure DCL backend is running on {DCL_BASE_URL}."
-            ),
-        )
-    except httpx.TimeoutException:
-        raise HTTPException(
-            status_code=504,
-            detail=f"DCL report proxy timed out waiting for {dcl_url}.",
-        )
-    except httpx.RemoteProtocolError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"DCL disconnected during report proxy POST {dcl_url}: {exc}",
-        )
-
-    if resp.status_code != 200:
-        if resp.status_code == 422:
-            try:
-                body = resp.json()
-                detail_obj = body.get("detail", {})
-                if isinstance(detail_obj, dict) and detail_obj.get("error") == "data_incomplete":
-                    raise HTTPException(
-                        status_code=422,
-                        detail=detail_obj.get("detail", resp.text[:500]),
-                    )
-            except (ValueError, KeyError):
-                pass
-        raise HTTPException(
-            status_code=resp.status_code,
-            detail=f"DCL returned {resp.status_code}: {resp.text[:500]}",
-        )
-
-    return JSONResponse(content=resp.json(), status_code=200)
+    params = dict(request.query_params) or None
+    result = await asyncio.to_thread(
+        _convergence_post, f"/api/convergence/reports/{path}", body_dict, params,
+    )
+    return JSONResponse(content=result, status_code=200)

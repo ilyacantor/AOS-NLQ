@@ -773,7 +773,7 @@ class DCLSemanticClient:
                 "connected": True,
                 "phase": body.get("phase"),
                 "data_mode": body.get("data_mode"),
-                "last_run_id": body.get("last_run_id"),
+                "last_dcl_ingest_id": body.get("last_run_id"),
                 "last_updated": body.get("last_updated"),
                 "error": body.get("error"),
             }
@@ -1373,7 +1373,7 @@ class DCLSemanticClient:
         else:
             primary_source = source_systems[0] if source_systems else None
         normalized["run_provenance"] = {
-            "run_id": metadata.get("run_id"),
+            "dcl_ingest_id": metadata.get("run_id"),
             "tenant_id": metadata.get("tenant_id"),
             "entity_id": metadata.get("entity_id"),
             "snapshot_name": metadata.get("snapshot_name"),

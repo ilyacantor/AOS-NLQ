@@ -184,7 +184,7 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   }, [nodeStates, targetPositions, centerX, centerY, draggedNodeId]);
 
   // Drag handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent, node: IntentNode, nodeIndex: number) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent, node: IntentNode, _nodeIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
     dragStartPos.current = { x: e.clientX, y: e.clientY };

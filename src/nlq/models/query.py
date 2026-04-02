@@ -67,6 +67,11 @@ class NLQRequest(BaseModel):
         description="Active persona (CFO/CRO/COO/CTO/CHRO). Authoritative for dashboard generation."
     )
 
+    snapshot_id: Optional[str] = Field(
+        default=None,
+        description="DCL ingest ID of selected snapshot. Drives query identity — scopes data to a specific pipeline run."
+    )
+
     entity_id: Optional[str] = Field(
         default=None,
         description="Entity filter — dynamic, resolved from DCL engagement state. Sent by report portal entity selector."

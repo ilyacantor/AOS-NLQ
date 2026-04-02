@@ -1562,7 +1562,7 @@ function EBITDABridgeTab() {
             <div style={{ width: "100%", height: 400 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={waterfallBars} margin={{ top: 30, right: 20, left: 20, bottom: 90 }} barCategoryGap="10%">
-                  <XAxis type="category" dataKey="label" tick={{ fontSize: 11, fill: COLORS.textMuted, angle: -40, textAnchor: "end" }} axisLine={{ stroke: COLORS.border }} tickLine={false} interval={0} height={90} />
+                  <XAxis type="category" dataKey="label" tick={{ fontSize: 11, fill: COLORS.textMuted, angle: -40, textAnchor: "end" } as Record<string, unknown>} axisLine={{ stroke: COLORS.border }} tickLine={false} interval={0} height={90} />
                   <YAxis type="number" domain={[0, "auto"]} tickFormatter={(v: number) => { if (v === 0) return "$0"; const absM = Math.abs(v); return absM >= 1000 ? `$${(absM / 1000).toFixed(1)}B` : `$${absM.toFixed(0)}M`; }} tick={{ fontSize: 11, fill: COLORS.textDim }} axisLine={false} tickLine={false} />
                   <Bar dataKey="base" stackId="stack" fill="transparent" isAnimationActive={false} />
                   <Bar dataKey="value" stackId="stack" radius={[4, 4, 0, 0]} isAnimationActive={false}
@@ -2496,7 +2496,7 @@ function DashboardValue({ value, depth = 0 }: { value: unknown; depth?: number }
   return <span style={{ color: COLORS.text }}>{String(value)}</span>;
 }
 
-function DashboardsTab() {
+export function DashboardsTab() {
   const [persona, setPersona] = useState<DashboardPersona>("cfo");
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -2755,7 +2755,7 @@ function InlineRoadmap({ title, message, sections, onSectionClick }: {
   );
 }
 
-function RichContentRenderer({ content, onSendMessage }: { content: any; onSendMessage?: (msg: string) => void }) {
+export function RichContentRenderer({ content, onSendMessage }: { content: any; onSendMessage?: (msg: string) => void }) {
   if (!content || !content.type) return null;
   switch (content.type) {
     case "table": return <InlineTable title={content.title} headers={content.headers} rows={content.rows} />;
@@ -2770,7 +2770,7 @@ function RichContentRenderer({ content, onSendMessage }: { content: any; onSendM
 // ── Maestra Floating Chat ──────────────────────────────────────────────────
 type ChatMsg = { role: "user" | "maestra"; text: string };
 
-function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab: string) => void; onEntityChange?: (entity: EntitySelection) => void }) {
+export function MaestraFloatingChat({ onNavigate: _onNavigate, onEntityChange: _onEntityChange }: { onNavigate?: (tab: string) => void; onEntityChange?: (entity: EntitySelection) => void }) {
   const [expanded, setExpanded] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -2815,14 +2815,6 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
   useEffect(() => {
     if (expanded) setUnreadCount(0);
   }, [expanded]);
-
-  const handleNavigate = useCallback((tab: string) => {
-    if (onNavigate) onNavigate(tab);
-    const combinedTabs = ["combining", "crosssell", "cross_sell", "upsell", "ebitda", "whatif", "what_if", "qoe", "dashboards"];
-    if (onEntityChange && combinedTabs.includes(tab)) {
-      onEntityChange("combined");
-    }
-  }, [onNavigate, onEntityChange]);
 
   const sendMessage = useCallback(async (overrideMsg?: string) => {
     const msg = (overrideMsg || input).trim();
@@ -2966,7 +2958,7 @@ function MaestraFloatingChat({ onNavigate, onEntityChange }: { onNavigate?: (tab
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
-export function ReportPortal({ onClose }: { onClose: () => void }) {
+export function ReportPortal({ onClose: _onClose }: { onClose: () => void }) {
   const [entity, setEntity] = useState<EntitySelection>("combined");
   const [entityNames, setEntityNames] = useState<Record<string, string>>({});
   const [tab, setTab] = useState("pl");

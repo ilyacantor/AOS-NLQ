@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import { SnapshotProvider } from './contexts/SnapshotContext'
 import './index.built.css'
 
 class AppErrorBoundary extends React.Component<
@@ -35,7 +36,9 @@ class AppErrorBoundary extends React.Component<
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <AppErrorBoundary>
-      <App />
+      <SnapshotProvider>
+        <App />
+      </SnapshotProvider>
     </AppErrorBoundary>
   </React.StrictMode>,
 )

@@ -57,7 +57,7 @@ export const DataTable: React.FC<DataTableProps> = ({ nodes, title }) => {
                     </td>
                   </tr>
                 )}
-                {domainNodes.map((node, idx) => (
+                {domainNodes.map((node) => (
                   <tr
                     key={node.id}
                     className={`
@@ -84,7 +84,7 @@ export const DataTable: React.FC<DataTableProps> = ({ nodes, title }) => {
                     </td>
                     <td className="px-3 py-2 text-right">
                       <span className="text-white font-medium">
-                        {node.formatted_value || formatValue(node.value, { unit: node.unit })}
+                        {node.formatted_value || formatValue(node.value, { unit: node.unit ?? undefined })}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-center">

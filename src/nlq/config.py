@@ -86,6 +86,48 @@ def reset_tenant_cache() -> None:
     _tenant_id_cache = None
 
 
+def get_available_snapshots() -> list:
+    """Fetch available DCL snapshots for the current tenant.
+
+    Calls GET {DCL_API_URL}/api/dcl/snapshots?tenant_id={tenant_id}.
+    Returns list of snapshot dicts with dcl_ingest_id, snapshot_name,
+    run_timestamp, total_rows, is_current.
+
+    Raises RuntimeError if DCL_API_URL is not set or tenant_id is missing.
+    Raises ConnectionError if DCL is unreachable.
+    """
+    import httpx
+
+    dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+    if not dcl_url:
+        raise RuntimeError(
+            "DCL_API_URL is not configured — cannot fetch snapshots. "
+            "Set DCL_API_URL in environment or render.yaml."
+        )
+
+    tenant_id = get_tenant_id()
+    if not tenant_id:
+        raise RuntimeError(
+            "Cannot fetch snapshots — tenant_id is not configured. "
+            "Set AOS_TENANT_ID in environment."
+        )
+
+    url = f"{dcl_url}/api/dcl/snapshots"
+    try:
+        resp = httpx.get(url, params={"tenant_id": tenant_id}, timeout=15.0)
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("snapshots", [])
+    except httpx.ConnectError as e:
+        raise ConnectionError(
+            f"DCL unreachable at {url} — cannot fetch snapshots: {e}"
+        ) from e
+    except httpx.HTTPStatusError as e:
+        raise RuntimeError(
+            f"DCL returned {e.response.status_code} for snapshots: {e.response.text}"
+        ) from e
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 

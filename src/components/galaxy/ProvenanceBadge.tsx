@@ -27,7 +27,6 @@ export const ProvenanceBadge: React.FC<ProvenanceBadgeProps> = ({
   const mode = provenance?.mode?.toLowerCase() ?? null;
   const isVerified = mode === 'ingest' || mode === 'live';
   const isRun = mode === 'farm';
-  const isLocal = !isVerified && !isRun;
   const hasSourceSystems = provenance?.source_systems && provenance.source_systems.length > 0;
 
   // Format ISO timestamp to relative "Updated X mins ago"

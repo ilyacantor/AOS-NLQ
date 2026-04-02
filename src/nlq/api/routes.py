@@ -825,6 +825,30 @@ async def list_entities():
     }
 
 
+@router.get("/snapshots")
+async def snapshots():
+    """Return available DCL snapshots for the snapshot selector.
+
+    Frontend calls this to populate the snapshot dropdown on the Ask surface.
+    Snapshots are fetched fresh from DCL on every call (no caching — B16).
+    """
+    from src.nlq.config import get_available_snapshots
+
+    try:
+        snapshot_list = get_available_snapshots()
+    except ConnectionError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Cannot fetch snapshots — DCL unreachable: {e}",
+        )
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e),
+        )
+    return {"snapshots": snapshot_list}
+
+
 # Lazy-loaded singletons
 _claude_client: ClaudeClient = None
 

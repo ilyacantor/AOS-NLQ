@@ -228,6 +228,17 @@ export interface ChartDataSeries {
   color?: string;
 }
 
+export interface MapRegion {
+  region: string;
+  value: number;
+  percentage: number;
+}
+
+export interface MapData {
+  regions: MapRegion[];
+  total?: number;
+}
+
 export interface WidgetData {
   loading: boolean;
   error?: string;
@@ -242,4 +253,5 @@ export interface WidgetData {
   series?: ChartDataSeries[];
   categories?: string[];
   rows?: Record<string, any>[];
+  map_data?: MapData;
 }

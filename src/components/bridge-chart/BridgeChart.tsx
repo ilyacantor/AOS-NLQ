@@ -6,7 +6,6 @@ import {
   YAxis,
   Cell,
   ResponsiveContainer,
-  Tooltip,
 } from 'recharts'
 import type { BridgeChartData } from './types'
 

@@ -22,7 +22,7 @@ const MOUNT_RETRY_BACKOFFS = [2_000, 4_000, 8_000];
 export const DataPipelineStatus: React.FC = () => {
   const [status, setStatus] = useState<PipelineStatus | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const [error, setError] = useState(false);
+  const [, setError] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const mountTimeRef = useRef(Date.now());
 

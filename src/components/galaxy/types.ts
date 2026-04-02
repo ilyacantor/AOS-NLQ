@@ -36,6 +36,7 @@ export interface IntentNode {
   rationale?: string | null;
   semantic_label?: string | null;
   source_system?: string | null;  // e.g., "Salesforce CRM, NetSuite ERP"
+  unit?: string | null;           // e.g., "USD", "percent", "count"
 }
 
 /** Structured run provenance from DCL ingestion pipeline. */

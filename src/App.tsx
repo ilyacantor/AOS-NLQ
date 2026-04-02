@@ -7,6 +7,9 @@ import { DebugTracePanel } from './components/DebugTracePanel'
 import { DataPipelineStatus } from './components/DataPipelineStatus'
 import { ProductTour } from './components/ProductTour'
 import { LandingPage } from './components/LandingPage'
+import { useSnapshot } from './contexts/SnapshotContext'
+import { SnapshotSelector } from './components/SnapshotSelector'
+import { ProvenanceBanner } from './components/ProvenanceBanner'
 
 // Lazy-load the three view components — only the active view's code is downloaded
 const GalaxyView = React.lazy(() =>
@@ -141,9 +144,9 @@ function App() {
   const [dclWaitSeconds, setDclWaitSeconds] = useState<number>(0)
 
   // Backend connectivity state
-  const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'error'>('checking')
-  const [backendMessage, setBackendMessage] = useState<string | null>(null)
-  const [claudeAvailable, setClaudeAvailable] = useState<boolean | null>(null)
+  const [, setBackendStatus] = useState<'checking' | 'connected' | 'error'>('checking')
+  const [, setBackendMessage] = useState<string | null>(null)
+  const [, setClaudeAvailable] = useState<boolean | null>(null)
 
   // Landing page & product tour state
   const [showLanding, setShowLanding] = useState(false)
@@ -166,13 +169,14 @@ function App() {
     } catch { return {} }
   })
   const [isGeneratingDashboard, setIsGeneratingDashboard] = useState(false)
-  const [dashboardError, setDashboardError] = useState<string | null>(null)
+  const [dashboardError, _setDashboardError] = useState<string | null>(null)
 
   const [hasLoadedDefaultDashboard, setHasLoadedDefaultDashboard] = useState(false)
   const [financialStatementData, setFinancialStatementData] = useState<any>(null)
   const [bridgeChartData, setBridgeChartData] = useState<any>(null)
   const [salesFunnelData, setSalesFunnelData] = useState<any>(null)
   const sessionId = useSessionId()
+  const { selectedSnapshot } = useSnapshot()
 
   const queryRef = useRef(query)
   queryRef.current = query
@@ -270,7 +274,8 @@ function App() {
           question: queryText,
           reference_date: new Date().toISOString().split('T')[0],
           session_id: sessionId,
-          persona: selectedPersona
+          persona: selectedPersona,
+          snapshot_id: selectedSnapshot?.dcl_ingest_id || undefined,
         })
       })
 
@@ -782,6 +787,7 @@ function App() {
 
           <div className="flex items-center gap-4 text-slate-500 text-sm">
             <DataPipelineStatus />
+            {viewMode === 'galaxy' && <SnapshotSelector />}
             <LLMCallCounter />
             {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
             <button
@@ -816,6 +822,8 @@ function App() {
             {viewMode === 'dashboard' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
               <div className="h-full overflow-hidden flex flex-col">
+                {/* Provenance banner — display-only: entity, snapshot, timestamp */}
+                <ProvenanceBanner />
                 {/* DashboardRenderer - Full builder functionality with integrated persona selector */}
                 <div className="flex-1 overflow-hidden">
                   <DashboardRenderer

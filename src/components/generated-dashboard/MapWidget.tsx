@@ -11,7 +11,7 @@
 import { useEffect, useRef, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Widget, WidgetData } from '../../types/generated-dashboard';
+import { Widget, WidgetData, MapRegion } from '../../types/generated-dashboard';
 import { formatCurrency } from '../../utils/formatters';
 
 interface MapWidgetProps {
@@ -98,7 +98,7 @@ function fetchGeoJson(): Promise<GeoJSON.FeatureCollection> {
   return geoJsonPromise;
 }
 
-export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
+export function MapWidget({ widget, data, onClick }: MapWidgetProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const geoJsonLayerRef = useRef<L.GeoJSON | null>(null);
@@ -113,8 +113,8 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
     // Fallback: try to extract from series data
     if (data.series?.[0]?.data) {
       const seriesData = data.series[0].data;
-      const total = seriesData.reduce((sum, d) => sum + (d.value || 0), 0);
-      return seriesData.map(d => ({
+      const total = seriesData.reduce((sum: number, d: { value?: number }) => sum + (d.value || 0), 0);
+      return seriesData.map((d: { label?: string; value?: number }) => ({
         region: d.label || '',
         value: d.value || 0,
         percentage: total > 0 ? ((d.value || 0) / total) * 100 : 0,
@@ -126,13 +126,13 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
 
   const total = useMemo(() => {
     if (data.map_data?.total) return data.map_data.total;
-    return regionData.reduce((sum, r) => sum + (r.value || 0), 0);
+    return regionData.reduce((sum: number, r: MapRegion) => sum + (r.value || 0), 0);
   }, [data, regionData]);
 
   // Create region lookup
   const regionLookup = useMemo(() => {
     const lookup: Record<string, { value: number; percentage: number }> = {};
-    regionData.forEach(r => {
+    regionData.forEach((r: MapRegion) => {
       const regionKey = r.region?.toUpperCase() || '';
       lookup[regionKey] = {
         value: r.value || 0,
@@ -146,7 +146,7 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
 
   // Calculate max value for bubble scaling
   const maxValue = useMemo(() => {
-    return Math.max(...regionData.map(r => r.value || 0), 1);
+    return Math.max(...regionData.map((r: MapRegion) => r.value || 0), 1);
   }, [regionData]);
 
   // Initialize Leaflet map with solid background
@@ -268,7 +268,7 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
     bubblesLayer.clearLayers();
 
     // Add bubble for each region with data
-    regionData.forEach(r => {
+    regionData.forEach((r: MapRegion) => {
       const regionKey = r.region?.toUpperCase() || '';
       const center = REGION_CENTERS[regionKey];
       if (!center || !r.value) return;
@@ -311,7 +311,7 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
           L.DomEvent.stopPropagation(e);
           onClick?.(regionKey);
         });
-        circle.getElement?.()?.style.setProperty('cursor', 'pointer');
+        (circle.getElement?.() as HTMLElement | undefined)?.style.setProperty('cursor', 'pointer');
       }
 
       circle.addTo(bubblesLayer);
@@ -344,8 +344,8 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
 
     // Fit map bounds to show all bubbles
     const bubbleCenters = regionData
-      .filter(r => r.value && REGION_CENTERS[r.region?.toUpperCase() || ''])
-      .map(r => REGION_CENTERS[r.region!.toUpperCase()] as [number, number]);
+      .filter((r: MapRegion) => r.value && REGION_CENTERS[r.region?.toUpperCase() || ''])
+      .map((r: MapRegion) => REGION_CENTERS[r.region!.toUpperCase()] as [number, number]);
 
     if (bubbleCenters.length > 0 && mapRef.current) {
       const bounds = L.latLngBounds(bubbleCenters.map(c => L.latLng(c[0], c[1])));
@@ -379,9 +379,9 @@ export function MapWidget({ widget, data, height, onClick }: MapWidgetProps) {
       {/* Legend */}
       <div className="flex flex-wrap gap-3 mt-2 justify-center shrink-0">
         {regionData
-          .filter(r => r.value > 0)
-          .sort((a, b) => (b.value || 0) - (a.value || 0))
-          .map(r => {
+          .filter((r: MapRegion) => r.value > 0)
+          .sort((a: MapRegion, b: MapRegion) => (b.value || 0) - (a.value || 0))
+          .map((r: MapRegion) => {
             const regionKey = r.region?.toUpperCase() || '';
             const color = REGION_COLORS[regionKey] || '#64748b';
             return (
