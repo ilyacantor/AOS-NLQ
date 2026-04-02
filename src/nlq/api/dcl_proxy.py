@@ -1750,23 +1750,20 @@ async def financial_statement(
         raise HTTPException(status_code=400, detail=f"Unknown variant '{variant}'")
 
     # Two DCL calls total: CY and PY. DCL aggregates quarters internally.
-    # Issue both in parallel via ThreadPoolExecutor to halve wall-clock time.
-    from concurrent.futures import ThreadPoolExecutor
-
+    # asyncio.to_thread propagates contextvars (mode, snapshot) correctly;
+    # ThreadPoolExecutor does NOT — caused SE identity in ME mode (wrong run_id).
     if is_combined:
-        def _fetch() -> tuple:
-            with ThreadPoolExecutor(max_workers=2) as pool:
-                cy_f = pool.submit(_dcl_get, dcl_combining_path, {"period": cy_period})
-                py_f = pool.submit(_dcl_get, dcl_combining_path, {"period": py_period})
-                return cy_f.result().get("combined", {}), py_f.result().get("combined", {})
+        cy_raw, py_raw = await asyncio.gather(
+            asyncio.to_thread(_dcl_get, dcl_combining_path, {"period": cy_period}),
+            asyncio.to_thread(_dcl_get, dcl_combining_path, {"period": py_period}),
+        )
+        cy_raw = cy_raw.get("combined", {})
+        py_raw = py_raw.get("combined", {})
     else:
-        def _fetch() -> tuple:
-            with ThreadPoolExecutor(max_workers=2) as pool:
-                cy_f = pool.submit(_dcl_get, dcl_single_path, {"entity_id": entity_id, "period": cy_period})
-                py_f = pool.submit(_dcl_get, dcl_single_path, {"entity_id": entity_id, "period": py_period})
-                return cy_f.result(), py_f.result()
-
-    cy_raw, py_raw = await asyncio.to_thread(_fetch)
+        cy_raw, py_raw = await asyncio.gather(
+            asyncio.to_thread(_dcl_get, dcl_single_path, {"entity_id": entity_id, "period": cy_period}),
+            asyncio.to_thread(_dcl_get, dcl_single_path, {"entity_id": entity_id, "period": py_period}),
+        )
 
     cy_values = _flatten_dcl_statement(cy_raw, statement)
     py_values = _flatten_dcl_statement(py_raw, statement)
