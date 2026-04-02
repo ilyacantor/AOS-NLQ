@@ -82,6 +82,7 @@ _ME_PATH_PREFIXES = (
     "/api/reports/ebitda-bridge",
     "/api/reports/qoe",
     "/api/reports/what-if",
+    "/api/reports/financial-statement",
 )
 
 
