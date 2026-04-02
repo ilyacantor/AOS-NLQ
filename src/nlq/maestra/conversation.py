@@ -386,46 +386,35 @@ class ConversationService:
         return ctx
 
     def _fetch_entity_intel(self, entity_id: str, entity_name: str) -> IntelBrief:
-        """Fetch entity intel from DCL/Convergence. Raises on failure — no silent fallback."""
+        """Fetch entity intel from DCL. Raises on failure — no silent fallback."""
         import httpx
-        from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
 
-        _mode = _aos_mode_ctx.get()
-        _conv_url = os.environ.get("CONVERGENCE_API_URL", "").rstrip("/")
-        if _mode == "ME" and _conv_url:
-            base_url = _conv_url
-            _catalog_path = "/api/convergence/semantic-export"
-            _svc = "Convergence"
-        else:
-            base_url = os.environ.get("DCL_API_URL", "").rstrip("/")
-            _catalog_path = "/api/dcl/semantic-export"
-            _svc = "DCL"
-
-        if not base_url:
+        dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+        if not dcl_url:
             raise RuntimeError(
-                f"{_svc} URL not set — cannot fetch intel for {entity_name}. "
-                f"Maestra requires {_svc} for live entity intel."
+                f"DCL_API_URL not set — cannot fetch intel for {entity_name}. "
+                "Maestra requires DCL for live entity intel."
             )
 
-        # Query backend for entity financial data
+        # Query DCL for entity financial data
         try:
             with httpx.Client(timeout=30.0) as client:
                 # Get systems from semantic export
-                catalog_resp = client.get(f"{base_url}{_catalog_path}")
+                catalog_resp = client.get(f"{dcl_url}/api/dcl/semantic-export")
                 if not catalog_resp.is_success:
                     raise RuntimeError(
-                        f"{_svc} semantic-export failed (HTTP {catalog_resp.status_code}) "
+                        f"DCL semantic-export failed (HTTP {catalog_resp.status_code}) "
                         f"while fetching intel for {entity_name}"
                     )
                 catalog = catalog_resp.json()
 
                 # Get entity overlap for system/org info
-                overlap_resp = client.get(f"{base_url}/api/reports/entity-overlap")
+                overlap_resp = client.get(f"{dcl_url}/api/reports/entity-overlap")
                 overlap = overlap_resp.json() if overlap_resp.is_success else {}
 
         except httpx.ConnectError:
             raise RuntimeError(
-                f"Could not connect to {_svc} at {base_url} while fetching intel for {entity_name}."
+                f"Could not connect to DCL at {dcl_url} while fetching intel for {entity_name}."
             )
         except httpx.TimeoutException:
             raise RuntimeError(
@@ -1013,34 +1002,23 @@ class ConversationService:
         if demo_mode:
             return self._lookup_system_data_demo(query_type, dimension)
 
-        # Live mode — query DCL or Convergence based on mode
+        # Live mode — query DCL
         import httpx
-        from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
 
-        _mode = _aos_mode_ctx.get()
-        _conv_url = os.environ.get("CONVERGENCE_API_URL", "").rstrip("/")
-        if _mode == "ME" and _conv_url:
-            _base = _conv_url
-            _cat_path = "/api/convergence/semantic-export"
-            _svc = "Convergence"
-        else:
-            _base = os.environ.get("DCL_API_URL", "").rstrip("/")
-            _cat_path = "/api/dcl/semantic-export"
-            _svc = "DCL"
-
-        if not _base:
+        dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+        if not dcl_url:
             raise RuntimeError(
-                f"{_svc} URL not set — cannot look up system data. "
-                f"Maestra requires {_svc} for live system data."
+                "DCL_API_URL not set — cannot look up system data. "
+                "Maestra requires DCL for live system data."
             )
 
         if query_type == "systems":
             try:
                 with httpx.Client(timeout=30.0) as client:
-                    resp = client.get(f"{_base}/api/reports/entity-overlap")
+                    resp = client.get(f"{dcl_url}/api/reports/entity-overlap")
                 if not resp.is_success:
                     raise RuntimeError(
-                        f"{_svc} entity-overlap failed (HTTP {resp.status_code}) "
+                        f"DCL entity-overlap failed (HTTP {resp.status_code}) "
                         f"while looking up systems"
                     )
                 overlap = resp.json()
@@ -1052,26 +1030,27 @@ class ConversationService:
                         systems.append(sys_info)
                 return {"success": True, "systems": systems}
             except httpx.ConnectError:
-                raise RuntimeError(f"Could not connect to {_svc} at {_base} for system lookup.")
+                raise RuntimeError(f"Could not connect to DCL at {dcl_url} for system lookup.")
             except httpx.TimeoutException:
-                raise RuntimeError(f"{_svc} timed out during system lookup at {_base}.")
+                raise RuntimeError(f"DCL timed out during system lookup at {dcl_url}.")
 
         elif query_type == "connections":
+            # Connections come from AAM — query DCL's topology if available
             try:
                 with httpx.Client(timeout=30.0) as client:
-                    resp = client.get(f"{_base}{_cat_path}")
+                    resp = client.get(f"{dcl_url}/api/dcl/semantic-export")
                 if not resp.is_success:
                     raise RuntimeError(
-                        f"{_svc} semantic-export failed (HTTP {resp.status_code}) "
+                        f"DCL semantic-export failed (HTTP {resp.status_code}) "
                         f"while looking up connections"
                     )
                 catalog = resp.json()
                 connections = catalog.get("connections", [])
                 return {"success": True, "connections": connections}
             except httpx.ConnectError:
-                raise RuntimeError(f"Could not connect to {_svc} at {_base} for connection lookup.")
+                raise RuntimeError(f"Could not connect to DCL at {dcl_url} for connection lookup.")
             except httpx.TimeoutException:
-                raise RuntimeError(f"{_svc} timed out during connection lookup at {_base}.")
+                raise RuntimeError(f"DCL timed out during connection lookup at {dcl_url}.")
 
         elif query_type == "dimension_data":
             return {

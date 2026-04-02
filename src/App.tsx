@@ -7,8 +7,6 @@ import { DebugTracePanel } from './components/DebugTracePanel'
 import { DataPipelineStatus } from './components/DataPipelineStatus'
 import { ProductTour } from './components/ProductTour'
 import { LandingPage } from './components/LandingPage'
-import { SnapshotProvider, useSnapshot } from './contexts/SnapshotContext'
-import { SnapshotSelector } from './components/SnapshotSelector'
 
 // Lazy-load the three view components — only the active view's code is downloaded
 const GalaxyView = React.lazy(() =>
@@ -250,8 +248,6 @@ function App() {
     return () => clearInterval(timer)
   }, [liveDataAvailable])
 
-  const { selectedSnapshot } = useSnapshot()
-
   // Submit query — ONE endpoint, ONE path: /api/v1/query
   const submitQuery = useCallback(async (queryText: string) => {
     if (!queryText.trim()) return
@@ -274,8 +270,7 @@ function App() {
           question: queryText,
           reference_date: new Date().toISOString().split('T')[0],
           session_id: sessionId,
-          persona: selectedPersona,
-          ...(selectedSnapshot ? { snapshot_id: selectedSnapshot.dcl_ingest_id } : {}),
+          persona: selectedPersona
         })
       })
 
@@ -417,7 +412,7 @@ function App() {
     setIsLoading(false)
     refreshLLMStats()
     setHistoryVersion(v => v + 1)
-  }, [sessionId, selectedPersona, selectedSnapshot])
+  }, [sessionId, selectedPersona])
 
   // ── Parent iframe communication ────────────────────────────────────
   // Listens for postMessage commands from the AOS platform shell.
@@ -787,7 +782,6 @@ function App() {
 
           <div className="flex items-center gap-4 text-slate-500 text-sm">
             <DataPipelineStatus />
-            {viewMode !== 'reports' && <SnapshotSelector />}
             <LLMCallCounter />
             {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
             <button
@@ -822,20 +816,6 @@ function App() {
             {viewMode === 'dashboard' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
               <div className="h-full overflow-hidden flex flex-col">
-                {/* Provenance banner — shows active snapshot identity */}
-                {selectedSnapshot && (
-                  <div className="px-6 py-2 bg-slate-800/50 border-b border-slate-700/50 flex items-center gap-3">
-                    <span className="text-slate-400 text-xs">
-                      Showing: <span className="text-slate-200 font-medium">{selectedSnapshot.snapshot_name}</span>
-                      {selectedSnapshot.run_timestamp && (
-                        <> &middot; ingested {new Date(selectedSnapshot.run_timestamp).toLocaleString()}</>
-                      )}
-                      {selectedSnapshot.total_rows > 0 && (
-                        <> &middot; {selectedSnapshot.total_rows.toLocaleString()} triples</>
-                      )}
-                    </span>
-                  </div>
-                )}
                 {/* DashboardRenderer - Full builder functionality with integrated persona selector */}
                 <div className="flex-1 overflow-hidden">
                   <DashboardRenderer
@@ -1151,12 +1131,4 @@ function App() {
   )
 }
 
-function AppWithProviders() {
-  return (
-    <SnapshotProvider>
-      <App />
-    </SnapshotProvider>
-  )
-}
-
-export default AppWithProviders
+export default App

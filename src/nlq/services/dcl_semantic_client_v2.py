@@ -113,16 +113,6 @@ class DCLSemanticClientV2:
             )
         self.base_url = raw_url.rstrip("/")
         self._http = httpx.Client(base_url=self.base_url, timeout=30.0)
-
-        # Convergence client for ME mode routing
-        conv_url = os.environ.get("CONVERGENCE_API_URL", "").rstrip("/")
-        self._http_conv: Optional[httpx.Client] = None
-        self.convergence_url: Optional[str] = None
-        if conv_url:
-            self.convergence_url = conv_url
-            self._http_conv = httpx.Client(base_url=conv_url, timeout=30.0)
-            logger.info("DCLSemanticClientV2 Convergence client — endpoint: %s", conv_url)
-
         # Browse cache: key → (expire_time, response_dict)
         self._browse_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
         self._browse_cache_lock = threading.Lock()
@@ -133,65 +123,22 @@ class DCLSemanticClientV2:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _route(self, path: str) -> Tuple[httpx.Client, str]:
-        """Pick the right HTTP client and rewrite the path based on SE/ME mode.
-
-        SE mode: returns (DCL client, original path) — no change.
-        ME mode: returns (Convergence client, /api/dcl/... → /api/convergence/...).
-        Raises RuntimeError if ME mode but Convergence is not configured.
-        """
-        from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
-
-        mode = _aos_mode_ctx.get()
-        if mode == "ME":
-            if self._http_conv is None:
-                raise RuntimeError(
-                    "ME mode active but Convergence is not configured — "
-                    "cannot route to Convergence. Set CONVERGENCE_API_URL env var."
-                )
-            rewritten = path.replace("/api/dcl/", "/api/convergence/", 1)
-            return self._http_conv, rewritten
-        return self._http, path
-
-    def _current_data_source(self) -> str:
-        """Return 'dcl_v2' or 'convergence_v2' based on current mode."""
-        from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
-        return "convergence_v2" if _aos_mode_ctx.get() == "ME" else "dcl_v2"
-
     def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """GET request to DCL or Convergence (mode-routed). Raises on non-2xx.
-
-        For v2 report paths, auto-injects tenant_id and pipeline_run_id
-        so endpoints receive the required identity pair (I2/I6).
-        """
-        if path.startswith("/api/dcl/reports/v2/") or path.startswith("/api/dcl/triples/"):
-            from src.nlq.config import get_identity
-            params = {**get_identity(), **(params or {})}
-        client, routed_path = self._route(path)
-        resp = client.get(routed_path, params=params)
-        base = self.convergence_url if client is self._http_conv else self.base_url
+        """GET request to DCL. Raises on non-2xx."""
+        resp = self._http.get(path, params=params)
         if resp.status_code >= 400:
             raise RuntimeError(
-                f"v2 GET {base}{routed_path} returned {resp.status_code}: "
+                f"DCL v2 GET {self.base_url}{path} returned {resp.status_code}: "
                 f"{resp.text[:500]}"
             )
         return resp.json()
 
     def _post(self, path: str, body: Dict[str, Any]) -> Dict[str, Any]:
-        """POST request to DCL or Convergence (mode-routed). Raises on non-2xx.
-
-        For v2 report paths, auto-injects tenant_id and pipeline_run_id
-        into the JSON body so endpoints receive identity (I2/I6).
-        """
-        if path.startswith("/api/dcl/reports/v2/"):
-            from src.nlq.config import get_identity
-            body = {**get_identity(), **body}
-        client, routed_path = self._route(path)
-        resp = client.post(routed_path, json=body)
-        base = self.convergence_url if client is self._http_conv else self.base_url
+        """POST request to DCL. Raises on non-2xx."""
+        resp = self._http.post(path, json=body)
         if resp.status_code >= 400:
             raise RuntimeError(
-                f"v2 POST {base}{routed_path} returned {resp.status_code}: "
+                f"DCL v2 POST {self.base_url}{path} returned {resp.status_code}: "
                 f"{resp.text[:500]}"
             )
         return resp.json()
@@ -238,9 +185,7 @@ class DCLSemanticClientV2:
         limit: int = 50,
     ) -> Dict[str, Any]:
         """Call /api/dcl/triples/browse with filters. TTL-cached (120s)."""
-        from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
-        mode = _aos_mode_ctx.get()
-        cache_key = f"{mode}|{domain}|{entity_id}|{period}|{property_name}|{limit}"
+        cache_key = f"{domain}|{entity_id}|{period}|{property_name}|{limit}"
         now = time.time()
 
         with self._browse_cache_lock:
@@ -306,7 +251,7 @@ class DCLSemanticClientV2:
             "confidence_score": last.get("confidence_score"),
             "confidence_tier": last.get("confidence_tier"),
             "source_system": last.get("source_system"),
-            "data_source": self._current_data_source(),
+            "data_source": "dcl_v2",
             "metric_name": metric_name,
             "concept": concept,
         }
@@ -391,7 +336,7 @@ class DCLSemanticClientV2:
                     "error": "No periods available in DCL triples — store may be empty",
                     "metric_name": metric_name,
                     "concept": concept,
-                    "data_source": self._current_data_source(),
+                    "data_source": "dcl_v2",
                 }
 
         # --- Single quarter query ---
@@ -450,7 +395,7 @@ class DCLSemanticClientV2:
                 ),
                 "metric_name": metric_name,
                 "concept": concept,
-                "data_source": self._current_data_source(),
+                "data_source": "dcl_v2",
             }
 
         return {
@@ -460,7 +405,7 @@ class DCLSemanticClientV2:
             "confidence_score": triple.get("confidence_score"),
             "confidence_tier": triple.get("confidence_tier"),
             "source_system": triple.get("source_system"),
-            "data_source": self._current_data_source(),
+            "data_source": "dcl_v2",
             "metric_name": metric_name,
             "concept": concept,
         }
@@ -536,7 +481,7 @@ class DCLSemanticClientV2:
                         "confidence_score": triple.get("confidence_score"),
                         "confidence_tier": triple.get("confidence_tier"),
                         "source_system": triple.get("source_system"),
-                        "data_source": self._current_data_source(),
+                        "data_source": "dcl_v2",
                         "metric_name": metric_name,
                         "concept": concept,
                     }
@@ -550,7 +495,7 @@ class DCLSemanticClientV2:
                 ),
                 "metric_name": metric_name,
                 "concept": concept,
-                "data_source": self._current_data_source(),
+                "data_source": "dcl_v2",
             }
 
         # Additive units (money, counts) → SUM; rates/ratios/pcts → AVG
@@ -564,7 +509,7 @@ class DCLSemanticClientV2:
             "confidence_score": last_triple.get("confidence_score") if last_triple else None,
             "confidence_tier": last_triple.get("confidence_tier") if last_triple else None,
             "source_system": last_triple.get("source_system") if last_triple else None,
-            "data_source": self._current_data_source(),
+            "data_source": "dcl_v2",
             "metric_name": metric_name,
             "concept": concept,
             "quarters_found": len(values),
@@ -605,7 +550,7 @@ class DCLSemanticClientV2:
                     "entity_id": t.get("entity_id"),
                     "confidence_score": t.get("confidence_score"),
                     "source_system": t.get("source_system"),
-                    "data_source": self._current_data_source(),
+                    "data_source": "dcl_v2",
                 })
         return results
 
@@ -637,7 +582,7 @@ class DCLSemanticClientV2:
                     "value": None,
                     "error": "No periods available in DCL triples — store may be empty",
                     "metric_name": metric_name,
-                    "data_source": self._current_data_source(),
+                    "data_source": "dcl_v2",
                 }
             period = resolved
 
@@ -673,7 +618,7 @@ class DCLSemanticClientV2:
                     ),
                     "metric_name": metric_name,
                     "formula": formula,
-                    "data_source": self._current_data_source(),
+                    "data_source": "dcl_v2",
                 }
 
             val = self._numeric_value(triple)
@@ -686,7 +631,7 @@ class DCLSemanticClientV2:
                     ),
                     "metric_name": metric_name,
                     "formula": formula,
-                    "data_source": self._current_data_source(),
+                    "data_source": "dcl_v2",
                 }
 
             component_values[comp_concept] = val
@@ -712,7 +657,7 @@ class DCLSemanticClientV2:
             "confidence_tier": "derived",
             "source_triples": source_triples,
             "formula": formula,
-            "data_source": self._current_data_source(),
+            "data_source": "dcl_v2",
             "metric_name": metric_name,
         }
 
@@ -881,10 +826,7 @@ class DCLSemanticClientV2:
                     body["entity_ids"] = [entity_id]
                 if period:
                     body["period"] = period
-                client, routed_path = self._route("/api/dcl/triples/browse-batch")
-                from src.nlq.config import get_identity
-                params = get_identity()
-                resp = client.post(routed_path, json=body, params=params)
+                resp = self._http.post("/api/dcl/triples/browse-batch", json=body)
                 if resp.status_code >= 400:
                     raise RuntimeError(f"browse-batch returned {resp.status_code}: {resp.text[:300]}")
                 data = resp.json()
@@ -1045,10 +987,7 @@ class DCLSemanticClientV2:
                 body: Dict[str, Any] = {"domains": sorted(all_domains)}
                 if entity_id:
                     body["entity_ids"] = [entity_id]
-                client, routed_path = self._route("/api/dcl/triples/browse-batch")
-                from src.nlq.config import get_identity
-                params = get_identity()
-                resp = client.post(routed_path, json=body, params=params)
+                resp = self._http.post("/api/dcl/triples/browse-batch", json=body)
                 if resp.status_code >= 400:
                     raise RuntimeError(f"browse-batch returned {resp.status_code}: {resp.text[:300]}")
                 data = resp.json()
@@ -1059,7 +998,7 @@ class DCLSemanticClientV2:
                 logger.warning("get_all_metrics_by_period: browse-batch failed: %s", exc)
                 # No fallback — fail loudly per A1
                 raise RuntimeError(
-                    f"browse-batch call failed for entity_id={entity_id}, "
+                    f"DCL browse-batch call failed for entity_id={entity_id}, "
                     f"domains={sorted(all_domains)}: {exc}"
                 ) from exc
 

@@ -44,14 +44,6 @@ _diag_trace: contextvars.ContextVar[Optional[List[str]]] = contextvars.ContextVa
 _last_provenance_ctx: contextvars.ContextVar[Optional[Dict[str, Any]]] = contextvars.ContextVar('_last_provenance_ctx', default=None)
 _last_data_source_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar('_last_data_source_ctx', default=None)
 
-# SE/ME mode routing — set per-request by middleware based on URL path.
-# "SE" = single entity (routes to DCL), "ME" = multi entity (routes to Convergence).
-_aos_mode_ctx: contextvars.ContextVar[str] = contextvars.ContextVar('_aos_mode_ctx', default="SE")
-
-# Snapshot override — operator-selected snapshot from frontend.
-# When set, SE identity uses this dcl_ingest_id instead of resolving latest.
-_snapshot_id_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar('_snapshot_id_ctx', default=None)
-
 
 def propagate_context(fn):
     """Wrap fn so it runs with the caller's request-scoped contextvars.
@@ -65,16 +57,12 @@ def propagate_context(fn):
     snapshot = {
         "entity_id": _entity_id_ctx.get(),
         "diag_trace": _diag_trace.get(),
-        "aos_mode": _aos_mode_ctx.get(),
-        "snapshot_id": _snapshot_id_ctx.get(),
     }
 
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         _entity_id_ctx.set(snapshot["entity_id"])
         _diag_trace.set(snapshot["diag_trace"])
-        _aos_mode_ctx.set(snapshot["aos_mode"])
-        _snapshot_id_ctx.set(snapshot["snapshot_id"])
         return fn(*args, **kwargs)
 
     return wrapper
@@ -205,13 +193,6 @@ class DCLSemanticClient:
             follow_redirects=True,
         )
 
-        # Convergence HTTP client — used in ME mode for multi-entity routing.
-        conv_url = os.environ.get("CONVERGENCE_API_URL", "").rstrip("/")
-        self.convergence_url: Optional[str] = conv_url or None
-        self._http_conv: Optional[httpx.Client] = None
-        if self.convergence_url:
-            self._http_conv = httpx.Client(timeout=30.0, follow_redirects=True)
-
         # H4: Explicit data source tracking — callers can inspect this
         self._catalog_source: str = "none"  # "dcl", "local", "local_fallback"
 
@@ -222,8 +203,6 @@ class DCLSemanticClient:
 
         if self.dcl_url:
             logger.info(f"DCL semantic client initialized - DCL mode (endpoint: {self.dcl_url})")
-        if self.convergence_url:
-            logger.info(f"DCL semantic client initialized - Convergence available (endpoint: {self.convergence_url})")
         else:
             _allow_no_dcl = os.environ.get("NLQ_ALLOW_NO_DCL")
             if _allow_no_dcl:
@@ -236,48 +215,6 @@ class DCLSemanticClient:
                     "DCL_API_URL is not set and NLQ_ALLOW_NO_DCL is not set. "
                     "NLQ requires a DCL endpoint. Set DCL_API_URL or NLQ_ALLOW_NO_DCL=1."
                 )
-
-    # =========================================================================
-    # SE/ME ROUTING HELPERS
-    # =========================================================================
-
-    def _active_base_url(self) -> Optional[str]:
-        """Return the base URL for the current mode (DCL or Convergence)."""
-        mode = _aos_mode_ctx.get()
-        if mode == "ME":
-            if not self.convergence_url:
-                raise RuntimeError(
-                    "ME mode active but CONVERGENCE_API_URL is not configured — "
-                    "cannot route to Convergence. Set CONVERGENCE_API_URL env var."
-                )
-            return self.convergence_url
-        return self.dcl_url
-
-    def _resolve_url(self, path: str) -> tuple:
-        """Return (http_client, full_url) routed by SE/ME mode.
-
-        In ME mode, rewrites /api/dcl/ prefix to /api/convergence/ and
-        uses the Convergence HTTP client. In SE mode, uses DCL as-is.
-        Raises RuntimeError if ME mode but Convergence is not configured.
-        """
-        mode = _aos_mode_ctx.get()
-        if mode == "ME":
-            if not self.convergence_url or not self._http_conv:
-                raise RuntimeError(
-                    "ME mode active but Convergence is not configured — "
-                    "cannot route to Convergence. Set CONVERGENCE_API_URL env var."
-                )
-            rewritten = path.replace("/api/dcl/", "/api/convergence/", 1)
-            return self._http_conv, f"{self.convergence_url}{rewritten}"
-        return self._http_client, f"{self.dcl_url}{path}"
-
-    def _current_source_label(self) -> str:
-        """Return 'convergence' in ME mode, 'dcl' in SE mode."""
-        return "convergence" if _aos_mode_ctx.get() == "ME" else "dcl"
-
-    def _current_service_name(self) -> str:
-        """Return human-readable service name for error messages."""
-        return "Convergence" if _aos_mode_ctx.get() == "ME" else "DCL"
 
     # =========================================================================
     # CIRCUIT BREAKER — protects against repeated DCL failures
@@ -347,9 +284,7 @@ class DCLSemanticClient:
         Raises:
             RuntimeError: If DCL is not configured or unreachable
         """
-        svc = self._current_service_name()
-        base_url = self._active_base_url()
-        diag(f"[NLQ-DIAG] get_catalog called: base_url={base_url}, service={svc}")
+        diag(f"[NLQ-DIAG] get_catalog called: dcl_url={self.dcl_url}")
 
         current_time = time.time()
 
@@ -359,30 +294,30 @@ class DCLSemanticClient:
             and current_time - self._cache_time < CACHE_TTL_SECONDS):
             return self._catalog
 
-        if not base_url:
+        if not self.dcl_url:
             raise RuntimeError(
-                f"{svc} URL not configured — cannot serve queries. "
-                f"Set {'CONVERGENCE_API_URL' if svc == 'Convergence' else 'DCL_API_URL'} environment variable."
+                "DCL_API_URL not configured — cannot serve queries without DCL. "
+                "Set DCL_API_URL environment variable."
             )
 
-        # Fetch from DCL or Convergence
-        diag(f"[NLQ-DIAG] Fetching catalog from {svc}: {base_url}/api/{'convergence' if svc == 'Convergence' else 'dcl'}/semantic-export")
+        # Fetch from DCL
+        diag(f"[NLQ-DIAG] Fetching catalog from DCL: {self.dcl_url}/api/dcl/semantic-export")
         try:
             catalog = self._fetch_from_dcl()
             self._catalog = catalog
             self._cache_time = current_time
-            self._catalog_source = self._current_source_label()
-            diag(f"[NLQ-DIAG] {svc} catalog loaded OK: {len(catalog.metrics)} metrics")
-            logger.info(f"Loaded semantic catalog from {svc} ({len(catalog.metrics)} metrics)")
+            self._catalog_source = "dcl"
+            diag(f"[NLQ-DIAG] DCL catalog loaded OK: {len(catalog.metrics)} metrics")
+            logger.info(f"Loaded semantic catalog from DCL ({len(catalog.metrics)} metrics)")
             return catalog
         except RuntimeError:
             raise  # Re-raise our own errors
         except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
-            diag(f"[NLQ-DIAG] {svc} catalog fetch FAILED: {type(e).__name__}: {e}")
+            diag(f"[NLQ-DIAG] DCL catalog fetch FAILED: {type(e).__name__}: {e}")
             raise RuntimeError(
-                f"{svc} FAILURE: catalog fetch failed: {e}. "
-                f"base_url={base_url}. "
-                f"Cannot serve queries without {svc}. Check {svc} service health."
+                f"DCL FAILURE: catalog fetch failed: {e}. "
+                f"dcl_url={self.dcl_url}. "
+                f"Cannot serve queries without DCL. Check DCL service health."
             )
 
     def _fetch_from_dcl(self) -> SemanticCatalog:
@@ -394,7 +329,7 @@ class DCLSemanticClient:
         Raises on failure instead of returning None — the caller (get_catalog)
         decides what to do based on data_mode.
         """
-        client, url = self._resolve_url("/api/dcl/semantic-export")
+        url = f"{self.dcl_url}/api/dcl/semantic-export"
         backoff_schedule = [0, 3, 6]  # seconds between attempts
 
         for attempt, wait in enumerate(backoff_schedule, 1):
@@ -404,7 +339,7 @@ class DCLSemanticClient:
 
             try:
                 diag(f"[NLQ-DIAG] _fetch_from_dcl GET {url} (attempt {attempt}/{len(backoff_schedule)})")
-                response = client.get(url, timeout=20.0)
+                response = self._http_client.get(url, timeout=20.0)
                 diag(f"[NLQ-DIAG] _fetch_from_dcl status={response.status_code}, size={len(response.text)} bytes")
                 response.raise_for_status()
                 data = response.json()
@@ -655,14 +590,14 @@ class DCLSemanticClient:
         if local_only:
             return self._resolve_metric_locally(user_term)
 
-        # Try DCL/Convergence resolution endpoint for fuzzy/semantic matching
-        if self._active_base_url() and self._is_dcl_call_allowed():
+        # Try DCL resolution endpoint for fuzzy/semantic matching
+        if self.dcl_url and self._is_dcl_call_allowed():
             try:
                 result = self._resolve_metric_via_dcl(user_term)
                 if result:
                     return result
             except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
-                logger.debug(f"{self._current_service_name()} metric resolution failed for '{user_term}': {e}")
+                logger.debug(f"DCL metric resolution failed for '{user_term}': {e}")
 
         # Fall back to catalog-based resolution (uses DCL catalog if available)
         return self._resolve_metric_locally(user_term)
@@ -675,9 +610,8 @@ class DCLSemanticClient:
         with the closest candidates — we try the top suggestion as a fallback.
         """
         try:
-            client, url = self._resolve_url("/api/dcl/semantic-export/resolve/metric")
-            response = client.get(
-                url,
+            response = self._http_client.get(
+                f"{self.dcl_url}/api/dcl/semantic-export/resolve/metric",
                 params={"q": user_term},
                 timeout=5.0,
             )
@@ -739,14 +673,12 @@ class DCLSemanticClient:
             ('metric' | 'entity'), ``name``, and ``score``.
             Returns empty list if DCL is unavailable or returns no results.
         """
-        if not self._active_base_url():
+        if not self.dcl_url:
             return []
 
-        svc = self._current_service_name()
         try:
-            client, url = self._resolve_url("/api/dcl/semantic-export/search")
-            response = client.get(
-                url,
+            response = self._http_client.get(
+                f"{self.dcl_url}/api/dcl/semantic-export/search",
                 params={"q": query, "limit": limit},
                 timeout=5.0,
             )
@@ -757,8 +689,8 @@ class DCLSemanticClient:
             results = data.get("results", data) if isinstance(data, dict) else data
             return results if isinstance(results, list) else []
         except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError) as e:
-            logger.warning(f"{svc} search failed for '{query}': {e}")
-            raise ConnectionError(f"{svc} search failed: {e}") from e
+            logger.warning(f"DCL search failed for '{query}': {e}")
+            raise ConnectionError(f"DCL search failed: {e}") from e
 
     def _resolve_metric_locally(self, user_term: str) -> Optional[MetricDefinition]:
         """Resolve metric using local catalog."""
@@ -813,44 +745,42 @@ class DCLSemanticClient:
         return catalog.ingest_summary
 
     def check_dcl_health(self) -> Dict[str, Any]:
-        """Check DCL/Convergence reachability and mode via its health endpoint.
-
-        Routes to Convergence in ME mode, DCL in SE mode.
+        """Check DCL reachability and mode via its health endpoint.
 
         Returns dict with:
-          connected: bool — service responded to health check
-          phase: str|None — startup phase (ready, warming, degraded)
-          data_mode: str|None — data mode (Empty, Ingest, Farm, AAM)
-          last_dcl_ingest_id: str|None — last ingest identifier (I1)
+          connected: bool — DCL responded to health check
+          phase: str|None — DCL startup phase (ready, warming, degraded)
+          data_mode: str|None — DCL data mode (Empty, Ingest, Farm, AAM)
+          last_run_id: str|None — last DCL run ID
           last_updated: str|None — last mode change timestamp
           error: str|None — error message if not connected
         """
-        base_url = self._active_base_url()
-        svc = self._current_service_name()
-        if not base_url:
-            return {"connected": False, "error": f"{svc} URL not configured"}
+        if not self.dcl_url:
+            return {"connected": False, "error": "DCL_API_URL not configured"}
 
-        client, url = self._resolve_url("/api/health")
         try:
-            resp = client.get(url, timeout=5.0)
+            resp = self._http_client.get(
+                f"{self.dcl_url}/api/health",
+                timeout=5.0,
+            )
             if resp.status_code != 200:
                 return {
                     "connected": False,
-                    "error": f"{svc} health returned HTTP {resp.status_code}",
+                    "error": f"DCL health returned HTTP {resp.status_code}",
                 }
             body = resp.json()
             return {
                 "connected": True,
                 "phase": body.get("phase"),
                 "data_mode": body.get("data_mode"),
-                "last_dcl_ingest_id": body.get("last_dcl_ingest_id"),
+                "last_run_id": body.get("last_run_id"),
                 "last_updated": body.get("last_updated"),
                 "error": body.get("error"),
             }
         except httpx.TimeoutException:
-            return {"connected": False, "error": f"{svc} health check timed out ({base_url})"}
+            return {"connected": False, "error": f"DCL health check timed out ({self.dcl_url})"}
         except httpx.RequestError as e:
-            return {"connected": False, "error": f"{svc} unreachable at {base_url}: {e}"}
+            return {"connected": False, "error": f"DCL unreachable at {self.dcl_url}: {e}"}
 
     def get_ingest_runs(self) -> Dict[str, Any]:
         """Fetch detailed ingest run data from DCL.
@@ -863,12 +793,13 @@ class DCLSemanticClient:
             Dict with keys: sources (list), tenants (list), total_rows (int),
             pipe_count (int), available (bool), runs (list of raw run dicts).
         """
-        # Try the live endpoint first
-        if self._active_base_url():
-            svc = self._current_service_name()
+        # Try the live endpoint first (ingest runs only come from DCL)
+        if self.dcl_url:
             try:
-                client, url = self._resolve_url("/api/dcl/ingest/runs")
-                response = client.get(url, timeout=5.0)
+                response = self._http_client.get(
+                    f"{self.dcl_url}/api/dcl/ingest/runs",
+                    timeout=5.0,
+                )
                 if response.status_code == 200:
                     data = response.json()
                     runs = data if isinstance(data, list) else data.get("runs", [])
@@ -886,7 +817,7 @@ class DCLSemanticClient:
                         "runs": runs,
                     }
             except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError) as e:
-                logger.debug(f"{svc} ingest/runs failed, falling back to catalog: {e}")
+                logger.debug(f"DCL ingest/runs failed, falling back to catalog: {e}")
 
         # Fall back to cached ingest_summary from semantic export
         summary = self.get_ingest_summary()
@@ -919,14 +850,12 @@ class DCLSemanticClient:
         Returns:
             Entity definition dict if found, None otherwise
         """
-        if not user_term or not self._active_base_url():
+        if not user_term or not self.dcl_url:
             return None
 
-        svc = self._current_service_name()
         try:
-            client, url = self._resolve_url("/api/dcl/semantic-export/resolve/entity")
-            response = client.get(
-                url,
+            response = self._http_client.get(
+                f"{self.dcl_url}/api/dcl/semantic-export/resolve/entity",
                 params={"q": user_term},
                 timeout=5.0,
             )
@@ -935,8 +864,8 @@ class DCLSemanticClient:
             response.raise_for_status()
             return response.json()
         except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError) as e:
-            logger.warning(f"{svc} entity resolution failed for '{user_term}': {e}")
-            raise ConnectionError(f"{svc} entity resolution failed: {e}") from e
+            logger.warning(f"DCL entity resolution failed for '{user_term}': {e}")
+            raise ConnectionError(f"DCL entity resolution failed: {e}") from e
 
     def validate_dimension(self, metric_id: str, dimension: str) -> Tuple[bool, Optional[str]]:
         """
@@ -1229,14 +1158,12 @@ class DCLSemanticClient:
         # Auto-read entity_id from context when not explicitly provided
         if entity_id is None:
             entity_id = _entity_id_ctx.get()
-        svc = self._current_service_name()
-        base_url = self._active_base_url()
-        diag(f"[NLQ-DIAG] query() called: metric={metric}, base_url={bool(base_url)}, service={svc}, entity_id={entity_id}")
+        diag(f"[NLQ-DIAG] query() called: metric={metric}, dcl_url={bool(self.dcl_url)}, entity_id={entity_id}")
 
-        if not base_url:
+        if not self.dcl_url:
             raise RuntimeError(
-                f"{svc} URL not configured — cannot serve queries. "
-                f"Set {'CONVERGENCE_API_URL' if svc == 'Convergence' else 'DCL_API_URL'} environment variable."
+                "DCL_API_URL not configured — cannot serve queries without DCL. "
+                "Set DCL_API_URL environment variable."
             )
 
         try:
@@ -1288,20 +1215,22 @@ class DCLSemanticClient:
             if limit:
                 payload["limit"] = limit
 
-            q_client, q_url = self._resolve_url("/api/dcl/query")
-            diag(f"[NLQ-DIAG] query() -> {svc} POST {q_url} payload={json.dumps(payload, default=str)[:300]}")
-            response = q_client.post(q_url, json=payload)
-            diag(f"[NLQ-DIAG] query() <- {svc} status={response.status_code}, body={response.text[:500]}")
+            diag(f"[NLQ-DIAG] query() -> DCL POST {self.dcl_url}/api/dcl/query payload={json.dumps(payload, default=str)[:300]}")
+            response = self._http_client.post(
+                f"{self.dcl_url}/api/dcl/query",
+                json=payload
+            )
+            diag(f"[NLQ-DIAG] query() <- DCL status={response.status_code}, body={response.text[:500]}")
 
             if response.status_code == 404:
                 negotiation_note = (
                     f" (negotiated from NLQ '{metric}')" if dcl_metric != metric else ""
                 )
                 error_msg = (
-                    f"{svc} returned 404 for metric '{dcl_metric}'{negotiation_note} "
-                    f"at {q_url}"
+                    f"DCL returned 404 for metric '{dcl_metric}'{negotiation_note} "
+                    f"at {self.dcl_url}/api/dcl/query"
                 )
-                logger.warning(f"{svc} METRIC NOT FOUND: {error_msg}")
+                logger.warning(f"DCL METRIC NOT FOUND: {error_msg}")
                 return {"error": error_msg, "status": "not_found"}
             elif response.status_code == 400:
                 err_body = response.json()
@@ -1322,24 +1251,23 @@ class DCLSemanticClient:
             dcl_meta_source = dcl_meta.get("source", "")
             dcl_data = dcl_body.get("data", [])
 
-            # Store is completely empty (flushed, no data ingested yet)
-            source_label = self._current_source_label()
+            # DCL store is completely empty (flushed, no data ingested yet)
             if dcl_meta_source == "STORE_EMPTY" and not dcl_data:
                 return {
                     "data": [],
                     "error": None,
-                    "data_source": f"{source_label}_empty",
-                    "data_source_reason": dcl_meta.get("error", f"{svc} data store is empty"),
+                    "data_source": "dcl_empty",
+                    "data_source_reason": dcl_meta.get("error", "DCL data store is empty"),
                     "store_empty": True,
                 }
 
             if dcl_meta_source == "NO_DATA_FOR_METRIC" and not dcl_data:
                 error_msg = (
-                    f"{svc} has no ingested data for metric '{metric}' "
+                    f"DCL has no ingested data for metric '{metric}' "
                     f"(tenant={tenant_id or 'default'}, source=ingest_empty). "
-                    f"Ingest data via the pipeline."
+                    f"Ingest data via the Farm→DCL pipeline."
                 )
-                logger.warning(f"{svc} INGEST EMPTY: {error_msg}")
+                logger.warning(f"DCL INGEST EMPTY: {error_msg}")
                 return {"error": error_msg, "status": "no_data"}
 
             normalized = self._normalize_dcl_query_response(dcl_body)
@@ -1351,12 +1279,12 @@ class DCLSemanticClient:
             return normalized
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"{svc} query failed: {e}")
-            error_msg = f"{svc} query failed with status {e.response.status_code}"
+            logger.error(f"DCL query failed: {e}")
+            error_msg = f"DCL query failed with status {e.response.status_code}"
             return {"error": error_msg, "status": "error"}
         except (httpx.RequestError, json.JSONDecodeError) as e:
-            logger.error(f"{svc} query error: {e}")
-            error_msg = f"{svc} unavailable: {e}"
+            logger.error(f"DCL query error: {e}")
+            error_msg = f"DCL unavailable: {e}"
             return {"error": error_msg, "status": "error"}
 
     def _normalize_dcl_query_response(self, dcl_response: Dict[str, Any]) -> Dict[str, Any]:
@@ -1367,29 +1295,30 @@ class DCLSemanticClient:
           {metric, metric_name, unit, grain,
            data: [{period, value, dimensions, rank}],
            metadata: {freshness (ISO), quality_score, record_count,
-                      dcl_ingest_id, tenant_id, snapshot_name, run_timestamp, ...},
+                      run_id, tenant_id, snapshot_name, run_timestamp, ...},
            provenance: [{source_system, freshness ("2h"), quality_score}]}
 
         NLQ callers expect:
           {status: "ok", metric, data: [{period, value, ...}],
            metadata: {...}, unit, source: "dcl", ...}
         """
+        # DCL returns metadata.source: "ingest" or other
         # data_source reflects where NLQ got the data from:
-        #   "live"  = ingested data (real pipeline data)
-        #   "dcl" / "convergence" = served from seed data (pipeline works, data not yet ingested)
-        source_label = self._current_source_label()
-        svc = self._current_service_name()
+        #   "live"  = DCL ingest (real ingested data)
+        #   "dcl"   = DCL served it from seed data (pipeline works, data not yet ingested)
         dcl_source = (dcl_response.get("metadata") or {}).get("source", "")
         if dcl_source == "ingest":
             data_source = "live"
             data_source_reason = None
         else:
-            data_source = source_label
-            data_source_reason = f"{svc} served from {dcl_source or 'unknown'} (no ingested data for this metric)" if dcl_source else None
+            # DCL returned data from a non-ingest source — pipeline is working,
+            # but this metric doesn't have ingested data yet
+            data_source = "dcl"
+            data_source_reason = f"DCL served from {dcl_source or 'unknown'} (no ingested data for this metric)" if dcl_source else None
 
         normalized: Dict[str, Any] = {
             "status": "ok",
-            "source": source_label,
+            "source": "dcl",
             "data_source": data_source,
             "data_source_reason": data_source_reason,
             "metric": dcl_response.get("metric"),
@@ -1444,7 +1373,7 @@ class DCLSemanticClient:
         else:
             primary_source = source_systems[0] if source_systems else None
         normalized["run_provenance"] = {
-            "dcl_ingest_id": metadata.get("dcl_ingest_id"),
+            "run_id": metadata.get("run_id"),
             "tenant_id": metadata.get("tenant_id"),
             "entity_id": metadata.get("entity_id"),
             "snapshot_name": metadata.get("snapshot_name"),
@@ -1529,74 +1458,74 @@ class DCLSemanticClient:
 
             Returns {"can_answer": False, "reason": "..."} on failure/unavailable.
         """
-        base_url = self._active_base_url()
-        svc = self._current_service_name()
-        source_label = self._current_source_label()
-        if not base_url:
+        if not self.dcl_url:
             raise RuntimeError(
-                f"{svc} URL not configured — cannot resolve graph queries."
+                "DCL_API_URL not configured — cannot resolve graph queries without DCL."
             )
 
-        payload = {
-            "concepts": concepts,
-            "dimensions": dimensions or [],
-            "filters": filters or [],
-        }
-
-        try:
-            r_client, r_url = self._resolve_url("/api/dcl/resolve")
-            response = r_client.post(r_url, json=payload)
-
-            if response.status_code not in (404, 405):
-                response.raise_for_status()
-                result = response.json()
-                result.setdefault("can_answer", False)
-                result.setdefault("confidence", 0.0)
-                result.setdefault("warnings", [])
-                result.setdefault("source", f"{source_label}_graph")
-                return result
-
-            # 404/405 = endpoint not deployed yet, fall through to catalog
-            diag(f"[NLQ-DIAG] {svc} /resolve not available, using catalog fallback")
-
-        except httpx.ConnectError as e:
-            logger.error(
-                f"{svc} server unreachable for graph resolution at "
-                f"{r_url} — connection refused. "
-                f"Concepts: {concepts}, Dimensions: {dimensions}"
-            )
-            return {
-                "can_answer": False,
-                "error": f"{svc} unreachable for graph resolution: {e}",
-                "source": f"{source_label}_graph_error",
-                "confidence": 0.0,
-            }
-        except httpx.TimeoutException as e:
-            logger.error(
-                f"{svc} graph resolution timed out (30s) at "
-                f"{r_url} — {svc} may be mid-ingest or warming up. "
-                f"Concepts: {concepts}, Dimensions: {dimensions}"
-            )
-            return {
-                "can_answer": False,
-                "error": f"{svc} graph resolution timed out: {e}",
-                "source": f"{source_label}_graph_error",
-                "confidence": 0.0,
-            }
-        except Exception as e:
-            logger.error(
-                f"{svc} graph resolution failed at "
-                f"{r_url} — {type(e).__name__}: {e}. "
-                f"Concepts: {concepts}, Dimensions: {dimensions}"
-            )
-            return {
-                "can_answer": False,
-                "error": f"{svc} graph resolution failed: {e}",
-                "source": f"{source_label}_graph_error",
-                "confidence": 0.0,
+        if self.dcl_url:
+            payload = {
+                "concepts": concepts,
+                "dimensions": dimensions or [],
+                "filters": filters or [],
             }
 
-        # Endpoint not available — catalog-based resolution is the only option
+            try:
+                response = self._http_client.post(
+                    f"{self.dcl_url}/api/dcl/resolve",
+                    json=payload,
+                )
+
+                if response.status_code not in (404, 405):
+                    response.raise_for_status()
+                    result = response.json()
+                    result.setdefault("can_answer", False)
+                    result.setdefault("confidence", 0.0)
+                    result.setdefault("warnings", [])
+                    result.setdefault("source", "dcl_graph")
+                    return result
+
+                # 404/405 = endpoint not deployed yet, fall through to catalog
+                diag("[NLQ-DIAG] DCL /api/dcl/resolve not available, using catalog fallback")
+
+            except httpx.ConnectError as e:
+                logger.error(
+                    f"DCL server unreachable for graph resolution at "
+                    f"{self.dcl_url}/api/dcl/resolve — connection refused. "
+                    f"Concepts: {concepts}, Dimensions: {dimensions}"
+                )
+                return {
+                    "can_answer": False,
+                    "error": f"DCL unreachable for graph resolution: {e}",
+                    "source": "dcl_graph_error",
+                    "confidence": 0.0,
+                }
+            except httpx.TimeoutException as e:
+                logger.error(
+                    f"DCL graph resolution timed out (30s) at "
+                    f"{self.dcl_url}/api/dcl/resolve — DCL may be mid-ingest or warming up. "
+                    f"Concepts: {concepts}, Dimensions: {dimensions}"
+                )
+                return {
+                    "can_answer": False,
+                    "error": f"DCL graph resolution timed out: {e}",
+                    "source": "dcl_graph_error",
+                    "confidence": 0.0,
+                }
+            except Exception as e:
+                logger.error(
+                    f"DCL graph resolution failed at "
+                    f"{self.dcl_url}/api/dcl/resolve — {type(e).__name__}: {e}. "
+                    f"Concepts: {concepts}, Dimensions: {dimensions}"
+                )
+                return {
+                    "can_answer": False,
+                    "error": f"DCL graph resolution failed: {e}",
+                    "source": "dcl_graph_error",
+                    "confidence": 0.0,
+                }
+
+        # No DCL URL configured — catalog-based resolution is the only option
         return self._resolve_via_catalog(concepts, dimensions, filters)
 
     # -----------------------------------------------------------------

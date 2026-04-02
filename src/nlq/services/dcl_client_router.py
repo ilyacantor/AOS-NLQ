@@ -11,17 +11,12 @@ a structured error — not a quiet redirect to the legacy path.
 import logging
 from typing import Any, Dict, List, Optional, Set
 
-from src.nlq.services.dcl_semantic_client import DCLSemanticClient, _entity_id_ctx, _aos_mode_ctx
+from src.nlq.services.dcl_semantic_client import DCLSemanticClient, _entity_id_ctx
 from src.nlq.services.dcl_semantic_client_v2 import (
     DCLSemanticClientV2,
     resolve_metric_name,
 )
 from src.nlq.knowledge.schema import is_additive_metric
-
-
-def _v2_source_label() -> str:
-    """Return mode-aware source label for v2 query responses."""
-    return "convergence_v2" if _aos_mode_ctx.get() == "ME" else "dcl_v2"
 
 logger = logging.getLogger(__name__)
 
@@ -203,13 +198,12 @@ class DCLClientRouter:
 
                 if v2_result.get("value") is not None:
                     # Translate v2 response to v1 format for executor compatibility
-                    _src = _v2_source_label()
                     return {
                         "metric": metric,
                         "data": [{"period": v2_result.get("period", period), "value": v2_result["value"]}],
-                        "data_source": _src,
+                        "data_source": "dcl_v2",
                         "metadata": {
-                            "source": _src,
+                            "source": "dcl_v2",
                             "concept": v2_result.get("concept"),
                             "confidence_score": v2_result.get("confidence_score"),
                             "confidence_tier": v2_result.get("confidence_tier"),
@@ -223,18 +217,18 @@ class DCLClientRouter:
                     return {
                         "error": error_msg,
                         "status": "no_data",
-                        "data_source": _v2_source_label(),
+                        "data_source": "dcl_v2",
                     }
 
             except ValueError as e:
                 # Formula computation error (e.g. division by zero)
                 logger.warning(f"DCL v2 derived metric error: {e}")
-                return {"error": str(e), "status": "error", "data_source": _v2_source_label()}
+                return {"error": str(e), "status": "error", "data_source": "dcl_v2"}
 
             except RuntimeError as e:
                 # DCL HTTP error — surface it, don't fall back silently
                 logger.error(f"DCL v2 HTTP error for metric '{metric}': {e}")
-                return {"error": str(e), "status": "error", "data_source": _v2_source_label()}
+                return {"error": str(e), "status": "error", "data_source": "dcl_v2"}
 
         # Metric not in v2 concept map — use old client
         # This is NOT a silent fallback: we log it explicitly so we can
@@ -285,7 +279,7 @@ class DCLClientRouter:
             return {
                 "error": "No entities registered in DCL — cannot query combined",
                 "status": "error",
-                "data_source": _v2_source_label(),
+                "data_source": "dcl_v2",
             }
 
         # Single entity — no aggregation needed
@@ -330,7 +324,7 @@ class DCLClientRouter:
                     f"Errors: {'; '.join(errors)}"
                 ),
                 "status": "no_data",
-                "data_source": _v2_source_label(),
+                "data_source": "dcl_v2",
             }
 
         # Aggregate: extract the value from each entity's data
@@ -350,7 +344,7 @@ class DCLClientRouter:
             return {
                 "error": f"No numeric values found for metric '{metric}' across entities {entity_ids}",
                 "status": "no_data",
-                "data_source": _v2_source_label(),
+                "data_source": "dcl_v2",
             }
 
         additive = is_additive_metric(metric)
@@ -363,13 +357,12 @@ class DCLClientRouter:
             if isinstance(first_item, dict):
                 period = first_item.get("period")
 
-        _src = _v2_source_label()
         return {
             "metric": metric,
             "data": [{"period": period, "value": aggregated}],
-            "data_source": _src,
+            "data_source": "dcl_v2",
             "metadata": {
-                "source": _src,
+                "source": "dcl_v2",
                 "entity_id": "combined",
                 "entities_queried": list(per_entity.keys()),
                 "aggregation": "sum" if additive else "average",

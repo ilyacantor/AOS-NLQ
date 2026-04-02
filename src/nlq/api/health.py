@@ -40,7 +40,7 @@ class PipelineStatusResponse(BaseModel):
     dcl_mode: Optional[str] = None  # "Ingest", "Empty", "Live", "Farm", or None
     metric_count: int = 0
     catalog_source: Optional[str] = None  # "dcl" or None
-    last_dcl_ingest_id: Optional[str] = None
+    last_run_id: Optional[str] = None
     last_run_timestamp: Optional[str] = None
     last_source_systems: Optional[List[str]] = None
     freshness: Optional[str] = None
@@ -141,7 +141,7 @@ async def pipeline_status() -> PipelineStatusResponse:
         logger.warning("DCL catalog check failed in pipeline_status: %s", e)
 
     # Provenance: from health response (real-time) + catalog ingest summary
-    last_dcl_ingest_id = health.get("last_dcl_ingest_id")
+    last_run_id = health.get("last_run_id")
     last_run_timestamp = health.get("last_updated")
     last_source_systems = None
     freshness_display = None
@@ -156,7 +156,7 @@ async def pipeline_status() -> PipelineStatusResponse:
         dcl_mode=raw_mode,
         metric_count=metric_count,
         catalog_source=catalog_source if catalog_source != "none" else None,
-        last_dcl_ingest_id=last_dcl_ingest_id,
+        last_run_id=last_run_id,
         last_run_timestamp=last_run_timestamp,
         last_source_systems=last_source_systems,
         freshness=freshness_display,
@@ -196,15 +196,3 @@ async def schema() -> SchemaResponse:
         periods=sorted(periods),
         metric_details=metric_details,
     )
-
-
-@router.get("/snapshots")
-async def snapshots():
-    """List available DCL snapshots for the snapshot selector.
-
-    Returns snapshots grouped by dcl_ingest_id, sorted newest-first.
-    Each entry: {dcl_ingest_id, snapshot_name, run_timestamp, total_rows, pipe_count}.
-    """
-    from src.nlq.config import get_available_snapshots
-
-    return {"snapshots": get_available_snapshots()}

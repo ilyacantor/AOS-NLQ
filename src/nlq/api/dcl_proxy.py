@@ -39,87 +39,42 @@ if not DCL_BASE_URL:
         "Set DCL_API_URL to the DCL service URL (e.g. https://aos-dclv2.onrender.com)."
     )
 
-CONVERGENCE_BASE_URL = os.environ.get("CONVERGENCE_API_URL", "").rstrip("/")
-
-# Shared sync HTTP clients — connection pools reused across proxy calls.
+# Shared sync HTTP client — connection pool reused across proxy calls.
 _proxy_client = httpx.Client(timeout=30.0, follow_redirects=True)
-_conv_proxy_client = httpx.Client(timeout=30.0, follow_redirects=True) if CONVERGENCE_BASE_URL else None
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _resolve_backend() -> tuple:
-    """Pick the right backend (DCL or Convergence) based on SE/ME mode.
-
-    Returns (base_url, client, service_name).
-    Raises HTTPException 503 if ME mode but Convergence is not configured.
-    """
-    from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
-
-    mode = _aos_mode_ctx.get()
-    if mode == "ME":
-        if not CONVERGENCE_BASE_URL or not _conv_proxy_client:
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "ME mode requires Convergence but CONVERGENCE_API_URL is not configured. "
-                    "Set CONVERGENCE_API_URL env var to the Convergence service URL."
-                ),
-            )
-        return CONVERGENCE_BASE_URL, _conv_proxy_client, "Convergence"
-    return DCL_BASE_URL, _proxy_client, "DCL"
-
-
-def _rewrite_path(path: str, service_name: str) -> str:
-    """Rewrite /api/dcl/... to /api/convergence/... when routing to Convergence."""
-    if service_name == "Convergence":
-        return path.replace("/api/dcl/", "/api/convergence/", 1)
-    return path
-
-
 def _dcl_get(path: str, params: dict = None) -> dict:
-    """GET a DCL/Convergence endpoint (mode-routed), raise HTTPException on failure.
-
-    For v2 report and triples paths, automatically injects tenant_id and
-    pipeline_run_id into query params for identity (I2/I6).
-    """
-    base_url, client, svc = _resolve_backend()
-    if not base_url:
+    """GET a DCL endpoint, raise HTTPException on failure."""
+    if not DCL_BASE_URL:
         raise HTTPException(
             status_code=503,
-            detail=f"{svc} URL not set — cannot proxy report request.",
+            detail="DCL_API_URL not set — cannot proxy report request.",
         )
-    if path.startswith("/api/dcl/reports/v2/") or path.startswith("/api/dcl/triples/"):
-        from src.nlq.config import get_identity
-        try:
-            params = {**get_identity(), **(params or {})}
-        except RuntimeError as exc:
-            raise HTTPException(
-                status_code=503,
-                detail=f"Cannot resolve pipeline identity for {svc}: {exc}",
-            )
-    routed_path = _rewrite_path(path, svc)
-    url = f"{base_url}{routed_path}"
+    url = f"{DCL_BASE_URL}{path}"
     try:
-        resp = client.get(url, params=params)
+        resp = _proxy_client.get(url, params=params)
     except httpx.ConnectError:
         raise HTTPException(
             status_code=502,
-            detail=f"Could not connect to {svc} at {url} — is {svc} running on {base_url}?",
+            detail=f"Could not connect to DCL at {url} — is DCL running on {DCL_BASE_URL}?",
         )
     except httpx.TimeoutException:
         raise HTTPException(
             status_code=504,
-            detail=f"{svc} timed out on GET {url}.",
+            detail=f"DCL timed out on GET {url}.",
         )
     except httpx.RemoteProtocolError as exc:
         raise HTTPException(
             status_code=502,
-            detail=f"{svc} disconnected during GET {url}: {exc}",
+            detail=f"DCL disconnected during GET {url}: {exc}",
         )
     if resp.status_code != 200:
+        # When DCL returns 422 (data_incomplete), extract the clean detail
+        # message so the frontend displays a helpful error instead of raw JSON.
         if resp.status_code == 422:
             try:
                 body = resp.json()
@@ -133,7 +88,7 @@ def _dcl_get(path: str, params: dict = None) -> dict:
                 pass
         raise HTTPException(
             status_code=resp.status_code,
-            detail=f"{svc} returned {resp.status_code} for GET {url}: {resp.text[:500]}",
+            detail=f"DCL returned {resp.status_code} for GET {url}: {resp.text[:500]}",
         )
     return resp.json()
 
@@ -777,31 +732,28 @@ async def revenue_by_customer(
     Queries DCL's PG triple store for revenue.by_customer triples, then pivots
     into {customers: [{name, Q1, Q2, ..., total}], quarters, total_revenue, provenance}.
     """
-    base_url, client, svc = _resolve_backend()
-    if not base_url:
+    if not DCL_BASE_URL:
         raise HTTPException(
             status_code=503,
-            detail="Backend URL not set — cannot query revenue by customer.",
+            detail="DCL_API_URL not set — cannot query revenue by customer.",
         )
-    dcl_url = f"{base_url}{_rewrite_path('/api/dcl/triples/browse-batch', svc)}"
-    from src.nlq.config import get_identity
+
+    dcl_url = f"{DCL_BASE_URL}/api/dcl/triples/browse-batch"
     payload = {
         "domains": ["revenue"],
         "entity_ids": [entity_id],
     }
-    batch_params = get_identity()
 
     try:
         resp = await asyncio.to_thread(
-            client.post, dcl_url,
+            _proxy_client.post, dcl_url,
             json=payload,
-            params=batch_params,
             headers={"Content-Type": "application/json"},
         )
     except httpx.ConnectError:
         raise HTTPException(
             status_code=502,
-            detail=f"Could not connect to {svc} at {dcl_url} for revenue-by-customer query.",
+            detail=f"Could not connect to DCL at {dcl_url} for revenue-by-customer query.",
         )
     except httpx.TimeoutException:
         raise HTTPException(
@@ -924,15 +876,13 @@ async def dimensional_detail(
             "dimensions": [],
         })
 
-    base_url2, client2, svc2 = _resolve_backend()
-    if not base_url2:
+    if not DCL_BASE_URL:
         raise HTTPException(
             status_code=503,
-            detail=f"{svc2} URL not set — cannot query dimensional detail.",
+            detail="DCL_API_URL not set — cannot query dimensional detail.",
         )
 
-    dcl_url = f"{base_url2}{_rewrite_path('/api/dcl/triples/browse-batch', svc2)}"
-    from src.nlq.config import get_identity
+    dcl_url = f"{DCL_BASE_URL}/api/dcl/triples/browse-batch"
     entity_ids = _get_entity_ids() if entity_id == "combined" else [entity_id]
     payload: dict[str, Any] = {
         "domains": [mapping["domain"]],
@@ -940,19 +890,17 @@ async def dimensional_detail(
     }
     if period:
         payload["period"] = period
-    batch_params2 = get_identity()
 
     try:
         resp = await asyncio.to_thread(
-            client2.post, dcl_url,
+            _proxy_client.post, dcl_url,
             json=payload,
-            params=batch_params2,
             headers={"Content-Type": "application/json"},
         )
     except httpx.ConnectError:
         raise HTTPException(
             status_code=502,
-            detail=f"Could not connect to {svc2} at {dcl_url} for dimensional-detail query.",
+            detail=f"Could not connect to DCL at {dcl_url} for dimensional-detail query.",
         )
     except httpx.TimeoutException:
         raise HTTPException(
@@ -1195,7 +1143,7 @@ async def combining_income_statement(period: str = Query("2025-Q1")):
     (e.g. "2025" sums Q1-Q4 internally), so we pass the period through as-is.
     """
     dcl_data = await asyncio.to_thread(
-        _dcl_get, "/api/dcl/reports/v2/combining/income-statement", {"period": period}
+        _dcl_get, "/api/reports/combining-is", {"period": period}
     )
     import re
     display_period = f"FY{period}" if re.fullmatch(r"\d{4}", period) else dcl_data.get("period", period)
@@ -1750,20 +1698,23 @@ async def financial_statement(
         raise HTTPException(status_code=400, detail=f"Unknown variant '{variant}'")
 
     # Two DCL calls total: CY and PY. DCL aggregates quarters internally.
-    # asyncio.to_thread propagates contextvars (mode, snapshot) correctly;
-    # ThreadPoolExecutor does NOT — caused SE identity in ME mode (wrong run_id).
+    # Issue both in parallel via ThreadPoolExecutor to halve wall-clock time.
+    from concurrent.futures import ThreadPoolExecutor
+
     if is_combined:
-        cy_raw, py_raw = await asyncio.gather(
-            asyncio.to_thread(_dcl_get, dcl_combining_path, {"period": cy_period}),
-            asyncio.to_thread(_dcl_get, dcl_combining_path, {"period": py_period}),
-        )
-        cy_raw = cy_raw.get("combined", {})
-        py_raw = py_raw.get("combined", {})
+        def _fetch() -> tuple:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                cy_f = pool.submit(_dcl_get, dcl_combining_path, {"period": cy_period})
+                py_f = pool.submit(_dcl_get, dcl_combining_path, {"period": py_period})
+                return cy_f.result().get("combined", {}), py_f.result().get("combined", {})
     else:
-        cy_raw, py_raw = await asyncio.gather(
-            asyncio.to_thread(_dcl_get, dcl_single_path, {"entity_id": entity_id, "period": cy_period}),
-            asyncio.to_thread(_dcl_get, dcl_single_path, {"entity_id": entity_id, "period": py_period}),
-        )
+        def _fetch() -> tuple:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                cy_f = pool.submit(_dcl_get, dcl_single_path, {"entity_id": entity_id, "period": cy_period})
+                py_f = pool.submit(_dcl_get, dcl_single_path, {"entity_id": entity_id, "period": py_period})
+                return cy_f.result(), py_f.result()
+
+    cy_raw, py_raw = await asyncio.to_thread(_fetch)
 
     cy_values = _flatten_dcl_statement(cy_raw, statement)
     py_values = _flatten_dcl_statement(py_raw, statement)
@@ -1899,35 +1850,35 @@ async def proxy_dcl_report_get(path: str, request: Request):
     # Maestra is now native to NLQ — do not proxy to DCL
     if path.startswith("maestra"):
         raise HTTPException(status_code=404, detail="Maestra routes have moved to /maestra/*")
-    base_url_p, client_p, svc_p = _resolve_backend()
-    if not base_url_p:
+    if not DCL_BASE_URL:
         raise HTTPException(
             status_code=503,
-            detail=f"{svc_p} URL not set — cannot proxy report request.",
+            detail="DCL_API_URL environment variable is not set. "
+                   "Cannot proxy report requests to DCL.",
         )
-    dcl_url = f"{base_url_p}/api/reports/{path}"
+    dcl_url = f"{DCL_BASE_URL}/api/reports/{path}"
     if request.query_params:
         dcl_url += f"?{request.query_params}"
 
     try:
-        resp = await asyncio.to_thread(client_p.get, dcl_url)
+        resp = await asyncio.to_thread(_proxy_client.get, dcl_url)
     except httpx.ConnectError:
         raise HTTPException(
             status_code=502,
             detail=(
-                f"Report proxy failed: could not connect to {svc_p} at {dcl_url}. "
-                f"Ensure {svc_p} backend is running on {base_url_p}."
+                f"DCL report proxy failed: could not connect to DCL at {dcl_url}. "
+                f"Ensure DCL backend is running on {DCL_BASE_URL}."
             ),
         )
     except httpx.TimeoutException:
         raise HTTPException(
             status_code=504,
-            detail=f"Report proxy timed out waiting for {dcl_url}.",
+            detail=f"DCL report proxy timed out waiting for {dcl_url}.",
         )
     except httpx.RemoteProtocolError as exc:
         raise HTTPException(
             status_code=502,
-            detail=f"{svc_p} disconnected during report proxy GET {dcl_url}: {exc}",
+            detail=f"DCL disconnected during report proxy GET {dcl_url}: {exc}",
         )
 
     if resp.status_code != 200:
@@ -1944,7 +1895,7 @@ async def proxy_dcl_report_get(path: str, request: Request):
                 pass
         raise HTTPException(
             status_code=resp.status_code,
-            detail=f"{svc_p} returned {resp.status_code}: {resp.text[:500]}",
+            detail=f"DCL returned {resp.status_code}: {resp.text[:500]}",
         )
 
     return JSONResponse(content=resp.json(), status_code=200)
@@ -1952,22 +1903,23 @@ async def proxy_dcl_report_get(path: str, request: Request):
 
 @router.post("/api/reports/{path:path}")
 async def proxy_dcl_report_post(path: str, request: Request):
-    """Forward POST /api/reports/* to DCL or Convergence backend (mode-routed)."""
+    """Forward POST /api/reports/* to DCL backend."""
+    # Maestra is now native to NLQ — do not proxy to DCL
     if path.startswith("maestra"):
         raise HTTPException(status_code=404, detail="Maestra routes have moved to /maestra/*")
-    base_url_pp, client_pp, svc_pp = _resolve_backend()
-    if not base_url_pp:
+    if not DCL_BASE_URL:
         raise HTTPException(
             status_code=503,
-            detail=f"{svc_pp} URL not set — cannot proxy report request.",
+            detail="DCL_API_URL environment variable is not set. "
+                   "Cannot proxy report requests to DCL.",
         )
-    dcl_url = f"{base_url_pp}/api/reports/{path}"
+    dcl_url = f"{DCL_BASE_URL}/api/reports/{path}"
 
     body = await request.body()
 
     try:
         resp = await asyncio.to_thread(
-            client_pp.post, dcl_url,
+            _proxy_client.post, dcl_url,
             content=body,
             headers={"Content-Type": "application/json"},
         )
@@ -1975,8 +1927,8 @@ async def proxy_dcl_report_post(path: str, request: Request):
         raise HTTPException(
             status_code=502,
             detail=(
-                f"Report proxy failed: could not connect to {svc_pp} at {dcl_url}. "
-                f"Ensure {svc_pp} backend is running on {base_url_pp}."
+                f"DCL report proxy failed: could not connect to DCL at {dcl_url}. "
+                f"Ensure DCL backend is running on {DCL_BASE_URL}."
             ),
         )
     except httpx.TimeoutException:

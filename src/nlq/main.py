@@ -14,7 +14,7 @@ from typing import Optional
 from dotenv import load_dotenv
 load_dotenv()  # Load .env into os.environ before any service reads env vars
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -63,53 +63,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# SE/ME mode middleware — determines mode from URL path (surface-based routing).
-# Ask/Dashboard = SE (→ DCL). ME report paths = ME (→ Convergence).
-# Uses pure ASGI middleware (not BaseHTTPMiddleware) because Starlette's
-# BaseHTTPMiddleware runs call_next() in a separate task, which breaks
-# contextvar propagation to route handlers.
-from src.nlq.services.dcl_semantic_client import _aos_mode_ctx, _snapshot_id_ctx
-
-# Paths that route to Convergence (ME/MA reports).
-# Everything else is SE (Ask, Dashboard, Maestra, health, etc.).
-_ME_PATH_PREFIXES = (
-    "/api/reports/combining-is",
-    "/api/reports/entity-overlap",
-    "/api/reports/cross-sell",
-    "/api/reports/upsell",
-    "/api/reports/ebitda-bridge",
-    "/api/reports/qoe",
-    "/api/reports/what-if",
-    "/api/reports/financial-statement",
-)
-
-
-class AOSModeMiddleware:
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] in ("http", "websocket"):
-            path = scope.get("path", "")
-            mode = "ME" if path.startswith(_ME_PATH_PREFIXES) else "SE"
-            _aos_mode_ctx.set(mode)
-
-            # Snapshot override — operator-selected snapshot from frontend
-            qs = scope.get("query_string", b"").decode()
-            snapshot_id = None
-            for part in qs.split("&"):
-                if part.startswith("snapshot_id="):
-                    snapshot_id = part[len("snapshot_id="):]
-                    break
-            _snapshot_id_ctx.set(snapshot_id)
-
-        await self.app(scope, receive, send)
-
-
-app.add_middleware(AOSModeMiddleware)
-
 
 # H7: Single canonical prefix — Vite proxy forwards /api/v1 as-is (no rewrite).
 # C1: Query routes (routes.py) + extracted health/eval routers
