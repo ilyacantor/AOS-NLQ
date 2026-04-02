@@ -28,6 +28,24 @@ import type {
 
 const NLQ_BASE = '/api/v1'
 
+/**
+ * Sanitize error messages before displaying to operators.
+ *
+ * Per I2: tenant_id (UUID) is machine-only, never displayed.
+ * Per I1: run_id is banned from user-facing surfaces.
+ * Strips raw UUIDs, tenant_id=..., and run_id=... from error text.
+ */
+function sanitizeErrorMessage(msg: string): string {
+  return msg
+    .replace(/tenant_id='[0-9a-f-]+'/gi, '')
+    .replace(/run_id='[^']*'/gi, '')
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '[redacted]')
+    .replace(/\s*[—–-]\s*,\s*/g, ' — ')
+    .replace(/,\s*}/g, '}')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 // ── Report Dimensions ────────────────────────────────────────────────────────
 
 export interface PeriodDimension {
@@ -48,7 +66,7 @@ export async function fetchReportDimensions(): Promise<ReportDimensions> {
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
     throw new Error(
-      `Report dimensions fetch failed (HTTP ${res.status}): ${errText.slice(0, 500)}`
+      `Report dimensions fetch failed (HTTP ${res.status}): ${sanitizeErrorMessage(errText.slice(0, 500))}`
     )
   }
   return res.json()
@@ -127,7 +145,7 @@ export async function fetchReport(
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
     throw new Error(
-      `Report query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`
+      `Report query failed (HTTP ${res.status}): ${sanitizeErrorMessage(errText.slice(0, 500))}`
     )
   }
 
@@ -191,7 +209,7 @@ export async function fetchDimensionalDetail(
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
     throw new Error(
-      `Dimensional detail query failed (HTTP ${res.status}) for ${lineKey}: ${errText.slice(0, 500)}`
+      `Dimensional detail query failed (HTTP ${res.status}) for ${lineKey}: ${sanitizeErrorMessage(errText.slice(0, 500))}`
     )
   }
 
@@ -206,7 +224,7 @@ export async function fetchReconciliation(): Promise<ReconReport> {
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
     throw new Error(
-      `Reconciliation query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`
+      `Reconciliation query failed (HTTP ${res.status}): ${sanitizeErrorMessage(errText.slice(0, 500))}`
     )
   }
 
@@ -227,7 +245,7 @@ export async function fetchCombiningStatement(
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
     throw new Error(
-      `Combining statement query failed (HTTP ${res.status}) for period=${period}: ${errText.slice(0, 500)}`
+      `Combining statement query failed (HTTP ${res.status}) for period=${period}: ${sanitizeErrorMessage(errText.slice(0, 500))}`
     )
   }
 
@@ -242,7 +260,7 @@ export async function fetchOverlapData(): Promise<OverlapData> {
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
     throw new Error(
-      `Entity overlap query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`
+      `Entity overlap query failed (HTTP ${res.status}): ${sanitizeErrorMessage(errText.slice(0, 500))}`
     )
   }
 
@@ -255,7 +273,7 @@ export async function fetchCrossSell(): Promise<CrossSellData> {
   const res = await fetch('/api/reports/cross-sell')
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
-    throw new Error(`Cross-sell query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+    throw new Error(`Cross-sell query failed (HTTP ${res.status}): ${sanitizeErrorMessage(errText.slice(0, 500))}`)
   }
   return res.json()
 }
@@ -266,7 +284,7 @@ export async function fetchUpsell(): Promise<UpsellData> {
   const res = await fetch('/api/reports/upsell')
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
-    throw new Error(`Upsell query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+    throw new Error(`Upsell query failed (HTTP ${res.status}): ${sanitizeErrorMessage(errText.slice(0, 500))}`)
   }
   return res.json()
 }
@@ -277,7 +295,7 @@ export async function fetchRevenueByCustomer(entityId: string): Promise<RevenueB
   const res = await fetch(`/api/reports/revenue-by-customer?entity_id=${encodeURIComponent(entityId)}`)
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
-    throw new Error(`Revenue by customer query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+    throw new Error(`Revenue by customer query failed (HTTP ${res.status}): ${sanitizeErrorMessage(errText.slice(0, 500))}`)
   }
   return res.json()
 }
@@ -288,7 +306,7 @@ export async function fetchEBITDABridge(): Promise<EBITDABridgeData> {
   const res = await fetch('/api/reports/ebitda-bridge')
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
-    throw new Error(`EBITDA bridge query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+    throw new Error(`EBITDA bridge query failed (HTTP ${res.status}): ${sanitizeErrorMessage(errText.slice(0, 500))}`)
   }
   return res.json()
 }
@@ -307,7 +325,7 @@ export async function fetchWhatIf(levers?: Record<string, number>, preset?: stri
   })
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
-    throw new Error(`What-if query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+    throw new Error(`What-if query failed (HTTP ${res.status}): ${sanitizeErrorMessage(errText.slice(0, 500))}`)
   }
   return res.json()
 }
@@ -318,7 +336,7 @@ export async function fetchQofE(): Promise<QofEData> {
   const res = await fetch('/api/reports/qoe')
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
-    throw new Error(`QofE query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+    throw new Error(`QofE query failed (HTTP ${res.status}): ${sanitizeErrorMessage(errText.slice(0, 500))}`)
   }
   return res.json()
 }
@@ -334,7 +352,7 @@ export async function fetchPipelineReport(
   const res = await fetch(`/api/reports/pipeline?${params}`)
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
-    throw new Error(`Pipeline report failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+    throw new Error(`Pipeline report failed (HTTP ${res.status}): ${sanitizeErrorMessage(errText.slice(0, 500))}`)
   }
   return res.json()
 }
@@ -345,7 +363,7 @@ export async function fetchDashboard(persona: string): Promise<DashboardData> {
   const res = await fetch(`/api/reports/dashboard/${persona}`)
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
-    throw new Error(`Dashboard query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+    throw new Error(`Dashboard query failed (HTTP ${res.status}): ${sanitizeErrorMessage(errText.slice(0, 500))}`)
   }
   return res.json()
 }
@@ -376,7 +394,7 @@ export async function sendMaestraChat(
   })
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
-    throw new Error(`Maestra chat failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+    throw new Error(`Maestra chat failed (HTTP ${res.status}): ${sanitizeErrorMessage(errText.slice(0, 500))}`)
   }
   return res.json()
 }
@@ -385,7 +403,7 @@ export async function fetchMaestraStats(): Promise<MaestraStatus> {
   const res = await fetch(`/maestra/stats/${MAESTRA_CUSTOMER_ID}`)
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
-    throw new Error(`Maestra stats failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)
+    throw new Error(`Maestra stats failed (HTTP ${res.status}): ${sanitizeErrorMessage(errText.slice(0, 500))}`)
   }
   return res.json()
 }

@@ -474,7 +474,7 @@ cac_payback_months:
 # ─── Pipeline & Sales Metrics ─────────────────────────────────────
 
 pipeline:
-  concept: "customer.pipeline"
+  concept: "sales.pipeline.total"
   property: "amount"
   type: direct
   unit: "usd"
@@ -511,14 +511,14 @@ pipeline_closed_won:
   unit: "usd"
 
 win_rate_pct:
-  concept: "customer.win_rate"
+  concept: "sales.win_rate"
   property: "rate"
   type: direct
   unit: "pct"
   aliases: ["win_rate"]
 
 sales_cycle_days:
-  concept: "customer.sales_cycle"
+  concept: "sales.cycle_days"
   property: "days"
   type: direct
   unit: "days"

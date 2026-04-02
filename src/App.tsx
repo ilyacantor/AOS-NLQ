@@ -417,7 +417,7 @@ function App() {
     setIsLoading(false)
     refreshLLMStats()
     setHistoryVersion(v => v + 1)
-  }, [sessionId, selectedPersona])
+  }, [sessionId, selectedPersona, selectedSnapshot])
 
   // ── Parent iframe communication ────────────────────────────────────
   // Listens for postMessage commands from the AOS platform shell.

@@ -49,6 +49,13 @@ test('Snapshot selector: visible on Ask, defaults latest, drives identity, hidde
   console.log(`[snapshot] Query body.snapshot_id = ${body.snapshot_id}`);
 
   // ── 4. Selector NOT visible on Reports ──
+  // Wait for the query response to render (it sets viewMode='galaxy')
+  // before clicking Reports, to avoid the response overriding the tab switch.
+  await page.waitForResponse((res) =>
+    res.url().includes('/api/v1/query') && res.status() === 200
+  );
+  await page.waitForTimeout(500);
+
   await page.locator('#nav-tab-reports').click();
   await page.waitForTimeout(1_000);
 

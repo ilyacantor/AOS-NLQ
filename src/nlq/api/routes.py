@@ -13,11 +13,12 @@ All endpoints return JSON responses with consistent structure.
 import functools
 import logging
 import os
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from src.nlq.core.ambiguity import detect_ambiguity, needs_clarification
@@ -5302,10 +5303,17 @@ async def reconciliation():
     gt_raw = gt.get("ground_truth", gt)
 
     # Farm v5+ nests ground truth per entity under "ground_truth_by_entity".
+    # Farm v6+ (triple-based) uses "triple_ground_truth" with the same
+    # entity → period → metric structure but flat numeric values instead
+    # of {value: N, unit: U} dicts.
     # Flatten into {quarter: {metric: entry}} across all entities for
     # reconciliation — each (metric, period) check runs per-entity with the
     # entity's expected value.
-    gt_by_entity = gt_raw.get("ground_truth_by_entity", {})
+    gt_by_entity = (
+        gt_raw.get("ground_truth_by_entity")
+        or gt_raw.get("triple_ground_truth")
+        or {}
+    )
     if gt_by_entity:
         # New format: ground_truth_by_entity.{entity_id}.{quarter}.{metric}
         # Build flat gt_data and track entity_id per check
@@ -5406,6 +5414,22 @@ async def reconciliation():
         "Reconciliation: %d checks across %d quarters — firing in parallel",
         len(all_checks), len(quarters),
     )
+
+    if not all_checks:
+        client.close()
+        return {
+            "checks": [],
+            "coverage": {
+                "total_farm_metrics": len(total_farm_metrics),
+                "in_scope": 0,
+                "out_of_scope": len(out_of_scope_metrics),
+                "out_of_scope_categories": {"Other": sorted(out_of_scope_metrics)[:20]},
+            },
+            "totalChecks": 0,
+            "totalGreen": 0,
+            "totalRed": 0,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
 
     # ── Batch-browse strategy ──────────────────────────────────────────
     # One POST to /api/dcl/triples/browse-batch fetches all domains and
@@ -5713,8 +5737,6 @@ async def reconciliation():
             uncategorized_oos.append(m)
     if uncategorized_oos:
         oos_by_category["Other"] = uncategorized_oos
-
-    from datetime import datetime
 
     return {
         "checks": checks_out,

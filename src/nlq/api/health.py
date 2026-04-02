@@ -41,6 +41,7 @@ class PipelineStatusResponse(BaseModel):
     metric_count: int = 0
     catalog_source: Optional[str] = None  # "dcl" or None
     last_dcl_ingest_id: Optional[str] = None
+    snapshot_name: Optional[str] = None  # Human-readable name (I2/I4: UUIDs never displayed)
     last_run_timestamp: Optional[str] = None
     last_source_systems: Optional[List[str]] = None
     freshness: Optional[str] = None
@@ -145,11 +146,30 @@ async def pipeline_status() -> PipelineStatusResponse:
     last_run_timestamp = health.get("last_updated")
     last_source_systems = None
     freshness_display = None
+    snapshot_name = None
 
     if dcl_connected:
         summary = dcl_client.get_ingest_summary()
         if summary and summary.available:
             last_source_systems = summary.source_systems or None
+
+        # Resolve snapshot_name from DCL snapshots (I2/I4: UUIDs never displayed)
+        if last_dcl_ingest_id:
+            try:
+                from src.nlq.config import get_available_snapshots
+                snapshots = get_available_snapshots()
+                for snap in snapshots:
+                    if snap.get("dcl_ingest_id") == last_dcl_ingest_id:
+                        snapshot_name = snap.get("snapshot_name")
+                        break
+                # If no match, use the current snapshot's name
+                if not snapshot_name:
+                    for snap in snapshots:
+                        if snap.get("is_current"):
+                            snapshot_name = snap.get("snapshot_name")
+                            break
+            except (RuntimeError, ConnectionError, OSError) as e:
+                logger.debug("Could not resolve snapshot_name: %s", e)
 
     return PipelineStatusResponse(
         dcl_connected=dcl_connected,
@@ -157,6 +177,7 @@ async def pipeline_status() -> PipelineStatusResponse:
         metric_count=metric_count,
         catalog_source=catalog_source if catalog_source != "none" else None,
         last_dcl_ingest_id=last_dcl_ingest_id,
+        snapshot_name=snapshot_name,
         last_run_timestamp=last_run_timestamp,
         last_source_systems=last_source_systems,
         freshness=freshness_display,

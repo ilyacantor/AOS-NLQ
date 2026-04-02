@@ -5,6 +5,7 @@ interface PipelineProvenance {
   dcl_mode: string | null
   metric_count: number
   last_dcl_ingest_id: string | null
+  snapshot_name: string | null
   last_run_timestamp: string | null
   last_source_systems: string[] | null
 }
@@ -54,10 +55,10 @@ export function ProvenanceBanner() {
           <span className="text-slate-300">{entityDisplay}</span>
         </span>
       )}
-      {provenance.last_dcl_ingest_id && (
+      {provenance.snapshot_name && (
         <span>
           <span className="text-slate-500">Snapshot:</span>{' '}
-          <span className="text-slate-300 font-mono">{provenance.last_dcl_ingest_id.slice(0, 12)}</span>
+          <span className="text-slate-300">{provenance.snapshot_name}</span>
         </span>
       )}
       {provenance.last_run_timestamp && (

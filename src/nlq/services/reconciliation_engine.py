@@ -45,8 +45,17 @@ logger = logging.getLogger(__name__)
 # Keys in each quarter dict that are metadata, not metrics
 _QUARTER_META_KEYS = frozenset({"is_forecast", "period_type"})
 
-# Keys in the ground_truth dict that are not quarter data
-_GT_NON_QUARTER_KEYS = frozenset({"dimensional_truth", "expected_conflicts"})
+# Keys in the ground_truth dict that are not quarter data.
+# Includes keys from v2.0 (dimensional_truth, expected_conflicts) and
+# v6.0 triple-based format (triple_ground_truth, atemporal_ground_truth, etc.).
+_GT_NON_QUARTER_KEYS = frozenset({
+    "dimensional_truth", "expected_conflicts",
+    "triple_ground_truth", "atemporal_ground_truth", "domain_summary_by_entity",
+    "domain_summary", "identity_checks", "overlap_counts",
+    "mode", "seed", "periods", "entities", "tenant_id", "timestamp",
+    "output_file", "triple_count", "pushed_to_dcl", "farm_manifest_id",
+    "generation_time_s", "manifest_version",
+})
 
 
 @dataclass

@@ -171,8 +171,10 @@ def _convergence_get(path: str, params: dict = None) -> dict:
             ),
         )
 
-    # Identity injection for Convergence v2 report paths
-    if "/api/convergence/reports/v2/" in path:
+    # Identity injection for all Convergence paths that require tenant_id.
+    # Engagement/health endpoints don't need it; everything else does.
+    _NO_TENANT_PATHS = ("/api/convergence/triples/engagement", "/api/convergence/engagements", "/api/convergence/engagement/", "/api/health")
+    if not any(path.startswith(p) or path == p for p in _NO_TENANT_PATHS):
         if params is None:
             params = {}
         params.setdefault("tenant_id", _resolve_report_tenant_id())
@@ -220,6 +222,7 @@ def _convergence_get(path: str, params: dict = None) -> dict:
 def _convergence_post(path: str, body: dict, params: dict = None) -> dict:
     """POST to a Convergence endpoint, raise HTTPException on failure.
 
+    Auto-injects tenant_id as query param for paths that require it.
     Raises 503 if CONVERGENCE_API_URL is not configured — no silent fallback to DCL.
     """
     if not CONVERGENCE_BASE_URL:
@@ -230,6 +233,11 @@ def _convergence_post(path: str, body: dict, params: dict = None) -> dict:
                 "Set CONVERGENCE_API_URL to the Convergence service URL."
             ),
         )
+
+    # Inject tenant_id for all Convergence POST paths
+    if params is None:
+        params = {}
+    params.setdefault("tenant_id", _resolve_report_tenant_id())
 
     url = f"{CONVERGENCE_BASE_URL}{path}"
     try:
@@ -1457,43 +1465,61 @@ async def what_if_scenario(request: Request):
 
 @router.get("/api/reports/dashboard/{persona}")
 async def dashboard(persona: str):
-    """Fetch dashboard from DCL and transform into DashboardData shape."""
-    dcl_data = await asyncio.to_thread(
-        _dcl_get, f"/api/reports/dashboard/{persona}"
-    )
+    """Build executive dashboard KPIs from triple store.
 
-    pnl = dcl_data.get("pnl", {})
-    bs = dcl_data.get("balance_sheet", {})
+    Uses the ME-aware v2 semantic client — routes to Convergence in ME mode,
+    DCL in SE mode. No proxy to a separate dashboard endpoint.
+    """
+    from src.nlq.services.dcl_semantic_client_v2 import get_semantic_client_v2
 
-    rev = pnl.get("revenue", {})
-    cogs = pnl.get("cogs", {})
-    opex = pnl.get("opex", {})
-    assets = bs.get("assets", {})
-    liabilities = bs.get("liabilities", {})
-    equity = bs.get("equity", {})
+    v2 = get_semantic_client_v2()
 
-    rev_total = float(rev.get("total", 0)) if isinstance(rev, dict) else 0
-    cogs_total = float(cogs.get("total", 0)) if isinstance(cogs, dict) else 0
-    ebitda = float(pnl.get("ebitda", 0))
-    net_income = float(pnl.get("net_income", 0))
+    # Metrics to fetch for the dashboard
+    metric_names = [
+        "revenue", "cogs", "opex", "ebitda", "net_income",
+        "total_assets", "total_liabilities", "total_equity",
+    ]
 
-    # Sum asset/liability/equity totals dynamically
-    def _sum_section(section: Dict) -> float:
-        if not isinstance(section, dict):
-            return 0
-        total = 0.0
-        for v in section.values():
-            if isinstance(v, (int, float)):
-                total += v
-        return round(total, 2)
+    def _fetch():
+        return v2.get_all_metrics_by_period(metric_names)
 
-    total_assets = _sum_section(assets)
-    total_liabilities = _sum_section(liabilities)
-    total_equity = _sum_section(equity)
+    batch_result, _confidence = await asyncio.to_thread(_fetch)
+
+    # Extract latest-period values from the batch result.
+    # Keys are "{metric}|{period}" — find the latest period per metric.
+    metric_values: Dict[str, float] = {}
+    for key, value in batch_result.items():
+        if value is None:
+            continue
+        parts = key.split("|", 1)
+        if len(parts) != 2:
+            continue
+        metric, period = parts
+        existing_key = next(
+            (k for k in metric_values if k.startswith(f"{metric}|")), None
+        )
+        if existing_key is None or period > existing_key.split("|")[1]:
+            if existing_key:
+                del metric_values[existing_key]
+            metric_values[f"{metric}|{period}"] = float(value)
+
+    def _val(metric: str) -> float:
+        for k, v in metric_values.items():
+            if k.startswith(f"{metric}|"):
+                return v
+        return 0.0
+
+    rev_total = _val("revenue")
+    cogs_total = _val("cogs")
+    ebitda_val = _val("ebitda")
+    net_income_val = _val("net_income")
+    assets_val = _val("total_assets")
+    liabilities_val = _val("total_liabilities")
+    equity_val = _val("total_equity")
 
     gross_margin = round((rev_total - cogs_total) / rev_total * 100, 1) if rev_total else 0
-    ebitda_margin = round(ebitda / rev_total * 100, 1) if rev_total else 0
-    net_margin = round(net_income / rev_total * 100, 1) if rev_total else 0
+    ebitda_margin = round(ebitda_val / rev_total * 100, 1) if rev_total else 0
+    net_margin = round(net_income_val / rev_total * 100, 1) if rev_total else 0
 
     persona_titles = {
         "cfo": "Chief Financial Officer Dashboard",
@@ -1505,24 +1531,20 @@ async def dashboard(persona: str):
 
     kpis = {
         "revenue_M": round(rev_total, 2),
-        "ebitda_M": round(ebitda, 2),
-        "net_income_M": round(net_income, 2),
+        "ebitda_M": round(ebitda_val, 2),
+        "net_income_M": round(net_income_val, 2),
         "gross_margin_pct": gross_margin,
         "ebitda_margin_pct": ebitda_margin,
         "net_margin_pct": net_margin,
-        "total_assets_M": total_assets,
-        "total_liabilities_M": total_liabilities,
-        "total_equity_M": total_equity,
+        "total_assets_M": round(assets_val, 2),
+        "total_liabilities_M": round(liabilities_val, 2),
+        "total_equity_M": round(equity_val, 2),
     }
 
     return JSONResponse(content={
         "persona": persona,
         "title": persona_titles.get(persona.lower(), f"{persona.upper()} Dashboard"),
-        "entity_id": dcl_data.get("entity_id"),
-        "period": dcl_data.get("period"),
         "kpis": kpis,
-        "pnl": pnl,
-        "balance_sheet": bs,
     })
 
 

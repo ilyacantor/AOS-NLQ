@@ -738,10 +738,14 @@ interface DealInfo {
 function DealSelector({ selected, onChange, onDealLoaded }: { selected: EntitySelection; onChange: (e: EntitySelection) => void; onDealLoaded?: (names: Record<string, string>) => void }) {
   const [deals, setDeals] = React.useState<{ value: string; label: string; deal: DealInfo }[]>([]);
   const [activeDeal, setActiveDeal] = React.useState<DealInfo | null>(null);
+  const [dealError, setDealError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     fetch("/api/v1/entities")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`Entity fetch failed (HTTP ${r.status})`);
+        return r.json();
+      })
       .then((data) => {
         const all = data.entities || [];
         const acq = all.find((e: { role: string }) => e.role === "acquirer");
@@ -756,6 +760,7 @@ function DealSelector({ selected, onChange, onDealLoaded }: { selected: EntitySe
         if (dealLabel) {
           setDeals([{ value: dealValue, label: dealLabel, deal }]);
           setActiveDeal(deal);
+          setDealError(null);
           if (onDealLoaded) {
             const names: Record<string, string> = { combined: "Combined" };
             if (deal.acquirer) names[deal.acquirer.id] = deal.acquirer.label;
@@ -764,10 +769,18 @@ function DealSelector({ selected, onChange, onDealLoaded }: { selected: EntitySe
           }
         }
       })
-      .catch(() => {
-        // If fetch fails, no deals available — degrade gracefully
+      .catch((err) => {
+        setDealError(err instanceof Error ? err.message : "Failed to load entities");
       });
   }, []);
+
+  if (dealError) {
+    return (
+      <div style={{ padding: "6px 12px", fontSize: 12, color: COLORS.red, fontFamily: "'IBM Plex Sans',sans-serif" }}>
+        Entity discovery failed: {dealError}
+      </div>
+    );
+  }
 
   if (!activeDeal) return null;
 

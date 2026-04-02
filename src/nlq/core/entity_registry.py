@@ -1,8 +1,9 @@
 """
-Dynamic entity resolution from DCL engagement state.
+Dynamic entity resolution from engagement state.
 
-Replaces all hardcoded entity references in NLQ app code.
-Entities are discovered from DCL's active engagement, not hardcoded.
+Tries Convergence first (ME engagement authority per RACI), then
+falls back to DCL for SE-only deployments.
+Entities are discovered dynamically, not hardcoded.
 """
 
 import asyncio
@@ -20,24 +21,109 @@ _CACHE_TTL = 300  # 5 minutes
 
 class EntityRegistry:
     """
-    Dynamic entity resolution from DCL engagement state.
+    Dynamic entity resolution from engagement state.
 
+    Tries Convergence first (ME engagement authority per RACI), then
+    falls back to DCL for SE-only deployments.
     Replaces all hardcoded entity references in NLQ app code.
-    Entities are discovered from DCL's active engagement, not hardcoded.
     """
 
-    def __init__(self, dcl_base_url: str = None):
+    def __init__(self, dcl_base_url: str = None, convergence_base_url: str = None):
         """
-        Initialize with DCL backend URL.
+        Initialize with service URLs.
+        Convergence is the primary source (owns engagement lifecycle).
+        DCL is the fallback for SE-only deployments.
         Caches entity list with TTL (5 minutes).
         """
         self._dcl_base_url = (
             dcl_base_url
             or os.environ.get("DCL_API_URL", "http://localhost:8004")
         ).rstrip("/")
+        self._convergence_base_url = (
+            convergence_base_url
+            or os.environ.get("CONVERGENCE_API_URL", "")
+        ).rstrip("/") or ""
         self._cache: Optional[list[dict]] = None
         self._cache_expires: float = 0.0
         self._client = httpx.Client(timeout=10.0)
+
+    @staticmethod
+    def _format_name(eid: str) -> str:
+        if any(c.isupper() for c in eid) or "-" in eid:
+            return eid
+        return eid.replace("_", " ").title()
+
+    @staticmethod
+    def _parse_engagement(data: dict) -> list[dict]:
+        """Parse entity_a/entity_b from an engagement response into entity dicts."""
+        entities = []
+        ea = data.get("entity_a")
+        if ea and ea.get("id"):
+            entities.append({
+                "entity_id": ea["id"],
+                "display_name": ea.get("display_name") or EntityRegistry._format_name(ea["id"]),
+                "role": "acquirer",
+            })
+        eb = data.get("entity_b")
+        if eb and eb.get("id"):
+            entities.append({
+                "entity_id": eb["id"],
+                "display_name": eb.get("display_name") or EntityRegistry._format_name(eb["id"]),
+                "role": "target",
+            })
+        return entities
+
+    def _fetch_entities_from_convergence(self) -> list[dict]:
+        """Fetch entities from Convergence's active engagement.
+
+        Convergence owns the engagement lifecycle (RACI) and has the
+        authoritative entity pair for ME mode.
+
+        Returns entities if Convergence is configured and returns both
+        entity_a and entity_b. Returns empty list if Convergence is not
+        configured, unreachable, or returns fewer than 2 entities — caller
+        falls through to DCL (SE-only deployments).
+        """
+        if not self._convergence_base_url:
+            return []
+
+        engagement_url = f"{self._convergence_base_url}/api/convergence/triples/engagement"
+        resp = None
+        try:
+            resp = self._client.get(engagement_url)
+        except httpx.ConnectError:
+            logger.warning(
+                "EntityRegistry could not reach Convergence at %s — "
+                "falling back to DCL for entity discovery",
+                engagement_url,
+            )
+        except httpx.TimeoutException:
+            logger.warning(
+                "EntityRegistry timed out waiting for Convergence at %s — "
+                "falling back to DCL for entity discovery",
+                engagement_url,
+            )
+
+        if resp is None:
+            return []
+
+        if resp.status_code != 200:
+            logger.warning(
+                "EntityRegistry got HTTP %d from %s — falling back to DCL",
+                resp.status_code, engagement_url,
+            )
+            return []
+
+        entities = self._parse_engagement(resp.json())
+        if len(entities) < 2:
+            logger.info(
+                "Convergence returned %d entities (need 2 for ME mode) — "
+                "falling back to DCL",
+                len(entities),
+            )
+            return []
+
+        return entities
 
     def _fetch_entities_from_dcl(self) -> list[dict]:
         """Fetch financial entity list from DCL's active engagement.
@@ -69,30 +155,19 @@ class EntityRegistry:
                 f"{resp.text[:200]}"
             )
 
-        data = resp.json()
-        entities = []
+        return self._parse_engagement(resp.json())
 
-        def _format_name(eid: str) -> str:
-            if any(c.isupper() for c in eid) or "-" in eid:
-                return eid
-            return eid.replace("_", " ").title()
+    def _fetch_entities(self) -> list[dict]:
+        """Fetch entities: Convergence first (ME authority), DCL fallback (SE).
 
-        ea = data.get("entity_a")
-        if ea and ea.get("id"):
-            entities.append({
-                "entity_id": ea["id"],
-                "display_name": ea.get("display_name") or _format_name(ea["id"]),
-                "role": "acquirer",
-            })
-        eb = data.get("entity_b")
-        if eb and eb.get("id"):
-            entities.append({
-                "entity_id": eb["id"],
-                "display_name": eb.get("display_name") or _format_name(eb["id"]),
-                "role": "target",
-            })
-
-        return entities
+        Convergence owns the engagement lifecycle per RACI. If it returns
+        a complete entity pair (acquirer + target), those are authoritative.
+        Otherwise falls back to DCL for SE-only deployments.
+        """
+        convergence_entities = self._fetch_entities_from_convergence()
+        if convergence_entities:
+            return convergence_entities
+        return self._fetch_entities_from_dcl()
 
     # ── Sync accessors (for use in sync code paths) ──────────────────────
 
@@ -101,7 +176,7 @@ class EntityRegistry:
         now = time.time()
         if self._cache is not None and now < self._cache_expires:
             return self._cache
-        entities = self._fetch_entities_from_dcl()
+        entities = self._fetch_entities()
         self._cache = entities
         self._cache_expires = now + _CACHE_TTL
         return entities
@@ -144,7 +219,7 @@ class EntityRegistry:
         now = time.time()
         if self._cache is not None and now < self._cache_expires:
             return self._cache
-        entities = await asyncio.to_thread(self._fetch_entities_from_dcl)
+        entities = await asyncio.to_thread(self._fetch_entities)
         self._cache = entities
         self._cache_expires = now + _CACHE_TTL
         return entities

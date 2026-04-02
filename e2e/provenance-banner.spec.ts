@@ -35,10 +35,26 @@ test('Provenance banner: visible on Dashboard, hidden on Ask', async ({ page }) 
 
   // ── 3. Dashboard: provenance banner visible ──
   await page.locator('#nav-tab-dashboard').click();
-  await page.waitForTimeout(2_000);
 
-  // Banner shows entity, snapshot, and timestamp labels
-  await expect(page.locator('text=Snapshot:')).toBeVisible({ timeout: 10_000 });
+  // Wait for pipeline_status response (banner depends on it)
+  await page.waitForResponse(
+    (res) => res.url().includes('/pipeline/status') && res.status() === 200,
+    { timeout: 15_000 },
+  );
+  await page.waitForTimeout(1_000);
+
+  // Banner shows snapshot name (human-readable per I2/I4) and timestamp
+  // snapshot_name may be null if DCL snapshots are unavailable — check Updated: as baseline
   await expect(page.locator('text=Updated:')).toBeVisible({ timeout: 10_000 });
+  const snapshotLabel = page.locator('text=Snapshot:');
+  if (await snapshotLabel.isVisible()) {
+    // Verify no raw UUID is displayed (I2/I4 compliance)
+    const snapshotText = await snapshotLabel.locator('..').textContent();
+    const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+    expect(snapshotText, 'Snapshot label must not contain raw UUID').not.toMatch(uuidPattern);
+    console.log('[provenance] Dashboard banner: snapshot_name visible, no UUID');
+  } else {
+    console.log('[provenance] Dashboard banner: snapshot_name not available (DCL snapshots empty)');
+  }
   console.log('[provenance] Dashboard banner visible with provenance data');
 });
