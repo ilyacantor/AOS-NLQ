@@ -4204,6 +4204,11 @@ async def query(request: NLQRequest) -> NLQResponse:
     Returns the answer with confidence score bounded [0.0, 1.0].
     Provenance is applied once at this boundary via _ensure_provenance.
     """
+    # Set snapshot_id from request body (middleware handles query string)
+    if request.snapshot_id:
+        from src.nlq.services.dcl_semantic_client import _snapshot_id_ctx
+        _snapshot_id_ctx.set(request.snapshot_id)
+
     _request_entity_id = _resolve_entity_id(request)
     set_entity_id(_request_entity_id)
     reset_provenance_ctx()

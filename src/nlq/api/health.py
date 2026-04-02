@@ -196,3 +196,15 @@ async def schema() -> SchemaResponse:
         periods=sorted(periods),
         metric_details=metric_details,
     )
+
+
+@router.get("/snapshots")
+async def snapshots():
+    """List available DCL snapshots for the snapshot selector.
+
+    Returns snapshots grouped by dcl_ingest_id, sorted newest-first.
+    Each entry: {dcl_ingest_id, snapshot_name, run_timestamp, total_rows, pipe_count}.
+    """
+    from src.nlq.config import get_available_snapshots
+
+    return {"snapshots": get_available_snapshots()}

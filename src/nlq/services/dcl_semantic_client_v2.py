@@ -138,11 +138,17 @@ class DCLSemanticClientV2:
 
         SE mode: returns (DCL client, original path) — no change.
         ME mode: returns (Convergence client, /api/dcl/... → /api/convergence/...).
+        Raises RuntimeError if ME mode but Convergence is not configured.
         """
         from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
 
         mode = _aos_mode_ctx.get()
-        if mode == "ME" and self._http_conv is not None:
+        if mode == "ME":
+            if self._http_conv is None:
+                raise RuntimeError(
+                    "ME mode active but Convergence is not configured — "
+                    "cannot route to Convergence. Set CONVERGENCE_API_URL env var."
+                )
             rewritten = path.replace("/api/dcl/", "/api/convergence/", 1)
             return self._http_conv, rewritten
         return self._http, path
@@ -159,9 +165,8 @@ class DCLSemanticClientV2:
         so endpoints receive the required identity pair (I2/I6).
         """
         if path.startswith("/api/dcl/reports/v2/") or path.startswith("/api/dcl/triples/"):
-            from src.nlq.config import get_tenant_id, get_pipeline_run_id
-            identity = {"tenant_id": get_tenant_id(), "pipeline_run_id": get_pipeline_run_id()}
-            params = {**identity, **(params or {})}
+            from src.nlq.config import get_identity
+            params = {**get_identity(), **(params or {})}
         client, routed_path = self._route(path)
         resp = client.get(routed_path, params=params)
         base = self.convergence_url if client is self._http_conv else self.base_url
@@ -179,12 +184,8 @@ class DCLSemanticClientV2:
         into the JSON body so endpoints receive identity (I2/I6).
         """
         if path.startswith("/api/dcl/reports/v2/"):
-            from src.nlq.config import get_tenant_id, get_pipeline_run_id
-            body = {
-                "tenant_id": get_tenant_id(),
-                "pipeline_run_id": get_pipeline_run_id(),
-                **body,
-            }
+            from src.nlq.config import get_identity
+            body = {**get_identity(), **body}
         client, routed_path = self._route(path)
         resp = client.post(routed_path, json=body)
         base = self.convergence_url if client is self._http_conv else self.base_url
@@ -881,8 +882,8 @@ class DCLSemanticClientV2:
                 if period:
                     body["period"] = period
                 client, routed_path = self._route("/api/dcl/triples/browse-batch")
-                from src.nlq.config import get_tenant_id, get_pipeline_run_id
-                params = {"tenant_id": get_tenant_id(), "pipeline_run_id": get_pipeline_run_id()}
+                from src.nlq.config import get_identity
+                params = get_identity()
                 resp = client.post(routed_path, json=body, params=params)
                 if resp.status_code >= 400:
                     raise RuntimeError(f"browse-batch returned {resp.status_code}: {resp.text[:300]}")
@@ -1045,8 +1046,8 @@ class DCLSemanticClientV2:
                 if entity_id:
                     body["entity_ids"] = [entity_id]
                 client, routed_path = self._route("/api/dcl/triples/browse-batch")
-                from src.nlq.config import get_tenant_id, get_pipeline_run_id
-                params = {"tenant_id": get_tenant_id(), "pipeline_run_id": get_pipeline_run_id()}
+                from src.nlq.config import get_identity
+                params = get_identity()
                 resp = client.post(routed_path, json=body, params=params)
                 if resp.status_code >= 400:
                     raise RuntimeError(f"browse-batch returned {resp.status_code}: {resp.text[:300]}")

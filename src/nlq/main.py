@@ -65,12 +65,24 @@ app.add_middleware(
 )
 
 
-# SE/ME mode middleware — reads X-AOS-Mode header and sets the contextvar.
+# SE/ME mode middleware — determines mode from URL path (surface-based routing).
+# Ask/Dashboard = SE (→ DCL). ME report paths = ME (→ Convergence).
 # Uses pure ASGI middleware (not BaseHTTPMiddleware) because Starlette's
 # BaseHTTPMiddleware runs call_next() in a separate task, which breaks
 # contextvar propagation to route handlers.
-from src.nlq.config import get_default_mode
-from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
+from src.nlq.services.dcl_semantic_client import _aos_mode_ctx, _snapshot_id_ctx
+
+# Paths that route to Convergence (ME/MA reports).
+# Everything else is SE (Ask, Dashboard, Maestra, health, etc.).
+_ME_PATH_PREFIXES = (
+    "/api/reports/combining-is",
+    "/api/reports/entity-overlap",
+    "/api/reports/cross-sell",
+    "/api/reports/upsell",
+    "/api/reports/ebitda-bridge",
+    "/api/reports/qoe",
+    "/api/reports/what-if",
+)
 
 
 class AOSModeMiddleware:
@@ -79,10 +91,19 @@ class AOSModeMiddleware:
 
     async def __call__(self, scope, receive, send):
         if scope["type"] in ("http", "websocket"):
-            headers = dict(scope.get("headers", []))
-            raw = headers.get(b"x-aos-mode", b"").decode().upper().strip()
-            mode = raw if raw in ("SE", "ME") else get_default_mode()
+            path = scope.get("path", "")
+            mode = "ME" if path.startswith(_ME_PATH_PREFIXES) else "SE"
             _aos_mode_ctx.set(mode)
+
+            # Snapshot override — operator-selected snapshot from frontend
+            qs = scope.get("query_string", b"").decode()
+            snapshot_id = None
+            for part in qs.split("&"):
+                if part.startswith("snapshot_id="):
+                    snapshot_id = part[len("snapshot_id="):]
+                    break
+            _snapshot_id_ctx.set(snapshot_id)
+
         await self.app(scope, receive, send)
 
 

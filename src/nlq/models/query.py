@@ -77,6 +77,11 @@ class NLQRequest(BaseModel):
         description="If True, return combined/consolidated entity view. Equivalent to entity_id='combined'."
     )
 
+    snapshot_id: Optional[str] = Field(
+        default=None,
+        description="DCL ingest ID for snapshot selection. Overrides auto-resolved SE identity."
+    )
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {

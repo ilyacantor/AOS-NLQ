@@ -23,24 +23,6 @@ from pydantic_settings import BaseSettings
 
 _config_logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# SE/ME mode — default for requests that don't carry an X-AOS-Mode header
-# ---------------------------------------------------------------------------
-
-AOS_DEFAULT_MODE: str = os.environ.get("AOS_DEFAULT_MODE", "SE").upper()
-if AOS_DEFAULT_MODE not in ("SE", "ME"):
-    raise RuntimeError(
-        f"AOS_DEFAULT_MODE must be 'SE' or 'ME', got '{AOS_DEFAULT_MODE}'. "
-        f"SE = single entity (routes to DCL), ME = multi entity (routes to Convergence)."
-    )
-
-_config_logger.info("AOS_DEFAULT_MODE = %s", AOS_DEFAULT_MODE)
-
-
-def get_default_mode() -> str:
-    """Return the configured default mode ('SE' or 'ME')."""
-    return AOS_DEFAULT_MODE
-
 
 # ---------------------------------------------------------------------------
 # Tenant ID resolution (replaces the old DEFAULT_TENANT_ID constant)
@@ -121,32 +103,99 @@ def reset_tenant_cache() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Pipeline run ID resolution (from Convergence engagement/active endpoint)
+# SE identity resolution — from DCL /api/dcl/snapshots (tenant_runs table)
 # ---------------------------------------------------------------------------
 
-_pipeline_run_id_cache: Optional[str] = None
+_dcl_ingest_id_cache: Optional[str] = None
 
 
-def get_pipeline_run_id() -> str:
+def get_dcl_ingest_id() -> str:
+    """Resolve the active SE pipeline identity from DCL's tenant_runs table.
+
+    Calls GET /api/dcl/snapshots?tenant_id=<UUID> and returns the
+    current snapshot's dcl_ingest_id. The SE pipeline writes via PG
+    direct and updates tenant_runs atomically.
+
+    Does NOT require Convergence to be running.
+    """
+    global _dcl_ingest_id_cache
+    if _dcl_ingest_id_cache is not None:
+        return _dcl_ingest_id_cache
+
+    import httpx
+
+    dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+    if not dcl_url:
+        raise RuntimeError(
+            "DCL_API_URL environment variable is not set — "
+            "cannot resolve SE identity from DCL."
+        )
+
+    tenant_id = get_tenant_id()
+    params = {"tenant_id": tenant_id} if tenant_id else {}
+
+    try:
+        resp = httpx.get(f"{dcl_url}/api/dcl/snapshots", params=params, timeout=10.0)
+    except httpx.ConnectError:
+        raise RuntimeError(
+            f"Cannot connect to DCL at {dcl_url} — "
+            f"is the DCL service running on port 8004?"
+        )
+
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"DCL /api/dcl/snapshots returned {resp.status_code}: {resp.text[:500]}"
+        )
+
+    snapshots = resp.json().get("snapshots", [])
+    current = next((s for s in snapshots if s.get("is_current")), None)
+    if not current:
+        raise RuntimeError(
+            f"No active SE pipeline identity found in DCL at {dcl_url}. "
+            f"tenant_runs has no current_run_id for this tenant. "
+            f"Run the SE pipeline first."
+        )
+
+    _dcl_ingest_id_cache = current["dcl_ingest_id"]
+    _config_logger.info(
+        "Resolved dcl_ingest_id=%s from DCL tenant_runs (SE identity)",
+        _dcl_ingest_id_cache,
+    )
+    return _dcl_ingest_id_cache
+
+
+def reset_dcl_ingest_cache() -> None:
+    """Clear the cached dcl_ingest_id. For testing or after new pipeline ingest."""
+    global _dcl_ingest_id_cache
+    _dcl_ingest_id_cache = None
+
+
+# ---------------------------------------------------------------------------
+# ME identity resolution — from Convergence engagement/active
+# ---------------------------------------------------------------------------
+
+_convergence_run_id_cache: Optional[str] = None
+
+
+def get_convergence_run_id() -> str:
     """Resolve the active pipeline_run_id from Convergence.
 
     Calls Convergence's /engagement/active?tenant_id=<UUID> to get the
-    current_pipeline_run_id from convergence_tenant_runs. This is the
-    run pointer that v2 report endpoints require (I2/I6).
+    current_pipeline_run_id. This is the ME identity — used when
+    Reports queries hit Convergence (combining, overlap, bridge, QoE).
 
-    The result is cached after first resolution. Call reset_pipeline_run_cache()
-    to clear (useful in tests or after a new pipeline ingest).
+    Requires CONVERGENCE_API_URL to be set and Convergence to be running.
     """
-    global _pipeline_run_id_cache
-    if _pipeline_run_id_cache is not None:
-        return _pipeline_run_id_cache
+    global _convergence_run_id_cache
+    if _convergence_run_id_cache is not None:
+        return _convergence_run_id_cache
 
     import httpx
 
     tenant_id = get_tenant_id()
     if not tenant_id:
         raise RuntimeError(
-            "Cannot resolve pipeline_run_id — tenant_id is not available. "
+            "Cannot resolve convergence_run_id — tenant_id is not available. "
             "Set AOS_TENANT_ID env var first."
         )
 
@@ -181,18 +230,98 @@ def get_pipeline_run_id() -> str:
             "Run the ingest pipeline first."
         )
 
-    _pipeline_run_id_cache = run_id
+    _convergence_run_id_cache = run_id
     _config_logger.info(
-        "Resolved pipeline_run_id=%s from Convergence engagement/active",
+        "Resolved convergence_run_id=%s from Convergence engagement/active (ME identity)",
         run_id,
     )
-    return _pipeline_run_id_cache
+    return _convergence_run_id_cache
 
 
-def reset_pipeline_run_cache() -> None:
-    """Clear the cached pipeline_run_id. For testing or after new pipeline ingest."""
-    global _pipeline_run_id_cache
-    _pipeline_run_id_cache = None
+def reset_convergence_run_cache() -> None:
+    """Clear the cached convergence_run_id. For testing or after new pipeline ingest."""
+    global _convergence_run_id_cache
+    _convergence_run_id_cache = None
+
+
+# ---------------------------------------------------------------------------
+# Unified identity resolution — mode-aware
+# ---------------------------------------------------------------------------
+
+
+def get_identity() -> dict:
+    """Get tenant_id + pipeline_run_id for the current request mode.
+
+    SE mode: pipeline_run_id from DCL (get_dcl_ingest_id)
+    ME mode: pipeline_run_id from Convergence (get_convergence_run_id)
+
+    If _snapshot_id_ctx is set (operator selected a specific snapshot),
+    uses that directly as pipeline_run_id for SE mode.
+    """
+    from src.nlq.services.dcl_semantic_client import _aos_mode_ctx, _snapshot_id_ctx
+
+    mode = _aos_mode_ctx.get()
+    tenant_id = get_tenant_id()
+
+    if mode == "ME":
+        pipeline_run_id = get_convergence_run_id()
+    else:
+        snapshot_override = _snapshot_id_ctx.get()
+        if snapshot_override:
+            pipeline_run_id = snapshot_override
+        else:
+            pipeline_run_id = get_dcl_ingest_id()
+
+    return {"tenant_id": tenant_id, "pipeline_run_id": pipeline_run_id}
+
+
+# ---------------------------------------------------------------------------
+# Snapshot catalog — for the frontend selector
+# ---------------------------------------------------------------------------
+
+
+def get_available_snapshots() -> list:
+    """Fetch available snapshots from DCL's tenant_runs table.
+
+    Calls GET /api/dcl/snapshots?tenant_id=<UUID> which reads
+    tenant_runs and enriches each run with triple counts.
+
+    Returns list of dicts sorted current-first:
+    [{dcl_ingest_id, snapshot_name, run_timestamp, total_rows, pipe_count}]
+    """
+    import httpx
+
+    dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
+    if not dcl_url:
+        raise RuntimeError(
+            "DCL_API_URL environment variable is not set — "
+            "cannot fetch available snapshots."
+        )
+
+    tenant_id = get_tenant_id()
+    params = {"tenant_id": tenant_id} if tenant_id else {}
+
+    try:
+        resp = httpx.get(f"{dcl_url}/api/dcl/snapshots", params=params, timeout=10.0)
+    except httpx.ConnectError:
+        raise RuntimeError(
+            f"Cannot connect to DCL at {dcl_url} — "
+            f"is the DCL service running?"
+        )
+
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"DCL /api/dcl/snapshots returned {resp.status_code}: {resp.text[:500]}"
+        )
+
+    data = resp.json()
+    snapshots = data.get("snapshots", [])
+
+    # Add pipe_count field (not tracked in tenant_runs, but the frontend type expects it)
+    for s in snapshots:
+        s.setdefault("pipe_count", 0)
+
+    return snapshots
 
 
 class Settings(BaseSettings):

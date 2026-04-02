@@ -341,8 +341,9 @@ export async function fetchPipelineReport(
 
 // ── Executive Dashboard ──────────────────────────────────────────────────────
 
-export async function fetchDashboard(persona: string): Promise<DashboardData> {
-  const res = await fetch(`/api/reports/dashboard/${persona}`)
+export async function fetchDashboard(persona: string, snapshotId?: string): Promise<DashboardData> {
+  const params = snapshotId ? `?snapshot_id=${encodeURIComponent(snapshotId)}` : ''
+  const res = await fetch(`/api/reports/dashboard/${persona}${params}`)
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Unknown error')
     throw new Error(`Dashboard query failed (HTTP ${res.status}): ${errText.slice(0, 500)}`)

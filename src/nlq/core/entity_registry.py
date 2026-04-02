@@ -41,11 +41,19 @@ class EntityRegistry:
         self._client = httpx.Client(timeout=10.0)
 
     def _resolve_engagement_url(self) -> tuple:
-        """Return (base_url, engagement_url, service_name) based on SE/ME mode."""
+        """Return (base_url, engagement_url, service_name) based on SE/ME mode.
+
+        Raises ConnectionError if ME mode but Convergence is not configured.
+        """
         from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
 
         mode = _aos_mode_ctx.get()
-        if mode == "ME" and self._convergence_base_url:
+        if mode == "ME":
+            if not self._convergence_base_url:
+                raise ConnectionError(
+                    "ME mode requires Convergence but CONVERGENCE_API_URL is not configured. "
+                    "Set CONVERGENCE_API_URL env var to the Convergence service URL."
+                )
             base = self._convergence_base_url
             return base, f"{base}/api/convergence/triples/engagement", "Convergence"
         return self._dcl_base_url, f"{self._dcl_base_url}/api/dcl/triples/engagement", "DCL"

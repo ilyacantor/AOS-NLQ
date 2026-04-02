@@ -44,9 +44,13 @@ _diag_trace: contextvars.ContextVar[Optional[List[str]]] = contextvars.ContextVa
 _last_provenance_ctx: contextvars.ContextVar[Optional[Dict[str, Any]]] = contextvars.ContextVar('_last_provenance_ctx', default=None)
 _last_data_source_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar('_last_data_source_ctx', default=None)
 
-# SE/ME mode routing — set per-request by middleware.
+# SE/ME mode routing — set per-request by middleware based on URL path.
 # "SE" = single entity (routes to DCL), "ME" = multi entity (routes to Convergence).
 _aos_mode_ctx: contextvars.ContextVar[str] = contextvars.ContextVar('_aos_mode_ctx', default="SE")
+
+# Snapshot override — operator-selected snapshot from frontend.
+# When set, SE identity uses this dcl_ingest_id instead of resolving latest.
+_snapshot_id_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar('_snapshot_id_ctx', default=None)
 
 
 def propagate_context(fn):
@@ -62,6 +66,7 @@ def propagate_context(fn):
         "entity_id": _entity_id_ctx.get(),
         "diag_trace": _diag_trace.get(),
         "aos_mode": _aos_mode_ctx.get(),
+        "snapshot_id": _snapshot_id_ctx.get(),
     }
 
     @functools.wraps(fn)
@@ -69,6 +74,7 @@ def propagate_context(fn):
         _entity_id_ctx.set(snapshot["entity_id"])
         _diag_trace.set(snapshot["diag_trace"])
         _aos_mode_ctx.set(snapshot["aos_mode"])
+        _snapshot_id_ctx.set(snapshot["snapshot_id"])
         return fn(*args, **kwargs)
 
     return wrapper
@@ -238,7 +244,12 @@ class DCLSemanticClient:
     def _active_base_url(self) -> Optional[str]:
         """Return the base URL for the current mode (DCL or Convergence)."""
         mode = _aos_mode_ctx.get()
-        if mode == "ME" and self.convergence_url:
+        if mode == "ME":
+            if not self.convergence_url:
+                raise RuntimeError(
+                    "ME mode active but CONVERGENCE_API_URL is not configured — "
+                    "cannot route to Convergence. Set CONVERGENCE_API_URL env var."
+                )
             return self.convergence_url
         return self.dcl_url
 
@@ -247,9 +258,15 @@ class DCLSemanticClient:
 
         In ME mode, rewrites /api/dcl/ prefix to /api/convergence/ and
         uses the Convergence HTTP client. In SE mode, uses DCL as-is.
+        Raises RuntimeError if ME mode but Convergence is not configured.
         """
         mode = _aos_mode_ctx.get()
-        if mode == "ME" and self.convergence_url and self._http_conv:
+        if mode == "ME":
+            if not self.convergence_url or not self._http_conv:
+                raise RuntimeError(
+                    "ME mode active but Convergence is not configured — "
+                    "cannot route to Convergence. Set CONVERGENCE_API_URL env var."
+                )
             rewritten = path.replace("/api/dcl/", "/api/convergence/", 1)
             return self._http_conv, f"{self.convergence_url}{rewritten}"
         return self._http_client, f"{self.dcl_url}{path}"

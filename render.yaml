@@ -42,3 +42,5 @@ services:
         value: "https://farmv2.onrender.com"
       - key: AOS_TENANT_ID
         value: "00000000-0000-0000-0000-000000000001"
+      - key: CONVERGENCE_API_URL
+        sync: false

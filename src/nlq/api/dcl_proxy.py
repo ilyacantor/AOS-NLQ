@@ -54,11 +54,20 @@ def _resolve_backend() -> tuple:
     """Pick the right backend (DCL or Convergence) based on SE/ME mode.
 
     Returns (base_url, client, service_name).
+    Raises HTTPException 503 if ME mode but Convergence is not configured.
     """
     from src.nlq.services.dcl_semantic_client import _aos_mode_ctx
 
     mode = _aos_mode_ctx.get()
-    if mode == "ME" and CONVERGENCE_BASE_URL and _conv_proxy_client:
+    if mode == "ME":
+        if not CONVERGENCE_BASE_URL or not _conv_proxy_client:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "ME mode requires Convergence but CONVERGENCE_API_URL is not configured. "
+                    "Set CONVERGENCE_API_URL env var to the Convergence service URL."
+                ),
+            )
         return CONVERGENCE_BASE_URL, _conv_proxy_client, "Convergence"
     return DCL_BASE_URL, _proxy_client, "DCL"
 
@@ -83,12 +92,14 @@ def _dcl_get(path: str, params: dict = None) -> dict:
             detail=f"{svc} URL not set — cannot proxy report request.",
         )
     if path.startswith("/api/dcl/reports/v2/") or path.startswith("/api/dcl/triples/"):
-        from src.nlq.config import get_tenant_id, get_pipeline_run_id
-        identity = {
-            "tenant_id": get_tenant_id(),
-            "pipeline_run_id": get_pipeline_run_id(),
-        }
-        params = {**identity, **(params or {})}
+        from src.nlq.config import get_identity
+        try:
+            params = {**get_identity(), **(params or {})}
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Cannot resolve pipeline identity for {svc}: {exc}",
+            )
     routed_path = _rewrite_path(path, svc)
     url = f"{base_url}{routed_path}"
     try:
@@ -773,12 +784,12 @@ async def revenue_by_customer(
             detail="Backend URL not set — cannot query revenue by customer.",
         )
     dcl_url = f"{base_url}{_rewrite_path('/api/dcl/triples/browse-batch', svc)}"
-    from src.nlq.config import get_tenant_id, get_pipeline_run_id
+    from src.nlq.config import get_identity
     payload = {
         "domains": ["revenue"],
         "entity_ids": [entity_id],
     }
-    batch_params = {"tenant_id": get_tenant_id(), "pipeline_run_id": get_pipeline_run_id()}
+    batch_params = get_identity()
 
     try:
         resp = await asyncio.to_thread(
@@ -921,7 +932,7 @@ async def dimensional_detail(
         )
 
     dcl_url = f"{base_url2}{_rewrite_path('/api/dcl/triples/browse-batch', svc2)}"
-    from src.nlq.config import get_tenant_id as _gtid, get_pipeline_run_id as _grid
+    from src.nlq.config import get_identity
     entity_ids = _get_entity_ids() if entity_id == "combined" else [entity_id]
     payload: dict[str, Any] = {
         "domains": [mapping["domain"]],
@@ -929,7 +940,7 @@ async def dimensional_detail(
     }
     if period:
         payload["period"] = period
-    batch_params2 = {"tenant_id": _gtid(), "pipeline_run_id": _grid()}
+    batch_params2 = get_identity()
 
     try:
         resp = await asyncio.to_thread(
