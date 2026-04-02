@@ -43,7 +43,7 @@ export function SnapshotSelector() {
       >
         {snapshots.map((snap) => (
           <option key={snap.dcl_ingest_id} value={snap.dcl_ingest_id}>
-            {snap.snapshot_name} -- {formatRelativeTime(snap.run_timestamp)} -- {snap.total_rows.toLocaleString()} triples
+            {snap.snapshot_name || snap.dcl_ingest_id?.slice(0, 12) || 'Unknown'} -- {formatRelativeTime(snap.run_timestamp)} -- {snap.total_rows.toLocaleString()} triples
           </option>
         ))}
       </select>

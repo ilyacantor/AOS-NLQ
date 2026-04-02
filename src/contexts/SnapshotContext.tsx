@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 
 export interface Snapshot {
   dcl_ingest_id: string
-  snapshot_name: string
+  snapshot_name: string | null
   run_timestamp: string
   total_rows: number
   pipe_count: number
