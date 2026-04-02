@@ -505,9 +505,8 @@ class DashboardDataResolver:
         v2 = self.dcl_client.v2
         resp = None
         try:
-            bb_client, bb_path = v2._route("/api/dcl/triples/browse-batch")
-            resp = bb_client.post(
-                bb_path,
+            resp = v2._http.post(
+                "/api/dcl/triples/browse-batch",
                 json={"domains": [domain], "entity_ids": [entity_id]},
             )
         except Exception as exc:
@@ -559,37 +558,57 @@ class DashboardDataResolver:
         reference_year: str,
         filters: Dict[str, str],
     ) -> Dict[str, Any]:
-        """Resolve geographic map data showing revenue by region."""
+        """Resolve geographic map data showing revenue by region.
+
+        Region triples use concept="{metric}.by_region.{region}" with
+        property="amount", so we fetch via browse-batch and extract the
+        region suffix from each concept name.
+        """
         metrics = widget.data.metrics
         if not metrics:
             return {"loading": False, "error": "No metric specified"}
 
         metric = metrics[0].metric
+        domain = metric.split(".")[0]
+        entity_id = get_entity_id()
+        prefix = f"{metric}.by_region."
 
-        cq = current_quarter()
-        result = self._query_dcl(
-            metric=metric,
-            dimensions=["region"],
-            filters=filters,
-            time_range={"period": cq},
-        )
+        v2 = self.dcl_client.v2
+        try:
+            resp = v2._http.post(
+                "/api/dcl/triples/browse-batch",
+                json={"domains": [domain], "entity_ids": [entity_id]},
+            )
+        except Exception as exc:
+            logger.warning("Map browse-batch error: %s", exc)
+            return {"loading": False, "error": f"Cannot fetch regional data: {exc}"}
 
-        if result.get("error"):
-            return {"loading": False, "error": result["error"]}
+        if resp.status_code >= 400:
+            return {"loading": False, "error": f"DCL returned {resp.status_code}"}
 
-        regional_data = self._extract_dimensional_data(result, "region", metric)
+        triples = resp.json().get("triples_by_domain", {}).get(domain, [])
 
-        if not regional_data:
+        # Aggregate: region → total value across all periods
+        totals: Dict[str, float] = {}
+        for t in triples:
+            concept = t.get("concept", "")
+            if not concept.startswith(prefix):
+                continue
+            region = concept[len(prefix):]
+            raw = t.get("value")
+            if region and raw is not None:
+                totals[region] = totals.get(region, 0.0) + float(raw)
+
+        if not totals:
             return {"loading": False, "error": f"No regional data for '{metric}'"}
 
-        total = sum(item.get("value", 0) for item in regional_data)
+        grand_total = sum(totals.values())
         regions = []
 
-        for item in regional_data:
-            value = item.get("value", 0)
-            percentage = (value / total * 100) if total > 0 else 0
+        for region_name, value in totals.items():
+            percentage = (value / grand_total * 100) if grand_total > 0 else 0
             regions.append({
-                "region": item.get("label", "").upper(),
+                "region": region_name.upper(),
                 "value": round(value, 2),
                 "percentage": round(percentage, 1),
             })
@@ -599,7 +618,7 @@ class DashboardDataResolver:
         return {
             "loading": False,
             "map_data": {
-                "total": round(total, 2),
+                "total": round(grand_total, 2),
                 "metric": metric,
                 "regions": regions,
             },

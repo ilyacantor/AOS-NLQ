@@ -648,7 +648,7 @@ def _generate_full_dashboard(
     # Check DCL catalog — if the metric supports "region" dimension, show the map
     semantic_client = get_semantic_client()
     valid_dims = semantic_client.get_valid_dimensions(primary_metric)
-    has_map = dimension == "region" and "region" in (valid_dims or [])
+    has_map = "region" in (valid_dims or [])
 
     # If map is present, it goes first at row 3 left; charts shift to row 6
     # If no map, charts start at row 3

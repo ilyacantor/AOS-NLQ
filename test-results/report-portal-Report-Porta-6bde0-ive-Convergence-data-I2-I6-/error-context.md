@@ -1,0 +1,455 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - generic [ref=e8]: NLQ
+          - generic [ref=e9]: Natural Language Query
+        - generic [ref=e10]:
+          - generic [ref=e11]: "View:"
+          - generic [ref=e12]:
+            - button "Ask" [ref=e13]
+            - button "Dashboard" [ref=e14]
+            - button "Reports" [active] [ref=e15]
+      - generic [ref=e16]:
+        - button "Live" [ref=e18]:
+          - generic [ref=e22]: Live
+        - generic "0 AI calls | 0 cached | 0 learned" [ref=e23]:
+          - img [ref=e24]
+          - generic [ref=e26]: 0AI
+        - button "Tour" [ref=e27]
+        - button "?" [ref=e28]
+  - generic [ref=e29]:
+    - main [ref=e30]:
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - generic [ref=e34]:
+            - generic [ref=e35]:
+              - generic [ref=e36]: Deal
+              - combobox [ref=e37] [cursor=pointer]:
+                - option "VeloHub-WQ1C" [selected]
+            - button "Acquiror" [ref=e39] [cursor=pointer]
+          - generic [ref=e40]:
+            - combobox [ref=e42] [cursor=pointer]:
+              - option "FY2025 Act vs FY2024" [selected]
+              - option "Quarterly Act vs PY"
+              - option "FY2026 CF vs FY2025"
+              - option "Quarterly CF vs PY"
+            - combobox [ref=e44] [cursor=pointer]:
+              - option "All Segments" [selected]
+              - option "Strategy"
+              - option "Operations"
+              - option "Technology"
+              - option "Risk"
+              - option "Digital/AI"
+              - option "Commercial"
+              - option "Finance & Accounting"
+              - option "HR Operations"
+              - option "Customer Operations"
+              - option "Supply Chain"
+        - generic [ref=e47]:
+          - button "P&L" [ref=e48] [cursor=pointer]
+          - button "BS" [ref=e49] [cursor=pointer]
+          - button "CF" [ref=e50] [cursor=pointer]
+          - button "Recon" [ref=e51] [cursor=pointer]
+          - button "Combining" [ref=e52] [cursor=pointer]
+          - button "X-Sell" [ref=e53] [cursor=pointer]
+          - button "Upsell" [ref=e54] [cursor=pointer]
+          - button "Pipeline" [ref=e55] [cursor=pointer]
+          - button "What-If" [ref=e56] [cursor=pointer]
+          - button "QofE" [ref=e57] [cursor=pointer]
+        - generic [ref=e61]: Loading Income Statement...
+    - button "History" [ref=e62]:
+      - img [ref=e63]
+      - generic [ref=e65]: History
+    - complementary [ref=e66]:
+      - generic:
+        - button "History" [ref=e67]
+        - button "Learning" [ref=e68]
+        - button "Data Gaps" [ref=e69]
+        - button "Trace" [ref=e70]
+      - generic [ref=e71]:
+        - generic:
+          - generic [ref=e72] [cursor=pointer]:
+            - generic:
+              - paragraph: 2025 P&L
+              - generic [ref=e73]: ×21
+            - generic:
+              - generic [ref=e74]: 03:59 AM
+              - generic [ref=e75]: 295ms
+              - generic: BYPASS
+          - generic [ref=e76] [cursor=pointer]:
+            - generic:
+              - paragraph: Show me a finance dashboard with revenue KPI, gross margin percent KPI, operating margin trend, net income KPI, EBITDA KPI, and cash KPI
+              - generic [ref=e77]: ×25
+            - generic:
+              - generic [ref=e78]: 03:58 AM
+              - generic [ref=e79]: 426ms
+              - generic: BYPASS
+          - generic [ref=e80] [cursor=pointer]:
+            - generic:
+              - paragraph: why did rev incr
+              - generic [ref=e81]: ×84
+            - generic:
+              - generic [ref=e82]: 09:12 PM
+              - generic [ref=e83]: 455ms
+              - generic: BYPASS
+          - generic [ref=e84] [cursor=pointer]:
+            - generic:
+              - paragraph: 2026 forecast
+              - generic [ref=e85]: ×5
+            - generic:
+              - generic [ref=e86]: 07:22 AM
+              - generic [ref=e87]: 316ms
+              - generic: BYPASS
+          - generic [ref=e88] [cursor=pointer]:
+            - generic:
+              - paragraph: whats the margin
+              - generic [ref=e89]: ×16
+            - generic:
+              - generic [ref=e90]: 02:26 PM
+              - generic [ref=e91]: 425ms
+              - generic: BYPASS
+          - generic [ref=e92] [cursor=pointer]:
+            - generic:
+              - paragraph: hi
+              - generic [ref=e93]: ×6
+            - generic:
+              - generic [ref=e94]: 11:57 AM
+              - generic: BYPASS
+          - generic [ref=e95] [cursor=pointer]:
+            - generic:
+              - paragraph: pipeline
+              - generic [ref=e96]: ×8
+            - generic:
+              - generic [ref=e97]: 11:57 AM
+              - generic [ref=e98]: 459ms
+              - generic: BYPASS
+          - generic [ref=e99] [cursor=pointer]:
+            - generic:
+              - paragraph: how are we doing
+            - generic:
+              - generic [ref=e100]: 08:02 AM
+              - generic [ref=e101]: 134ms
+              - generic: BYPASS
+          - generic [ref=e102] [cursor=pointer]:
+            - generic:
+              - paragraph: headcount
+              - generic [ref=e103]: ×5
+            - generic:
+              - generic [ref=e104]: 08:02 AM
+              - generic [ref=e105]: 135ms
+              - generic: BYPASS
+          - generic [ref=e106] [cursor=pointer]:
+            - generic:
+              - paragraph: churn?
+              - generic [ref=e107]: ×4
+            - generic:
+              - generic [ref=e108]: 08:01 AM
+              - generic [ref=e109]: 11ms
+              - generic: BYPASS
+          - generic [ref=e110] [cursor=pointer]:
+            - generic:
+              - paragraph: are we profitable
+              - generic [ref=e111]: ×5
+            - generic:
+              - generic [ref=e112]: 08:01 AM
+              - generic [ref=e113]: 409ms
+              - generic: BYPASS
+          - generic [ref=e114] [cursor=pointer]:
+            - generic:
+              - paragraph: 2025 KPIs in dash
+              - generic [ref=e115]: ×2
+            - generic:
+              - generic [ref=e116]: 08:01 AM
+              - generic [ref=e117]: 208ms
+              - generic: BYPASS
+          - generic [ref=e118] [cursor=pointer]:
+            - generic:
+              - paragraph: Show me a sales dashboard with ARR KPI, pipeline KPI, bookings trend over time, win rate KPI, and quota attainment by rep
+              - generic [ref=e119]: ×2
+            - generic:
+              - generic [ref=e120]: 04:07 PM
+              - generic [ref=e121]: 808ms
+              - generic: BYPASS
+          - generic [ref=e122] [cursor=pointer]:
+            - generic:
+              - paragraph: Show me an operations dashboard with headcount KPI, revenue per employee KPI, magic number trend, LTV CAC ratio KPI, and NPS breakdown
+            - generic:
+              - generic [ref=e123]: 04:07 PM
+              - generic [ref=e124]: 1040ms
+              - generic: BYPASS
+          - generic [ref=e125] [cursor=pointer]:
+            - generic:
+              - paragraph: Build me a CRO sales dashboard with pipeline and revenue by customer
+            - generic:
+              - generic [ref=e126]: 02:31 PM
+              - generic [ref=e127]: 782ms
+              - generic: BYPASS
+          - generic [ref=e128] [cursor=pointer]:
+            - generic:
+              - paragraph: Show me the pipeline dashboard
+            - generic:
+              - generic [ref=e129]: 02:30 PM
+              - generic [ref=e130]: 765ms
+              - generic: BYPASS
+          - generic [ref=e131] [cursor=pointer]:
+            - generic:
+              - paragraph: Show me revenue by customer
+            - generic:
+              - generic [ref=e132]: 02:30 PM
+              - generic [ref=e133]: 64ms
+              - generic: BYPASS
+          - generic [ref=e134] [cursor=pointer]:
+            - generic:
+              - paragraph: Build me a CFO dashboard
+            - generic:
+              - generic [ref=e135]: 02:30 PM
+              - generic [ref=e136]: 746ms
+              - generic: BYPASS
+          - generic [ref=e137] [cursor=pointer]:
+            - generic:
+              - paragraph: What is revenue for 2025?
+            - generic:
+              - generic [ref=e138]: 02:30 PM
+              - generic [ref=e139]: 112ms
+              - generic: BYPASS
+          - generic [ref=e140] [cursor=pointer]:
+            - generic:
+              - paragraph: What is ARR?
+              - generic [ref=e141]: ×34
+            - generic:
+              - generic [ref=e142]: 10:53 AM
+              - generic [ref=e143]: 55ms
+              - generic: BYPASS
+          - generic [ref=e144] [cursor=pointer]:
+            - generic:
+              - paragraph: Show me ARR
+              - generic [ref=e145]: ×4
+            - generic:
+              - generic [ref=e146]: 06:13 PM
+              - generic: BYPASS
+          - generic [ref=e147] [cursor=pointer]:
+            - generic:
+              - paragraph: revenue
+              - generic [ref=e148]: ×4
+            - generic:
+              - generic [ref=e149]: 06:13 PM
+              - generic: BYPASS
+          - generic [ref=e150] [cursor=pointer]:
+            - generic:
+              - paragraph: show me the margin
+              - generic [ref=e151]: ×4
+            - generic:
+              - generic [ref=e152]: 06:13 PM
+              - generic [ref=e153]: 35ms
+              - generic: BYPASS
+          - generic [ref=e154] [cursor=pointer]:
+            - generic:
+              - paragraph: how did we do?
+              - generic [ref=e155]: ×4
+            - generic:
+              - generic [ref=e156]: 06:13 PM
+              - generic [ref=e157]: 34ms
+              - generic: BYPASS
+          - generic [ref=e158] [cursor=pointer]:
+            - generic:
+              - paragraph: Who is our top performing sales rep?
+              - generic [ref=e159]: ×4
+            - generic:
+              - generic [ref=e160]: 06:13 PM
+              - generic [ref=e161]: 329ms
+              - generic: BYPASS
+          - generic [ref=e162] [cursor=pointer]:
+            - generic:
+              - paragraph: What is gross margin?
+              - generic [ref=e163]: ×4
+            - generic:
+              - generic [ref=e164]: 06:13 PM
+              - generic: BYPASS
+          - generic [ref=e165] [cursor=pointer]:
+            - generic:
+              - paragraph: Show quota attainment
+              - generic [ref=e166]: ×4
+            - generic:
+              - generic [ref=e167]: 06:13 PM
+              - generic [ref=e168]: 2928ms
+              - generic: LEARNED
+          - generic [ref=e169] [cursor=pointer]:
+            - generic:
+              - paragraph: How many open roles do we have?
+              - generic [ref=e170]: ×4
+            - generic:
+              - generic [ref=e171]: 06:13 PM
+              - generic [ref=e172]: 3048ms
+              - generic: LEARNED
+          - generic [ref=e173] [cursor=pointer]:
+            - generic:
+              - paragraph: What is our uptime?
+              - generic [ref=e174]: ×4
+            - generic:
+              - generic [ref=e175]: 06:13 PM
+              - generic: BYPASS
+          - generic [ref=e176] [cursor=pointer]:
+            - generic:
+              - paragraph: How many P1 incidents in Q3 2025?
+              - generic [ref=e177]: ×4
+            - generic:
+              - generic [ref=e178]: 06:13 PM
+              - generic [ref=e179]: 2535ms
+              - generic: LEARNED
+          - generic [ref=e180] [cursor=pointer]:
+            - generic:
+              - paragraph: What is NRR?
+              - generic [ref=e181]: ×4
+            - generic:
+              - generic [ref=e182]: 06:13 PM
+              - generic: BYPASS
+          - generic [ref=e183] [cursor=pointer]:
+            - generic:
+              - paragraph: What is our rule of 40?
+              - generic [ref=e184]: ×4
+            - generic:
+              - generic [ref=e185]: 06:13 PM
+              - generic [ref=e186]: 3416ms
+              - generic: LEARNED
+          - generic [ref=e187] [cursor=pointer]:
+            - generic:
+              - paragraph: Show me LTV to CAC ratio
+              - generic [ref=e188]: ×4
+            - generic:
+              - generic [ref=e189]: 06:13 PM
+              - generic: BYPASS
+          - generic [ref=e190] [cursor=pointer]:
+            - generic:
+              - paragraph: What is our burn multiple?
+              - generic [ref=e191]: ×4
+            - generic:
+              - generic [ref=e192]: 06:13 PM
+              - generic: BYPASS
+          - generic [ref=e193] [cursor=pointer]:
+            - generic:
+              - paragraph: What is 2024 revenue?
+              - generic [ref=e194]: ×4
+            - generic:
+              - generic [ref=e195]: 06:13 PM
+              - generic [ref=e196]: 1ms
+              - generic: BYPASS
+          - generic [ref=e197] [cursor=pointer]:
+            - generic:
+              - paragraph: What is 2025 revenue?
+              - generic [ref=e198]: ×7
+            - generic:
+              - generic [ref=e199]: 06:13 PM
+              - generic [ref=e200]: 1ms
+              - generic: BYPASS
+          - generic [ref=e201] [cursor=pointer]:
+            - generic:
+              - paragraph: What is our net income margin?
+              - generic [ref=e202]: ×4
+            - generic:
+              - generic [ref=e203]: 06:13 PM
+              - generic: BYPASS
+          - generic [ref=e204] [cursor=pointer]:
+            - generic:
+              - paragraph: What was gross margin in Q3 2025?
+              - generic [ref=e205]: ×4
+            - generic:
+              - generic [ref=e206]: 06:13 PM
+              - generic: BYPASS
+          - generic [ref=e207] [cursor=pointer]:
+            - generic:
+              - paragraph: Show me the 2025 P&L
+              - generic [ref=e208]: ×4
+            - generic:
+              - generic [ref=e209]: 06:13 PM
+              - generic [ref=e210]: 84ms
+              - generic: BYPASS
+          - generic [ref=e211] [cursor=pointer]:
+            - generic:
+              - paragraph: What is our EBITDA for 2025?
+              - generic [ref=e212]: ×4
+            - generic:
+              - generic [ref=e213]: 06:13 PM
+              - generic [ref=e214]: 1ms
+              - generic: BYPASS
+          - generic [ref=e215] [cursor=pointer]:
+            - generic:
+              - paragraph: What is total revenue?
+            - generic:
+              - generic [ref=e216]: 09:47 AM
+              - generic [ref=e217]: 368ms
+              - generic: BYPASS
+          - generic [ref=e218] [cursor=pointer]:
+            - generic:
+              - paragraph: Show me the P&L actual vs prior year
+              - generic [ref=e219]: ×47
+            - generic:
+              - generic [ref=e220]: 03:14 AM
+              - generic: BYPASS
+          - generic [ref=e221] [cursor=pointer]:
+            - generic:
+              - paragraph: platform stable?
+              - generic [ref=e222]: ×14
+            - generic:
+              - generic [ref=e223]: 08:22 AM
+              - generic [ref=e224]: 2527ms
+              - generic: BYPASS
+          - generic [ref=e225] [cursor=pointer]:
+            - generic:
+              - paragraph: 2025 revenue]
+            - generic:
+              - generic [ref=e226]: 12:16 PM
+              - generic [ref=e227]: 3442ms
+              - generic: LEARNED
+          - generic [ref=e228] [cursor=pointer]:
+            - generic:
+              - paragraph: Show me the Balance Sheet actual vs prior year
+              - generic [ref=e229]: ×15
+            - generic:
+              - generic [ref=e230]: 11:54 AM
+              - generic [ref=e231]: 1508ms
+              - generic: BYPASS
+          - generic [ref=e232] [cursor=pointer]:
+            - generic:
+              - paragraph: what is revenue for Q1 2025?
+              - generic [ref=e233]: ×2
+            - generic:
+              - generic [ref=e234]: 11:51 AM
+              - generic [ref=e235]: 646ms
+              - generic: BYPASS
+          - generic [ref=e236] [cursor=pointer]:
+            - generic:
+              - paragraph: Show me the Statement of Cash Flows actual vs prior year
+              - generic [ref=e237]: ×7
+            - generic:
+              - generic [ref=e238]: 11:50 AM
+              - generic [ref=e239]: 17297ms
+              - generic: BYPASS
+          - generic [ref=e240] [cursor=pointer]:
+            - generic:
+              - paragraph: Show me the P&L current forecast vs prior year
+              - generic [ref=e241]: ×4
+            - generic:
+              - generic [ref=e242]: 11:42 AM
+              - generic [ref=e243]: 1404ms
+              - generic: BYPASS
+          - generic [ref=e244] [cursor=pointer]:
+            - generic:
+              - paragraph: Show me the P&L for 2025-Q4 vs prior year
+            - generic:
+              - generic [ref=e245]: 11:41 AM
+              - generic [ref=e246]: 864ms
+              - generic: BYPASS
+          - generic [ref=e247] [cursor=pointer]:
+            - generic:
+              - paragraph: Show me the P&L for 2025-Q3 vs prior year
+              - generic [ref=e248]: ×5
+            - generic:
+              - generic [ref=e249]: 11:41 AM
+              - generic [ref=e250]: 1048ms
+              - generic: BYPASS
+```
