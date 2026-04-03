@@ -1465,29 +1465,27 @@ async def what_if_scenario(request: Request):
 
 @router.get("/api/reports/dashboard/{persona}")
 async def dashboard(persona: str):
-    """Build executive dashboard KPIs from triple store.
-
-    Uses the ME-aware v2 semantic client — routes to Convergence in ME mode,
-    DCL in SE mode. No proxy to a separate dashboard endpoint.
-    """
+    """Build executive dashboard KPIs from DCL triple store (SE only)."""
     from src.nlq.services.dcl_semantic_client_v2 import get_semantic_client_v2
+    from src.nlq.services.dcl_semantic_client import get_entity_id
 
     v2 = get_semantic_client_v2()
+    entity_id = get_entity_id()
 
-    # Metrics to fetch for the dashboard
     metric_names = [
         "revenue", "cogs", "opex", "ebitda", "net_income",
         "total_assets", "total_liabilities", "total_equity",
     ]
 
     def _fetch():
-        return v2.get_all_metrics_by_period(metric_names)
+        return v2.get_all_metrics_by_period(metric_names, entity_id=entity_id)
 
     batch_result, _confidence = await asyncio.to_thread(_fetch)
 
     # Extract latest-period values from the batch result.
     # Keys are "{metric}|{period}" — find the latest period per metric.
     metric_values: Dict[str, float] = {}
+    latest_period = None
     for key, value in batch_result.items():
         if value is None:
             continue
@@ -1502,6 +1500,8 @@ async def dashboard(persona: str):
             if existing_key:
                 del metric_values[existing_key]
             metric_values[f"{metric}|{period}"] = float(value)
+        if latest_period is None or period > latest_period:
+            latest_period = period
 
     def _val(metric: str) -> float:
         for k, v in metric_values.items():
@@ -1511,15 +1511,15 @@ async def dashboard(persona: str):
 
     rev_total = _val("revenue")
     cogs_total = _val("cogs")
-    ebitda_val = _val("ebitda")
-    net_income_val = _val("net_income")
-    assets_val = _val("total_assets")
-    liabilities_val = _val("total_liabilities")
-    equity_val = _val("total_equity")
+    ebitda = _val("ebitda")
+    net_income = _val("net_income")
+    total_assets = _val("total_assets")
+    total_liabilities = _val("total_liabilities")
+    total_equity = _val("total_equity")
 
     gross_margin = round((rev_total - cogs_total) / rev_total * 100, 1) if rev_total else 0
-    ebitda_margin = round(ebitda_val / rev_total * 100, 1) if rev_total else 0
-    net_margin = round(net_income_val / rev_total * 100, 1) if rev_total else 0
+    ebitda_margin = round(ebitda / rev_total * 100, 1) if rev_total else 0
+    net_margin = round(net_income / rev_total * 100, 1) if rev_total else 0
 
     persona_titles = {
         "cfo": "Chief Financial Officer Dashboard",
@@ -1531,19 +1531,21 @@ async def dashboard(persona: str):
 
     kpis = {
         "revenue_M": round(rev_total, 2),
-        "ebitda_M": round(ebitda_val, 2),
-        "net_income_M": round(net_income_val, 2),
+        "ebitda_M": round(ebitda, 2),
+        "net_income_M": round(net_income, 2),
         "gross_margin_pct": gross_margin,
         "ebitda_margin_pct": ebitda_margin,
         "net_margin_pct": net_margin,
-        "total_assets_M": round(assets_val, 2),
-        "total_liabilities_M": round(liabilities_val, 2),
-        "total_equity_M": round(equity_val, 2),
+        "total_assets_M": round(total_assets, 2),
+        "total_liabilities_M": round(total_liabilities, 2),
+        "total_equity_M": round(total_equity, 2),
     }
 
     return JSONResponse(content={
         "persona": persona,
         "title": persona_titles.get(persona.lower(), f"{persona.upper()} Dashboard"),
+        "entity_id": entity_id,
+        "period": latest_period,
         "kpis": kpis,
     })
 

@@ -113,21 +113,6 @@ class DCLSemanticClientV2:
             )
         self.base_url = raw_url.rstrip("/")
         self._http = httpx.Client(base_url=self.base_url, timeout=30.0)
-        # Convergence client for ME mode — browse calls route here when
-        # EntityRegistry detects two entities (acquirer + target).
-        convergence_url = os.environ.get("CONVERGENCE_API_URL", "").rstrip("/")
-        if convergence_url:
-            self._convergence_http: Optional[httpx.Client] = httpx.Client(
-                base_url=convergence_url, timeout=30.0,
-            )
-            self._convergence_base_url = convergence_url
-            logger.info(
-                "DCLSemanticClientV2 ME routing enabled — Convergence: %s",
-                convergence_url,
-            )
-        else:
-            self._convergence_http = None
-            self._convergence_base_url = ""
         # Browse cache: key → (expire_time, response_dict)
         self._browse_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
         self._browse_cache_lock = threading.Lock()
@@ -158,27 +143,6 @@ class DCLSemanticClientV2:
             )
         return resp.json()
 
-    def _resolve_browse_target(self) -> Tuple[httpx.Client, str, Optional[str]]:
-        """Return (http_client, path_prefix, tenant_id) for browse calls.
-
-        ME mode (Convergence available + 2 entities): routes to Convergence.
-        SE mode (no Convergence or single entity): routes to DCL.
-        """
-        if self._convergence_http is not None:
-            from src.nlq.core.entity_registry import get_entity_registry
-            registry = get_entity_registry()
-            entities = registry.get_entities_sync()
-            if len(entities) >= 2:
-                from src.nlq.config import get_tenant_id
-                tenant_id = get_tenant_id()
-                if not tenant_id:
-                    raise RuntimeError(
-                        "ME mode active (2 entities) but tenant_id is not configured. "
-                        "Set AOS_TENANT_ID environment variable."
-                    )
-                return self._convergence_http, "/api/convergence", tenant_id
-        return self._http, "/api/dcl", None
-
     def _resolve_metric_def(self, metric_name: str) -> Dict[str, Any]:
         """Look up a metric in the concept map. Returns the definition dict.
 
@@ -204,21 +168,9 @@ class DCLSemanticClientV2:
         return [f"{year}-Q{q}" for q in range(1, 5)]
 
     def _get_latest_quarter(self) -> Optional[str]:
-        """Get the latest available period from triples overview.
-
-        Routes to Convergence in ME mode, DCL in SE mode.
-        """
-        client, prefix, tenant_id = self._resolve_browse_target()
-        params = {"tenant_id": tenant_id} if tenant_id else None
-        overview_path = f"{prefix}/triples/overview"
-        resp = client.get(overview_path, params=params)
-        if resp.status_code >= 400:
-            target = self._convergence_base_url if tenant_id else self.base_url
-            raise RuntimeError(
-                f"GET {target}{overview_path} returned {resp.status_code}: "
-                f"{resp.text[:500]}"
-            )
-        periods = resp.json().get("periods", [])
+        """Ask DCL for the latest available period from triples overview."""
+        overview = self._get("/api/dcl/triples/overview")
+        periods = overview.get("periods", [])
         if not periods:
             return None
         # Periods are strings like "2025-Q1"; sorted lexically = chronologically
@@ -232,10 +184,7 @@ class DCLSemanticClientV2:
         property_name: Optional[str] = None,
         limit: int = 50,
     ) -> Dict[str, Any]:
-        """Call triples/browse with filters. TTL-cached (120s).
-
-        Routes to Convergence in ME mode, DCL in SE mode.
-        """
+        """Call /api/dcl/triples/browse with filters. TTL-cached (120s)."""
         cache_key = f"{domain}|{entity_id}|{period}|{property_name}|{limit}"
         now = time.time()
 
@@ -244,7 +193,6 @@ class DCLSemanticClientV2:
             if cached and now < cached[0]:
                 return cached[1]
 
-        client, prefix, tenant_id = self._resolve_browse_target()
         params: Dict[str, Any] = {"domain": domain, "limit": limit}
         if entity_id:
             params["entity_id"] = entity_id
@@ -252,18 +200,7 @@ class DCLSemanticClientV2:
             params["period"] = period
         if property_name:
             params["property"] = property_name
-        if tenant_id:
-            params["tenant_id"] = tenant_id
-
-        browse_path = f"{prefix}/triples/browse"
-        resp = client.get(browse_path, params=params)
-        if resp.status_code >= 400:
-            target = self._convergence_base_url if tenant_id else self.base_url
-            raise RuntimeError(
-                f"GET {target}{browse_path} returned {resp.status_code}: "
-                f"{resp.text[:500]}"
-            )
-        result = resp.json()
+        result = self._get("/api/dcl/triples/browse", params=params)
 
         with self._browse_cache_lock:
             self._browse_cache[cache_key] = (now + self._browse_cache_ttl, result)
@@ -1043,24 +980,16 @@ class DCLSemanticClientV2:
                 direct_by_domain.setdefault(domain, []).append((name, concept, prop))
                 all_domains.add(domain)
 
-        # Single batch fetch — ALL domains, ALL periods, one entity.
-        # Routes to Convergence in ME mode, DCL in SE mode.
+        # Single batch fetch — ALL domains, ALL periods, one entity
         all_triples: List[Dict[str, Any]] = []
         if all_domains:
             try:
-                client, prefix, tenant_id = self._resolve_browse_target()
                 body: Dict[str, Any] = {"domains": sorted(all_domains)}
                 if entity_id:
                     body["entity_ids"] = [entity_id]
-                batch_params = {"tenant_id": tenant_id} if tenant_id else None
-                batch_path = f"{prefix}/triples/browse-batch"
-                resp = client.post(batch_path, json=body, params=batch_params)
+                resp = self._http.post("/api/dcl/triples/browse-batch", json=body)
                 if resp.status_code >= 400:
-                    target = self._convergence_base_url if tenant_id else self.base_url
-                    raise RuntimeError(
-                        f"browse-batch {target}{batch_path} returned "
-                        f"{resp.status_code}: {resp.text[:300]}"
-                    )
+                    raise RuntimeError(f"browse-batch returned {resp.status_code}: {resp.text[:300]}")
                 data = resp.json()
                 # Flatten all triples
                 for domain_triples in data.get("triples_by_domain", {}).values():
@@ -1069,7 +998,7 @@ class DCLSemanticClientV2:
                 logger.warning("get_all_metrics_by_period: browse-batch failed: %s", exc)
                 # No fallback — fail loudly per A1
                 raise RuntimeError(
-                    f"browse-batch call failed for entity_id={entity_id}, "
+                    f"DCL browse-batch call failed for entity_id={entity_id}, "
                     f"domains={sorted(all_domains)}: {exc}"
                 ) from exc
 
