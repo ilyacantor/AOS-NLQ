@@ -45,9 +45,16 @@ def test_revenue_query_response(client):
 # --- Test 2: Entity-scoped query accepted ---
 def test_entity_scoped_query(client):
     """NLQ accepts an entity-scoped query and returns a response (not crash)."""
+    # B10: resolve entity dynamically, not hardcoded
+    ent_resp = client.get("/api/v1/entities")
+    assert ent_resp.status_code == 200, f"Entity list failed: {ent_resp.text}"
+    entities = ent_resp.json().get("entities", [])
+    assert len(entities) > 0, "No entities available for entity-scoped test"
+    entity_id = entities[0]["entity_id"]
+
     resp = client.post(
         "/api/v1/query",
-        json={"question": "What is meridian's revenue?", "entity_id": "meridian"},
+        json={"question": f"What is {entity_id}'s revenue?", "entity_id": entity_id},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -68,7 +75,11 @@ def test_combined_query(client):
 
 
 # --- Test 4: Entity detection — dynamic from DCL ---
-def test_entity_detection_dynamic(client):
+@pytest.mark.skipif(
+    not __import__("os").environ.get("NLQ_INTEGRATION"),
+    reason="Integration test — requires running NLQ + DCL services (NLQ_INTEGRATION=1)",
+)
+def test_entity_detection_dynamic(client, dcl_client):
     """NLQ discovers entities dynamically from DCL EntityRegistry, not hardcoded."""
     resp = client.get("/api/v1/entities")
     assert resp.status_code == 200
@@ -77,9 +88,14 @@ def test_entity_detection_dynamic(client):
     entities = data["entities"]
     assert len(entities) >= 2, f"Expected at least 2 entities, got {len(entities)}"
 
+    # B10: cross-check against DCL ground truth, not hardcoded names
     entity_ids = [e["entity_id"] for e in entities]
-    assert "meridian" in entity_ids
-    assert "cascadia" in entity_ids
+    dcl_overview = dcl_client.get("/api/dcl/triples/overview").json()
+    dcl_entity_ids = [e["entity_id"] for e in dcl_overview.get("entities", [])]
+    for dcl_eid in dcl_entity_ids:
+        assert dcl_eid in entity_ids, (
+            f"DCL entity '{dcl_eid}' not found in NLQ entity list: {entity_ids}"
+        )
 
     # Each entity has required fields
     for entity in entities:
@@ -105,6 +121,10 @@ def test_chro_query_routes(client):
 
 
 # --- Test 6: Provenance structure ---
+@pytest.mark.skipif(
+    not __import__("os").environ.get("NLQ_INTEGRATION"),
+    reason="Integration test — requires running NLQ + DCL services (NLQ_INTEGRATION=1)",
+)
 def test_provenance_structure(client):
     """Query response includes provenance with required fields."""
     resp = client.post("/api/v1/query", json={"question": "What is revenue?"})

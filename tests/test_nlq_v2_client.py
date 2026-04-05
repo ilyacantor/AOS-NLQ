@@ -206,22 +206,9 @@ class TestDashboardMetrics:
 # ---------------------------------------------------------------------------
 
 class TestIncomeStatement:
-    """get_income_statement returns revenue, cogs, opex, ebitda."""
-
-    def test_income_statement_via_dcl(self, dcl_client):
-        """Cross-check: DCL v2 income statement endpoint works."""
-        resp = dcl_client.get("/api/dcl/reports/v2/combining/income-statement", params={
-            "period": "2025-Q1",
-        })
-        assert resp.status_code == 200, (
-            f"DCL v2 income statement returned {resp.status_code}: {resp.text[:500]}"
-        )
-        data = resp.json()
-        # Should have combined/entity data
-        assert "combined" in data or "period" in data, (
-            f"DCL v2 income statement response missing expected structure: "
-            f"{list(data.keys())}"
-        )
+    """Removed: tested DCL Convergence endpoint (/api/dcl/reports/v2/combining/income-statement)
+    from NLQ repo — RACI violation. Convergence endpoints belong in Convergence test suite."""
+    pass
 
 
 # ---------------------------------------------------------------------------

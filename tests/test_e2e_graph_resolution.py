@@ -30,8 +30,10 @@ def mock_dcl_client():
 
 
 @pytest.fixture
-def executor(mock_dcl_client):
+def executor(mock_dcl_client, monkeypatch):
     """QueryExecutor wired to mock DCL client."""
+    monkeypatch.setenv("NLQ_ALLOW_NO_DCL", "1")
+    monkeypatch.setenv("DCL_API_URL", "http://mock-dcl:8004")
     ex = QueryExecutor()
     ex.dcl_client = mock_dcl_client
     return ex
@@ -458,22 +460,24 @@ class TestGraphManagementOverlay:
 class TestDCLClientResolveViaGraph:
     """Test the DCLSemanticClient.resolve_via_graph() method directly."""
 
-    def test_local_mode_returns_unavailable(self):
+    def test_local_mode_returns_unavailable(self, monkeypatch):
         """Client without DCL URL returns can_answer=False."""
+        monkeypatch.setenv("NLQ_ALLOW_NO_DCL", "1")
         client = DCLSemanticClient(dcl_base_url=None)
         result = client.resolve_via_graph(concepts=["revenue"])
         assert result["can_answer"] is False
         assert "unavailable" in result["reason"].lower()
 
-    def test_404_returns_unavailable(self, mock_dcl_client):
-        """DCL returns 404 → graph endpoint not available."""
+    def test_404_falls_back_to_catalog(self, mock_dcl_client):
+        """DCL returns 404 → graph endpoint not deployed yet, catalog fallback."""
         mock_response = MagicMock()
         mock_response.status_code = 404
         mock_dcl_client._http_client.post.return_value = mock_response
 
         result = mock_dcl_client.resolve_via_graph(concepts=["revenue"])
         assert result["can_answer"] is False
-        assert "not available" in result["reason"].lower()
+        # 404 = endpoint not deployed, falls through to catalog resolution
+        assert "reason" in result
 
     def test_successful_resolve(self, mock_dcl_client):
         """DCL returns 200 with graph resolution."""

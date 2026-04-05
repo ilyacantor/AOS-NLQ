@@ -68,13 +68,11 @@ def get_tenant_id() -> Optional[str]:
                 source = f"JSON file {tenant_files[0].name}"
 
     if raw_tid is None:
-        _config_logger.error(
-            "FATAL CONFIG: Cannot determine tenant_id. "
+        raise RuntimeError(
+            "Cannot determine tenant_id. "
             "AOS_TENANT_ID env var is empty/missing and no tenant JSON files found. "
-            "Set AOS_TENANT_ID to a valid UUID on Render. "
-            "Returning None — all tenant-filtered queries will be skipped."
+            "Set AOS_TENANT_ID to a valid UUID on Render."
         )
-        return None
 
     _tenant_id_cache = raw_tid
     return _tenant_id_cache

@@ -50,13 +50,13 @@ def test_no_hardcoded_cascadia():
 
 # --- Test 3: EntityRegistry module exists ---
 def test_entity_registry_exists():
-    from nlq.core.entity_registry import EntityRegistry
+    from src.nlq.core.entity_registry import EntityRegistry
     registry = EntityRegistry()
     assert registry is not None
 
 # --- Test 4: EntityRegistry has required methods ---
 def test_entity_registry_interface():
-    from nlq.core.entity_registry import EntityRegistry
+    from src.nlq.core.entity_registry import EntityRegistry
     registry = EntityRegistry()
     assert hasattr(registry, "get_entities")
     assert hasattr(registry, "get_entity_name")
@@ -66,14 +66,14 @@ def test_entity_registry_interface():
 
 # --- Test 5: "combined" is always valid ---
 def test_combined_always_valid():
-    from nlq.core.entity_registry import EntityRegistry
+    from src.nlq.core.entity_registry import EntityRegistry
     registry = EntityRegistry()
     result = asyncio.get_event_loop().run_until_complete(registry.is_valid_entity("combined"))
     assert result is True
 
 # --- Test 6: _ENTITY_NAMES dict removed ---
 def test_entity_names_removed():
-    from nlq.core import composite_query
+    from src.nlq.core import composite_query
     assert not hasattr(composite_query, "_ENTITY_NAMES"), \
         "_ENTITY_NAMES dict still exists in composite_query.py — must be removed"
 
@@ -88,7 +88,7 @@ def test_no_entity_ids_constant():
 # --- Test 8: /api/v1/entities endpoint exists ---
 def test_entities_endpoint_exists():
     """Verify the entities endpoint is registered in routes."""
-    from nlq.api import routes
+    from src.nlq.api import routes
     source = Path(routes.__file__).read_text()
     assert "/entities" in source or "entities" in source
 
@@ -104,7 +104,7 @@ def test_frontend_dynamic_entities():
 
 # --- Test 10: DCL unreachable raises error, not silent fallback ---
 def test_dcl_unreachable_raises():
-    from nlq.core.entity_registry import EntityRegistry
+    from src.nlq.core.entity_registry import EntityRegistry
     registry = EntityRegistry(dcl_base_url="http://localhost:99999")
     with pytest.raises((ConnectionError, Exception)):
         asyncio.get_event_loop().run_until_complete(registry.get_entities())
@@ -112,7 +112,7 @@ def test_dcl_unreachable_raises():
 # --- Test 11: Entity name resolution ---
 def test_entity_name_resolution():
     """If DCL is running, entity names should resolve."""
-    from nlq.core.entity_registry import EntityRegistry
+    from src.nlq.core.entity_registry import EntityRegistry
     registry = EntityRegistry()
     try:
         loop = asyncio.get_event_loop()

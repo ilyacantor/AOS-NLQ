@@ -1234,7 +1234,12 @@ class DCLSemanticClient:
                 return {"error": error_msg, "status": "not_found"}
             elif response.status_code == 400:
                 err_body = response.json()
-                error_detail = err_body.get("detail", {})
+                error_detail = (
+                    err_body.get("detail")
+                    or err_body.get("message")
+                    or err_body.get("error")
+                    or {}
+                )
                 if isinstance(error_detail, dict):
                     error_msg = error_detail.get("error", str(error_detail))
                 else:
@@ -1373,7 +1378,7 @@ class DCLSemanticClient:
         else:
             primary_source = source_systems[0] if source_systems else None
         normalized["run_provenance"] = {
-            "dcl_ingest_id": metadata.get("run_id"),
+            "dcl_ingest_id": metadata.get("dcl_ingest_id"),
             "tenant_id": metadata.get("tenant_id"),
             "entity_id": metadata.get("entity_id"),
             "snapshot_name": metadata.get("snapshot_name"),
@@ -1459,9 +1464,12 @@ class DCLSemanticClient:
             Returns {"can_answer": False, "reason": "..."} on failure/unavailable.
         """
         if not self.dcl_url:
-            raise RuntimeError(
-                "DCL_API_URL not configured — cannot resolve graph queries without DCL."
-            )
+            return {
+                "can_answer": False,
+                "reason": "DCL unavailable - no URL configured",
+                "source": "dcl_graph_error",
+                "confidence": 0.0,
+            }
 
         if self.dcl_url:
             payload = {
@@ -1496,7 +1504,7 @@ class DCLSemanticClient:
                 )
                 return {
                     "can_answer": False,
-                    "error": f"DCL unreachable for graph resolution: {e}",
+                    "reason": f"DCL unreachable for graph resolution: {e}",
                     "source": "dcl_graph_error",
                     "confidence": 0.0,
                 }
@@ -1508,7 +1516,7 @@ class DCLSemanticClient:
                 )
                 return {
                     "can_answer": False,
-                    "error": f"DCL graph resolution timed out: {e}",
+                    "reason": f"DCL graph resolution timed out: {e}",
                     "source": "dcl_graph_error",
                     "confidence": 0.0,
                 }
@@ -1520,7 +1528,7 @@ class DCLSemanticClient:
                 )
                 return {
                     "can_answer": False,
-                    "error": f"DCL graph resolution failed: {e}",
+                    "reason": f"DCL graph resolution failed: {e}",
                     "source": "dcl_graph_error",
                     "confidence": 0.0,
                 }

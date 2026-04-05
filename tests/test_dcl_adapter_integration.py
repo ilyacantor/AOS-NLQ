@@ -164,7 +164,7 @@ class TestCatalogAdapter:
     """Test that _parse_dcl_response correctly maps DCL catalog fields to NLQ format."""
 
     def setup_method(self):
-        self.client = DCLSemanticClient(dcl_base_url=None)
+        self.client = DCLSemanticClient(dcl_base_url="http://mock-dcl:8000")
 
     def test_parse_metrics_count(self):
         """All metrics from DCL catalog are parsed."""
@@ -569,16 +569,16 @@ class TestProvenancePipeline:
 # ===========================================================================
 
 class TestSimpleMetricResultDefaults:
-    """Test that SimpleMetricResult has correct defaults for local fallback mode."""
+    """Test that SimpleMetricResult has correct defaults for DCL-only mode."""
 
-    def test_default_source_is_local(self):
-        """Default source is 'local'."""
+    def test_default_source_is_dcl(self):
+        """Default source is 'dcl' (demo/local fallback removed in d68ce17)."""
         result = SimpleMetricResult(
             metric="revenue", value=42.0, formatted_value="$42.0M",
             unit="$", display_name="Revenue", domain=Domain.FINANCE,
             answer="Revenue is $42.0M",
         )
-        assert result.source == "local"
+        assert result.source == "dcl"
 
     def test_default_data_quality(self):
         """Default data_quality is 1.0."""
@@ -668,7 +668,7 @@ class TestBackwardCompatibility:
         # All DCL-added fields should have safe defaults
         assert result.data_quality == 1.0
         assert result.freshness == "0h"
-        assert result.source == "local"
+        assert result.source == "dcl"
         assert result.run_provenance is None
 
     def test_galaxy_response_without_provenance(self):
@@ -735,21 +735,16 @@ class TestEndToEndDCLQuery:
         assert payload["grain"] == "quarter"
         assert payload["metric"] == "revenue"
 
-    def test_full_pipeline_local_fallback(self):
-        """Local fallback mode: no DCL_API_URL → uses fact_base.json."""
+    def test_full_pipeline_no_dcl_raises(self, monkeypatch):
+        """No DCL URL → query() raises RuntimeError (A1: no silent fallback)."""
+        monkeypatch.setenv("NLQ_ALLOW_NO_DCL", "1")
         client = DCLSemanticClient(dcl_base_url=None)
 
-        result = client.query(
-            metric="revenue",
-            time_range={"period": "2025-Q4", "granularity": "quarterly"},
-        )
-
-        # Local fallback should still return data
-        assert result.get("status") == "ok"
-        assert result.get("source") == "local_fallback"
-        # Should have data from fact_base.json
-        data = result.get("data", [])
-        assert len(data) > 0 or result.get("error") is None
+        with pytest.raises(RuntimeError, match="DCL_API_URL not configured"):
+            client.query(
+                metric="revenue",
+                time_range={"period": "2025-Q4", "granularity": "quarterly"},
+            )
 
     def test_full_pipeline_to_galaxy_response(self):
         """Full pipeline end-to-end: DCL query → normalized → SimpleMetricResult → Galaxy IntentMapResponse."""

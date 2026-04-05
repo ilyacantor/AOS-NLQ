@@ -322,7 +322,7 @@ class TestDCLCatalogContract:
     """Validate NLQ correctly parses DCL's semantic-export catalog."""
 
     def setup_method(self):
-        self.client = DCLSemanticClient(dcl_base_url=None)
+        self.client = DCLSemanticClient(dcl_base_url="http://mock-dcl:8000")
 
     def test_all_metrics_parsed(self):
         """All DCL catalog metrics are available in NLQ."""
@@ -609,11 +609,12 @@ class TestErrorPathContracts:
         assert result["data"] == []
         assert result["run_provenance"]["dcl_ingest_id"] is None
 
-    def test_local_fallback_when_no_dcl_url(self):
-        """NLQ falls back to fact_base.json when DCL_API_URL not set."""
+    def test_no_dcl_url_raises(self, monkeypatch):
+        """No DCL URL → query() raises RuntimeError (A1: no silent fallback)."""
+        monkeypatch.setenv("NLQ_ALLOW_NO_DCL", "1")
         client = DCLSemanticClient(dcl_base_url=None)
-        result = client.query(metric="revenue", time_range={"period": "2025-Q4"})
-        assert result.get("source") == "local_fallback"
+        with pytest.raises(RuntimeError, match="DCL_API_URL not configured"):
+            client.query(metric="revenue", time_range={"period": "2025-Q4"})
 
     def test_galaxy_response_valid_even_without_dcl(self):
         """Galaxy response is valid JSON even with local fallback (no provenance)."""
