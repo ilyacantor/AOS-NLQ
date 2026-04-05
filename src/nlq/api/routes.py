@@ -39,7 +39,7 @@ from src.nlq.knowledge.synonyms import normalize_metric
 from src.nlq.knowledge.display import get_display_name
 from src.nlq.llm.client import ClaudeClient
 from src.nlq.models.query import NLQRequest, QueryIntent, ParsedQuery, PeriodType, QueryMode
-from src.nlq.models.response import AmbiguityType, Domain, IntentMapResponse, IntentNode, MatchType, NLQResponse, RelatedMetric, SalesFunnelData, SalesFunnelStage
+from src.nlq.models.response import AmbiguityType, Domain, IntentMapResponse, IntentNode, MatchType, NLQResponse, RelatedMetric
 from src.nlq.core.personality import (
     generate_personality_response,
     handle_off_topic_or_easter_egg,
@@ -1886,37 +1886,6 @@ def _build_combined_metric_result(metric: str, period: Optional[str] = None, fil
     )
 
 
-def _try_report_query(question: str, session_id: Optional[str] = None, entity_id: Optional[str] = None) -> Optional[NLQResponse]:
-    """Detect Standard Reporting Package queries and generate comparison reports."""
-    from src.nlq.core.report_intent import detect_report_intent
-
-    intent = detect_report_intent(question)
-    if intent is None:
-        return None
-
-    entity_id = entity_id or _detect_entity_id(question)
-    if entity_id == "combined":
-        query_fn = _build_combined_metric_result
-    elif entity_id:
-        query_fn = functools.partial(_build_simple_metric_result, entity_id=entity_id)
-    else:
-        query_fn = _build_simple_metric_result
-
-    from src.nlq.services.report_generator import ReportGenerator
-    generator = ReportGenerator(query_fn=query_fn, entity_id=entity_id)
-    result = generator.generate_report(
-        statement_type=intent.statement_type,
-        variant=intent.variant,
-        selected_quarter=intent.selected_quarter,
-        segment=intent.segment,
-    )
-
-    if result and result.financial_statement_data and session_id:
-        from src.nlq.api.session import get_dashboard_session_store
-        store = get_dashboard_session_store()
-        store.set_financial_statement(session_id, result.financial_statement_data.model_dump())
-
-    return result
 
 
 def _execute_pl_batch(periods: list, entity_id: Optional[str]) -> Optional["NLQResponse"]:
@@ -1990,32 +1959,6 @@ def _try_pl_statement_query(question: str, session_id: Optional[str] = None, ent
         from src.nlq.api.session import get_dashboard_session_store
         store = get_dashboard_session_store()
         store.set_financial_statement(session_id, result.financial_statement_data.model_dump())
-
-    return result
-
-
-def _try_bridge_query(question: str, session_id: Optional[str] = None, entity_id: Optional[str] = None) -> Optional[NLQResponse]:
-    """Detect revenue bridge/waterfall queries and build the variance decomposition."""
-    from src.nlq.core.bridge_query import is_bridge_query, BridgeHandler
-
-    bridge_type = is_bridge_query(question)
-    if bridge_type is None:
-        return None
-
-    entity_id = entity_id or _detect_entity_id(question)
-    query_fn = (
-        functools.partial(_build_simple_metric_result, entity_id=entity_id)
-        if entity_id
-        else _build_simple_metric_result
-    )
-
-    handler = BridgeHandler(query_fn=query_fn, entity_id=entity_id)
-    result = handler.execute()
-
-    if result and result.bridge_chart_data and session_id:
-        from src.nlq.api.session import get_dashboard_session_store
-        store = get_dashboard_session_store()
-        store.set_bridge_chart(session_id, result.bridge_chart_data.model_dump())
 
     return result
 
@@ -3428,33 +3371,8 @@ def _handle_ambiguous_query_text(
                 confidence=0.95, parsed_intent="SHORTHAND", resolved_metric="customer_count", resolved_period=current_year,
                 related_metrics=related_metrics)
 
-        # "pipeline" or "sales pipeline" -> funnel visualization (preferred) or text fallback
+        # "pipeline" or "sales pipeline" -> text response from aggregate pipeline metrics
         if "pipeline" in q:
-            # Try funnel visualization from stage triples
-            from src.nlq.services.dcl_semantic_client_v2 import DCLSemanticClientV2
-            _v2 = DCLSemanticClientV2()
-            _stages = _v2.get_pipeline_stages(entity_id=entity_id, period=current_quarter())
-            if _stages:
-                _funnel = SalesFunnelData(
-                    title="Sales Pipeline",
-                    subtitle=current_quarter(),
-                    stages=[SalesFunnelStage(**s) for s in _stages],
-                    entity_id=entity_id,
-                    period=current_quarter(),
-                    data_source="dcl_v2",
-                )
-                _total = _stages[0]["value"] if _stages else None
-                return NLQResponse(
-                    success=True,
-                    answer=f"Sales pipeline by stage for {current_quarter()}",
-                    value=_total, unit="$M",
-                    confidence=0.95, parsed_intent="SHORTHAND",
-                    resolved_metric="pipeline", resolved_period=current_quarter(),
-                    related_metrics=related_metrics, data_source="dcl_v2",
-                    response_type="sales_funnel",
-                    sales_funnel_data=_funnel,
-                )
-            # Fallback: text response from aggregate pipeline metrics
             pipeline = get_val("pipeline", current_year)
             qualified = get_val("qualified_pipeline", current_year)
             win_rate = get_val("win_rate_pct", current_year)
@@ -4126,88 +4044,6 @@ def _resolve_entity_id(request: NLQRequest) -> str:
     return eid
 
 
-# =============================================================================
-# REPORT DIMENSIONS — dynamic period/segment availability
-# =============================================================================
-
-import time as _time_mod
-
-_dimension_cache: Dict[str, object] = {"data": None, "expires_at": 0.0}
-_DIMENSION_CACHE_TTL = 300  # 5 minutes
-
-@router.get("/report-dimensions")
-async def report_dimensions():
-    """Return available time periods and segments with per-entity data availability.
-
-    Uses a 5-minute in-memory cache to avoid hammering DCL with probe queries.
-    Entity list is resolved dynamically from DCL via EntityRegistry.
-    """
-    now = _time_mod.time()
-    if _dimension_cache["data"] is not None and now < _dimension_cache["expires_at"]:
-        return _dimension_cache["data"]
-
-    from src.nlq.services.period_engine import get_all_periods
-    from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
-    from src.nlq.core.report_intent import _KNOWN_SEGMENTS
-    from src.nlq.core.entity_registry import get_entity_registry
-
-    all_periods = get_all_periods(date.today())
-    dcl_client = get_semantic_client()
-
-    # Get entity list dynamically from DCL
-    registry = get_entity_registry()
-    try:
-        entity_ids = registry.get_entity_ids_sync()
-    except ConnectionError as e:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Cannot fetch entity list for report dimensions — {e}",
-        )
-
-    # Probe DCL for data existence per entity per period
-    periods_out = []
-    for p in all_periods:
-        has_data: Dict[str, bool] = {}
-        for eid in entity_ids:
-            try:
-                result = dcl_client.query(
-                    metric="revenue",
-                    time_range={"period": p.label, "granularity": "quarterly"},
-                    entity_id=eid,
-                )
-                rows = result.get("data", [])
-                # Data exists if we got at least one row with a non-null value
-                # AND the row's period actually matches what we asked for
-                matched = any(
-                    d.get("value") is not None
-                    and p.label in str(d.get("period", ""))
-                    for d in rows
-                    if isinstance(d, dict)
-                )
-                has_data[eid] = matched
-            except Exception as exc:
-                logger.warning(
-                    "Dimension probe failed for %s/%s: %s", p.label, eid, exc
-                )
-                has_data[eid] = False
-
-        periods_out.append({
-            "label": p.label,
-            "year": p.year,
-            "quarter": p.quarter,
-            "period_type": p.period_type,
-            "has_data": has_data,
-        })
-
-    response = {
-        "periods": periods_out,
-        "segments": list(_KNOWN_SEGMENTS),
-    }
-    _dimension_cache["data"] = response
-    _dimension_cache["expires_at"] = now + _DIMENSION_CACHE_TTL
-    return response
-
-
 @router.post("/query", response_model=NLQResponse)
 async def query(request: NLQRequest) -> NLQResponse:
     """
@@ -4380,23 +4216,6 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
             return _comparison_result
 
         # =================================================================
-        # STANDARD REPORTING PACKAGE — Act/CF/PY comparison reports
-        # Must run before ambiguity pre-check because report queries contain
-        # comparison language (e.g., "vs prior year") that triggers
-        # AmbiguityType.COMPARISON in detect_ambiguity().
-        # =================================================================
-        report_result = _try_report_query(request.question, session_id=request.session_id, entity_id=_request_entity_id)
-        if report_result:
-            await _log_query_event(
-                request.question, "bypass",
-                message=f"Report query: {report_result.resolved_metric}",
-                persona="CFO",
-                execution_time_ms=_elapsed_ms(_start_time),
-                session_id=request.session_id,
-            )
-            return report_result
-
-        # =================================================================
         # VAGUE METRIC PRE-CHECK - catch ambiguous queries before simple metric path
         # e.g. "show me the margin" or "how did we do?" need clarification, not eager resolution
         # Skipped when query contains analytical/causal language (those need the LLM).
@@ -4551,21 +4370,6 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
                     persona=detect_persona_from_metric(multi_result.resolved_metric) or "CFO",
                 )
                 return multi_result
-
-        # =================================================================
-        # BRIDGE / WATERFALL QUERIES — must run before simple metric
-        # so "why did rev increase" isn't swallowed as a single-metric query.
-        # =================================================================
-        bridge_result = _try_bridge_query(request.question, session_id=request.session_id, entity_id=_request_entity_id)
-        if bridge_result:
-            await _log_query_event(
-                request.question, "bypass",
-                message="Revenue bridge query",
-                persona="CFO",
-                execution_time_ms=_elapsed_ms(_start_time),
-                session_id=request.session_id,
-            )
-            return bridge_result
 
         # =================================================================
         # SIMPLE METRIC QUERIES - Handle "what is X?" queries early (no Claude needed)

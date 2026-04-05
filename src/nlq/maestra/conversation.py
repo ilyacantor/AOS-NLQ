@@ -51,9 +51,7 @@ from src.nlq.maestra.tools import (
     process_advance_section,
     process_configure_scope,
     process_jump_to_section,
-    process_navigate_portal,
     process_park_item,
-    process_query_engine,
     process_show_comparison,
     process_show_hierarchy,
     process_show_roadmap,
@@ -685,35 +683,6 @@ class ConversationService:
 
         messages = list(history)  # copy
 
-        # In findings section (PDF), inject a nudge so the LLM calls query_engine
-        # instead of summarizing from memory. This addresses non-determinism where
-        # the LLM sometimes interprets "walk me through what you found" as a request
-        # to summarize company profiles rather than running analysis engines.
-        if current_section == "PDF" and messages and messages[-1].get("role") == "user":
-            last_msg = messages[-1]
-            user_text = ""
-            if isinstance(last_msg.get("content"), str):
-                user_text = last_msg["content"]
-            elif isinstance(last_msg.get("content"), list):
-                user_text = " ".join(
-                    b.get("text", "") for b in last_msg["content"] if isinstance(b, dict) and b.get("type") == "text"
-                )
-            # If the user message doesn't explicitly name an engine, add a nudge
-            engine_keywords = {"cross_sell", "ebitda", "qoe", "cofa", "entity_resolution"}
-            if not any(kw in user_text.lower().replace("-", "_") for kw in engine_keywords):
-                nudge = (
-                    "\n\n[SYSTEM: You are in the FINDINGS section. "
-                    "You MUST call query_engine with engine=\"cross_sell\" as your first action. "
-                    "Do NOT summarize companies or prework. Go directly to cross-sell pipeline data.]"
-                )
-                if isinstance(last_msg.get("content"), str):
-                    messages[-1] = {**last_msg, "content": last_msg["content"] + nudge}
-                elif isinstance(last_msg.get("content"), list):
-                    messages[-1] = {
-                        **last_msg,
-                        "content": last_msg["content"] + [{"type": "text", "text": nudge}],
-                    }
-
         for round_num in range(MAX_TOOL_ROUNDS):
             try:
                 response = self._anthropic.messages.create(
@@ -889,38 +858,6 @@ class ConversationService:
                     tool_input.get("dimension"),
                 )
                 action = f"Looked up {tool_input.get('query_type')}"
-
-            elif tool_name == "compare_entities":
-                result = {
-                    "success": True,
-                    "dimension": tool_input.get("dimension"),
-                    "note": "Cross-entity comparison from contour maps.",
-                }
-                action = f"Compared entities on {tool_input.get('dimension')}"
-
-            elif tool_name == "navigate_portal":
-                nav_content, result = process_navigate_portal(
-                    tool_input.get("tab", ""),
-                    tool_input.get("entity"),
-                    tool_input.get("filters"),
-                )
-                nav = {"tab": tool_input.get("tab"), "sub_view": tool_input.get("entity")}
-                action = f"Navigated to {tool_input.get('tab')}"
-
-            elif tool_name == "query_engine":
-                engine = tool_input.get("engine", "")
-                result = process_query_engine(engine, tool_input.get("query"))
-                action = f"Queried {engine} engine"
-                # Auto-navigate portal when engine data is returned during findings
-                engine_to_tab = {
-                    "cross_sell": "crosssell",
-                    "ebitda_bridge": "qoe",
-                    "entity_resolution": "overlap",
-                    "cofa_mapping": "overlap",
-                    "qoe": "qoe",
-                }
-                if engine in engine_to_tab:
-                    nav = {"tab": engine_to_tab[engine]}
 
             elif tool_name == "configure_scope":
                 rich, result = process_configure_scope(

@@ -24,15 +24,6 @@ const UserGuide = React.lazy(() =>
 const FinancialStatementView = React.lazy(() =>
   import('./components/financial-statement/FinancialStatementView').then(m => ({ default: m.FinancialStatementView }))
 )
-const BridgeChart = React.lazy(() =>
-  import('./components/bridge-chart/BridgeChart').then(m => ({ default: m.BridgeChart }))
-)
-const SalesFunnel = React.lazy(() =>
-  import('./components/sales-funnel/SalesFunnel')
-)
-const ReportPortal = React.lazy(() =>
-  import('./components/report-portal/ReportPortal').then(m => ({ default: m.ReportPortal }))
-)
 
 async function fetchWithRetry(
   url: string,
@@ -64,7 +55,7 @@ interface QueryHistoryItem {
   count: number
 }
 
-type ViewMode = 'galaxy' | 'dashboard' | 'guide' | 'reports'
+type ViewMode = 'galaxy' | 'dashboard' | 'guide'
 type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO'
 type PanelTab = 'History' | 'Learning' | 'Data Gaps' | 'Trace'
 
@@ -120,7 +111,7 @@ const quickActions = [
 function getInitialView(): ViewMode {
   const params = new URLSearchParams(window.location.search)
   const v = params.get('view')
-  const valid: ViewMode[] = ['galaxy', 'dashboard', 'guide', 'reports']
+  const valid: ViewMode[] = ['galaxy', 'dashboard', 'guide']
   if (v && valid.includes(v as ViewMode)) return v as ViewMode
   return 'galaxy'
 }
@@ -173,8 +164,6 @@ function App() {
 
   const [hasLoadedDefaultDashboard, setHasLoadedDefaultDashboard] = useState(false)
   const [financialStatementData, setFinancialStatementData] = useState<any>(null)
-  const [bridgeChartData, setBridgeChartData] = useState<any>(null)
-  const [salesFunnelData, setSalesFunnelData] = useState<any>(null)
   const sessionId = useSessionId()
   const { selectedSnapshot } = useSnapshot()
 
@@ -259,8 +248,6 @@ function App() {
     setIsLoading(true)
     setIsGeneratingDashboard(true)
     setFinancialStatementData(null)
-    setBridgeChartData(null)
-    setSalesFunnelData(null)
     setQuery('')
     setGalaxyResponse(null)
     const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
@@ -359,14 +346,6 @@ function App() {
         setFinancialStatementData(data.financial_statement_data)
         setViewMode('galaxy')
         setGalaxyResponse(adapted)
-      } else if (data.response_type === 'bridge_chart' && data.bridge_chart_data) {
-        setBridgeChartData(data.bridge_chart_data)
-        setViewMode('galaxy')
-        setGalaxyResponse(adapted)
-      } else if (data.response_type === 'sales_funnel' && data.sales_funnel_data) {
-        setSalesFunnelData(data.sales_funnel_data)
-        setViewMode('galaxy')
-        setGalaxyResponse(adapted)
       } else if (data.response_type === 'dashboard' && data.dashboard) {
         setDashboardSchema(data.dashboard)
         setDashboardWidgetData(data.dashboard_data || {})
@@ -422,10 +401,9 @@ function App() {
   // ── Parent iframe communication ────────────────────────────────────
   // Listens for postMessage commands from the AOS platform shell.
   // Supported actions:
-  //   { action: 'navigateTo', tab: 'galaxy' | 'dashboard' | 'reports' | 'guide' }
+  //   { action: 'navigateTo', tab: 'galaxy' | 'dashboard' | 'guide' }
   //   { action: 'setPersona', persona: 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO' }
   //   { action: 'submitQuery', query: '...' }
-  //   { action: 'reportNavigate', entity?: 'meridian'|'cascadia'|'combined', tab?: string }
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const data = event.data
@@ -435,7 +413,7 @@ function App() {
 
       switch (data.action) {
         case 'navigateTo': {
-          const validTabs: ViewMode[] = ['galaxy', 'dashboard', 'guide', 'reports']
+          const validTabs: ViewMode[] = ['galaxy', 'dashboard', 'guide']
           if (validTabs.includes(data.tab)) {
             setViewMode(data.tab as ViewMode)
           } else {
@@ -455,20 +433,6 @@ function App() {
             setViewMode('galaxy')
             submitQuery(data.query)
           }
-          break
-        }
-        case 'reportNavigate': {
-          // Switch to Reports view and dispatch internal navigation event
-          // so ReportPortal can update entity/tab state.
-          // ReportPortal is lazy-loaded and conditionally rendered — it only
-          // mounts after setViewMode triggers a re-render + Suspense resolves.
-          // Delay the event so the listener is attached before it fires.
-          setViewMode('reports')
-          setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('aos-report-navigate', {
-              detail: { entity: data.entity, tab: data.tab },
-            }))
-          }, 500)
           break
         }
         default:
@@ -665,16 +629,6 @@ function App() {
               >
                 ?
               </button>
-              <button
-                onClick={() => setViewMode('reports')}
-                className={`min-h-[44px] min-w-[44px] px-2 rounded-md text-xs font-medium transition-colors ${
-                  viewMode === 'reports'
-                    ? 'bg-slate-700 text-white'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Reports
-              </button>
             </div>
             {/* Hamburger Menu Button */}
             <button
@@ -709,16 +663,6 @@ function App() {
                   title="User Guide"
                 >
                   ?
-                </button>
-                <button
-                  onClick={() => { setViewMode('reports'); setMobileMenuOpen(false); }}
-                  className={`min-h-[44px] px-4 py-2 rounded-lg transition-colors ${
-                    viewMode === 'reports'
-                      ? 'bg-slate-700 text-white'
-                      : 'bg-slate-800 text-cyan-400 hover:bg-slate-700'
-                  }`}
-                >
-                  Reports
                 </button>
                 <div className="flex items-center gap-3 text-slate-500 text-sm">
                   <LLMCallCounter />
@@ -769,17 +713,6 @@ function App() {
                   }`}
                 >
                   Dashboard
-                </button>
-                <button
-                  id="nav-tab-reports"
-                  onClick={() => setViewMode('reports')}
-                  className={`min-h-[44px] px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'reports'
-                      ? 'bg-slate-700 text-white'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Reports
                 </button>
               </div>
             </div>
@@ -863,21 +796,6 @@ function App() {
                       data={financialStatementData}
                       sessionId={sessionId}
                     />
-                    </Suspense>
-                  </div>
-                ) : bridgeChartData ? (
-                  <div id="bridge-chart-visual" className="flex-1 overflow-auto min-h-0">
-                    <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
-                    <BridgeChart
-                      data={bridgeChartData}
-                      sessionId={sessionId}
-                    />
-                    </Suspense>
-                  </div>
-                ) : salesFunnelData ? (
-                  <div id="sales-funnel-visual" className="flex-1 overflow-auto min-h-0">
-                    <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
-                    <SalesFunnel data={salesFunnelData} />
                     </Suspense>
                   </div>
                 ) : hasGalaxyResponse && (
@@ -983,12 +901,6 @@ function App() {
               </Suspense>
             )}
 
-            {/* Reports Portal View */}
-            {viewMode === 'reports' && (
-              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
-                <ReportPortal onClose={() => setViewMode('galaxy')} />
-              </Suspense>
-            )}
           </div>
         </main>
 

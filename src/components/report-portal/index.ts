@@ -1,1 +1,0 @@
-export { ReportPortal } from './ReportPortal'

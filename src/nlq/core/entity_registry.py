@@ -40,10 +40,9 @@ class EntityRegistry:
         self._client = httpx.Client(timeout=10.0)
 
     def _fetch_entities_from_dcl(self) -> list[dict]:
-        """Fetch financial entity list from DCL's active engagement.
+        """Fetch entity list from DCL's engagement endpoint.
 
-        Uses engagement_state (entity_a, entity_b) — not a raw distinct
-        query on semantic_triples, which could include non-financial entities.
+        Parses the flat ``entities`` array returned by DCL.
 
         MUST NOT fall back to hardcoded values. If DCL is unreachable,
         raises ConnectionError with message naming the DCL URL and what failed.
@@ -77,19 +76,13 @@ class EntityRegistry:
                 return eid
             return eid.replace("_", " ").title()
 
-        ea = data.get("entity_a")
-        if ea and ea.get("id"):
+        for item in data.get("entities", []):
+            eid = item.get("id")
+            if not eid:
+                continue
             entities.append({
-                "entity_id": ea["id"],
-                "display_name": ea.get("display_name") or _format_name(ea["id"]),
-                "role": "acquirer",
-            })
-        eb = data.get("entity_b")
-        if eb and eb.get("id"):
-            entities.append({
-                "entity_id": eb["id"],
-                "display_name": eb.get("display_name") or _format_name(eb["id"]),
-                "role": "target",
+                "entity_id": eid,
+                "display_name": item.get("display_name") or _format_name(eid),
             })
 
         return entities
@@ -136,7 +129,7 @@ class EntityRegistry:
     async def get_entities(self) -> list[dict]:
         """
         Fetch active entities from DCL.
-        Returns list of: {"entity_id": str, "display_name": str, "role": str}
+        Returns list of: {"entity_id": str, "display_name": str}
 
         MUST NOT fall back to hardcoded values. If DCL is unreachable,
         raises ConnectionError with message naming the DCL URL and what failed.

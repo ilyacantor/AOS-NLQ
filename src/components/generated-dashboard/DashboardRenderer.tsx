@@ -114,7 +114,7 @@ function restoreLayout(schema: DashboardSchema): Record<string, any> | null {
 function normalizeSchema(s: DashboardSchema): DashboardSchema {
   const CHART_TYPES = new Set([
     'line_chart', 'bar_chart', 'area_chart', 'stacked_bar',
-    'donut_chart', 'horizontal_bar', 'pipeline_funnel',
+    'donut_chart', 'horizontal_bar',
   ]);
   const CHART_W = 6; // half grid — two charts per row
   const CHART_H = 4;

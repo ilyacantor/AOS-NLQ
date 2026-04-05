@@ -1,8 +1,8 @@
 /**
  * SE Pipeline E2E — Farm → DCL → NLQ
  *
- * Verifies that ingested SE pipeline data renders correctly across all
- * three NLQ surfaces: Ask/Query, Dashboard, and Report Portal.
+ * Verifies that ingested SE pipeline data renders correctly across
+ * NLQ surfaces: Ask/Query and Dashboard.
  *
  * All checks run in a single browser session to avoid WSL2 Chromium
  * --single-process crashes on context teardown.
@@ -15,7 +15,7 @@
 
 import { test, expect } from 'playwright/test';
 
-test('SE pipeline: Ask/Query + Dashboard + Report Portal (Farm → DCL → NLQ)', async ({ page }) => {
+test('SE pipeline: Ask/Query + Dashboard (Farm → DCL → NLQ)', async ({ page }) => {
   // ── Setup: block external resources, collect console errors ──
   const consoleErrors: string[] = [];
   page.on('console', (msg) => {
@@ -93,31 +93,6 @@ test('SE pipeline: Ask/Query + Dashboard + Report Portal (Farm → DCL → NLQ)'
 
   const firstTitle = gridItems.first().locator('h3');
   await expect(firstTitle).toBeVisible({ timeout: 10_000 });
-
-  // ── 4. Report Portal: P&L, BS, CF with live data ──
-  await page.locator('#nav-tab-reports').click();
-
-  const errorBanner = page.locator('text=Error loading report data');
-  const numericCells = page.locator('table td').filter({ hasText: /[\d,]+\.\d/ });
-
-  // P&L (default tab)
-  await expect(errorBanner).not.toBeVisible({ timeout: 10_000 });
-  await expect(numericCells.first()).toBeVisible({ timeout: 30_000 });
-  const revenueCell = page.locator('table td').filter({ hasText: /Revenue/ }).first();
-  await expect(revenueCell).toBeVisible({ timeout: 5_000 });
-  console.log('[SE-E2E] P&L: Revenue line visible');
-
-  // Balance Sheet
-  await page.locator('button').filter({ hasText: /^BS$/ }).click();
-  await expect(errorBanner).not.toBeVisible({ timeout: 10_000 });
-  await expect(numericCells.first()).toBeVisible({ timeout: 30_000 });
-  console.log('[SE-E2E] BS: data visible');
-
-  // Cash Flow
-  await page.locator('button').filter({ hasText: /^CF$/ }).click();
-  await expect(errorBanner).not.toBeVisible({ timeout: 10_000 });
-  await expect(numericCells.first()).toBeVisible({ timeout: 30_000 });
-  console.log('[SE-E2E] CF: data visible');
 
   // ── Final: no console errors across all surfaces ──
   if (consoleErrors.length > 0) {

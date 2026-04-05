@@ -62,9 +62,7 @@ _ACTION_BLOCK_RE = re.compile(
 )
 
 # Scenario → constitution extension files
-_SCENARIO_CONSTITUTIONS: dict[str, str] = {
-    "convergence": "convergence.md",
-}
+_SCENARIO_CONSTITUTIONS: dict[str, str] = {}
 
 
 # ---------------------------------------------------------------------------

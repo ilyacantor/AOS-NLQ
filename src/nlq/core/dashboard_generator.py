@@ -721,28 +721,6 @@ def _generate_full_dashboard(
                 chart_config=ChartConfig(show_legend=True, show_grid=True, animate=True),
             ))
 
-    # Add pipeline funnel widget for CFO and CRO personas
-    if requirements.persona in ("CFO", "CRO"):
-        max_row = max(
-            (w.position.row + w.position.row_span for w in widgets), default=0
-        )
-        widgets.append(Widget(
-            id="pipeline_funnel",
-            type=WidgetType.PIPELINE_FUNNEL,
-            title="Sales Pipeline",
-            description="Pipeline value by stage",
-            data=DataBinding(
-                metrics=[MetricBinding(metric="pipeline", format="$0.0M")],
-            ),
-            position=GridPosition(column=1, row=max_row + 1, col_span=6, row_span=3),
-        ))
-        if debug_info:
-            debug_info.add_decision(
-                stage="full_dashboard_generation",
-                decision=f"Added pipeline funnel widget for {requirements.persona} persona",
-                source=DecisionSource.USER_REQUEST,
-            )
-
     return widgets
 
 

@@ -178,8 +178,6 @@ class DashboardDataResolver:
             return self._resolve_table_data(widget, reference_year, filters, prefetched, quarters_4)
         elif wt == "map":
             return self._resolve_map_data(widget, reference_year, filters)
-        elif wt == "pipeline_funnel":
-            return self._resolve_pipeline_funnel_data(widget, reference_year, filters)
         else:
             return {"loading": False, "error": f"Unsupported widget type: {wt}"}
 
@@ -627,30 +625,6 @@ class DashboardDataResolver:
                 "data": [{"label": r["region"], "value": r["value"]} for r in regions],
             }],
             "categories": [r["region"] for r in regions],
-        }
-
-    def _resolve_pipeline_funnel_data(
-        self,
-        widget: Widget,
-        reference_year: str,
-        filters: Dict[str, str],
-    ) -> Dict[str, Any]:
-        """Resolve pipeline funnel data from customer.pipeline.* stage triples."""
-        from src.nlq.services.dcl_semantic_client_v2 import DCLSemanticClientV2
-
-        v2 = DCLSemanticClientV2()
-        entity_id = get_entity_id()
-        cq = current_quarter()
-
-        stages = v2.get_pipeline_stages(entity_id=entity_id, period=cq)
-
-        if not stages:
-            return {"loading": False, "error": "Pipeline data not available"}
-
-        return {
-            "loading": False,
-            "rows": stages,
-            "formatted_value": f"{len(stages)} stages",
         }
 
     # ------------------------------------------------------------------

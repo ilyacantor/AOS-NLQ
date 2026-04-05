@@ -37,7 +37,6 @@ class WidgetType(str, Enum):
     TIME_RANGE_SELECTOR = "time_range_selector"
     TEXT_BLOCK = "text_block"
     MAP = "map"
-    PIPELINE_FUNNEL = "pipeline_funnel"
 
 
 class AggregationType(str, Enum):

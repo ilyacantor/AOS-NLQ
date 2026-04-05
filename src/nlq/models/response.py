@@ -336,30 +336,6 @@ class RelatedMetric(BaseModel):
     domain: Optional[str] = Field(default=None, description="Domain: finance, growth, ops, product, people")
 
 
-class BridgeChartBar(BaseModel):
-    """Single bar in a waterfall/bridge chart."""
-    label: str = Field(..., description="Bar label (e.g., 'FY 2024 Revenue')")
-    value: Optional[float] = Field(default=None, description="Bar value (signed delta for drivers)")
-    type: str = Field(..., description="'total', 'increase', or 'decrease'")
-    running_total: Optional[float] = Field(default=None, description="Cumulative total at this point")
-
-
-class BridgeChartData(BaseModel):
-    """Structured bridge/waterfall chart data for rendering."""
-    bridge_type: str = Field(default="revenue", description="Type of bridge")
-    title: str = Field(..., description="Chart title")
-    subtitle: str = Field(default="All amounts in $M", description="Chart subtitle")
-    period_start: str = Field(..., description="Start period label")
-    period_end: str = Field(..., description="End period label")
-    start_value: Optional[float] = Field(default=None, description="Start total value")
-    end_value: Optional[float] = Field(default=None, description="End total value")
-    unit: str = "usd_millions"
-    format: str = "currency"
-    bars: List[BridgeChartBar] = Field(default_factory=list)
-    data_source: Optional[str] = None
-    downloadable: bool = True
-
-
 class FinancialStatementLineItem(BaseModel):
     """Single line item in a financial statement."""
     label: str = Field(..., description="Display label (e.g., 'Revenue', 'Cost of Goods Sold')")
@@ -378,25 +354,6 @@ class FinancialStatementData(BaseModel):
     line_items: List[FinancialStatementLineItem] = Field(default_factory=list)
     currency: str = "USD"
     unit: str = "millions"
-
-
-class SalesFunnelStage(BaseModel):
-    """Single stage in a sales pipeline funnel."""
-    label: str = Field(..., description="Stage name (e.g., 'Lead', 'Qualified')")
-    value: float = Field(..., description="Dollar amount at this stage")
-    percent: float = Field(..., description="Percentage of first stage value (100 for largest)")
-
-
-class SalesFunnelData(BaseModel):
-    """Structured horizontal sales pipeline funnel data for rendering."""
-    title: str = Field(..., description="Funnel title (e.g., 'Sales Pipeline')")
-    subtitle: str = Field(default="", description="Subtitle (e.g., period label)")
-    stages: List[SalesFunnelStage] = Field(default_factory=list)
-    unit: str = "usd_millions"
-    format: str = "currency"
-    entity_id: Optional[str] = None
-    period: Optional[str] = None
-    data_source: Optional[str] = None
 
 
 class NLQResponse(BaseModel):
@@ -494,18 +451,6 @@ class NLQResponse(BaseModel):
     financial_statement_data: Optional[FinancialStatementData] = Field(
         default=None,
         description="Structured financial statement data for rendering"
-    )
-
-    # Bridge/waterfall chart response
-    bridge_chart_data: Optional[BridgeChartData] = Field(
-        default=None,
-        description="Structured bridge/waterfall chart data for rendering"
-    )
-
-    # Sales pipeline funnel response
-    sales_funnel_data: Optional[SalesFunnelData] = Field(
-        default=None,
-        description="Structured sales pipeline funnel data for rendering"
     )
 
     # Dashboard response (for visualization queries)

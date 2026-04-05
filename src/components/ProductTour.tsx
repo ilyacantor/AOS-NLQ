@@ -19,7 +19,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 // Types
 // ---------------------------------------------------------------------------
 
-type ViewMode = 'galaxy' | 'dashboard' | 'guide' | 'reports'
+type ViewMode = 'galaxy' | 'dashboard' | 'guide'
 
 interface TourStep {
   title: string

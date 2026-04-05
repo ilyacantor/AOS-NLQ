@@ -59,12 +59,11 @@ export function useDashboardLayout({
     donut_chart: halfGrid,
     horizontal_bar: halfGrid,
     data_table: halfGrid,
-    pipeline_funnel: halfGrid,
   };
 
   const CHART_TYPES = [
     'line_chart', 'bar_chart', 'area_chart', 'stacked_bar',
-    'donut_chart', 'horizontal_bar', 'pipeline_funnel',
+    'donut_chart', 'horizontal_bar',
   ];
 
   const maxSpanForType = (type: string) => {

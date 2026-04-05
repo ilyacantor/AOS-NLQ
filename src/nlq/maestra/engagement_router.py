@@ -47,7 +47,7 @@ class CreateEngagementRequest(BaseModel):
     customer_id: str
     customer_name: str
     scenario_type: str = Field(
-        ..., description="One of: single, multi, convergence, portfolio"
+        ..., description="One of: single, multi, portfolio"
     )
     deal_phase: str = Field(
         default="discovery",

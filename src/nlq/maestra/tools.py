@@ -10,11 +10,6 @@ Maestra LLM tools — Claude function calling definitions + processors.
     6. advance_section   — move to next interview section
     7. process_file      — handle uploaded files
     8. lookup_system_data — query discovered system data
-
-3 Convergence tools:
-    9. compare_entities    — cross-entity comparison
-   10. navigate_portal     — switch portal view
-   11. query_engine        — pull data from engines
 """
 
 from __future__ import annotations
@@ -231,70 +226,6 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 },
             },
             "required": ["query_type"],
-        },
-    },
-    # === CONVERGENCE TOOLS ===
-    {
-        "name": "compare_entities",
-        "description": "Compare a specific dimension across both entities' contour maps. Shows alignment, conflicts, and materiality.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "dimension": {
-                    "type": "string",
-                    "description": "The dimension to compare across entities.",
-                },
-            },
-            "required": ["dimension"],
-        },
-    },
-    {
-        "name": "navigate_portal",
-        "description": "Navigate the report portal to a specific tab/view. The portal switches to show the referenced data.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "tab": {
-                    "type": "string",
-                    "enum": [
-                        "pl", "bs", "cf", "recon",
-                        "combining", "overlap", "crosssell",
-                        "whatif", "qoe", "dashboards",
-                    ],
-                    "description": "Which portal tab to navigate to.",
-                },
-                "entity": {
-                    "type": "string",
-                    "description": "Optional entity filter — resolved dynamically from DCL engagement state. Use 'combined' for multi-entity view.",
-                },
-                "filters": {
-                    "type": "object",
-                    "description": "Optional filters to apply.",
-                },
-            },
-            "required": ["tab"],
-        },
-    },
-    {
-        "name": "query_engine",
-        "description": "Query cross-sell pipeline, EBITDA bridge, QofE, entity resolution, or COFA mapping. Returns exact numbers from engine outputs.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "engine": {
-                    "type": "string",
-                    "enum": [
-                        "cross_sell", "ebitda_bridge", "qoe",
-                        "entity_resolution", "cofa_mapping",
-                    ],
-                    "description": "Which engine to query.",
-                },
-                "query": {
-                    "type": "object",
-                    "description": "Engine-specific query parameters.",
-                },
-            },
-            "required": ["engine"],
         },
     },
     {
@@ -551,95 +482,6 @@ def process_advance_section(summary: str) -> tuple[StateAction, dict[str, Any]]:
         summary=summary,
     )
     return action, {"success": True, "action": "ADVANCE", "summary": summary}
-
-
-def process_navigate_portal(
-    tab: str,
-    entity: str | None = None,
-    filters: dict[str, Any] | None = None,
-) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Process navigate_portal. Returns navigation command + tool result."""
-    nav = {
-        "type": "navigation",
-        "tab": tab,
-        "entity": entity,
-        "filters": filters or {},
-    }
-    return nav, {"success": True, "navigated_to": tab, "entity": entity}
-
-
-def process_query_engine(
-    engine: str,
-    query: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """
-    Process query_engine by calling DCL report endpoints.
-
-    Each engine maps to a DCL /api/reports/* endpoint.
-    If DCL is unavailable, raises — no silent fallback to seed data.
-    """
-    dcl_url = os.environ.get("DCL_API_URL", "").rstrip("/")
-    if not dcl_url:
-        raise RuntimeError(
-            "DCL_API_URL not set — cannot query engine. "
-            "Maestra requires a live DCL connection for engine data."
-        )
-
-    engine_endpoints: dict[str, tuple[str, str]] = {
-        "cross_sell": ("GET", "/api/reports/cross-sell"),
-        "ebitda_bridge": ("GET", "/api/reports/ebitda-bridge"),
-        "qoe": ("GET", "/api/reports/qoe"),
-        "entity_resolution": ("GET", "/api/reports/entity-overlap"),
-        "cofa_mapping": ("GET", "/api/reports/entity-overlap"),
-        "what_if": ("POST", "/api/reports/what-if"),
-    }
-
-    endpoint = engine_endpoints.get(engine)
-    if not endpoint:
-        raise ValueError(
-            f"Unknown engine '{engine}'. "
-            f"Valid engines: {', '.join(engine_endpoints.keys())}"
-        )
-
-    method, path = endpoint
-    url = f"{dcl_url}{path}"
-
-    try:
-        with httpx.Client(timeout=30.0) as client:
-            if method == "POST":
-                resp = client.post(url, json=query or {})
-            else:
-                resp = client.get(url, params=query or {})
-    except httpx.ConnectError:
-        raise RuntimeError(
-            f"Maestra engine '{engine}' failed: could not connect to DCL at {url}. "
-            f"Ensure DCL backend is running at {dcl_url}."
-        )
-    except httpx.TimeoutException:
-        raise RuntimeError(
-            f"Maestra engine '{engine}' timed out waiting for DCL at {url} (30s limit)."
-        )
-
-    if not resp.is_success:
-        raise RuntimeError(
-            f"Maestra engine '{engine}' failed: DCL returned HTTP {resp.status_code} "
-            f"from {url}: {resp.text[:500]}"
-        )
-
-    data = resp.json()
-    data["engine"] = engine
-    data["source"] = "dcl_live"
-    # Add standard terminology labels so the LLM uses consistent terms
-    engine_labels = {
-        "cross_sell": "Cross-Sell Pipeline Analysis",
-        "ebitda_bridge": "EBITDA Bridge Analysis",
-        "qoe": "Quality of Earnings — Sustainability Analysis",
-        "entity_resolution": "Entity Overlap Analysis",
-        "cofa_mapping": "COFA Mapping / IT Landscape",
-        "what_if": "What-If Scenario Analysis",
-    }
-    data["analysis_label"] = engine_labels.get(engine, engine)
-    return data
 
 
 def process_show_roadmap(
