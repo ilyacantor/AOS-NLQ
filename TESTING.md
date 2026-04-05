@@ -92,8 +92,6 @@ These live in `tests/eval/` and use a real DCL client (no mocking). They fail if
 
 | File | What it tests |
 |------|---------------|
-| `test_ground_truth.py` | 175 ground truth tests -- base metrics, aliases, spelling errors, casual queries, dimension aliases, dashboard commands, negative tests |
-| `test_superlatives.py` | Ranking queries -- largest, highest, best, top, worst, lowest, bottom |
 | `test_metric_resolution.py` | Metric alias resolution against real DCL -- AR, ARR, eNPS, etc. |
 | `test_dimension_validation.py` | Valid vs invalid metric+dimension combinations, helpful error messages |
 | `test_negative_cases.py` | Error surfacing -- invalid inputs must fail with clear errors, not silent fallbacks |
@@ -140,4 +138,3 @@ Several tests depend on data files in `data/`:
 - `data/fact_base.json` -- financial fact base (metrics, periods, values)
 - `data/nlq_test_questions.json` -- ground truth questions with expected answers
 - `data/entity_test_scenarios.json` -- entity extraction test scenarios
-- `tests/eval/ground_truth.json` -- 175-question ground truth for eval suite

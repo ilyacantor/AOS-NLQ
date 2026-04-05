@@ -12,15 +12,29 @@ import pytest
 NLQ_URL = os.getenv("NLQ_URL", "http://localhost:8005")
 DCL_URL = os.getenv("DCL_API_URL", "http://localhost:8004")
 
-ENTITY_A = "meridian"
-ENTITY_B = "cascadia"
-
 _dcl_client = httpx.Client(base_url=DCL_URL, timeout=15.0)
 
 
 # ═══════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════
+
+def get_se_entity_id() -> str:
+    """Fetch the active SE entity_id from DCL at runtime.
+
+    Queries DCL's /api/dcl/entities endpoint for the entity marked
+    is_most_recent=True. Asserts exactly one active entity (SE mode).
+    """
+    resp = _dcl_client.get("/api/dcl/entities")
+    resp.raise_for_status()
+    entities = resp.json().get("entities", [])
+    active = [e for e in entities if e.get("is_most_recent")]
+    assert len(active) == 1, (
+        f"SE mode expects exactly 1 active entity (is_most_recent=True), "
+        f"got {len(active)}: {[e['entity_id'] for e in active]}"
+    )
+    return active[0]["entity_id"]
+
 
 def get_gt_value(concept: str, entity_id: str, period: str, property: str = "amount") -> float:
     """Query ground truth from DCL's browse API.
@@ -126,72 +140,63 @@ def assert_close(actual, expected, label, tolerance_pct=TOLERANCE_PCT):
 class TestAskRevenue:
     """Revenue queries must return exact values from triples."""
 
-    def test_meridian_revenue_q1(self):
-        expected = get_gt_value("revenue.total", ENTITY_A, "2025-Q1")
-        assert expected is not None, "Ground truth missing: meridian revenue Q1 2025"
-        resp = query_nlq("What is meridian's revenue for Q1 2025?")
+    def test_revenue_q1(self):
+        entity_id = get_se_entity_id()
+        expected = get_gt_value("revenue.total", entity_id, "2025-Q1")
+        assert expected is not None, "Ground truth missing: revenue Q1 2025"
+        resp = query_nlq("What is revenue for Q1 2025?")
         actual = extract_value(resp)
-        assert_close(actual, expected, "Meridian Q1 2025 revenue")
+        assert_close(actual, expected, "Q1 2025 revenue")
 
-    def test_cascadia_revenue_q1(self):
-        expected = get_gt_value("revenue.total", ENTITY_B, "2025-Q1")
-        assert expected is not None, "Ground truth missing: cascadia revenue Q1 2025"
-        resp = query_nlq("What is cascadia's revenue for Q1 2025?")
+    def test_annual_revenue(self):
+        entity_id = get_se_entity_id()
+        expected = get_gt_sum("revenue.total", entity_id, FY2025_QUARTERS)
+        resp = query_nlq("What is revenue for FY 2025?")
         actual = extract_value(resp)
-        assert_close(actual, expected, "Cascadia Q1 2025 revenue")
-
-    def test_meridian_annual_revenue(self):
-        expected = get_gt_sum("revenue.total", ENTITY_A, FY2025_QUARTERS)
-        resp = query_nlq("What is meridian's revenue for FY 2025?")
-        actual = extract_value(resp)
-        assert_close(actual, expected, "Meridian FY2025 revenue")
-
-    def test_combined_revenue_q1(self):
-        m = get_gt_value("revenue.total", ENTITY_A, "2025-Q1")
-        c = get_gt_value("revenue.total", ENTITY_B, "2025-Q1")
-        expected = m + c
-        resp = query_nlq("What is combined revenue for Q1 2025?")
-        actual = extract_value(resp)
-        assert_close(actual, expected, "Combined Q1 2025 revenue")
+        assert_close(actual, expected, "FY2025 revenue")
 
 
 class TestAskCosts:
     """Cost queries must return exact values."""
 
-    def test_meridian_cogs(self):
-        expected = get_gt_value("cogs.total", ENTITY_A, "2025-Q1")
-        assert expected is not None, "Ground truth missing"
-        resp = query_nlq("What is meridian's cost of goods sold for Q1 2025?")
+    def test_cogs(self):
+        entity_id = get_se_entity_id()
+        expected = get_gt_value("cogs.total", entity_id, "2025-Q1")
+        assert expected is not None, "Ground truth missing: COGS Q1 2025"
+        resp = query_nlq("What is cost of goods sold for Q1 2025?")
         actual = extract_value(resp)
-        assert_close(actual, expected, "Meridian Q1 COGS")
+        assert_close(actual, expected, "Q1 COGS")
 
-    def test_meridian_opex(self):
-        expected = get_gt_value("opex.total", ENTITY_A, "2025-Q1")
-        assert expected is not None, "Ground truth missing"
-        resp = query_nlq("What is meridian's total operating expenses for Q1 2025?")
+    def test_opex(self):
+        entity_id = get_se_entity_id()
+        expected = get_gt_value("opex.total", entity_id, "2025-Q1")
+        assert expected is not None, "Ground truth missing: OpEx Q1 2025"
+        resp = query_nlq("What is total operating expenses for Q1 2025?")
         actual = extract_value(resp)
-        assert_close(actual, expected, "Meridian Q1 OpEx")
+        assert_close(actual, expected, "Q1 OpEx")
 
 
 class TestAskDerived:
     """Derived metrics must be correctly computed from components."""
 
     def test_gross_margin_pct(self):
-        rev = get_gt_value("revenue.total", ENTITY_A, "2025-Q1")
-        cogs = get_gt_value("cogs.total", ENTITY_A, "2025-Q1")
+        entity_id = get_se_entity_id()
+        rev = get_gt_value("revenue.total", entity_id, "2025-Q1")
+        cogs = get_gt_value("cogs.total", entity_id, "2025-Q1")
         expected_pct = ((rev - cogs) / rev) * 100
-        resp = query_nlq("What is meridian's gross margin for Q1 2025?")
+        resp = query_nlq("What is gross margin for Q1 2025?")
         actual = extract_value(resp)
-        assert_close(actual, expected_pct, "Meridian Q1 gross margin %", tolerance_pct=0.02)
+        assert_close(actual, expected_pct, "Q1 gross margin %", tolerance_pct=0.02)
 
     def test_ebitda(self):
-        rev = get_gt_value("revenue.total", ENTITY_A, "2025-Q1")
-        cogs = get_gt_value("cogs.total", ENTITY_A, "2025-Q1")
-        opex = get_gt_value("opex.total", ENTITY_A, "2025-Q1")
+        entity_id = get_se_entity_id()
+        rev = get_gt_value("revenue.total", entity_id, "2025-Q1")
+        cogs = get_gt_value("cogs.total", entity_id, "2025-Q1")
+        opex = get_gt_value("opex.total", entity_id, "2025-Q1")
         expected = rev - cogs - opex
-        resp = query_nlq("What is meridian's EBITDA for Q1 2025?")
+        resp = query_nlq("What is EBITDA for Q1 2025?")
         actual = extract_value(resp)
-        assert_close(actual, expected, "Meridian Q1 EBITDA")
+        assert_close(actual, expected, "Q1 EBITDA")
 
 
 class TestAskEmployees:
@@ -259,71 +264,30 @@ class TestDashboard:
 
 
 # ═══════════════════════════════════════════════
-# REPORTS TESTS
-# ═══════════════════════════════════════════════
-
-class TestReportsProxy:
-    """Reports must return v2 data via the proxy, not old data or zeros."""
-
-    def test_combining_is_has_revenue(self):
-        """Combined P&L should have revenue matching ground truth."""
-        m_rev = get_gt_sum("revenue.total", ENTITY_A, FY2025_QUARTERS)
-        c_rev = get_gt_sum("revenue.total", ENTITY_B, FY2025_QUARTERS)
-        expected_combined = m_rev + c_rev
-
-        # Hit the reports proxy endpoint directly
-        resp = requests.get(f"{NLQ_URL}/api/reports/combining-is", params={"period": "2025-Q1"})
-        if resp.status_code == 200:
-            data = resp.json()
-            # Find revenue in the response (shape may vary)
-            resp_str = json.dumps(data)
-            assert "0" != resp_str.strip(), "Combining IS returned all zeros"
-
-    def test_ebitda_bridge_not_all_zeros(self):
-        """EBITDA bridge must not show all $0M."""
-        resp = requests.get(f"{NLQ_URL}/api/reports/ebitda-bridge")
-        if resp.status_code == 200:
-            data = resp.json()
-            resp_str = json.dumps(data)
-            # At least one non-zero value should exist
-            import re
-            numbers = re.findall(r'"amount":\s*([\d.]+)', resp_str)
-            non_zero = [n for n in numbers if float(n) > 0]
-            assert len(non_zero) > 0, (
-                f"EBITDA bridge has all zero amounts. "
-                f"112 ebitda_adjustment triples exist in PG."
-            )
-
-    def test_overlap_not_crash(self):
-        """Overlap report must not crash with 'matches' undefined."""
-        resp = requests.get(f"{NLQ_URL}/api/reports/entity-overlap")
-        assert resp.status_code == 200, f"Overlap returned {resp.status_code}"
-        data = resp.json()
-        assert data is not None, "Overlap returned null"
-
-
-# ═══════════════════════════════════════════════
 # IDENTITY ASSERTIONS
 # ═══════════════════════════════════════════════
 
 class TestFinancialIdentity:
     """If NLQ returns P&L components, they must satisfy identities."""
 
-    def test_pl_identity_if_data_present(self):
-        """If revenue, COGS, and OpEx are returned, EBITDA must = revenue - COGS - OpEx."""
-        rev_resp = query_nlq("What is meridian's revenue for Q1 2025?")
-        cogs_resp = query_nlq("What is meridian's COGS for Q1 2025?")
-        opex_resp = query_nlq("What is meridian's operating expenses for Q1 2025?")
-        ebitda_resp = query_nlq("What is meridian's EBITDA for Q1 2025?")
+    def test_pl_identity(self):
+        """Revenue, COGS, OpEx, and EBITDA must satisfy: EBITDA = Rev - COGS - OpEx."""
+        rev_resp = query_nlq("What is revenue for Q1 2025?")
+        cogs_resp = query_nlq("What is COGS for Q1 2025?")
+        opex_resp = query_nlq("What is operating expenses for Q1 2025?")
+        ebitda_resp = query_nlq("What is EBITDA for Q1 2025?")
 
         rev = extract_value(rev_resp)
         cogs = extract_value(cogs_resp)
         opex = extract_value(opex_resp)
         ebitda = extract_value(ebitda_resp)
 
-        if all(v is not None for v in [rev, cogs, opex, ebitda]):
-            expected_ebitda = rev - cogs - opex
-            assert_close(ebitda, expected_ebitda, "P&L identity: EBITDA = Rev - COGS - OpEx")
+        assert rev is not None, "P&L identity: revenue query returned None"
+        assert cogs is not None, "P&L identity: COGS query returned None"
+        assert opex is not None, "P&L identity: OpEx query returned None"
+        assert ebitda is not None, "P&L identity: EBITDA query returned None"
+        expected_ebitda = rev - cogs - opex
+        assert_close(ebitda, expected_ebitda, "P&L identity: EBITDA = Rev - COGS - OpEx")
 
 
 # ═══════════════════════════════════════════════
