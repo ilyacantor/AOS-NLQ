@@ -64,3 +64,4 @@ dist/
 
 # Screenshots
 *.png
+test-results/
