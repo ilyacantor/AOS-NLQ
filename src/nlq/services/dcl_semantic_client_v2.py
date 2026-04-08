@@ -21,7 +21,11 @@ from typing import Any, Dict, List, Optional, Tuple
 import httpx
 import yaml
 
-from src.nlq.services.dcl_semantic_client import propagate_context
+from src.nlq.services.dcl_semantic_client import (
+    propagate_context,
+    _last_data_source_ctx,
+    _last_provenance_ctx,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -293,6 +297,25 @@ class DCLSemanticClientV2:
         )
 
     # ------------------------------------------------------------------
+    # Provenance propagation (I2 compliance)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _propagate_provenance(result: Dict[str, Any]) -> None:
+        """Set provenance context vars so _ensure_provenance can attach to NLQResponse."""
+        if not result or result.get("value") is None:
+            return
+        _last_data_source_ctx.set("dcl_v2")
+        _last_provenance_ctx.set({
+            "entity_id": result.get("entity_id"),
+            "source_system": result.get("source_system"),
+            "data_source": "dcl_v2",
+            "confidence_score": result.get("confidence_score"),
+            "confidence_tier": result.get("confidence_tier"),
+            "mode": "Farm",
+        })
+
+    # ------------------------------------------------------------------
     # Single metric
     # ------------------------------------------------------------------
 
@@ -315,7 +338,9 @@ class DCLSemanticClientV2:
         defn = self._resolve_metric_def(metric_name)
 
         if defn["type"] == "derived":
-            return self.get_derived_metric(metric_name, entity_id=entity_id, period=period)
+            result = self.get_derived_metric(metric_name, entity_id=entity_id, period=period)
+            self._propagate_provenance(result)
+            return result
 
         concept = defn["concept"]
         prop = defn["property"]
@@ -324,9 +349,11 @@ class DCLSemanticClientV2:
 
         # --- Period resolution ---
         if self._is_bare_year(period):
-            return self._get_metric_annual(
+            result = self._get_metric_annual(
                 metric_name, concept, prop, domain, unit, entity_id, period,
             )
+            self._propagate_provenance(result)
+            return result
 
         if period is None:
             period = self._get_latest_quarter()
@@ -340,9 +367,11 @@ class DCLSemanticClientV2:
                 }
 
         # --- Single quarter query ---
-        return self._get_metric_single_period(
+        result = self._get_metric_single_period(
             metric_name, concept, prop, domain, entity_id, period,
         )
+        self._propagate_provenance(result)
+        return result
 
     def _get_metric_single_period(
         self,

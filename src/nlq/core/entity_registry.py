@@ -43,13 +43,18 @@ class EntityRegistry:
         """Fetch entity list from DCL's engagement endpoint.
 
         Parses the flat ``entities`` array returned by DCL.
+        Passes tenant_id from AOS_TENANT_ID to handle multi-tenant DCL.
 
         MUST NOT fall back to hardcoded values. If DCL is unreachable,
         raises ConnectionError with message naming the DCL URL and what failed.
         """
         engagement_url = f"{self._dcl_base_url}/api/dcl/triples/engagement"
+        params = {}
+        tenant_id = os.environ.get("AOS_TENANT_ID", "").strip()
+        if tenant_id:
+            params["tenant_id"] = tenant_id
         try:
-            resp = self._client.get(engagement_url)
+            resp = self._client.get(engagement_url, params=params)
         except httpx.ConnectError:
             raise ConnectionError(
                 f"EntityRegistry could not reach DCL at {engagement_url} — "

@@ -4057,7 +4057,16 @@ async def query(request: NLQRequest) -> NLQResponse:
     reset_provenance_ctx()
     try:
         result = await _query_impl(request, _request_entity_id)
-        return _ensure_provenance(result)
+        result = _ensure_provenance(result)
+        # I2: entity_id must be present on every response
+        updates = {}
+        if result.entity_id is None and _request_entity_id:
+            updates["entity_id"] = _request_entity_id
+        if result.entity is None and _request_entity_id:
+            updates["entity"] = _request_entity_id
+        if updates:
+            result = result.model_copy(update=updates)
+        return result
     finally:
         set_entity_id(None)
         reset_provenance_ctx()
