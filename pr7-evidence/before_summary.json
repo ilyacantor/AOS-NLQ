@@ -1,0 +1,10 @@
+{
+  "phase": "before",
+  "question": "What is VeloLabs revenue for 2026 Q2?",
+  "badgeInfo": {
+    "found": true,
+    "text": "No Data",
+    "title": "No live data available — ingest data via the Farm→DCL pipeline",
+    "selector": "text=No Data"
+  }
+}

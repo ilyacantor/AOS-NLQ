@@ -1,0 +1,37 @@
+{
+  "phase": "after",
+  "question": "What is VeloLabs-NDFK revenue for 2026 Q2?",
+  "http_status": 200,
+  "http_latency_seconds": 2.594,
+  "response_value": 37.2,
+  "response_unit": "usd_millions",
+  "response_confidence": 1.0,
+  "response_data_source": "dcl_v2",
+  "response_entity_id": "VeloLabs-NDFK",
+  "response_provenance": {
+    "entity_id": "VeloLabs-NDFK",
+    "source_system": "sap",
+    "source_systems": ["sap"],
+    "is_sor": true,
+    "data_source": "dcl_v2",
+    "confidence_score": 0.95,
+    "confidence_tier": "exact",
+    "mode": "Farm"
+  },
+  "fixture_keys_check": {
+    "lineage": "ABSENT",
+    "system_of_record": "ABSENT",
+    "trust_score": "ABSENT"
+  },
+  "badge_state": {
+    "rendered": "Simulation",
+    "color": "blue",
+    "count_on_page": 2,
+    "instances": "answer header + node detail panel",
+    "no_data_count": 0
+  },
+  "screenshot": "trust-badge-after.png",
+  "playwright_spec": "e2e/trust-badge-provenance.spec.ts",
+  "playwright_result": "PASSED (9.5s, 2026-04-08)",
+  "playwright_console_log": "[trust-badge] mode=farm verified=0 simulation=2"
+}

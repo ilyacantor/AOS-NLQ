@@ -302,13 +302,25 @@ class DCLSemanticClientV2:
 
     @staticmethod
     def _propagate_provenance(result: Dict[str, Any]) -> None:
-        """Set provenance context vars so _ensure_provenance can attach to NLQResponse."""
+        """Set provenance context vars so _ensure_provenance can attach to NLQResponse.
+
+        Shape matches the ProvenanceBadge component's expected fields:
+            mode, source_systems (array), entity_id, confidence_score, is_sor.
+
+        We do not fabricate dcl_ingest_id / tenant_id / snapshot_name /
+        run_timestamp / freshness — v2 triples don't carry these. The badge's
+        expanded view degrades gracefully when those fields are absent.
+        """
         if not result or result.get("value") is None:
             return
         _last_data_source_ctx.set("dcl_v2")
+        source_system = result.get("source_system")
+        confidence_score = result.get("confidence_score") or 0.0
         _last_provenance_ctx.set({
             "entity_id": result.get("entity_id"),
-            "source_system": result.get("source_system"),
+            "source_system": source_system,
+            "source_systems": [source_system] if source_system else [],
+            "is_sor": confidence_score >= 0.9,
             "data_source": "dcl_v2",
             "confidence_score": result.get("confidence_score"),
             "confidence_tier": result.get("confidence_tier"),

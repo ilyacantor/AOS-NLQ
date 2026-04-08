@@ -89,34 +89,6 @@ def resolve_entity_for_query(entity_term: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def get_provenance_for_metric(metric: str) -> Optional[Dict[str, Any]]:
-    """
-    Get provenance trace for a metric via DCL.
-
-    Args:
-        metric: Canonical metric name (e.g., "revenue", "pipeline")
-
-    Returns:
-        Dict with lineage info, or None if not available.
-    """
-    engine = _get_dcl_engine()
-    if not engine:
-        return None
-
-    try:
-        provenance = engine.get_provenance(metric)
-        if not provenance:
-            return None
-
-        # Convert Pydantic model to dict for downstream consumers
-        if hasattr(provenance, "model_dump"):
-            return provenance.model_dump()
-        return provenance
-    except (RuntimeError, KeyError, TypeError, AttributeError) as e:
-        logger.debug(f"Provenance lookup failed for '{metric}': {e}")
-        return None
-
-
 def get_conflicts_for_query(
     metric: str,
     entity_id: Optional[str] = None,
@@ -261,23 +233,21 @@ def enrich_response(
             enrichment["entity_name"] = entity_data.get("entity_name")
             enrichment["entity_id"] = resolved_entity_id
 
-    # 2. Provenance
-    provenance = get_provenance_for_metric(metric)
-    if provenance:
-        enrichment["provenance"] = provenance
+    # Provenance is not in this dict — it rides on the DCL client ctx vars
+    # (_last_provenance_ctx) and is attached to NLQResponse by _ensure_provenance.
 
-    # 3. Conflicts
+    # 2. Conflicts
     conflicts = get_conflicts_for_query(metric, resolved_entity_id)
     if conflicts:
         enrichment["conflicts"] = conflicts
 
-    # 4. Temporal warnings (only for comparison queries)
+    # 3. Temporal warnings (only for comparison queries)
     if is_comparison and start_period and end_period:
         warning = check_temporal_warning(metric, start_period, end_period)
         if warning:
             enrichment["temporal_warning"] = warning
 
-    # 5. Persona-contextual values
+    # 4. Persona-contextual values
     if persona:
         persona_val = get_persona_value(metric, persona)
         if persona_val:

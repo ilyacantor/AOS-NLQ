@@ -262,11 +262,6 @@ class TestProvenanceInResponses:
         assert len(sor_entries) == 1
         assert sor_entries[0]["source_system"] == "sap_erp"
 
-    def test_enrichment_includes_provenance(self, enrichment_service):
-        """enrich_response() includes provenance for known metrics."""
-        result = enrichment_service.enrich_response(metric="revenue")
-        assert "provenance" in result
-
     def test_provenance_unknown_metric(self, dcl_engine):
         """Unknown metric returns None for provenance."""
         prov = dcl_engine.get_provenance("nonexistent_metric")
@@ -282,13 +277,6 @@ class TestProvenanceInResponses:
         from src.nlq.dcl.models import ProvenanceRecord
         prov = dcl_engine.get_provenance("revenue")
         assert isinstance(prov, ProvenanceRecord)
-
-    def test_format_provenance_for_personality(self, enrichment_service):
-        """Provenance formatting produces human-readable text."""
-        prov_data = enrichment_service.get_provenance_for_metric("revenue")
-        if prov_data:
-            formatted = enrichment_service.format_provenance_for_personality(prov_data)
-            assert "SAP" in formatted or "sap" in formatted.lower()
 
 
 # ===========================================================================
