@@ -4052,14 +4052,21 @@ async def query(request: NLQRequest) -> NLQResponse:
     Returns the answer with confidence score bounded [0.0, 1.0].
     Provenance is applied once at this boundary via _ensure_provenance.
     """
+    from src.nlq.config import get_tenant_id as _get_env_tenant_id
+
     _request_entity_id = _resolve_entity_id(request)
+    # I2: tenant_id is sourced from AOS_TENANT_ID; get_tenant_id() raises
+    # RuntimeError (A1 fail-loud) if the env var is missing — do not swallow.
+    _request_tenant_id = _get_env_tenant_id()
     set_entity_id(_request_entity_id)
     reset_provenance_ctx()
     try:
         result = await _query_impl(request, _request_entity_id)
         result = _ensure_provenance(result)
-        # I2: entity_id must be present on every response
+        # I2: tenant_id + entity_id must be present on every response
         updates = {}
+        if result.tenant_id is None and _request_tenant_id:
+            updates["tenant_id"] = _request_tenant_id
         if result.entity_id is None and _request_entity_id:
             updates["entity_id"] = _request_entity_id
         if result.entity is None and _request_entity_id:

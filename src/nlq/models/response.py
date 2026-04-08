@@ -486,6 +486,12 @@ class NLQResponse(BaseModel):
         description="Debug information showing all decisions made during dashboard generation (only in strict mode)"
     )
 
+    # Identity pair (I2: every stage response must carry tenant_id + entity_id)
+    tenant_id: Optional[str] = Field(
+        default=None,
+        description="Tenant UUID from AOS_TENANT_ID (I2 compliance). Machine-only, never displayed."
+    )
+
     # Entity resolution fields (DCL integration)
     entity: Optional[str] = Field(
         default=None,

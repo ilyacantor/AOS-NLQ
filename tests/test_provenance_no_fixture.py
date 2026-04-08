@@ -14,11 +14,18 @@ Requires NLQ backend running at http://localhost:8005.
 """
 
 import json
+import os
+import re
 
 import httpx
 import pytest
 
 NLQ_BASE = "http://localhost:8005"
+
+# UUID v4 / generic UUID regex — response.tenant_id must match this (I2).
+_UUID_RE = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
 
 # Fixture keys — if any appear in response.provenance, PR 7 has regressed.
 FIXTURE_PROVENANCE_KEYS = ("lineage", "system_of_record", "trust_score")
@@ -104,3 +111,23 @@ def test_response_provenance_source_systems_is_list(client, first_entity_id):
         f"provenance.source_systems must be a list, got {type(sources).__name__}: "
         f"{sources!r}"
     )
+
+
+def test_response_carries_tenant_id(client, first_entity_id):
+    """I2: every /query response must carry a non-empty tenant_id UUID.
+
+    Sourced from AOS_TENANT_ID env var via config.get_tenant_id() and
+    backfilled at the routes.py boundary symmetric to entity_id.
+    """
+    data = _post_revenue_query(client, first_entity_id)
+    tid = data.get("tenant_id")
+    assert tid, f"response.tenant_id must be non-empty (I2). got {tid!r}"
+    assert _UUID_RE.match(tid), (
+        f"response.tenant_id must be a UUID, got {tid!r}"
+    )
+    env_tid = os.environ.get("AOS_TENANT_ID", "").strip()
+    if env_tid:
+        assert tid == env_tid, (
+            f"response.tenant_id ({tid!r}) must match AOS_TENANT_ID env var "
+            f"({env_tid!r}). Mismatch indicates a backfill source drift."
+        )
