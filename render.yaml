@@ -41,4 +41,4 @@ services:
       - key: FARM_URL
         value: "https://farmv2.onrender.com"
       - key: AOS_TENANT_ID
-        value: "00000000-0000-0000-0000-000000000001"
+        value: "69688df3-fc8e-51f8-a77c-9c13f9b3a784"
