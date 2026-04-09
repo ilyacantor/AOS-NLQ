@@ -4065,7 +4065,9 @@ async def query(request: NLQRequest) -> NLQResponse:
         result = _ensure_provenance(result)
         # I2: tenant_id + entity_id must be present on every response
         updates = {}
-        if result.tenant_id is None and _request_tenant_id:
+        if result.tenant_id is None:
+            # _request_tenant_id is guaranteed truthy — get_tenant_id() raises
+            # RuntimeError on missing (A1 fail-loud), so no guard needed.
             updates["tenant_id"] = _request_tenant_id
         if result.entity_id is None and _request_entity_id:
             updates["entity_id"] = _request_entity_id

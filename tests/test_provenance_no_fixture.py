@@ -118,16 +118,26 @@ def test_response_carries_tenant_id(client, first_entity_id):
 
     Sourced from AOS_TENANT_ID env var via config.get_tenant_id() and
     backfilled at the routes.py boundary symmetric to entity_id.
+
+    Requires AOS_TENANT_ID to be set in the test environment. A bare
+    dev machine without the env var cannot verify the backfill source,
+    so the test fails loud on setup rather than silently skipping the
+    cross-check (B4 — no passing on technicality).
     """
+    env_tid = os.environ.get("AOS_TENANT_ID", "").strip()
+    assert env_tid, (
+        "AOS_TENANT_ID env var is required to run this test — it is the "
+        "canonical source per I6 rule 4 and this test verifies the backfill "
+        "stamps the env var value onto the response. Set AOS_TENANT_ID "
+        "before running pytest."
+    )
     data = _post_revenue_query(client, first_entity_id)
     tid = data.get("tenant_id")
     assert tid, f"response.tenant_id must be non-empty (I2). got {tid!r}"
     assert _UUID_RE.match(tid), (
         f"response.tenant_id must be a UUID, got {tid!r}"
     )
-    env_tid = os.environ.get("AOS_TENANT_ID", "").strip()
-    if env_tid:
-        assert tid == env_tid, (
-            f"response.tenant_id ({tid!r}) must match AOS_TENANT_ID env var "
-            f"({env_tid!r}). Mismatch indicates a backfill source drift."
-        )
+    assert tid == env_tid, (
+        f"response.tenant_id ({tid!r}) must match AOS_TENANT_ID env var "
+        f"({env_tid!r}). Mismatch indicates a backfill source drift."
+    )
