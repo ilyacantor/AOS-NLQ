@@ -315,6 +315,9 @@ class DCLSemanticClientV2:
         (badge degrades to No Data). This prevents a future non-triple caller
         from silently inheriting the "Ingest" hardcode.
 
+        For single-metric result shapes only — reports and batches that don't
+        carry a top-level "value" key must use _mark_live_read instead.
+
         We do not fabricate dcl_ingest_id / tenant_id / snapshot_name /
         run_timestamp / freshness — v2 triples don't carry these. The badge's
         expanded view degrades gracefully when those fields are absent.
@@ -342,6 +345,34 @@ class DCLSemanticClientV2:
             "confidence_score": result.get("confidence_score"),
             "confidence_tier": result.get("confidence_tier"),
             "mode": mode,
+        })
+
+    @staticmethod
+    def _mark_live_read(
+        entity_id: Optional[str] = None,
+        source_system: Optional[str] = None,
+        confidence_score: Optional[float] = None,
+        confidence_tier: Optional[str] = None,
+    ) -> None:
+        """Stamp provenance ctx for a live DCL HTTP read whose return shape
+        isn't a single-metric dict (reports, batches, timeseries, statements).
+
+        Used by public methods that return a MetricsBatchResult, a list, or
+        a report dict keyed by accounts/periods — shapes that can't carry
+        the _live_triple sentinel on a top-level "value" key. Callers must
+        only invoke this after a successful DCL HTTP round-trip so mode
+        can be stamped "Ingest" truthfully.
+        """
+        _last_data_source_ctx.set("dcl_v2")
+        _last_provenance_ctx.set({
+            "entity_id": entity_id,
+            "source_system": source_system,
+            "source_systems": [source_system] if source_system else [],
+            "is_sor": (confidence_score or 0.0) >= 0.9,
+            "data_source": "dcl_v2",
+            "confidence_score": confidence_score,
+            "confidence_tier": confidence_tier,
+            "mode": "Ingest",
         })
 
     # ------------------------------------------------------------------
@@ -613,6 +644,13 @@ class DCLSemanticClientV2:
                     "source_system": t.get("source_system"),
                     "data_source": "dcl_v2",
                 })
+        if results:
+            first = results[0]
+            self._mark_live_read(
+                entity_id=first.get("entity_id"),
+                source_system=first.get("source_system"),
+                confidence_score=first.get("confidence_score"),
+            )
         return results
 
     # ------------------------------------------------------------------
@@ -881,6 +919,7 @@ class DCLSemanticClientV2:
 
         # Single batch fetch for ALL domains at once
         domain_triples: Dict[str, List[Dict[str, Any]]] = {}
+        batch_hit_live_dcl = False
         if all_domains:
             try:
                 body: Dict[str, Any] = {"domains": sorted(all_domains)}
@@ -893,6 +932,7 @@ class DCLSemanticClientV2:
                     raise RuntimeError(f"browse-batch returned {resp.status_code}: {resp.text[:300]}")
                 data = resp.json()
                 domain_triples = data.get("triples_by_domain", {})
+                batch_hit_live_dcl = True
             except Exception as exc:
                 logger.warning("browse-batch failed, falling back to per-domain browse: %s", exc)
                 # Fallback: per-domain browse (original behavior)
@@ -905,9 +945,12 @@ class DCLSemanticClientV2:
                             limit=200,
                         )
                         domain_triples[domain] = browse_result.get("triples", [])
+                        batch_hit_live_dcl = True
                     except Exception as inner_exc:
                         logger.warning("Fallback browse failed for domain=%s: %s", domain, inner_exc)
                         domain_triples[domain] = []
+        if batch_hit_live_dcl:
+            self._mark_live_read(entity_id=entity_id)
 
         # Extract individual metric values from batch results.
         # Track confidence scores from source triples.
@@ -1056,6 +1099,10 @@ class DCLSemanticClientV2:
                 # Flatten all triples
                 for domain_triples in data.get("triples_by_domain", {}).values():
                     all_triples.extend(domain_triples)
+                # Live DCL HTTP round-trip succeeded — stamp provenance.
+                # This path feeds get_income_statement/_balance_sheet/_cash_flow
+                # via _execute_pl_batch as well as the dashboard resolver.
+                self._mark_live_read(entity_id=entity_id)
             except Exception as exc:
                 logger.warning("get_all_metrics_by_period: browse-batch failed: %s", exc)
                 # No fallback — fail loudly per A1
@@ -1216,7 +1263,9 @@ class DCLSemanticClientV2:
         params: Dict[str, Any] = {}
         if period:
             params["period"] = period
-        return self._get("/api/dcl/reports/v2/combining/income-statement", params=params)
+        result = self._get("/api/dcl/reports/v2/combining/income-statement", params=params)
+        self._mark_live_read(entity_id=entity_id)
+        return result
 
     def get_balance_sheet(
         self,
@@ -1227,7 +1276,9 @@ class DCLSemanticClientV2:
         params: Dict[str, Any] = {}
         if period:
             params["period"] = period
-        return self._get("/api/dcl/reports/v2/combining/balance-sheet", params=params)
+        result = self._get("/api/dcl/reports/v2/combining/balance-sheet", params=params)
+        self._mark_live_read(entity_id=entity_id)
+        return result
 
     def get_cash_flow(
         self,
@@ -1238,7 +1289,9 @@ class DCLSemanticClientV2:
         params: Dict[str, Any] = {}
         if period:
             params["period"] = period
-        return self._get("/api/dcl/reports/v2/combining/cash-flow", params=params)
+        result = self._get("/api/dcl/reports/v2/combining/cash-flow", params=params)
+        self._mark_live_read(entity_id=entity_id)
+        return result
 
     # ------------------------------------------------------------------
     # Reports
@@ -1246,25 +1299,33 @@ class DCLSemanticClientV2:
 
     def get_overlap(self) -> Dict[str, Any]:
         """Calls /api/dcl/reports/v2/overlap/summary."""
-        return self._get("/api/dcl/reports/v2/overlap/summary")
+        result = self._get("/api/dcl/reports/v2/overlap/summary")
+        self._mark_live_read()
+        return result
 
     def get_cross_sell(self) -> Dict[str, Any]:
         """Calls /api/dcl/reports/v2/cross-sell/summary."""
-        return self._get("/api/dcl/reports/v2/cross-sell/summary")
+        result = self._get("/api/dcl/reports/v2/cross-sell/summary")
+        self._mark_live_read()
+        return result
 
     def get_ebitda_bridge(self, entity_id: Optional[str] = None) -> Dict[str, Any]:
         """Calls /api/dcl/reports/v2/bridge."""
         params: Dict[str, Any] = {}
         if entity_id:
             params["entity_id"] = entity_id
-        return self._get("/api/dcl/reports/v2/bridge", params=params)
+        result = self._get("/api/dcl/reports/v2/bridge", params=params)
+        self._mark_live_read(entity_id=entity_id)
+        return result
 
     def get_qoe(self, entity_id: Optional[str] = None) -> Dict[str, Any]:
         """Calls /api/dcl/reports/v2/qoe."""
         params: Dict[str, Any] = {}
         if entity_id:
             params["entity_id"] = entity_id
-        return self._get("/api/dcl/reports/v2/qoe", params=params)
+        result = self._get("/api/dcl/reports/v2/qoe", params=params)
+        self._mark_live_read(entity_id=entity_id)
+        return result
 
     def get_whatif_scenario(
         self,
@@ -1273,11 +1334,13 @@ class DCLSemanticClientV2:
         adjustments: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """Calls POST /api/dcl/reports/v2/whatif/scenario."""
-        return self._post("/api/dcl/reports/v2/whatif/scenario", {
+        result = self._post("/api/dcl/reports/v2/whatif/scenario", {
             "entity_id": entity_id,
             "period": period,
             "adjustments": adjustments,
         })
+        self._mark_live_read(entity_id=entity_id)
+        return result
 
     # ------------------------------------------------------------------
     # Pipeline stages
@@ -1314,6 +1377,9 @@ class DCLSemanticClientV2:
             limit=200,
         )
         triples = browse_result.get("triples", [])
+        # Live browse round-trip succeeded — stamp provenance regardless of
+        # whether stage-specific triples were filtered out below.
+        self._mark_live_read(entity_id=entity_id)
 
         # Filter to customer.pipeline.{stage} concepts (exclude bare customer.pipeline)
         stage_values: Dict[str, float] = {}
