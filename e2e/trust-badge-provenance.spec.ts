@@ -91,7 +91,7 @@ test('Trust Badge: live query renders Verified or Simulation, never "No Data"', 
   // ("Sourced from …") and assert DOM presence via count — the compact
   // badge uses text-[10px] which confuses Playwright's toBeVisible
   // heuristic. The full-page screenshot below is the visual B17 proof.
-  const trustBadge = page.locator('span[title^="Sourced from"]');
+  const trustBadge = page.locator('span[title^="Data Verified"], span[title^="Sourced from"]');
   await expect(
     trustBadge,
     'ProvenanceBadge element must exist in the DOM after response',

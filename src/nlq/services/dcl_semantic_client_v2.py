@@ -258,6 +258,7 @@ class DCLSemanticClientV2:
             "data_source": "dcl_v2",
             "metric_name": metric_name,
             "concept": concept,
+            "_live_triple": True,
         }
 
     def _extract_triple_value(
@@ -307,6 +308,13 @@ class DCLSemanticClientV2:
         Shape matches the ProvenanceBadge component's expected fields:
             mode, source_systems (array), entity_id, confidence_score, is_sor.
 
+        mode="Ingest" is only emitted when the result dict carries the
+        _live_triple sentinel — meaning every field in it was derived from a
+        successful /api/dcl/triples/browse HTTP round-trip. Any caller that
+        forgets to stamp _live_triple on its success dict gets mode=None
+        (badge degrades to No Data). This prevents a future non-triple caller
+        from silently inheriting the "Ingest" hardcode.
+
         We do not fabricate dcl_ingest_id / tenant_id / snapshot_name /
         run_timestamp / freshness — v2 triples don't carry these. The badge's
         expanded view degrades gracefully when those fields are absent.
@@ -316,6 +324,15 @@ class DCLSemanticClientV2:
         _last_data_source_ctx.set("dcl_v2")
         source_system = result.get("source_system")
         confidence_score = result.get("confidence_score") or 0.0
+        # Only mark as Ingest if the dict came from a live triple read.
+        # Absent sentinel → emit None → badge shows "No Data" rather than lie.
+        mode: Optional[str] = "Ingest" if result.get("_live_triple") else None
+        if mode is None:
+            logger.warning(
+                "_propagate_provenance: result missing _live_triple sentinel "
+                "for metric=%s concept=%s — emitting mode=None",
+                result.get("metric_name"), result.get("concept"),
+            )
         _last_provenance_ctx.set({
             "entity_id": result.get("entity_id"),
             "source_system": source_system,
@@ -324,7 +341,7 @@ class DCLSemanticClientV2:
             "data_source": "dcl_v2",
             "confidence_score": result.get("confidence_score"),
             "confidence_tier": result.get("confidence_tier"),
-            "mode": "Farm",
+            "mode": mode,
         })
 
     # ------------------------------------------------------------------
@@ -449,6 +466,7 @@ class DCLSemanticClientV2:
             "data_source": "dcl_v2",
             "metric_name": metric_name,
             "concept": concept,
+            "_live_triple": True,
         }
 
     def _get_metric_annual(
@@ -525,6 +543,7 @@ class DCLSemanticClientV2:
                         "data_source": "dcl_v2",
                         "metric_name": metric_name,
                         "concept": concept,
+                        "_live_triple": True,
                     }
 
         if not values:
@@ -554,6 +573,7 @@ class DCLSemanticClientV2:
             "metric_name": metric_name,
             "concept": concept,
             "quarters_found": len(values),
+            "_live_triple": True,
         }
 
     def get_metric_timeseries(
@@ -700,6 +720,7 @@ class DCLSemanticClientV2:
             "formula": formula,
             "data_source": "dcl_v2",
             "metric_name": metric_name,
+            "_live_triple": True,
         }
 
     def _compute_formula(
