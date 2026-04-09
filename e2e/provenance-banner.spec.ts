@@ -36,6 +36,15 @@ test('Provenance banner: visible on Dashboard, hidden on Ask', async ({ page }) 
   // ── 3. Dashboard: provenance banner visible ──
   await page.locator('#nav-tab-dashboard').click();
 
+  // PR 2: Dashboards view starts in empty state — operator must pick an
+  // entity before the generator runs (I4: no silent default).
+  const dashboardEntitySelector = page.locator('#dashboard-entity-selector');
+  await expect(dashboardEntitySelector).toBeVisible({ timeout: 10_000 });
+  await expect(dashboardEntitySelector.locator('option')).not.toHaveCount(1, { timeout: 10_000 });
+  const firstEntityValue = await dashboardEntitySelector.locator('option').nth(1).getAttribute('value');
+  expect(firstEntityValue, 'dropdown must have at least one entity option').toBeTruthy();
+  await dashboardEntitySelector.selectOption(firstEntityValue!);
+
   // Wait for pipeline_status response (banner depends on it)
   await page.waitForResponse(
     (res) => res.url().includes('/pipeline/status') && res.status() === 200,

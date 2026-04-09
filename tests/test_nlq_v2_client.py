@@ -44,6 +44,17 @@ def nlq_client():
         yield c
 
 
+@pytest.fixture(scope="module")
+def first_entity_id(nlq_client):
+    """PR 2: questions with no entity in text now 422. Resolve the first
+    registered entity once so every test can pass an explicit entity_id."""
+    resp = nlq_client.get("/api/v1/entities")
+    assert resp.status_code == 200, f"entities endpoint failed: {resp.text}"
+    entities = resp.json().get("entities", [])
+    assert entities, "no entities registered — v2 client tests require at least one"
+    return entities[0]["entity_id"]
+
+
 def _nlq_query(nlq_client, question: str, entity_id: str = None) -> dict:
     """Post a natural language question to NLQ and return the response."""
     payload = {"question": question}
@@ -79,8 +90,8 @@ class TestHealthChecks:
 class TestRevenueQuery:
     """get_metric('revenue') returns value > 0 with confidence and source."""
 
-    def test_revenue_via_nlq(self, nlq_client):
-        result = _nlq_query(nlq_client, "What is revenue?")
+    def test_revenue_via_nlq(self, nlq_client, first_entity_id):
+        result = _nlq_query(nlq_client, "What is revenue?", entity_id=first_entity_id)
         value = result.get("value") or result.get("data", {}).get("value")
         assert value is not None, (
             f"User asked 'What is revenue?'. Expected: numeric value > 0. "
@@ -151,8 +162,8 @@ class TestEntityScoped:
 class TestDerivedMetric:
     """get_derived_metric('gross_margin_pct') returns a percentage."""
 
-    def test_gross_margin_via_nlq(self, nlq_client):
-        result = _nlq_query(nlq_client, "What is gross margin?")
+    def test_gross_margin_via_nlq(self, nlq_client, first_entity_id):
+        result = _nlq_query(nlq_client, "What is gross margin?", entity_id=first_entity_id)
         value = result.get("value") or result.get("data", {}).get("value")
         assert value is not None, (
             f"User asked 'What is gross margin?'. Expected: numeric value. Got: {result}"
@@ -176,8 +187,8 @@ class TestDerivedMetric:
 class TestDashboardMetrics:
     """get_dashboard_metrics('CFO') returns multiple metrics with values."""
 
-    def test_cfo_dashboard_via_nlq(self, nlq_client):
-        result = _nlq_query(nlq_client, "Show me the CFO dashboard")
+    def test_cfo_dashboard_via_nlq(self, nlq_client, first_entity_id):
+        result = _nlq_query(nlq_client, "Show me the CFO dashboard", entity_id=first_entity_id)
         # Dashboard responses return structured dashboard with widgets
         dashboard = result.get("dashboard")
         assert dashboard is not None, (

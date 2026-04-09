@@ -17,6 +17,11 @@ interface UseDashboardRefinementProps {
   editMode: boolean;
   handleAutoArrange: () => void;
   sessionId?: string;
+  /** PR 2: explicit entity_id from the Dashboards entity dropdown. When set,
+   * every refinement POST includes it so the backend never has to fall back
+   * to _detect_entity_id on a refinement question that doesn't name the entity
+   * (e.g., "add a pipeline chart"). */
+  entityId?: string | null;
 }
 
 interface UseDashboardRefinementReturn {
@@ -38,6 +43,7 @@ export function useDashboardRefinement({
   editMode,
   handleAutoArrange,
   sessionId,
+  entityId,
 }: UseDashboardRefinementProps): UseDashboardRefinementReturn {
   const [refinementQuery, setRefinementQuery] = useState('');
   const [isRefining, setIsRefining] = useState(false);
@@ -69,13 +75,19 @@ export function useDashboardRefinement({
       const currentSchema = schemaRef.current;
       if (!currentSchema) return;
 
+      const refinementBody: Record<string, unknown> = {
+        question: query,
+        session_id: sessionId || currentSchema.id,
+      };
+      if (entityId) {
+        // PR 2: forward the Dashboards dropdown entity so refinement questions
+        // that don't name the entity still resolve it via the explicit path.
+        refinementBody.entity_id = entityId;
+      }
       const response = await fetch('/api/v1/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: query,
-          session_id: sessionId || currentSchema.id,
-        }),
+        body: JSON.stringify(refinementBody),
       });
 
       const data = await response.json();
@@ -136,7 +148,7 @@ export function useDashboardRefinement({
       setRefinementQuery('');
       refreshLLMStats();
     }
-  }, [onRefinement]);
+  }, [onRefinement, entityId, sessionId]);
 
   const processQueue = useCallback(async () => {
     while (refineQueueRef.current.length > 0) {

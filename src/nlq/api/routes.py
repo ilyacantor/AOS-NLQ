@@ -4014,7 +4014,26 @@ def _handle_ambiguous_query_text(
 
 
 def _resolve_entity_id(request: NLQRequest) -> str:
-    """Resolve entity_id from request body, question text, or default to first registered entity."""
+    """Resolve entity_id from the request, or raise HTTP 422.
+
+    Resolution order:
+      1. request.entity_id (caller-supplied, authoritative)
+      2. "combined" if request.consolidate is True
+      3. _detect_entity_id(question) — substring match against registry
+      4. HTTPException 422 — no silent fallback
+
+    I2 rule: identity pair must be on every response, and missing identity
+    must fail loud (422) instead of being silently defaulted to the first
+    registered entity. The previous behavior — picking entity_ids[0] when
+    nothing else matched — caused the BlueLogic hallucination bug where an
+    unknown entity name in the question was substituted for a real one and
+    the response came back with high confidence and real-looking provenance
+    for the wrong entity.
+
+    Registry unreachable → 503 (infrastructure failure, not identity).
+    Registry empty → 503 (nothing to resolve against).
+    Resolution failed but registry is healthy → 422 (caller-fixable).
+    """
     from src.nlq.core.entity_registry import get_entity_registry
 
     eid = request.entity_id
@@ -4022,26 +4041,43 @@ def _resolve_entity_id(request: NLQRequest) -> str:
         eid = "combined"
     if not eid:
         eid = _detect_entity_id(request.question)
-    if not eid:
-        # Default: use the first (primary) registered entity.
-        # Combined view is only used when explicitly requested via
-        # consolidate=true or entity_id="combined".
-        registry = get_entity_registry()
-        try:
-            entity_ids = registry.get_entity_ids_sync()
-            if entity_ids:
-                eid = entity_ids[0]
-        except ConnectionError as e:
-            raise HTTPException(
-                status_code=503,
-                detail=f"Cannot determine default entity — DCL unreachable: {e}",
-            )
-    if not eid:
+    if eid:
+        return eid
+
+    # Resolution failed. Load the registry so we can tell the caller what they
+    # can pick from. Registry failures stay 503; a healthy but non-matching
+    # registry is a 422.
+    registry = get_entity_registry()
+    try:
+        entity_ids = registry.get_entity_ids_sync()
+    except ConnectionError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Cannot resolve entity — DCL unreachable: {e}",
+        )
+    if not entity_ids:
         raise HTTPException(
             status_code=503,
             detail="No entities registered in DCL — cannot resolve entity_id.",
         )
-    return eid
+    raise HTTPException(
+        status_code=422,
+        detail={
+            "error": "entity_unresolved",
+            "message": (
+                "Cannot resolve entity from the request. The request did not "
+                "include an entity_id, consolidate was not set, and the "
+                "question text did not name any registered entity."
+            ),
+            "question": request.question,
+            "registered_entities": entity_ids,
+            "hint": (
+                f"Include the entity name in your question "
+                f"(e.g., 'What is {entity_ids[0]} revenue?') "
+                "or pass entity_id in the request body."
+            ),
+        },
+    )
 
 
 @router.post("/query", response_model=NLQResponse)

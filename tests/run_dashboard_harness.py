@@ -26,10 +26,30 @@ import requests
 # ---------------------------------------------------------------------------
 NLQ_BASE = os.environ.get("NLQ_BASE_URL", "http://127.0.0.1:8005")
 NLQ_ENDPOINT = f"{NLQ_BASE}/api/v1/query"
+ENTITIES_ENDPOINT = f"{NLQ_BASE}/api/v1/entities"
 PIPELINE_ENDPOINT = f"{NLQ_BASE}/api/v1/pipeline/status"
 TIMEOUT = 90.0  # dashboards are slow (LLM + multiple DCL calls)
 
 VERBOSE = "--verbose" in sys.argv or "-v" in sys.argv
+
+
+# PR 2: fetch the default entity_id from the live registry once at startup so
+# the harness no longer hardcodes a specific entity name. The old harness used
+# the wrong key "entity" — silently ignored by the backend — and relied on the
+# silent _resolve_entity_id fallback to pick the first registered entity.
+def _fetch_default_entity_id() -> str:
+    resp = requests.get(ENTITIES_ENDPOINT, timeout=10.0)
+    resp.raise_for_status()
+    entities = resp.json().get("entities", [])
+    if not entities:
+        raise RuntimeError(
+            "No entities registered in DCL — cannot run dashboard harness. "
+            "Pipeline must run first (B15)."
+        )
+    return entities[0]["entity_id"]
+
+
+DEFAULT_ENTITY_ID: Optional[str] = None  # lazily populated by check_health
 
 
 # ---------------------------------------------------------------------------
@@ -39,7 +59,10 @@ def fetch_ground_truth() -> Dict[str, Any]:
     """Query NLQ for revenue by customer to establish ground truth data."""
     resp = requests.post(
         NLQ_ENDPOINT,
-        json={"question": "show me revenue by customer", "entity": "meridian"},
+        json={
+            "question": "show me revenue by customer",
+            "entity_id": DEFAULT_ENTITY_ID,
+        },
         timeout=TIMEOUT,
     )
     resp.raise_for_status()
@@ -70,11 +93,18 @@ class TestResult:
     got: str = ""
 
 
-def query_nlq(question: str, entity: str = "meridian") -> Dict[str, Any]:
-    """POST to /api/v1/query and return JSON response."""
+def query_nlq(question: str, entity_id: Optional[str] = None) -> Dict[str, Any]:
+    """POST to /api/v1/query and return JSON response.
+
+    PR 2: entity_id is the real NLQRequest field (old harness used "entity"
+    which was silently ignored and relied on the _resolve_entity_id silent
+    fallback). Defaults to DEFAULT_ENTITY_ID set at startup from the live
+    registry.
+    """
+    eid = entity_id or DEFAULT_ENTITY_ID
     resp = requests.post(
         NLQ_ENDPOINT,
-        json={"question": question, "entity": entity},
+        json={"question": question, "entity_id": eid},
         timeout=TIMEOUT,
     )
     resp.raise_for_status()
@@ -100,6 +130,7 @@ def ok(name: str, msg: str = "") -> TestResult:
 # ---------------------------------------------------------------------------
 def check_health() -> Optional[str]:
     """Return error string if services are unhealthy, else None."""
+    global DEFAULT_ENTITY_ID
     try:
         resp = requests.get(PIPELINE_ENDPOINT, timeout=10.0)
         resp.raise_for_status()
@@ -112,6 +143,12 @@ def check_health() -> Optional[str]:
     mode = status.get("dcl_mode", "")
     if mode.lower() not in ("ingest", "live"):
         return f"DCL mode is '{mode}', expected Ingest/Live (B9/B15: pipeline must run first)"
+
+    # PR 2: populate the default entity_id from the live registry.
+    try:
+        DEFAULT_ENTITY_ID = _fetch_default_entity_id()
+    except Exception as e:
+        return f"Cannot fetch default entity_id from {ENTITIES_ENDPOINT}: {e}"
     return None
 
 
@@ -297,14 +334,31 @@ def test_dashboard_trend_charts_work() -> TestResult:
     return ok(name, f"{len(trend_widgets)} trends: {summary}")
 
 
-def test_cascadia_dashboard() -> TestResult:
-    """T7: Cascadia CFO dashboard has no breakdown errors."""
-    name = "cascadia_dashboard"
-    d = query_nlq("build me a CFO dashboard", entity="cascadia")
+def test_second_entity_dashboard() -> TestResult:
+    """T7: A second registered entity's CFO dashboard has no breakdown errors.
+
+    Confirms dashboard generation is not entity-specific. Picks the second
+    entity from the live registry (or the first if only one is registered)
+    and runs the same CFO dashboard query the default entity uses.
+    """
+    name = "second_entity_dashboard"
+    try:
+        entities_resp = requests.get(ENTITIES_ENDPOINT, timeout=10.0)
+        entities_resp.raise_for_status()
+        all_entities = entities_resp.json().get("entities", [])
+    except Exception as e:
+        return fail(name, "registry reachable", f"{type(e).__name__}: {e}", "Registry fetch failed")
+    if not all_entities:
+        return fail(name, "at least one entity registered", "registry empty", "B15: pipeline must run first")
+    # Prefer a different entity than the default (index 0). Fall back to index 0
+    # when only one entity is registered — the test still exercises the path.
+    target = all_entities[1] if len(all_entities) > 1 else all_entities[0]
+    target_id = target["entity_id"]
+    d = query_nlq("build me a CFO dashboard", entity_id=target_id)
     dd = d.get("dashboard_data", {})
 
     if not dd:
-        return fail(name, "dashboard_data present", "dashboard_data is empty/null", "No dashboard generated for cascadia")
+        return fail(name, "dashboard_data present", "dashboard_data is empty/null", f"No dashboard generated for {target_id}")
 
     errors_found = []
     for key, widget in dd.items():
@@ -312,13 +366,13 @@ def test_cascadia_dashboard() -> TestResult:
             errors_found.append(f"{key}: {widget['error']}")
 
     if errors_found:
-        return fail(name, "no widget errors", "; ".join(errors_found), f"Cascadia dashboard has errors: {errors_found[0]}")
+        return fail(name, "no widget errors", "; ".join(errors_found), f"{target_id} dashboard has errors: {errors_found[0]}")
 
     ds = d.get("data_source")
     if ds not in ("live", "dcl"):
-        return fail(name, "data_source in (live, dcl)", f"data_source={ds!r}", "Wrong data source for cascadia")
+        return fail(name, "data_source in (live, dcl)", f"data_source={ds!r}", f"Wrong data source for {target_id}")
 
-    return ok(name, f"{len(dd)} widgets, data_source={ds}")
+    return ok(name, f"{target_id}: {len(dd)} widgets, data_source={ds}")
 
 
 def test_fact_base_independence() -> TestResult:
@@ -368,7 +422,7 @@ def run_all() -> List[TestResult]:
         ("T4", lambda: test_dashboard_provenance()),
         ("T5", lambda: test_dashboard_kpi_cards_work()),
         ("T6", lambda: test_dashboard_trend_charts_work()),
-        ("T7", lambda: test_cascadia_dashboard()),
+        ("T7", lambda: test_second_entity_dashboard()),
         ("T8", lambda: test_fact_base_independence()),
     ]
 

@@ -63,6 +63,9 @@ interface DashboardRendererProps {
   isGenerating?: boolean;
   /** Session ID for query endpoint refinements */
   sessionId?: string;
+  /** PR 2: explicit entity_id from the Dashboards entity dropdown. Forwarded
+   * to useDashboardRefinement so every refinement POST carries it. */
+  entityId?: string | null;
 }
 
 // =============================================================================
@@ -154,6 +157,7 @@ export function DashboardRenderer({
   onPersonaChange,
   isGenerating = false,
   sessionId,
+  entityId,
 }: DashboardRendererProps) {
   const [schema, setSchemaRaw] = useState<DashboardSchema | null>(initialSchema ? normalizeSchema(initialSchema) : null);
   // Wrapper that always normalizes before setting
@@ -401,6 +405,7 @@ export function DashboardRenderer({
     editMode,
     handleAutoArrange,
     sessionId,
+    entityId,
   });
 
   // Reset dashboard — reverts to the default persona dashboard state

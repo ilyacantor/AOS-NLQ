@@ -13,9 +13,21 @@
  *   - SE pipeline has run (triples ingested into DCL)
  */
 
-import { test, expect } from 'playwright/test';
+import { test, expect, request as pwRequest } from 'playwright/test';
 
 test('SE pipeline: Ask/Query + Dashboard (Farm → DCL → NLQ)', async ({ page }) => {
+  // PR 2: include the registered entity name in the Ask query so the backend
+  // can resolve it via _detect_entity_id. Bare "What's revenue?" 422s now.
+  const api = await pwRequest.newContext();
+  const entitiesResp = await api.get('http://localhost:8005/api/v1/entities');
+  const registered = ((await entitiesResp.json()).entities || []) as Array<{
+    entity_id: string;
+    display_name?: string;
+  }>;
+  expect(registered.length, 'no entities registered').toBeGreaterThan(0);
+  const entityName = registered[0].display_name || registered[0].entity_id;
+  await api.dispose();
+
   // ── Setup: block external resources, collect console errors ──
   const consoleErrors: string[] = [];
   page.on('console', (msg) => {
@@ -50,7 +62,7 @@ test('SE pipeline: Ask/Query + Dashboard (Farm → DCL → NLQ)', async ({ page 
   const searchInput = page.locator('#nlq-search-input');
   await expect(searchInput).toBeVisible({ timeout: 15_000 });
 
-  await searchInput.fill("What's revenue?");
+  await searchInput.fill(`What is ${entityName} revenue?`);
   await searchInput.press('Enter');
 
   // Wait for the answer chat bubble (exclude sidebar summary with line-clamp-2)
@@ -76,6 +88,15 @@ test('SE pipeline: Ask/Query + Dashboard (Farm → DCL → NLQ)', async ({ page 
 
   // ── 3. Dashboard: widgets render with real data ──
   await page.locator('#nav-tab-dashboard').click();
+
+  // PR 2: Dashboards view starts in empty state — operator must pick an
+  // entity before the generator runs (I4: no silent default).
+  const entitySelector = page.locator('#dashboard-entity-selector');
+  await expect(entitySelector).toBeVisible({ timeout: 10_000 });
+  await expect(entitySelector.locator('option')).not.toHaveCount(1, { timeout: 10_000 });
+  const firstEntityValue = await entitySelector.locator('option').nth(1).getAttribute('value');
+  expect(firstEntityValue, 'dropdown must have at least one entity option').toBeTruthy();
+  await entitySelector.selectOption(firstEntityValue!);
 
   const gridLayout = page.locator('.react-grid-layout');
   await expect(gridLayout).toBeVisible({ timeout: 30_000 });

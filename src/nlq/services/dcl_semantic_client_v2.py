@@ -767,13 +767,13 @@ class DCLSemanticClientV2:
                 )
             return burn / recurring
 
-        # revenue_per_employee: revenue.total / employee.total
+        # revenue_per_employee: revenue.total / workforce.headcount.total
         if metric_name == "revenue_per_employee":
             rev = values.get("revenue.total", 0)
-            hc = values.get("employee.total", 0)
+            hc = values.get("workforce.headcount.total", 0)
             if hc == 0:
                 raise ValueError(
-                    f"Cannot compute {metric_name}: employee.total is zero (division by zero)"
+                    f"Cannot compute {metric_name}: workforce.headcount.total is zero (division by zero)"
                 )
             return rev / hc
 

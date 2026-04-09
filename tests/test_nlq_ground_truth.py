@@ -74,10 +74,16 @@ def get_gt_sum(concept: str, entity_id: str, periods: list, property: str = "amo
 
 
 def query_nlq(question: str, entity_id: str = None) -> dict:
-    """Hit NLQ's API."""
-    payload = {"query": question}
-    if entity_id:
-        payload["entity_id"] = entity_id
+    """Hit NLQ's API.
+
+    PR 2: NLQRequest uses `question` (not `query`) as the field name, and
+    /query returns 422 when no entity can be resolved. Backfill entity_id
+    from the active SE entity when caller didn't supply one. (The old
+    `{"query": ...}` payload was a pre-existing bug — Pydantic required
+    `question`, but the silent fallback on entity resolution hid it.)
+    """
+    payload = {"question": question}
+    payload["entity_id"] = entity_id or get_se_entity_id()
     resp = requests.post(f"{NLQ_URL}/api/v1/query", json=payload, timeout=30)
     return resp.json()
 

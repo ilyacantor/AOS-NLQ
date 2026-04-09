@@ -29,10 +29,24 @@ def dcl_client():
     return httpx.Client(base_url=DCL_BASE, timeout=30.0)
 
 
+@pytest.fixture(scope="module")
+def first_entity_id(client):
+    """PR 2: every /query test needs an explicit entity_id or a question that
+    names a registered entity. Resolve the first registered entity once."""
+    resp = client.get("/api/v1/entities")
+    assert resp.status_code == 200, f"entities endpoint failed: {resp.text}"
+    entities = resp.json().get("entities", [])
+    assert entities, "no entities registered — tests require at least one"
+    return entities[0]["entity_id"]
+
+
 # --- Test 1: Simple revenue query returns valid response ---
-def test_revenue_query_response(client):
+def test_revenue_query_response(client, first_entity_id):
     """NLQ accepts a revenue query and returns a well-formed response."""
-    resp = client.post("/api/v1/query", json={"question": "What is revenue?"})
+    resp = client.post(
+        "/api/v1/query",
+        json={"question": "What is revenue?", "entity_id": first_entity_id},
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert "answer" in data
@@ -108,11 +122,11 @@ def test_entity_detection_dynamic(client, dcl_client):
 
 
 # --- Test 5: CHRO persona routing ---
-def test_chro_query_routes(client):
+def test_chro_query_routes(client, first_entity_id):
     """CHRO-persona query doesn't crash or 404."""
     resp = client.post(
         "/api/v1/query",
-        json={"question": "Show me the CHRO dashboard"},
+        json={"question": "Show me the CHRO dashboard", "entity_id": first_entity_id},
     )
     # Should NOT be 404 or 500
     assert resp.status_code == 200
@@ -125,9 +139,12 @@ def test_chro_query_routes(client):
     not __import__("os").environ.get("NLQ_INTEGRATION"),
     reason="Integration test — requires running NLQ + DCL services (NLQ_INTEGRATION=1)",
 )
-def test_provenance_structure(client):
+def test_provenance_structure(client, first_entity_id):
     """Query response includes provenance with required fields."""
-    resp = client.post("/api/v1/query", json={"question": "What is revenue?"})
+    resp = client.post(
+        "/api/v1/query",
+        json={"question": "What is revenue?", "entity_id": first_entity_id},
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert "provenance" in data

@@ -167,6 +167,12 @@ function App() {
   const sessionId = useSessionId()
   const { selectedSnapshot } = useSnapshot()
 
+  // PR 2: Dashboards view entity selector. Populated from /api/v1/entities on
+  // mount. Defaults to null — the user must pick before querying. No silent
+  // default in the UI (I4: operators never type IDs; I2: no silent fallback).
+  const [registeredEntities, setRegisteredEntities] = useState<Array<{ entity_id: string; display_name: string }>>([])
+  const [selectedDashboardEntityId, setSelectedDashboardEntityId] = useState<string | null>(null)
+
   const queryRef = useRef(query)
   queryRef.current = query
 
@@ -241,6 +247,25 @@ function App() {
     return () => clearInterval(timer)
   }, [liveDataAvailable])
 
+  // PR 2: fetch registered entities once on mount for the Dashboards dropdown.
+  // Never auto-selects — selectedDashboardEntityId stays null until the user
+  // picks one. The dropdown is only rendered on the Dashboards view.
+  useEffect(() => {
+    const loadEntities = async () => {
+      try {
+        const res = await fetch('/api/v1/entities')
+        if (res.ok) {
+          const data = await res.json()
+          const list = Array.isArray(data.entities) ? data.entities : []
+          setRegisteredEntities(list)
+        }
+      } catch (err) {
+        console.error('Failed to load entities for dashboard dropdown:', err)
+      }
+    }
+    loadEntities()
+  }, [])
+
   // Submit query — ONE endpoint, ONE path: /api/v1/query
   const submitQuery = useCallback(async (queryText: string) => {
     if (!queryText.trim()) return
@@ -254,16 +279,24 @@ function App() {
     const startTime = performance.now()
 
     try {
+      // PR 2: on the Dashboards view, inject the user-picked entity_id. On
+      // the Ask (galaxy) view we leave it unset — the question text is the
+      // primary entity signal there, and the backend will 422 if neither
+      // works, which the error branch below renders as a friendly message.
+      const queryBody: Record<string, unknown> = {
+        question: queryText,
+        reference_date: new Date().toISOString().split('T')[0],
+        session_id: sessionId,
+        persona: selectedPersona,
+        snapshot_id: selectedSnapshot?.dcl_ingest_id || undefined,
+      }
+      if (viewMode === 'dashboard' && selectedDashboardEntityId) {
+        queryBody.entity_id = selectedDashboardEntityId
+      }
       const res = await fetchWithRetry('/api/v1/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: queryText,
-          reference_date: new Date().toISOString().split('T')[0],
-          session_id: sessionId,
-          persona: selectedPersona,
-          snapshot_id: selectedSnapshot?.dcl_ingest_id || undefined,
-        })
+        body: JSON.stringify(queryBody),
       })
 
       const duration = Math.round(performance.now() - startTime)
@@ -272,9 +305,28 @@ function App() {
       // Check HTTP status BEFORE parsing JSON
       if (!res.ok) {
         let errorDetail = `Server error (${res.status})`
+        let friendlyMessage = 'Something went wrong processing your query. Try rephrasing or check the Trace tab for details.'
+        let errorType = 'HTTP_ERROR'
         try {
           const errBody = await res.json()
-          errorDetail = errBody.detail || errBody.error || errBody.answer || errorDetail
+          const detail = errBody.detail
+          // PR 2: /api/v1/query returns 422 with a structured detail when the
+          // entity cannot be resolved. Render a friendly inline error that
+          // lists the registered entities so the user knows what to pick.
+          if (res.status === 422 && detail && typeof detail === 'object' && detail.error === 'entity_unresolved') {
+            const registered = Array.isArray(detail.registered_entities) ? detail.registered_entities : []
+            const hint = typeof detail.hint === 'string' ? detail.hint : ''
+            const entityList = registered.length > 0 ? registered.join(', ') : '(none)'
+            friendlyMessage = `Unknown entity — I couldn't resolve which entity you meant. Registered entities: ${entityList}. ${hint}`
+            errorDetail = friendlyMessage
+            errorType = 'ENTITY_UNRESOLVED'
+          } else if (typeof detail === 'string') {
+            errorDetail = detail
+          } else if (detail && typeof detail === 'object') {
+            errorDetail = detail.message || JSON.stringify(detail)
+          } else {
+            errorDetail = errBody.error || errBody.answer || errorDetail
+          }
         } catch {
           errorDetail = `${res.status} ${res.statusText}`
         }
@@ -289,11 +341,11 @@ function App() {
           node_count: 0,
           nodes: [],
           primary_node_id: null,
-          primary_answer: 'Something went wrong processing your query. Try rephrasing or check the Trace tab for details.',
-          text_response: 'Something went wrong processing your query. Try rephrasing or check the Trace tab for details.',
+          primary_answer: friendlyMessage,
+          text_response: friendlyMessage,
           needs_clarification: false,
           clarification_prompt: null,
-          debug_info: { error: errorDetail, error_type: 'HTTP_ERROR' },
+          debug_info: { error: errorDetail, error_type: errorType },
         } as IntentMapResponse)
 
         const newItem: QueryHistoryItem = {
@@ -396,7 +448,7 @@ function App() {
     setIsLoading(false)
     refreshLLMStats()
     setHistoryVersion(v => v + 1)
-  }, [sessionId, selectedPersona, selectedSnapshot])
+  }, [sessionId, selectedPersona, selectedSnapshot, viewMode, selectedDashboardEntityId])
 
   // ── Parent iframe communication ────────────────────────────────────
   // Listens for postMessage commands from the AOS platform shell.
@@ -454,16 +506,22 @@ function App() {
   }, [submitQuery])
 
   // Load default dashboard when user first navigates to the Dashboard tab
-  // (not on mount — Ask tab is the landing page)
+  // AND has picked an entity from the dropdown. PR 2: no auto-load on bare
+  // Dashboards visit — the entity must be selected first, which matches I2
+  // (no silent default) and I4 (operator picks from a dropdown).
   useEffect(() => {
-    if (viewMode === 'dashboard' && !hasLoadedDefaultDashboard) {
+    if (
+      viewMode === 'dashboard' &&
+      !hasLoadedDefaultDashboard &&
+      selectedDashboardEntityId
+    ) {
       setHasLoadedDefaultDashboard(true)
       const personaConfig = personaOptions.find(p => p.value === selectedPersona)
       if (personaConfig) {
         submitQuery(personaConfig.query)
       }
     }
-  }, [viewMode, hasLoadedDefaultDashboard, selectedPersona, submitQuery])
+  }, [viewMode, hasLoadedDefaultDashboard, selectedPersona, selectedDashboardEntityId, submitQuery])
 
   // Handle form submit
   const handleSubmit = useCallback(() => {
@@ -721,6 +779,31 @@ function App() {
           <div className="flex items-center gap-4 text-slate-500 text-sm">
             <DataPipelineStatus />
             {viewMode === 'galaxy' && <SnapshotSelector />}
+            {/* PR 2: Dashboards entity selector — I4 (operators never type IDs)
+                 + I2 (no silent fallback). Defaults to null; user must pick. */}
+            {viewMode === 'dashboard' && (
+              <div className="flex items-center gap-2">
+                <label htmlFor="dashboard-entity-selector" className="text-slate-500 text-xs">Entity:</label>
+                <select
+                  id="dashboard-entity-selector"
+                  value={selectedDashboardEntityId ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setSelectedDashboardEntityId(v === '' ? null : v)
+                    // When user picks an entity, trigger the default dashboard load
+                    setHasLoadedDefaultDashboard(false)
+                  }}
+                  className="bg-slate-800 text-slate-200 text-xs rounded px-2 py-1 border border-slate-700 focus:border-cyan-400 focus:outline-none"
+                >
+                  <option value="">— pick an entity —</option>
+                  {registeredEntities.map((ent) => (
+                    <option key={ent.entity_id} value={ent.entity_id}>
+                      {ent.display_name || ent.entity_id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <LLMCallCounter />
             {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
             <button
@@ -752,7 +835,16 @@ function App() {
           {/* Results Area */}
           <div className="flex-1 overflow-hidden">
             {/* Dashboard View - Always uses DashboardRenderer with full controls */}
-            {viewMode === 'dashboard' && (
+            {viewMode === 'dashboard' && !selectedDashboardEntityId && (
+              // PR 2: empty state before an entity is selected. No silent default.
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center px-6">
+                <div className="text-lg font-medium mb-2">Pick an entity to generate a dashboard.</div>
+                <div className="text-sm text-slate-500">
+                  Use the Entity selector in the header above.
+                </div>
+              </div>
+            )}
+            {viewMode === 'dashboard' && selectedDashboardEntityId && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
               <div className="h-full overflow-hidden flex flex-col">
                 {/* Provenance banner — display-only: entity, snapshot, timestamp */}
@@ -772,6 +864,7 @@ function App() {
                     onPersonaChange={(value) => handlePersonaSelect(value as Persona)}
                     isGenerating={isGeneratingDashboard}
                     sessionId={sessionId}
+                    entityId={selectedDashboardEntityId}
                   />
                 </div>
 

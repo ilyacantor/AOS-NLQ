@@ -360,72 +360,66 @@ fcf:
 # ─── People ────────────────────────────────────────────────────────
 
 headcount:
-  concept: "employee.total"
-  property: "headcount"
+  concept: "workforce.headcount.total"
+  property: "count"
   type: direct
   unit: "count"
   aliases: ["employees", "employee_count", "total_headcount"]
 
 engineering_headcount:
-  concept: "employee.engineering"
-  property: "headcount"
+  concept: "workforce.headcount.engineering"
+  property: "count"
   type: direct
   unit: "count"
 
 sales_headcount:
-  concept: "employee.sales"
-  property: "headcount"
+  concept: "workforce.headcount.sales"
+  property: "count"
   type: direct
   unit: "count"
 
 cs_headcount:
-  concept: "employee.customer_success"
-  property: "headcount"
+  concept: "workforce.headcount.by_department.customer_success"
+  property: "count"
   type: direct
   unit: "count"
 
 product_headcount:
-  concept: "employee.product"
-  property: "headcount"
+  concept: "workforce.headcount.by_department.product"
+  property: "count"
   type: direct
   unit: "count"
 
 marketing_headcount:
-  concept: "employee.marketing"
-  property: "headcount"
+  concept: "workforce.headcount.by_department.marketing"
+  property: "count"
   type: direct
   unit: "count"
 
 ga_headcount:
-  concept: "employee.g_and_a"
-  property: "headcount"
+  concept: "workforce.headcount.by_department.g&a"
+  property: "count"
   type: direct
   unit: "count"
 
 hires:
-  concept: "employee.hires"
+  concept: "workforce.hires"
   property: "count"
   type: direct
   unit: "count"
 
 attrition:
-  concept: "employee.attrition"
+  concept: "workforce.terminations"
   property: "count"
   type: direct
   unit: "count"
 
 attrition_rate_pct:
-  concept: "employee.attrition_rate"
+  concept: "workforce.attrition_rate"
   property: "rate"
   type: direct
   unit: "pct"
   aliases: ["attrition_rate"]
-
-employee_growth_rate:
-  concept: "employee.growth_rate"
-  property: "rate"
-  type: direct
-  unit: "pct"
 
 # ─── Efficiency / SaaS ────────────────────────────────────────────
 
@@ -442,12 +436,12 @@ burn_multiple:
 revenue_per_employee:
   type: derived
   unit: "usd"
-  formula: "revenue.total / employee.total"
+  formula: "revenue.total / workforce.headcount.total"
   components:
     - concept: "revenue.total"
       property: "amount"
-    - concept: "employee.total"
-      property: "headcount"
+    - concept: "workforce.headcount.total"
+      property: "count"
 
 magic_number:
   type: derived
