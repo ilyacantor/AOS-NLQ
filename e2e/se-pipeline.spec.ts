@@ -89,14 +89,12 @@ test('SE pipeline: Ask/Query + Dashboard (Farm → DCL → NLQ)', async ({ page 
   // ── 3. Dashboard: widgets render with real data ──
   await page.locator('#nav-tab-dashboard').click();
 
-  // PR 2: Dashboards view starts in empty state — operator must pick an
-  // entity before the generator runs (I4: no silent default).
+  // Dashboards auto-selects the current-run entity on mount (SE mode).
   const entitySelector = page.locator('#dashboard-entity-selector');
   await expect(entitySelector).toBeVisible({ timeout: 10_000 });
-  await expect(entitySelector.locator('option')).not.toHaveCount(1, { timeout: 10_000 });
-  const firstEntityValue = await entitySelector.locator('option').nth(1).getAttribute('value');
+  await expect(entitySelector.locator('option').first()).toBeAttached({ timeout: 10_000 });
+  const firstEntityValue = await entitySelector.locator('option').first().getAttribute('value');
   expect(firstEntityValue, 'dropdown must have at least one entity option').toBeTruthy();
-  await entitySelector.selectOption(firstEntityValue!);
 
   const gridLayout = page.locator('.react-grid-layout');
   await expect(gridLayout).toBeVisible({ timeout: 30_000 });

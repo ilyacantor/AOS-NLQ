@@ -67,15 +67,12 @@ test.describe('AOS-NLQ Smoke Test', () => {
     await expect(dashboardTab).toBeVisible();
     await dashboardTab.click();
 
-    // PR 2: Dashboards view starts in empty state — operator must pick an
-    // entity before the generator runs (I4: no silent default). Pick the
-    // first registered entity from the dropdown.
+    // Dashboards auto-selects the current-run entity on mount (SE mode).
     const entitySelector = page.locator('#dashboard-entity-selector');
     await expect(entitySelector).toBeVisible({ timeout: 10_000 });
-    await expect(entitySelector.locator('option')).not.toHaveCount(1, { timeout: 10_000 });
-    const firstEntityValue = await entitySelector.locator('option').nth(1).getAttribute('value');
+    await expect(entitySelector.locator('option').first()).toBeAttached({ timeout: 10_000 });
+    const firstEntityValue = await entitySelector.locator('option').first().getAttribute('value');
     expect(firstEntityValue, 'dropdown must have at least one entity option').toBeTruthy();
-    await entitySelector.selectOption(firstEntityValue!);
 
     // ── Step 3: Wait for the dashboard grid to render ──
     // Clicking Dashboard triggers generateDashboard → /api/v1/query/dashboard.

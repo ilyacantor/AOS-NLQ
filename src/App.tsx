@@ -247,9 +247,9 @@ function App() {
     return () => clearInterval(timer)
   }, [liveDataAvailable])
 
-  // PR 2: fetch registered entities once on mount for the Dashboards dropdown.
-  // Never auto-selects — selectedDashboardEntityId stays null until the user
-  // picks one. The dropdown is only rendered on the Dashboards view.
+  // Fetch the current run's entity on mount. SE mode = one entity per run;
+  // auto-select it so every query carries entity_id without the user typing
+  // anything. The dropdown still shows it on Dashboard view for visibility.
   useEffect(() => {
     const loadEntities = async () => {
       try {
@@ -258,6 +258,9 @@ function App() {
           const data = await res.json()
           const list = Array.isArray(data.entities) ? data.entities : []
           setRegisteredEntities(list)
+          if (list.length > 0) {
+            setSelectedDashboardEntityId(list[0].entity_id)
+          }
         }
       } catch (err) {
         console.error('Failed to load entities for dashboard dropdown:', err)
@@ -279,10 +282,9 @@ function App() {
     const startTime = performance.now()
 
     try {
-      // PR 2: on the Dashboards view, inject the user-picked entity_id. On
-      // the Ask (galaxy) view we leave it unset — the question text is the
-      // primary entity signal there, and the backend will 422 if neither
-      // works, which the error branch below renders as a friendly message.
+      // SE mode: always send the current run's entity_id (auto-selected on
+      // mount). Works the same on Ask and Dashboard — no text parsing, no
+      // 422 for "unknown entity".
       const queryBody: Record<string, unknown> = {
         question: queryText,
         reference_date: new Date().toISOString().split('T')[0],
@@ -290,7 +292,7 @@ function App() {
         persona: selectedPersona,
         snapshot_id: selectedSnapshot?.dcl_ingest_id || undefined,
       }
-      if (viewMode === 'dashboard' && selectedDashboardEntityId) {
+      if (selectedDashboardEntityId) {
         queryBody.entity_id = selectedDashboardEntityId
       }
       const res = await fetchWithRetry('/api/v1/query', {
@@ -310,17 +312,7 @@ function App() {
         try {
           const errBody = await res.json()
           const detail = errBody.detail
-          // PR 2: /api/v1/query returns 422 with a structured detail when the
-          // entity cannot be resolved. Render a friendly inline error that
-          // lists the registered entities so the user knows what to pick.
-          if (res.status === 422 && detail && typeof detail === 'object' && detail.error === 'entity_unresolved') {
-            const registered = Array.isArray(detail.registered_entities) ? detail.registered_entities : []
-            const hint = typeof detail.hint === 'string' ? detail.hint : ''
-            const entityList = registered.length > 0 ? registered.join(', ') : '(none)'
-            friendlyMessage = `Unknown entity — I couldn't resolve which entity you meant. Registered entities: ${entityList}. ${hint}`
-            errorDetail = friendlyMessage
-            errorType = 'ENTITY_UNRESOLVED'
-          } else if (typeof detail === 'string') {
+          if (typeof detail === 'string') {
             errorDetail = detail
           } else if (detail && typeof detail === 'object') {
             errorDetail = detail.message || JSON.stringify(detail)
@@ -795,7 +787,6 @@ function App() {
                   }}
                   className="bg-slate-800 text-slate-200 text-xs rounded px-2 py-1 border border-slate-700 focus:border-cyan-400 focus:outline-none"
                 >
-                  <option value="">— pick an entity —</option>
                   {registeredEntities.map((ent) => (
                     <option key={ent.entity_id} value={ent.entity_id}>
                       {ent.display_name || ent.entity_id}
@@ -836,11 +827,11 @@ function App() {
           <div className="flex-1 overflow-hidden">
             {/* Dashboard View - Always uses DashboardRenderer with full controls */}
             {viewMode === 'dashboard' && !selectedDashboardEntityId && (
-              // PR 2: empty state before an entity is selected. No silent default.
+              // Empty state: no entity in the current run. Run the pipeline.
               <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center px-6">
-                <div className="text-lg font-medium mb-2">Pick an entity to generate a dashboard.</div>
+                <div className="text-lg font-medium mb-2">No entities available.</div>
                 <div className="text-sm text-slate-500">
-                  Use the Entity selector in the header above.
+                  Run the Farm → DCL pipeline to populate the current run.
                 </div>
               </div>
             )}
