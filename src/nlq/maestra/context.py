@@ -40,37 +40,21 @@ MODULE_STATE_TTL_SECONDS = 300  # 5 minutes
 # Constitution file paths — src/maestra/constitution/ (sibling to src/nlq/)
 _CONSTITUTION_DIR = Path(__file__).resolve().parent.parent.parent.parent / "src" / "maestra" / "constitution"
 
-# Module URLs from environment — required, no dev-host fallback. Resolved
-# at use time so missing vars surface as RuntimeError on the first call
-# instead of silent dev-host routing.
-_MODULE_URL_ENV_VARS: dict[str, str] = {
-    "aod": "AOD_URL",
-    "aam": "AAM_URL",
-    "farm": "FARM_URL",
-    "dcl": "DCL_API_URL",
+# Module status endpoints (external services)
+_MODULE_STATUS_URLS: dict[str, str] = {
+    "aod": os.environ.get("AOD_URL", "http://localhost:8001") + "/maestra/status",
+    "aam": os.environ.get("AAM_URL", "http://localhost:8002") + "/maestra/status",
+    "farm": os.environ.get("FARM_URL", "http://localhost:8003") + "/maestra/status",
+    "dcl": os.environ.get("DCL_API_URL", "http://localhost:8004") + "/maestra/status",
 }
 
-
-def _module_base(module: str) -> str:
-    env_var = _MODULE_URL_ENV_VARS[module]
-    value = os.environ.get(env_var, "")
-    if not value:
-        raise RuntimeError(
-            f"{env_var} environment variable is required — Maestra context "
-            f"calls {module} status/health endpoints, no dev-host fallback."
-        )
-    return value.rstrip("/")
-
-
-def _module_status_urls() -> dict[str, str]:
-    """Module status endpoints, resolved from env at call time."""
-    return {module: f"{_module_base(module)}/maestra/status" for module in _MODULE_URL_ENV_VARS}
-
-
-def _module_health_urls() -> dict[str, str]:
-    """Module health endpoints (lightweight fallback when /maestra/status fails)."""
-    health_paths = {"aod": "/health", "aam": "/health", "farm": "/health", "dcl": "/api/health"}
-    return {module: f"{_module_base(module)}{health_paths[module]}" for module in _MODULE_URL_ENV_VARS}
+# Module health endpoints (lightweight fallback when /maestra/status fails)
+_MODULE_HEALTH_URLS: dict[str, str] = {
+    "aod": os.environ.get("AOD_URL", "http://localhost:8001") + "/health",
+    "aam": os.environ.get("AAM_URL", "http://localhost:8002") + "/health",
+    "farm": os.environ.get("FARM_URL", "http://localhost:8003") + "/health",
+    "dcl": os.environ.get("DCL_API_URL", "http://localhost:8004") + "/api/health",
+}
 
 # Action block regex — matches ```json { ... "action" ... } ```
 _ACTION_BLOCK_RE = re.compile(
@@ -121,7 +105,7 @@ def _is_stale(updated_at: str) -> bool:
 
 def _fetch_module_status(module: str) -> Optional[dict[str, Any]]:
     """Fetch live status from a module's /maestra/status endpoint (10s timeout)."""
-    url = _module_status_urls().get(module)
+    url = _MODULE_STATUS_URLS.get(module)
     if not url:
         return None
     try:
@@ -145,7 +129,7 @@ def _fetch_module_status(module: str) -> Optional[dict[str, Any]]:
 
 def _fetch_module_health(module: str) -> Optional[dict[str, Any]]:
     """Fallback: fetch /health when /maestra/status is unavailable (422, 404, etc.)."""
-    url = _module_health_urls().get(module)
+    url = _MODULE_HEALTH_URLS.get(module)
     if not url:
         return None
     try:

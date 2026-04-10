@@ -6,19 +6,14 @@ In production, it also serves the React frontend static files.
 Run with: uvicorn src.nlq.main:app --host 0.0.0.0 --port 5000
 """
 
-import asyncio
-import logging
 import os
-import socket
-from contextlib import asynccontextmanager
+import logging
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 load_dotenv()  # Load .env into os.environ before any service reads env vars
 
-import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -39,82 +34,6 @@ from src.nlq.db.supabase_persistence import init_persistence_service, get_persis
 logger = logging.getLogger(__name__)
 
 # =============================================================================
-# Boot-time required env vars
-# =============================================================================
-# NLQ depends on DCL for every real query. A missing DCL_API_URL would
-# silently route every query to a bogus host. Required at module load —
-# Render marks the deploy failed instead of degrading silently.
-
-DCL_API_URL = os.environ.get("DCL_API_URL", "").rstrip("/")
-if not DCL_API_URL:
-    raise RuntimeError(
-        "DCL_API_URL environment variable is required. NLQ resolves every "
-        "query against DCL — a missing URL would break every endpoint."
-    )
-
-_cors_origins_raw = os.environ.get("CORS_ORIGINS", "")
-if not _cors_origins_raw:
-    raise RuntimeError(
-        "CORS_ORIGINS environment variable is required. Set it to a "
-        "comma-separated list of allowed frontend origins."
-    )
-_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
-_allow_credentials = "*" not in _cors_origins  # Browsers reject credentials + wildcard
-
-
-async def _probe_one(client: httpx.AsyncClient, name: str, base_url: str, health_path: str) -> str | None:
-    """Probe a single downstream — DNS resolve + GET /health. Returns error string or None."""
-    parsed = urlparse(base_url)
-    host = parsed.hostname
-    if not host:
-        return f"{name}: cannot parse hostname from {base_url}"
-    try:
-        await asyncio.get_running_loop().run_in_executor(None, socket.gethostbyname, host)
-    except socket.gaierror as exc:
-        return f"{name}: DNS resolution failed for {host}: {exc}"
-    try:
-        resp = await client.get(f"{base_url}{health_path}")
-    except httpx.ConnectError as exc:
-        return f"{name}: connection refused at {base_url}{health_path}: {exc}"
-    except httpx.TimeoutException:
-        return f"{name}: timeout reaching {base_url}{health_path} after 2s"
-    if resp.status_code != 200:
-        return f"{name}: HTTP {resp.status_code} from {base_url}{health_path}"
-    return None
-
-
-async def _probe_downstreams() -> None:
-    """Boot-time validation of every downstream NLQ depends on."""
-    targets: list[tuple[str, str, str]] = [
-        ("DCL", DCL_API_URL, "/api/health"),
-    ]
-    async with httpx.AsyncClient(timeout=2.0) as client:
-        results = await asyncio.gather(
-            *[_probe_one(client, name, url, path) for name, url, path in targets]
-        )
-    failures = [r for r in results if r]
-    if failures:
-        raise RuntimeError(
-            "NLQ cannot start — downstream probes failed:\n  " + "\n  ".join(failures)
-        )
-    logger.info("NLQ downstream probes succeeded for %d services", len(targets))
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Startup and shutdown lifecycle."""
-    logger.info("Starting AOS-NLQ server...")
-    await _probe_downstreams()
-    init_call_counter(persist=False)
-    asyncio.create_task(_deferred_init())
-    logger.info("AOS-NLQ server accepting requests (services initializing in background)")
-
-    yield
-
-    logger.info("Shutting down AOS-NLQ server...")
-
-
-# =============================================================================
 # APPLICATION SETUP
 # =============================================================================
 
@@ -124,8 +43,17 @@ app = FastAPI(
     version="0.2.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan,
 )
+
+# CORS middleware — origins controlled via CORS_ORIGINS env var.
+# Comma-separated list of allowed origins. Defaults to common dev origins.
+# Set to "*" only if you truly need open access (credentials will be disabled).
+_cors_origins_raw = os.environ.get(
+    "CORS_ORIGINS",
+    "http://localhost:5000,http://localhost:3000,http://localhost:8000",
+)
+_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+_allow_credentials = "*" not in _cors_origins  # Browsers reject credentials + wildcard
 
 app.add_middleware(
     CORSMiddleware,
@@ -155,6 +83,44 @@ app.include_router(engagement_router)
 # =============================================================================
 # APPLICATION LIFECYCLE
 # =============================================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup — heavy inits run in background."""
+    import asyncio
+    logger.info("Starting AOS-NLQ server...")
+
+    # Log external service URLs so missing vars are immediately visible in deploy logs
+    _farm_url = os.environ.get("FARM_URL")
+    _dcl_url = os.environ.get("DCL_API_URL")
+    if _farm_url:
+        logger.info(f"FARM_URL = {_farm_url}")
+    else:
+        logger.error("FARM_URL is NOT SET — reconciliation endpoints will fail")
+    if _dcl_url:
+        logger.info(f"DCL_API_URL = {_dcl_url}")
+    else:
+        _allow_no_dcl = os.environ.get("NLQ_ALLOW_NO_DCL")
+        if _allow_no_dcl:
+            logger.warning(
+                "DCL_API_URL is NOT SET — NLQ_ALLOW_NO_DCL is set, starting in degraded mode. "
+                "Only demo-mode queries with local data will work. "
+                "Set DCL_API_URL to enable real data queries."
+            )
+        else:
+            raise RuntimeError(
+                "FATAL: DCL_API_URL environment variable is not set. "
+                "NLQ requires a DCL endpoint to serve queries. "
+                "Set DCL_API_URL to the DCL service URL (e.g. http://localhost:8004). "
+                "For demo-only mode with local data, set NLQ_ALLOW_NO_DCL=1."
+            )
+
+    init_call_counter(persist=False)
+
+    asyncio.create_task(_deferred_init())
+
+    logger.info("AOS-NLQ server accepting requests (services initializing in background)")
+
 
 async def _deferred_init():
     """Heavy service initialization that runs after server is already accepting requests.
@@ -289,6 +255,11 @@ async def _deferred_init():
     else:
         logger.info("All background services initialized")
 
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown."""
+    logger.info("Shutting down AOS-NLQ server...")
 
 # Serve static React build in production
 # Primary: project-root/dist (local dev, Docker builds)

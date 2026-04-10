@@ -25,35 +25,15 @@ logger = logging.getLogger(__name__)
 # Module base URLs from environment
 # ---------------------------------------------------------------------------
 
-_MODULE_ENV_VARS: dict[str, str] = {
-    "aod": "AOD_URL",
-    "aam": "AAM_URL",
-    "farm": "FARM_URL",
-    "dcl": "DCL_API_URL",
-    "nlq": "NLQ_URL",
-}
-
-
 def _module_urls() -> dict[str, str]:
-    """Resolve module URLs from environment. Required, no dev-host fallback.
-
-    Called at use-time, not import-time, so missing vars surface as a clear
-    RuntimeError on the first dispatch instead of silent dev-host routing.
-    """
-    resolved: dict[str, str] = {}
-    missing: list[str] = []
-    for module, env_var in _MODULE_ENV_VARS.items():
-        value = os.environ.get(env_var, "")
-        if not value:
-            missing.append(env_var)
-        else:
-            resolved[module] = value.rstrip("/")
-    if missing:
-        raise RuntimeError(
-            f"Maestra dispatch requires module URL env vars: {', '.join(missing)} — "
-            f"no dev-host fallback. Set them in Render dashboard and local .env."
-        )
-    return resolved
+    """Resolve module URLs from environment. Called at use-time, not import-time."""
+    return {
+        "aod": os.environ.get("AOD_URL", "http://localhost:8001"),
+        "aam": os.environ.get("AAM_URL", "http://localhost:8002"),
+        "farm": os.environ.get("FARM_URL", "http://localhost:8003"),
+        "dcl": os.environ.get("DCL_API_URL", "http://localhost:8004"),
+        "nlq": os.environ.get("NLQ_URL", "http://localhost:8005"),
+    }
 
 
 # ---------------------------------------------------------------------------
