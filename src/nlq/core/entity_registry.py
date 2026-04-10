@@ -31,10 +31,13 @@ class EntityRegistry:
         Initialize with DCL backend URL.
         Caches entity list with TTL (5 minutes).
         """
-        self._dcl_base_url = (
-            dcl_base_url
-            or os.environ.get("DCL_API_URL", "http://localhost:8004")
-        ).rstrip("/")
+        resolved = dcl_base_url or os.environ.get("DCL_API_URL", "")
+        if not resolved:
+            raise RuntimeError(
+                "DCL_API_URL environment variable is required for EntityRegistry — "
+                "no dev-host fallback. Entities are discovered from DCL, not hardcoded."
+            )
+        self._dcl_base_url = resolved.rstrip("/")
         self._cache: Optional[list[dict]] = None
         self._cache_expires: float = 0.0
         self._client = httpx.Client(timeout=10.0)
