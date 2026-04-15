@@ -1133,13 +1133,13 @@
   skip_reason: "SHELVED: QofE report endpoint depends on DCL backend"
 
 
-# ── Group 18: Maestra Engine-Backed Responses ────────────────────────────────
+# ── Group 18: Mai Engine-Backed Responses ────────────────────────────────
 
 - id: MA_001
-  group: MAESTRA
-  name: "Maestra engagement creation returns valid structure"
+  group: MAI
+  name: "Mai engagement creation returns valid structure"
   type: api_call
-  endpoint: "/api/reports/maestra/engage"
+  endpoint: "/api/reports/mai/engage"
   method: POST
   body: {mode: "pre_deal", demo_mode: true}
   assertions:
@@ -1147,62 +1147,62 @@
     - {field: phase, operator: not_null}
     - {field: deal_name, operator: not_null}
     - {field: workstreams, operator: greater_than, expected: 0}
-  tags: [maestra, engagement]
+  tags: [mai, engagement]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
 
 - id: MA_002
-  group: MAESTRA
-  name: "Maestra overview returns engine-backed data"
-  type: maestra_message
+  group: MAI
+  name: "Mai overview returns engine-backed data"
+  type: mai_message
   message: "Give me an overview of where we stand"
   assertions:
     - {field: response, operator: not_null}
     - {field: actions_taken, operator: contains, expected: "cross_sell"}
     - {field: actions_taken, operator: contains, expected: "ebitda_bridge"}
     - {field: suggestions, operator: not_null}
-  tags: [maestra, overview]
+  tags: [mai, overview]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
 
 - id: MA_003
-  group: MAESTRA
-  name: "Maestra bridge detail navigates to bridge tab"
-  type: maestra_message
+  group: MAI
+  name: "Mai bridge detail navigates to bridge tab"
+  type: mai_message
   message: "Walk me through the EBITDA bridge"
   assertions:
     - {field: response, operator: not_null}
     - {field: response, operator: contains, expected: "bridge"}
     - {field: navigation.tab, operator: equals, expected: "bridge"}
-  tags: [maestra, bridge, navigation]
+  tags: [mai, bridge, navigation]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
 
 - id: MA_004
-  group: MAESTRA
-  name: "Maestra cross-sell detail returns pipeline data"
-  type: maestra_message
+  group: MAI
+  name: "Mai cross-sell detail returns pipeline data"
+  type: mai_message
   message: "What cross-sell opportunities do we have?"
   assertions:
     - {field: response, operator: not_null}
     - {field: actions_taken, operator: contains, expected: "cross_sell"}
     - {field: navigation.tab, operator: equals, expected: "crosssell"}
-  tags: [maestra, cross_sell, navigation]
+  tags: [mai, cross_sell, navigation]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
 
 - id: MA_005
-  group: MAESTRA
-  name: "Maestra QofE detail returns sustainability data"
-  type: maestra_message
+  group: MAI
+  name: "Mai QofE detail returns sustainability data"
+  type: mai_message
   message: "Show me the quality of earnings analysis"
   assertions:
     - {field: response, operator: not_null}
     - {field: response, operator: contains, expected: "sustainability"}
     - {field: navigation.tab, operator: equals, expected: "qoe"}
-  tags: [maestra, qoe, navigation]
+  tags: [mai, qoe, navigation]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
 
 
 # ── Group 19: Pre-Deal Experience ────────────────────────────────────────────
@@ -1211,7 +1211,7 @@
   group: PRE_DEAL
   name: "Engagement creation triggers prework"
   type: api_call
-  endpoint: "/api/reports/maestra/engage"
+  endpoint: "/api/reports/mai/engage"
   method: POST
   body: {mode: "pre_deal", demo_mode: true}
   assertions:
@@ -1222,12 +1222,12 @@
     - {field: session_ids, operator: not_null}
   tags: [pre_deal, prework]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
 
 - id: PD_002
   group: PRE_DEAL
-  name: "Maestra knows both entities after prework"
-  type: maestra_message
+  name: "Mai knows both entities after prework"
+  type: mai_message
   mode: "pre_deal"
   message: "What do you know about the two companies?"
   assertions:
@@ -1236,12 +1236,12 @@
     - {field: response, operator: contains, expected: "Cascadia"}
   tags: [pre_deal, prework, entities]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
 
 - id: PD_003
   group: PRE_DEAL
-  name: "Maestra presents acquirer profile with discovered data"
-  type: maestra_message
+  name: "Mai presents acquirer profile with discovered data"
+  type: mai_message
   mode: "pre_deal"
   message: "Tell me about Meridian"
   assertions:
@@ -1250,31 +1250,31 @@
     - {field: response, operator: contains, expected: "system"}
   tags: [pre_deal, acquirer]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
 
 - id: PD_004
   group: PRE_DEAL
-  name: "Maestra scoping interview advances through sections"
+  name: "Mai scoping interview advances through sections"
   type: state_machine_check
   mode: "pre_deal"
   assertion: sections_advance
   sections: ["PDC", "PDA", "PDT", "PDS", "PDR", "PDF"]
   tags: [pre_deal, state_machine]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
 
 - id: PD_005
   group: PRE_DEAL
   name: "DD scope configuration captures selections"
   type: api_call
-  endpoint: "/api/reports/maestra/{engagement_id}/status"
+  endpoint: "/api/reports/mai/{engagement_id}/status"
   method: GET
   precondition: "scope_confirmed"
   assertions:
     - {field: phase, operator: not_null}
   tags: [pre_deal, scope]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
 
 - id: PD_006
   group: PRE_DEAL
@@ -1285,12 +1285,12 @@
   target_section: "PDR"
   tags: [pre_deal, analysis]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
 
 - id: PD_007
   group: PRE_DEAL
   name: "Findings presentation calls cross-sell engine"
-  type: maestra_message
+  type: mai_message
   mode: "pre_deal"
   section: "PDF"
   message: "Walk me through what you found"
@@ -1299,11 +1299,11 @@
     - {field: actions_taken, operator: contains, expected: "cross_sell"}
   tags: [pre_deal, findings]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
 
 - id: PD_008
   group: PRE_DEAL
-  name: "Maestra never uses internal terminology"
+  name: "Mai never uses internal terminology"
   type: vocabulary_check
   mode: "pre_deal"
   scope: "all_messages_in_session"
@@ -1311,13 +1311,13 @@
   banned_terms: ["COFA", "ontology", "semantic layer", "entity resolution", "contour map", "DCL", "NLQ", "Farm", "AOD", "AAM"]
   tags: [pre_deal, vocabulary]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
 
 - id: PD_009
   group: PRE_DEAL
   name: "Portal shows engagement context after creation"
   type: api_call
-  endpoint: "/api/reports/maestra/{engagement_id}/status"
+  endpoint: "/api/reports/mai/{engagement_id}/status"
   method: GET
   assertions:
     - {field: deal_name, operator: not_null}
@@ -1325,12 +1325,12 @@
     - {field: entity_completeness, operator: not_null}
   tags: [pre_deal, portal]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
 
 - id: PD_010
   group: PRE_DEAL
-  name: "Maestra navigates portal during findings presentation"
-  type: maestra_message
+  name: "Mai navigates portal during findings presentation"
+  type: mai_message
   mode: "pre_deal"
   section: "PDF"
   message: "Show me the cross-sell details"
@@ -1339,4 +1339,4 @@
     - {field: navigation.tab, operator: equals, expected: "crosssell"}
   tags: [pre_deal, findings, navigation]
   skip: true
-  skip_reason: "SHELVED: Maestra conversation endpoints not mounted in main.py"
+  skip_reason: "SHELVED: Mai conversation endpoints not mounted in main.py"
