@@ -6,7 +6,7 @@ This document identifies every accounting policy area where Meridian Partners (a
 
 ## Designed COFA Conflicts (from Farm configs)
 
-These six conflicts are intentional — they exist in the generated financial data and are the primary test cases for Maestra's harmonization reasoning.
+These six conflicts are intentional — they exist in the generated financial data and are the primary test cases for Mai's harmonization reasoning.
 
 ### 1. Benefits Treatment in COGS
 

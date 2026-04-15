@@ -1,4 +1,4 @@
-# Phase 1 Part 2: Intelligence Layer — Cross-Sell, EBITDA Bridge, What-If, Dashboards, Maestra
+# Phase 1 Part 2: Intelligence Layer — Cross-Sell, EBITDA Bridge, What-If, Dashboards, Mai
 
 ## For Claude Code agents. Read completely before starting any work.
 
@@ -42,7 +42,7 @@ The intelligence layer that transforms structural reconciliation into actionable
 - WS2.2: EBITDA bridge engine
 - WS2.3: What-if / sensitivity engine
 - WS2.4: Executive dashboards
-- WS2.5: Maestra engagement lifecycle
+- WS2.5: Mai engagement lifecycle
 - WS2.6: Report suite completion + portal extension
 
 ---
@@ -510,13 +510,13 @@ New top-level tab: "Dashboards" with a persona selector (CFO | CRO | COO | CTO |
 
 ---
 
-# WS2.5: Maestra Engagement Lifecycle
+# WS2.5: Mai Engagement Lifecycle
 
 ## START CONDITION: Can start design in parallel with other Part 2 workstreams. Full build after dashboards exist.
 
 ## Overview
 
-Extend the existing onboarding agent spec into a full Convergence engagement manager. Maestra handles three phases: scoping, execution, and ongoing management.
+Extend the existing onboarding agent spec into a full Convergence engagement manager. Mai handles three phases: scoping, execution, and ongoing management.
 
 ### Phase 1: Scoping (onboarding)
 - **Object scoping conversation:** Which of the five defaults are in scope? (All by default.) Any domain-specific extensions needed?
@@ -541,20 +541,20 @@ Output: Engagement configuration that drives the pipeline. Which objects to reco
 
 ### Implementation:
 
-Maestra is a conversation agent (LLM-powered) with structured state. The state includes:
+Mai is a conversation agent (LLM-powered) with structured state. The state includes:
 - Engagement config (entities, objects in scope, timeline)
 - Status per object and per conflict
 - Stakeholder contact info and assignments
 - History of decisions and actions
 
-Maestra's conversation interface lives in the portal as a chat panel or dedicated tab. She can reference any report, any data point, any conflict — and link to the relevant portal view.
+Mai's conversation interface lives in the portal as a chat panel or dedicated tab. She can reference any report, any data point, any conflict — and link to the relevant portal view.
 
 ### Validation:
-- Maestra can run a scoping conversation that produces a valid engagement config
-- Maestra can report status per reconciliation object
-- Maestra can describe a specific conflict from the register in plain language
-- Maestra can trigger report generation
-- Maestra's state persists across sessions
+- Mai can run a scoping conversation that produces a valid engagement config
+- Mai can report status per reconciliation object
+- Mai can describe a specific conflict from the register in plain language
+- Mai can trigger report generation
+- Mai's state persists across sessions
 
 ---
 
@@ -579,7 +579,7 @@ Add to the portal:
 - **EBITDA Bridge tab** — the bridge with expandable adjustment details
 - **What-If tab** — slider panel on the left, updating bridge and P&L on the right. Preset scenario buttons at top.
 - **Dashboards tab** — persona selector with 5 dashboard views
-- **Maestra tab** — conversation interface
+- **Mai tab** — conversation interface
 
 ### Validation:
 - All new tabs render with real data
@@ -832,10 +832,10 @@ STEP 3: What-if / sensitivity engine (WS2.3)
   Depends on: WS2.2 (EBITDA bridge provides the formula to parameterize)
   After WS2.3 complete: WI_001 through WI_007 should PASS.
 
-STEP 4: Executive dashboards (WS2.4) + Maestra (WS2.5) + Report suite / portal (WS2.6)
+STEP 4: Executive dashboards (WS2.4) + Mai (WS2.5) + Report suite / portal (WS2.6)
   Depends on: all engines complete (WS2.1, WS2.2, WS2.3)
-  Maestra scoping conversation can be designed earlier but full build needs reports to exist.
-  Portal gets new tabs: Cross-Sell, EBITDA Bridge, What-If, Dashboards, Maestra.
+  Mai scoping conversation can be designed earlier but full build needs reports to exist.
+  Portal gets new tabs: Cross-Sell, EBITDA Bridge, What-If, Dashboards, Mai.
   After complete: DB_001 through DB_004 should PASS.
 
 STEP 5: Full harness run + portal review
@@ -848,7 +848,7 @@ FOUNDER REVIEW (after all tests pass): Walk the complete portal.
 - EBITDA bridge tab: does the bridge flow logically? Are confidence grades reasonable? Does the cross-sell line pull from the actual pipeline?
 - What-if tab: move each slider. Does the bridge update immediately? Does moving cross-sell capture to 0% zero out the revenue synergy? Does bench deploy at 50% produce a large number? Do the COFA toggles change the combining P&L?
 - Dashboards: does each persona see relevant data? Do the numbers match what you see in the detailed reports?
-- Maestra: can she describe the engagement status? Can she reference a specific conflict?
+- Mai: can she describe the engagement status? Can she reference a specific conflict?
 - End-to-end: go from CFO dashboard → click EBITDA bridge → adjust a lever → see the impact → click into cross-sell detail → drill into a specific candidate. Does the flow feel coherent?
 
 DONE CONDITION:
