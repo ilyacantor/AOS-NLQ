@@ -238,6 +238,12 @@ export interface MapData {
   total?: number;
 }
 
+export interface SalesFunnelStageData {
+  label: string;
+  value: number;
+  percent: number;
+}
+
 export interface WidgetData {
   loading: boolean;
   error?: string;
@@ -253,4 +259,10 @@ export interface WidgetData {
   categories?: string[];
   rows?: Record<string, any>[];
   map_data?: MapData;
+  // Sales funnel fields (populated when widget.type === 'sales_funnel')
+  title?: string;
+  subtitle?: string;
+  stages?: SalesFunnelStageData[];
+  period?: string | null;
+  data_source?: string | null;
 }

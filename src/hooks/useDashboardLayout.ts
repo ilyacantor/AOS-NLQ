@@ -59,6 +59,7 @@ export function useDashboardLayout({
     donut_chart: halfGrid,
     horizontal_bar: halfGrid,
     data_table: halfGrid,
+    sales_funnel: halfGrid,
   };
 
   const CHART_TYPES = [
@@ -70,6 +71,7 @@ export function useDashboardLayout({
     if (type === 'kpi_card') return 2;
     if (type === 'data_table') return 5;
     if (type === 'map') return 3;
+    if (type === 'sales_funnel') return 3;
     return 4; // charts
   };
 
@@ -162,11 +164,12 @@ export function useDashboardLayout({
 
       // ----- Categorise widgets by type -----
       const kpis = prevSchema.widgets.filter(w => w.type === 'kpi_card');
+      const funnels = prevSchema.widgets.filter(w => w.type === 'sales_funnel');
       const charts = prevSchema.widgets.filter(w => CHART_TYPES.includes(w.type));
       const maps = prevSchema.widgets.filter(w => w.type === 'map');
       const tables = prevSchema.widgets.filter(w => w.type === 'data_table');
       const others = prevSchema.widgets.filter(w =>
-        !['kpi_card', ...CHART_TYPES, 'data_table', 'map'].includes(w.type)
+        !['kpi_card', 'sales_funnel', ...CHART_TYPES, 'data_table', 'map'].includes(w.type)
       );
 
       // ----- Grid helpers -----
@@ -234,6 +237,7 @@ export function useDashboardLayout({
         });
       };
 
+      placeGroup(funnels, 6, 3, 3);
       placeGroup(maps, 6, 3, 3);
       placeGroup(charts, 6, 4, 4);
       placeGroup(tables, 4, 4, 5);

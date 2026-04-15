@@ -356,6 +356,25 @@ class FinancialStatementData(BaseModel):
     unit: str = "millions"
 
 
+class SalesFunnelStage(BaseModel):
+    """Single stage in a sales pipeline funnel."""
+    label: str = Field(..., description="Stage name (e.g., 'Lead', 'Qualified')")
+    value: float = Field(..., description="Dollar amount at this stage")
+    percent: float = Field(..., description="Percentage of first stage value (100 for largest)")
+
+
+class SalesFunnelData(BaseModel):
+    """Structured horizontal sales pipeline funnel data for rendering."""
+    title: str = Field(..., description="Funnel title (e.g., 'Sales Pipeline')")
+    subtitle: str = Field(default="", description="Subtitle (e.g., period label)")
+    stages: List[SalesFunnelStage] = Field(default_factory=list)
+    unit: str = "usd_millions"
+    format: str = "currency"
+    entity_id: Optional[str] = None
+    period: Optional[str] = None
+    data_source: Optional[str] = None
+
+
 class NLQResponse(BaseModel):
     """Output model for natural language query responses."""
 
@@ -451,6 +470,12 @@ class NLQResponse(BaseModel):
     financial_statement_data: Optional[FinancialStatementData] = Field(
         default=None,
         description="Structured financial statement data for rendering"
+    )
+
+    # Sales pipeline funnel response
+    sales_funnel_data: Optional[SalesFunnelData] = Field(
+        default=None,
+        description="Structured sales pipeline funnel data for rendering"
     )
 
     # Dashboard response (for visualization queries)

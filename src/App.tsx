@@ -24,6 +24,9 @@ const UserGuide = React.lazy(() =>
 const FinancialStatementView = React.lazy(() =>
   import('./components/financial-statement/FinancialStatementView').then(m => ({ default: m.FinancialStatementView }))
 )
+const SalesFunnel = React.lazy(() =>
+  import('./components/sales-funnel/SalesFunnel')
+)
 
 async function fetchWithRetry(
   url: string,
@@ -96,9 +99,8 @@ const quickActions = [
   'hi',
   'why did rev incr',
   '2025 KPIs in dash',
-  '2025 P&L',
-  'pipeline',
   '2026 forecast',
+  'pipeline',
   'whats the margin',
   'are we profitable',
   'churn?',
@@ -164,6 +166,7 @@ function App() {
 
   const [hasLoadedDefaultDashboard, setHasLoadedDefaultDashboard] = useState(false)
   const [financialStatementData, setFinancialStatementData] = useState<any>(null)
+  const [salesFunnelData, setSalesFunnelData] = useState<any>(null)
   const sessionId = useSessionId()
   const { selectedSnapshot } = useSnapshot()
 
@@ -276,6 +279,7 @@ function App() {
     setIsLoading(true)
     setIsGeneratingDashboard(true)
     setFinancialStatementData(null)
+    setSalesFunnelData(null)
     setQuery('')
     setGalaxyResponse(null)
     const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
@@ -388,6 +392,10 @@ function App() {
       // - Non-dashboard response → switch to galaxy view (so result is visible)
       if (data.response_type === 'financial_statement' && data.financial_statement_data) {
         setFinancialStatementData(data.financial_statement_data)
+        setViewMode('galaxy')
+        setGalaxyResponse(adapted)
+      } else if (data.response_type === 'sales_funnel' && data.sales_funnel_data) {
+        setSalesFunnelData(data.sales_funnel_data)
         setViewMode('galaxy')
         setGalaxyResponse(adapted)
       } else if (data.response_type === 'dashboard' && data.dashboard) {
@@ -881,6 +889,14 @@ function App() {
                       sessionId={sessionId}
                     />
                     </Suspense>
+                  </div>
+                ) : salesFunnelData ? (
+                  <div id="sales-funnel-visual" className="flex-1 overflow-auto min-h-0 flex justify-center">
+                    <div className="w-full max-w-2xl">
+                      <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
+                      <SalesFunnel data={salesFunnelData} />
+                      </Suspense>
+                    </div>
                   </div>
                 ) : hasGalaxyResponse && (
                   <div id="galaxy-visual" className="flex-1 overflow-hidden min-h-0">

@@ -178,8 +178,26 @@ class DashboardDataResolver:
             return self._resolve_table_data(widget, reference_year, filters, prefetched, quarters_4)
         elif wt == "map":
             return self._resolve_map_data(widget, reference_year, filters)
+        elif wt == "sales_funnel":
+            return self._resolve_sales_funnel_data(widget, cq)
         else:
             return {"loading": False, "error": f"Unsupported widget type: {wt}"}
+
+    def _resolve_sales_funnel_data(self, widget: Widget, cq: str) -> Dict[str, Any]:
+        """Resolve sales funnel stages via DCLSemanticClientV2.get_pipeline_stages."""
+        from src.nlq.services.dcl_semantic_client_v2 import DCLSemanticClientV2
+        v2 = DCLSemanticClientV2()
+        stages = v2.get_pipeline_stages(entity_id=get_entity_id(), period=cq)
+        if not stages:
+            return {"loading": False, "error": f"No pipeline stages found for {cq}"}
+        return {
+            "loading": False,
+            "title": widget.title,
+            "subtitle": cq,
+            "stages": stages,
+            "data_source": "dcl_v2",
+            "period": cq,
+        }
 
     # ------------------------------------------------------------------
     # Batch-resolved widget types (use prefetched data, no DCL calls)

@@ -644,16 +644,29 @@ def _generate_full_dashboard(
     requested_dimension = requirements.dimensions[0] if requirements.dimensions else None
     dimension = _get_fallback_dimension(primary_metric, requested_dimension)
 
-    # Determine if map will be shown (affects layout row offsets)
+    # Determine if map will be shown
     # Check DCL catalog — if the metric supports "region" dimension, show the map
     semantic_client = get_semantic_client()
     valid_dims = semantic_client.get_valid_dimensions(primary_metric)
     has_map = "region" in (valid_dims or [])
 
-    # If map is present, it goes first at row 3 left; charts shift to row 6
-    # If no map, charts start at row 3
+    # Layout: row 1-2 = KPIs, row 3-5 = funnel (left) + map (right) (matched rs=3),
+    # row 6-8 = trend chart (left) + breakdown chart (right) (matched rs=3).
+    # Funnel sits directly above the trend chart in the left column.
+
+    # Sales pipeline funnel — left column, top row
+    widgets.append(Widget(
+        id="pipeline_funnel",
+        type=WidgetType.SALES_FUNNEL,
+        title="Sales Pipeline",
+        data=DataBinding(
+            metrics=[MetricBinding(metric="pipeline", format="$0.0M")],
+            time=TimeBinding(period=current_year(), granularity=TimeGranularity.QUARTERLY),
+        ),
+        position=GridPosition(column=1, row=3, col_span=6, row_span=3),
+    ))
+
     if has_map:
-        chart_row = 6
         widgets.append(Widget(
             id=f"map_{primary_metric}_by_region",
             type=WidgetType.MAP,
@@ -663,13 +676,11 @@ def _generate_full_dashboard(
                 dimensions=[DimensionBinding(dimension="region", sort_by="value", sort_order="desc")],
                 time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
             ),
-            position=GridPosition(column=1, row=3, col_span=6, row_span=3),
+            position=GridPosition(column=7, row=3, col_span=6, row_span=3),
             chart_config=ChartConfig(show_legend=False, show_grid=False, animate=True),
         ))
-    else:
-        chart_row = 3
 
-    # Primary metric trend chart
+    # Trend chart — left column, directly below the funnel
     widgets.append(Widget(
         id=f"trend_{primary_metric}",
         type=WidgetType.LINE_CHART,
@@ -678,11 +689,12 @@ def _generate_full_dashboard(
             metrics=[MetricBinding(metric=primary_metric, format=_get_format_string(primary_metric))],
             time=TimeBinding(period="last 8 quarters", granularity=TimeGranularity.QUARTERLY),
         ),
-        position=GridPosition(column=7 if has_map else 1, row=3 if has_map else chart_row, col_span=6, row_span=3),
+        position=GridPosition(column=1, row=6, col_span=6, row_span=3),
         chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
     ))
 
     if dimension:
+        # Breakdown chart — right column, paired with trend chart
         widgets.append(Widget(
             id=f"{primary_metric}_by_{dimension}",
             type=WidgetType.BAR_CHART,
@@ -692,7 +704,7 @@ def _generate_full_dashboard(
                 dimensions=[DimensionBinding(dimension=dimension, sort_by="value", sort_order="desc")],
                 time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
             ),
-            position=GridPosition(column=1, row=chart_row, col_span=6, row_span=3),
+            position=GridPosition(column=7, row=6, col_span=6, row_span=3),
             chart_config=ChartConfig(show_legend=False, show_grid=True, animate=True),
             interactions=[
                 InteractionConfig(
@@ -705,21 +717,20 @@ def _generate_full_dashboard(
                 )
             ],
         ))
-    else:
+    elif len(metrics) > 1:
         # No breakdown available - add another metric comparison instead
         logger.warning(f"No breakdown for '{primary_metric}', adding metric comparison instead")
-        if len(metrics) > 1:
-            widgets.append(Widget(
-                id="metrics_comparison",
-                type=WidgetType.BAR_CHART,
-                title="Metrics Comparison",
-                data=DataBinding(
-                    metrics=[MetricBinding(metric=m, format=_get_format_string(m)) for m in metrics[1:4]],
-                    time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
-                ),
-                position=GridPosition(column=7, row=chart_row, col_span=6, row_span=3),
-                chart_config=ChartConfig(show_legend=True, show_grid=True, animate=True),
-            ))
+        widgets.append(Widget(
+            id="metrics_comparison",
+            type=WidgetType.BAR_CHART,
+            title="Metrics Comparison",
+            data=DataBinding(
+                metrics=[MetricBinding(metric=m, format=_get_format_string(m)) for m in metrics[1:4]],
+                time=TimeBinding(period=current_year(), granularity=TimeGranularity.YEARLY),
+            ),
+            position=GridPosition(column=7, row=6, col_span=6, row_span=3),
+            chart_config=ChartConfig(show_legend=True, show_grid=True, animate=True),
+        ))
 
     return widgets
 
