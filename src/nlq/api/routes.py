@@ -2006,10 +2006,22 @@ def _try_multi_metric_query(question: str) -> Optional[NLQResponse]:
     entity_id = _detect_entity_id(question)
     parts_text = []
     primary_value = None
+    attempts: list[dict] = []
+    had_error = False
 
     for term, metric in resolved:
         result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, entity_id=entity_id)
+        attempt = {
+            "term": term,
+            "metric_attempted": metric,
+            "period": period,
+            "dcl_error": result.get("error"),
+            "dcl_status": result.get("status"),
+            "dcl_has_data": bool(result.get("data")),
+        }
+        attempts.append(attempt)
         if result.get("error") or not result.get("data"):
+            had_error = True
             continue
         data = result.get("data", [])
         if isinstance(data, list) and data:
@@ -2017,8 +2029,10 @@ def _try_multi_metric_query(question: str) -> Optional[NLQResponse]:
         elif isinstance(data, (int, float)):
             val = data
         else:
+            had_error = True
             continue
         if val is None:
+            had_error = True
             continue
         if primary_value is None:
             primary_value = val
@@ -2030,6 +2044,28 @@ def _try_multi_metric_query(question: str) -> Optional[NLQResponse]:
             parts_text.append(f"{display}: {round(val, 1)}%")
         else:
             parts_text.append(f"{display}: {round(val, 1)}")
+
+    if had_error:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "multi_metric_query_failed",
+                "message": (
+                    f"Decomposed multi-metric query produced DCL errors for one or more terms. "
+                    f"Original query was split into {len(resolved)} metric(s); at least one failed. "
+                    f"No scalar fallback will be substituted."
+                ),
+                "question": question,
+                "decomposed_into": [a["metric_attempted"] for a in attempts],
+                "attempts": attempts,
+                "hint": (
+                    "Check that each decomposed metric name exists in DCL for the requested period. "
+                    "If the user asked for multiple years (e.g., '2024, 2025, 2026'), the query "
+                    "decomposer is splitting on commas as metric separators rather than year dimensions — "
+                    "file a decomposer bug."
+                ),
+            },
+        )
 
     if len(parts_text) < 2:
         return None
@@ -5043,14 +5079,7 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
     except HTTPException as e:
         logger.error(f"HTTP error in query: {e.status_code} - {e.detail}")
         diag(f"[NLQ-DIAG] /query HTTP_ERROR: {e.status_code} {e.detail}")
-        error_msg = str(e.detail) if e.detail else "HTTP error"
-        return NLQResponse(
-            success=False,
-            confidence=0.0,
-            error_code="CONFIG_ERROR",
-            error_message=error_msg,
-            debug_info={"nlq_diag_trace": _trace, "error": error_msg, "error_type": "CONFIG_ERROR"} if _trace else {"error": error_msg, "error_type": "CONFIG_ERROR"},
-        )
+        raise
     except RuntimeError as e:
         error_msg = str(e)
         is_live = "LIVE MODE" in error_msg
