@@ -145,17 +145,12 @@
 
 
 # ── Group 4: Services Company Efficiency ────────────────────────────────────
-# Meridian (consultancy) and Cascadia (BPM) are services companies.
-# SaaS metrics (ARR, NRR, burn multiple, LTV/CAC, Rule of 40) do not apply.
 # These tests verify NLQ handles inapplicable metrics gracefully.
 
 - id: SAAS_001
   query: "What is our burn multiple?"
   persona: cfo
   entity_id: "meridian"
-  # Burn multiple is a SaaS metric (cash burned / net new ARR).
-  # Services companies don't have ARR — NLQ should recognize the metric but
-  # indicate data is unavailable rather than returning fabricated values.
   assertions:
     - {field: resolved_metric, operator: equals, expected: burn_multiple}
     - {field: confidence, operator: greater_than, expected: 0.4}
@@ -165,7 +160,6 @@
   query: "Show me LTV to CAC ratio"
   persona: cro
   entity_id: "meridian"
-  # LTV:CAC is a SaaS metric. Not applicable to consultancy/BPM.
   assertions:
     - {field: resolved_metric, operator: not_null, expected: null}
   tags: [saas_inapplicable, cro, graceful_degradation]
@@ -174,8 +168,6 @@
   query: "What is our rule of 40?"
   persona: cfo
   entity_id: "meridian"
-  # Rule of 40 = revenue growth + FCF margin. SaaS-specific benchmark.
-  # NLQ should resolve the metric but may not have data for services companies.
   assertions:
     - {field: resolved_metric, operator: not_null, expected: null}
   tags: [saas_inapplicable, cfo, graceful_degradation]
@@ -184,8 +176,6 @@
   query: "What is NRR?"
   persona: cro
   entity_id: "meridian"
-  # Net Revenue Retention is subscription-based. Services companies don't have NRR.
-  # DCL returns 0 because Farm doesn't generate subscription data for consultancies.
   assertions:
     - {field: resolved_metric, operator: equals, expected: nrr}
   tags: [saas_inapplicable, cro, graceful_degradation]
@@ -383,8 +373,6 @@
   query: "Show me ARR"
   persona: cfo
   entity_id: "meridian"
-  # ARR is a SaaS metric. Services companies don't have subscription revenue.
-  # NLQ should still resolve the metric and return provenance if available.
   assertions:
     - {field: resolved_metric, operator: equals, expected: arr}
   tags: [provenance, cfo, point]
