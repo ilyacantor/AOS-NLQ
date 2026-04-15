@@ -14,7 +14,7 @@ export default defineConfig({
         changeOrigin: true,
         // H7: Forward /api/v1/* as-is (no rewrite). Backend registers only /api/v1.
       },
-      '/maestra': {
+      '/mai': {
         target: 'http://localhost:8005',
         changeOrigin: true,
       }

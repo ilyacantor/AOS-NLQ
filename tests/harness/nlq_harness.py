@@ -42,9 +42,9 @@ DEFAULT_BASE_URL = "https://aos-nlq.onrender.com"
 NLQ_ENDPOINT = "/api/v1/query"
 CACHE_CLEAR_ENDPOINT = "/api/v1/rag/cache/clear"
 HEALTH_ENDPOINT = "/api/v1/health"
-MAESTRA_ENGAGE_ENDPOINT = "/api/reports/maestra/engage"
-MAESTRA_MESSAGE_ENDPOINT = "/api/reports/maestra/{engagement_id}/message"
-MAESTRA_STATUS_ENDPOINT = "/api/reports/maestra/{engagement_id}/status"
+MAI_ENGAGE_ENDPOINT = "/api/reports/mai/engage"
+MAI_MESSAGE_ENDPOINT = "/api/reports/mai/{engagement_id}/message"
+MAI_STATUS_ENDPOINT = "/api/reports/mai/{engagement_id}/status"
 TIMEOUT = 45.0
 SLOW_THRESHOLD_S = 10.0
 
@@ -263,7 +263,7 @@ class ResponseExtractor:
                     return None
             return obj
 
-        # ── Generic top-level (for maestra responses) ─────────────────
+        # ── Generic top-level (for mai responses) ─────────────────────
         if field_name in response:
             return response[field_name]
 
@@ -617,7 +617,7 @@ class TestCase:
     assertions: List[Dict[str, Any]]
     tags: List[str] = field(default_factory=list)
     # Pre-deal test fields
-    test_type: str = "nlq_query"  # nlq_query | api_call | maestra_message | state_machine_check | vocabulary_check
+    test_type: str = "nlq_query"  # nlq_query | api_call | mai_message | state_machine_check | vocabulary_check
     mode: Optional[str] = None
     message: Optional[str] = None
     endpoint: Optional[str] = None
@@ -912,7 +912,7 @@ class HarnessRunner:
         return self._evaluate_assertions(tc, body, elapsed)
 
     def run_pre_deal_message(self, client: httpx.Client, tc: TestCase) -> TestResult:
-        """Run a maestra_message test — send message and check response."""
+        """Run a mai_message test — send message and check response."""
         if not self._pd_engagement_id:
             return TestResult(
                 test_id=tc.id, query=tc.query, persona=tc.persona,
@@ -921,7 +921,7 @@ class HarnessRunner:
                 error="No engagement_id — PD_001 must run first",
             )
 
-        url = f"{self.base_url}/api/reports/maestra/{self._pd_engagement_id}/message"
+        url = f"{self.base_url}/api/reports/mai/{self._pd_engagement_id}/message"
         payload = {"message": tc.message or tc.query}
 
         try:
@@ -986,7 +986,7 @@ class HarnessRunner:
             # Also check via status endpoint
             if not reached and self._pd_engagement_id:
                 try:
-                    url = f"{self.base_url}/api/reports/maestra/{self._pd_engagement_id}/status"
+                    url = f"{self.base_url}/api/reports/mai/{self._pd_engagement_id}/status"
                     resp = client.get(url, timeout=TIMEOUT)
                     if resp.status_code == 200:
                         status = resp.json()
@@ -1094,7 +1094,7 @@ class HarnessRunner:
         if self._pd_reached_findings:
             return
 
-        url = f"{self.base_url}/api/reports/maestra/{self._pd_engagement_id}/message"
+        url = f"{self.base_url}/api/reports/mai/{self._pd_engagement_id}/message"
 
         advance_messages = [
             # Each message advances through interview sections to reach findings (PDF).
@@ -1148,7 +1148,7 @@ class HarnessRunner:
 
         if tc.test_type == "api_call":
             return self.run_pre_deal_api_call(client, tc)
-        elif tc.test_type == "maestra_message":
+        elif tc.test_type == "mai_message":
             return self.run_pre_deal_message(client, tc)
         elif tc.test_type == "state_machine_check":
             return self.run_state_machine_check(client, tc)
@@ -1243,7 +1243,7 @@ class HarnessRunner:
             "HR": "Hierarchy", "DT": "Drill-Through",
             "CE": "Conflict Exp.", "RP": "Reporting Pkg",
             "RECON": "Reconciliation", "QE": "QofE",
-            "MA": "Maestra",
+            "MA": "Mai",
         }
 
         ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

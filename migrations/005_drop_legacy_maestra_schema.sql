@@ -1,11 +1,15 @@
--- 002_drop_legacy_schema.sql — Brain-A Part 4
+-- 005_drop_legacy_maestra_schema.sql — Brain-A Part 4 / Brain-BC Part 4
 -- Drop the legacy NLQ `maestra` schema and all its tables.
--- Replaces 001_maestra_schema.sql. Runtime python that depended on
--- these tables is deleted in Brain-B; chat traffic via /maestra/chat
--- already 500s with no day-to-day impact.
+-- Replaces the former sql/maestra/001_maestra_schema.sql. Runtime python that
+-- depended on these tables is deleted in Brain-BC Part 4; chat traffic via
+-- /maestra/chat already 500s with no day-to-day impact.
+--
+-- Relocated from sql/maestra/002_drop_legacy_schema.sql during Brain-BC Part 4
+-- when the legacy sql/maestra/ directory was removed. Renumbered to 005 to
+-- fit the canonical migrations/ numbering scheme.
 --
 -- Idempotent via IF EXISTS — safe to run on any environment whether
--- or not 001 was previously applied.
+-- or not the legacy schema was previously created.
 
 BEGIN;
 

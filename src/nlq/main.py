@@ -24,7 +24,6 @@ from src.nlq.api.dashboard_routes import router as dashboard_router
 from src.nlq.api.health import router as health_router
 from src.nlq.api.eval import router as eval_router
 from src.nlq.api.export_routes import router as export_router
-from src.nlq.maestra.engagement_router import router as engagement_router
 from src.nlq.services.query_cache_service import init_cache_service_from_env, get_cache_service
 from src.nlq.services.llm_call_counter import init_call_counter, get_call_counter
 from src.nlq.services.rag_learning_log import get_learning_log
@@ -71,10 +70,6 @@ app.include_router(eval_router, prefix="/api/v1")
 app.include_router(rag_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")
-
-# Maestra engagement API — sessions 2-5 endpoints for engagement persistence,
-# context assembly, action dispatch, chat, and stats.
-app.include_router(engagement_router)
 
 # Note: RAG cache service singleton is managed in query_cache_service.py
 # Use get_cache_service() and init_cache_service_from_env() from there
@@ -146,27 +141,6 @@ async def _deferred_init():
         logger.error(
             f"Persistence/session init failed: {type(e).__name__}: {e} — "
             f"cache, pattern seeding, and other services will still attempt to initialize"
-        )
-
-    # Step 1b: Verify Maestra schema is accessible
-    try:
-        svc = get_persistence_service()
-        if svc and svc.is_available:
-            from src.nlq.maestra.engagement import EngagementService
-            eng_svc = EngagementService()
-            eng_svc._table("customer_engagements").select("customer_id").limit(1).execute()
-            logger.info("[Startup] Maestra schema verified — engagement table accessible")
-        else:
-            logger.error(
-                "[Startup] Supabase persistence not available — Maestra endpoints will fail. "
-                "Set SUPABASE_API_URL and SUPABASE_KEY environment variables."
-            )
-    except Exception as e:
-        failures.append("maestra_schema")
-        logger.error(
-            f"[Startup] Maestra schema NOT accessible: {e}. "
-            f"Apply schema: psql $DATABASE_URL -f sql/maestra/001_maestra_schema.sql "
-            f"and expose 'maestra' schema in Supabase API settings."
         )
 
     # Step 2: Cache service
