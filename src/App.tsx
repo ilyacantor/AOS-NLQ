@@ -362,8 +362,34 @@ function App() {
 
       const data = await res.json()
 
+      // Map NLQResponse.related_metrics → IntentNode[] so the DataTable
+      // renders multi-period / multi-metric responses. DataTable reads
+      // data.nodes directly; related_metrics is the text-view channel.
+      const relatedMetrics: Array<{
+        metric: string
+        display_name: string
+        value: number | null
+        formatted_value: string
+        period: string
+        confidence: number
+        match_type: string
+        domain?: string | null
+      }> = Array.isArray(data.related_metrics) ? data.related_metrics : []
+      const nodesFromRelated = relatedMetrics.map((rm, idx) => ({
+        id: `${rm.metric}-${rm.period}-${idx}`,
+        metric: rm.metric,
+        display_name: rm.display_name,
+        match_type: (rm.match_type || 'exact') as 'exact' | 'potential' | 'hypothesis',
+        domain: (rm.domain || 'finance') as 'finance' | 'growth' | 'ops' | 'product' | 'people',
+        confidence: rm.confidence ?? 0.95,
+        data_quality: 0.95,
+        freshness: '',
+        value: rm.value ?? null,
+        formatted_value: rm.formatted_value ?? null,
+        period: rm.period ?? null,
+      }))
+
       // NLQResponse from /api/v1/query — adapt to IntentMapResponse shape for GalaxyView
-      // (GalaxyView will break rendering-wise, but this keeps the state plumbing working)
       const adapted: IntentMapResponse = {
         query: queryText,
         query_type: data.parsed_intent || data.response_type || 'QUERY',
@@ -371,8 +397,8 @@ function App() {
         persona: data.persona || 'CFO',
         overall_confidence: data.confidence ?? 0,
         overall_data_quality: data.confidence ?? 0,
-        node_count: 0,
-        nodes: [],
+        node_count: nodesFromRelated.length,
+        nodes: nodesFromRelated,
         primary_node_id: null,
         primary_answer: data.answer || data.error_message || null,
         text_response: data.answer || data.error_message || null,

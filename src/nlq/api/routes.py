@@ -1964,118 +1964,207 @@ def _try_pl_statement_query(question: str, session_id: Optional[str] = None, ent
 
 
 def _try_multi_metric_query(question: str) -> Optional[NLQResponse]:
-    """
-    Handle queries that ask for multiple metrics joined by 'and' or commas.
-    E.g., "EBITDA and net income", "Revenue, COGS, and gross profit"
+    """Handle multi-metric OR multi-period decomposed queries.
+
+    Two branches:
+      A. One metric stem + ≥2 period literals → TREND_QUERY with
+         related_metrics (one entry per period). Answers
+         "revenue for 2024, 2025, 2026".
+      B. ≥2 distinct metric names → single-period multi-metric.
+         Answers "revenue and ebitda for 2025".
+
+    Period classifier accepts ONLY the two literal forms ``YYYY`` and
+    ``YYYY-Qn``. Other forms (``FY2024``, ``2024 Q2``, ``Q2 2024``,
+    ``2024-2026`` range, ``last 3 years``) fall through to the LLM
+    fallback at step 14 of the dispatcher — see ``nlq_deferred_work.md``.
+
+    ``normalize_metric`` alone is NOT trusted: its legacy fallback
+    returns the input lowercased on a miss, so a bare year token would
+    survive as a "metric". Every candidate is intersected with
+    ``get_all_metrics()`` before being accepted.
     """
     import re
     from src.nlq.knowledge.synonyms import normalize_metric
-
-    q = question.lower().strip().rstrip("?")
-    # Strip common prefixes
-    for prefix in ["what's ", "what is ", "what are ", "show me ", "give me ", "tell me "]:
-        if q.startswith(prefix):
-            q = q[len(prefix):]
-    q = q.strip()
-
-    # Split on " and " or ", "
-    parts = re.split(r'\s+and\s+|,\s*', q)
-    if len(parts) < 2:
-        return None
-
-    # Try to resolve each part as a metric
-    resolved = []
-    for part in parts:
-        part = part.strip()
-        if not part:
-            continue
-        metric = normalize_metric(part)
-        if metric:
-            resolved.append((part, metric))
-
-    if len(resolved) < 2:
-        return None
-
-    # Build results for each metric
-    from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
-    from src.nlq.knowledge.schema import get_metric_unit, get_canonical_unit
+    from src.nlq.knowledge.schema import get_all_metrics, get_canonical_unit
     from src.nlq.knowledge.display import get_display_name
+    from src.nlq.core.node_generator import format_value as _fmt_value
+    from src.nlq.models.response import RelatedMetric
+    from src.nlq.services.dcl_client_router import get_routed_client as _get_sc
 
-    dcl_client = get_semantic_client()
-    period = current_quarter()
+    all_metrics = set(get_all_metrics())
+    period_re = re.compile(r"\b(20\d{2}(?:-Q[1-4])?)\b")
+    stopwords = {
+        "show", "me", "give", "tell", "what", "whats",
+        "is", "are", "was", "were", "for", "in", "during", "over",
+        "the", "our", "and", "please", "about", "a", "to",
+    }
+
+    raw = (question or "").strip().rstrip("?")
+    if not raw:
+        return None
+    lowered = raw.lower()
+
+    periods_found = list(dict.fromkeys(period_re.findall(lowered)))
+
+    stripped = period_re.sub(" ", lowered)
+    stripped = re.sub(r"[,?'\"]", " ", stripped)
+    tokens = [t for t in re.split(r"\s+", stripped) if t and t not in stopwords]
+
+    metrics: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    i = 0
+    while i < len(tokens):
+        matched = False
+        for n in (3, 2, 1):
+            if i + n > len(tokens):
+                continue
+            phrase = " ".join(tokens[i:i + n])
+            canonical = normalize_metric(phrase)
+            if canonical not in all_metrics:
+                continue
+            # normalize_metric falls back to a prefix-match on miss, so
+            # "revenue ebitda" returns just "revenue" and "ebitda gross_profit"
+            # returns just "gross_profit" — accepting either for n>=2 would
+            # silently consume the unmatched token.  Require every word of
+            # the input phrase to appear in the canonical name (substring
+            # check covers both "gross profit"→"gross_profit" and synonym
+            # expansions like "ebitda margin"→"ebitda_margin_pct").
+            if n > 1 and not all(w in canonical for w in phrase.split()):
+                continue
+            if canonical not in seen:
+                metrics.append((phrase, canonical))
+                seen.add(canonical)
+            i += n
+            matched = True
+            break
+        if not matched:
+            i += 1
+
+    is_multi_period = len(metrics) == 1 and len(periods_found) >= 2
+    is_multi_metric = len(metrics) >= 2
+    if not (is_multi_period or is_multi_metric):
+        return None
+
+    dcl_client = _get_sc()
     entity_id = _detect_entity_id(question)
-    parts_text = []
-    primary_value = None
-    attempts: list[dict] = []
-    had_error = False
 
-    for term, metric in resolved:
-        result = dcl_client.query(metric=metric, time_range={"period": period, "granularity": "quarterly"}, entity_id=entity_id)
+    def _call(metric: str, period: str) -> tuple[Optional[float], dict]:
+        granularity = "quarterly" if "-Q" in period else "annual"
+        result = dcl_client.query(
+            metric=metric,
+            time_range={"period": period, "granularity": granularity},
+            entity_id=entity_id,
+        )
         attempt = {
-            "term": term,
             "metric_attempted": metric,
             "period": period,
             "dcl_error": result.get("error"),
             "dcl_status": result.get("status"),
             "dcl_has_data": bool(result.get("data")),
         }
-        attempts.append(attempt)
         if result.get("error") or not result.get("data"):
-            had_error = True
-            continue
+            return None, attempt
         data = result.get("data", [])
+        val: Optional[float] = None
         if isinstance(data, list) and data:
-            val = data[-1].get("value") if isinstance(data[-1], dict) else data[-1]
+            last = data[-1]
+            if isinstance(last, dict):
+                val = last.get("value")
+            elif isinstance(last, (int, float)):
+                val = last
         elif isinstance(data, (int, float)):
             val = data
-        else:
-            had_error = True
-            continue
+        return val, attempt
+
+    def _build_422(msg: str, attempts: list[dict]) -> HTTPException:
+        return HTTPException(
+            status_code=422,
+            detail={
+                "error": "multi_metric_query_failed",
+                "message": msg,
+                "question": question,
+                "decomposed_into": [a["metric_attempted"] for a in attempts],
+                "attempts": attempts,
+                "hint": (
+                    "Check DCL for the metric/period combination. The classifier "
+                    "only supports YYYY and YYYY-Qn period literals; other period "
+                    "forms (FY2024, 2024 Q2, Q2 2024, 2024-2026, last N years) "
+                    "fall through to the LLM dispatcher."
+                ),
+            },
+        )
+
+    if is_multi_period:
+        _term, metric = metrics[0]
+        related: list[RelatedMetric] = []
+        attempts: list[dict] = []
+        had_error = False
+        for period in periods_found:
+            val, attempt = _call(metric, period)
+            attempts.append(attempt)
+            if val is None:
+                had_error = True
+                continue
+            related.append(RelatedMetric(
+                metric=metric,
+                display_name=get_display_name(metric),
+                value=val,
+                formatted_value=_fmt_value(metric, val),
+                period=period,
+                confidence=0.95,
+                match_type="exact",
+                domain="finance",
+            ))
+        if had_error:
+            raise _build_422(
+                f"Multi-period query for '{metric}' produced DCL errors for one or more periods.",
+                attempts,
+            )
+        if len(related) < 2:
+            return None
+        series_text = ", ".join(f"{r.period} {r.formatted_value}" for r in related)
+        return NLQResponse(
+            success=True,
+            answer=f"{get_display_name(metric)}: {series_text}",
+            value=related[0].value,
+            unit=get_canonical_unit(metric),
+            confidence=0.95,
+            parsed_intent="TREND_QUERY",
+            resolved_metric=metric,
+            resolved_period=related[0].period,
+            related_metrics=related,
+        )
+
+    period = periods_found[0] if len(periods_found) == 1 else current_quarter()
+    parts_text: list[str] = []
+    primary_value: Optional[float] = None
+    attempts: list[dict] = []
+    had_error = False
+    for _term, metric in metrics:
+        val, attempt = _call(metric, period)
+        attempts.append(attempt)
         if val is None:
             had_error = True
             continue
         if primary_value is None:
             primary_value = val
-        display = get_display_name(metric)
-        unit = get_metric_unit(metric)
-        if unit in ("USD millions",):
-            parts_text.append(f"{display}: ${round(val, 1)}M")
-        elif unit == "%":
-            parts_text.append(f"{display}: {round(val, 1)}%")
-        else:
-            parts_text.append(f"{display}: {round(val, 1)}")
-
+        parts_text.append(f"{get_display_name(metric)}: {_fmt_value(metric, val)}")
     if had_error:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "error": "multi_metric_query_failed",
-                "message": (
-                    f"Decomposed multi-metric query produced DCL errors for one or more terms. "
-                    f"Original query was split into {len(resolved)} metric(s); at least one failed. "
-                    f"No scalar fallback will be substituted."
-                ),
-                "question": question,
-                "decomposed_into": [a["metric_attempted"] for a in attempts],
-                "attempts": attempts,
-                "hint": (
-                    "Check that each decomposed metric name exists in DCL for the requested period. "
-                    "If the user asked for multiple years (e.g., '2024, 2025, 2026'), the query "
-                    "decomposer is splitting on commas as metric separators rather than year dimensions — "
-                    "file a decomposer bug."
-                ),
-            },
+        raise _build_422(
+            f"Multi-metric query produced DCL errors for one or more metrics at period {period}.",
+            attempts,
         )
-
     if len(parts_text) < 2:
         return None
-
-    answer = f"For {period}: " + ", ".join(parts_text)
     return NLQResponse(
-        success=True, answer=answer, value=primary_value,
-        unit=get_canonical_unit(resolved[0][1]),
-        confidence=0.95, parsed_intent="POINT_QUERY",
-        resolved_metric=resolved[0][1], resolved_period=period,
+        success=True,
+        answer=f"For {period}: " + ", ".join(parts_text),
+        value=primary_value,
+        unit=get_canonical_unit(metrics[0][1]),
+        confidence=0.95,
+        parsed_intent="POINT_QUERY",
+        resolved_metric=metrics[0][1],
+        resolved_period=period,
     )
 
 
@@ -4151,9 +4240,18 @@ async def query(request: NLQRequest) -> NLQResponse:
     from src.nlq.config import get_tenant_id as _get_env_tenant_id
 
     _request_entity_id = _resolve_entity_id(request)
-    # I2: tenant_id is sourced from AOS_TENANT_ID; get_tenant_id() raises
-    # RuntimeError (A1 fail-loud) if the env var is missing — do not swallow.
-    _request_tenant_id = _get_env_tenant_id()
+    # I2: tenant_id comes from AOS_TENANT_ID; missing → 422 at the route
+    # boundary before any DCL fan-out (no identity degradation downstream).
+    try:
+        _request_tenant_id = _get_env_tenant_id()
+    except RuntimeError as _tid_err:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "missing_tenant_id",
+                "message": str(_tid_err),
+            },
+        )
     set_entity_id(_request_entity_id)
     reset_provenance_ctx()
     try:
