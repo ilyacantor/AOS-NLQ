@@ -45,3 +45,61 @@ separator, not a metric separator. Decomposer at routes.py:1982 uses
 bare year strings pass as "metrics". Fix belongs in the decomposer
 (detect year-only tokens and reroute to a trend query shape) or in
 tiered_intent complexity detection (add a pattern for multi-year).
+
+## Empty-set UX envelope
+Filed 2026-04-14 during ARR fix session. Distinction between value=0
+(Farm emitted a zero triple) and ∅ (Farm emitted no triples) is now
+preserved in code, but the user-facing envelope is shared: both flow
+through `WidgetData { value, formatted_value, trend, sparkline_data }`
+where null-value widgets surface as "No data for X". The two states
+warrant distinct UX — real zero should render "0" or "$0" with trend,
+empty set should render an honest "not generated for this entity"
+indicator. Proposed shape: add `status: "ok" | "empty" | "error"` and
+`reason` fields to widget responses, wire through the React renderer.
+Separate design — needs UX discussion before code.
+
+## burn_multiple division-by-zero
+`metric_concept_map.yaml:426` defines `burn_multiple` as
+`cash_flow.net_burn / revenue.recurring`. If Farm emits
+`revenue.recurring = 0` (or the concept is absent), the derived
+formula divides by zero. Current derived-metric path in
+`dcl_semantic_client_v2.py:get_derived_metric` does not guard. Needs
+a decision: return null with reason="undefined", return infinity,
+or fall back to a warning flag. Separate from the ARR fix — this is
+a derived-metric robustness question, not a concept-mapping one.
+
+## ME-boundary cleanup in NLQ
+NLQ must remain entity-agnostic. Any vertical-specific or
+multi-entity logic belongs in Convergence or Farm generators, not in
+NLQ metric maps, test cases, or resolver code. Ongoing vigilance:
+any future code or test that assumes an entity's vertical should be
+flagged as a RACI violation (ME concerns live in Convergence per
+v7.0). NLQ pre-commit hook already enforces this for SE-only
+patterns.
+
+## tests/harness/test_cases.yaml — pre-existing entity contamination
+Filed 2026-04-15. The harness fixture file has 31 entities pinned to
+the legacy ME-era seed names plus matching comment references. The
+SE-only pre-commit hook now blocks any modification to this file
+because the file body still contains those forbidden patterns. The
+comment-strip task in this session was abandoned mid-flight — only
+metric_concept_map.yaml + dashboard_data_resolver.py + this doc were
+committed. Two paths forward:
+  1. Hook scope fix — compare added lines vs full file, allow edits
+     that don't introduce new forbidden patterns. Lower-risk; keeps
+     fixtures stable.
+  2. Full fixture rewrite — replace legacy names → SE entity_id
+     (e.g. HelixEdge-0X4F at ~$124M scale), recalibrate every value
+     range against current Farm output via DCL queries. Also
+     resolves 8 pre-existing harness failures (PL_001-004,
+     PERIOD_001-002, ALIAS_003, CLARIFY_002 all silently return null
+     with the legacy entity name). Higher-effort but addresses D6.
+Needs direction.
+
+## Farm arr.ending is identical across entities
+Direct DCL query confirms `HelixEdge-0X4F` and `SysLabs-ANYC` both
+return `arr.ending` series `89.61, 96.05, 102.95, 110.35, 116.91...`
+for 2024 quarters — byte-identical. NLQ fix resolves to $152.3M
+regardless of entity, which is correct given Farm's output. Farm
+data generation concern, not NLQ. Entity-agnostic ARR resolution
+works; entity-specific values are Farm's responsibility.

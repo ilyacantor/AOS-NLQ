@@ -17,7 +17,7 @@ revenue:
   aliases: ["total_revenue", "top_line"]
 
 arr:
-  concept: "revenue.recurring"
+  concept: "arr.ending"
   property: "amount"
   type: direct
   unit: "usd"

@@ -237,10 +237,12 @@ class DashboardDataResolver:
         # Sparkline: values for each of 8 quarters
         sparkline_data = None
         spark_values = []
+        spark_present: List[bool] = []
         for q in quarters_8:
             v = _lookup(prefetched, metric, q)
+            spark_present.append(v is not None)
             spark_values.append(round(v, 1) if v is not None else 0)
-        if any(v != 0 for v in spark_values):
+        if any(spark_present):
             sparkline_data = spark_values
 
         # Compute trend
@@ -350,7 +352,7 @@ class DashboardDataResolver:
                 row = {"quarter": q.replace("-", " ")}
                 for mb in metrics:
                     val = _lookup(prefetched, mb.metric, q)
-                    row[mb.metric] = round(val, 1) if val else None
+                    row[mb.metric] = round(val, 1) if val is not None else None
                 rows.append(row)
         else:
             # Dimensional: use individual DCL calls (1-2 per metric)
