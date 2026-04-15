@@ -1,105 +1,19 @@
-# NLQ deferred work
+# Deferred work — nlq
 
-## 8 harness failures — single-metric value/unit/confidence
-Filed 2026-04-14 during multi-metric 422 fix session. Baseline and
-post-edit harness runs returned identical 97/8. Each fails on value=None
-or unit=None or confidence-below-threshold. None involve multi-metric
-decomposition, so they are out of scope for the 422 fix.
+1. 2026-04-14 | migrated from H2 format | n/a | 8 harness failures on single-metric value/unit/confidence, filed during multi-metric 422 fix session. Baseline and post-edit harness runs returned identical 97/8. Failures: PL_001 EBITDA 2025 (value/unit None, conf 0.5); PL_002 2025 P&L (revenue/cogs/gross_profit/ebitda/net_income all None); PL_003 gross margin Q3 2025 (value/unit None); PL_004 net income margin (value/unit None, conf 0.5); PERIOD_001 2025 revenue (value None); PERIOD_002 2024 revenue (value None); ALIAS_003 gross margin (unit None); CLARIFY_002 "show me the margin" (conf 0.3). None involve multi-metric decomposition — out of scope for 422 fix. Response returns success=True with data_source=None and null values instead of surfacing a real error. Likely another reclassification or dcl_v2 path with missing data. | severity: degraded | blocking: 8 single-metric harness queries return false success with a null payload; masks an underlying reclassification or dcl_v2 data gap
 
-| ID | Query | Failure |
-|---|---|---|
-| PL_001 | What is our EBITDA for 2025? | value None, unit None, confidence 0.5 |
-| PL_002 | Show me the 2025 P&L | revenue/cogs/gross_profit/ebitda/net_income all None |
-| PL_003 | What was gross margin in Q3 2025? | value None, unit None |
-| PL_004 | What is our net income margin? | value None, unit None, confidence 0.5 |
-| PERIOD_001 | What is 2025 revenue? | value None |
-| PERIOD_002 | What is 2024 revenue? | value None |
-| ALIAS_003 | What is gross margin? | unit None |
-| CLARIFY_002 | show me the margin | confidence 0.3 |
+2. 2026-04-15 | migrated from H2 format | src/components/DebugTracePanel.tsx:71-75 + routes.py:5079 | DebugTracePanel hint regression (cosmetic): the panel gates the ANTHROPIC_API_KEY hint on `error_type === 'CONFIG_ERROR'`. After the HTTPException re-raise fix in routes.py:5079, App.tsx now sets `error_type = 'HTTP_ERROR'` for all non-200 responses, so the hint no longer fires for the missing-API-key case. The underlying error text ("ANTHROPIC_API_KEY not configured") is still visible in the banner. The hint itself references a CLAUDE.md-banned platform. Replacement: match on error text directly (`debugInfo?.error?.includes('ANTHROPIC_API_KEY')`) and drop the banned copy. A13 scope. (date unknown, migration default) | severity: cosmetic | blocking: n/a
 
-Shape: response returns success=True with data_source=None and null
-values instead of surfacing a real error. Likely another reclassification
-or dcl_v2 path with missing data. Separate audit needed.
+3. 2026-04-14 | migrated from H2 format | n/a | Empty-set UX envelope: the distinction between `value=0` (Farm emitted a zero triple) and ∅ (Farm emitted no triples) is now preserved in code, but the user-facing envelope is shared — both flow through `WidgetData { value, formatted_value, trend, sparkline_data }` where null-value widgets surface as "No data for X". Real zero should render "0" or "$0" with trend; empty set should render an honest "not generated for this entity" indicator. Proposed shape: add `status: "ok" | "empty" | "error"` and `reason` fields to widget responses, wire through the React renderer. Needs UX discussion before code. | severity: degraded | blocking: widget envelope cannot distinguish real zero from missing data; operators see "No data" for both
 
-## Bug #2 — tenant_id guard (scoped out)
-Multi-metric 422 payloads currently include `tenant_id: null` inside the
-DCL request. Pipeline identity I2 says missing tenant_id must 422. NLQ
-is submitting null downstream. Separate fix.
+4. 2026-04-15 | migrated from H2 format | metric_concept_map.yaml:426 + dcl_semantic_client_v2.py:get_derived_metric | burn_multiple division-by-zero: `burn_multiple` is defined as `cash_flow.net_burn / revenue.recurring`. If Farm emits `revenue.recurring = 0` (or the concept is absent), the derived formula divides by zero. The current derived-metric path in `get_derived_metric` does not guard. Needs a decision: return null with `reason="undefined"`, return infinity, or fall back to a warning flag. Separate from the ARR fix — this is a derived-metric robustness question, not a concept-mapping one. (date unknown, migration default) | severity: degraded | blocking: derived-metric robustness; any query resolving to burn_multiple on a zero-recurring-revenue entity will divide by zero
 
-## DebugTracePanel hint regression (cosmetic)
-`src/components/DebugTracePanel.tsx:71-75` gates the ANTHROPIC_API_KEY
-hint on `error_type === 'CONFIG_ERROR'`. After the HTTPException
-re-raise fix in routes.py:5079, App.tsx sets `error_type = 'HTTP_ERROR'`
-for all non-200 responses, so this hint no longer fires for the missing
-API key case. The underlying error text ("ANTHROPIC_API_KEY not
-configured") is still visible in the banner. The hint itself references
-Replit which is CLAUDE.md-banned. Replacement path: match on error text
-directly (`debugInfo?.error?.includes('ANTHROPIC_API_KEY')`), drop the
-Replit copy. Separate cleanup — A13 scope.
+5. 2026-04-15 | migrated from H2 format | n/a | ME-boundary cleanup in NLQ: NLQ must remain entity-agnostic. Any vertical-specific or multi-entity logic belongs in the M&A service or in Farm generators, not in NLQ metric maps, test cases, or resolver code. Ongoing vigilance: any future code or test that assumes an entity's vertical should be flagged as a RACI violation (ME concerns live in the M&A service per v7.0). The NLQ pre-commit hook already enforces this for SE-only patterns. (date unknown, migration default) | severity: cosmetic | blocking: n/a (ongoing rule, not a pending fix)
 
-## Bug #3 — decomposer treats years as metric names
-"show me revenue for 2024, 2025, 2026" is decomposed into
-`['revenue_for_2024', '2025', '2026']`. The comma is a year dimension
-separator, not a metric separator. Decomposer at routes.py:1982 uses
-`re.split(r'\s+and\s+|,\s*', q)` and normalize_metric() is naive, so
-bare year strings pass as "metrics". Fix belongs in the decomposer
-(detect year-only tokens and reroute to a trend query shape) or in
-tiered_intent complexity detection (add a pattern for multi-year).
+6. 2026-04-15 | migrated from H2 format | tests/harness/test_cases.yaml | pre-existing entity contamination in harness fixture: the file has 31 entities pinned to legacy ME-era seed names plus matching comment references. The SE-only pre-commit hook now blocks any modification to this file because the file body still contains those forbidden patterns. The comment-strip task in this session was abandoned mid-flight — only `metric_concept_map.yaml`, `dashboard_data_resolver.py`, and this doc were committed. Two paths forward: (1) hook-scope fix — compare added lines vs full file, allow edits that don't introduce new forbidden patterns (lower-risk; keeps fixtures stable); (2) full fixture rewrite — replace legacy names with SE entity_ids (e.g. HelixEdge-0X4F at ~$124M scale), recalibrate every value range against current Farm output via DCL queries (higher-effort; also resolves the 8 pre-existing harness failures in item 1 — PL_001-004, PERIOD_001-002, ALIAS_003, CLARIFY_002 — which silently return null under the legacy names, addressing D6). Needs direction. | severity: blocker | blocking: any edit to tests/harness/test_cases.yaml is hook-blocked until path 1 or 2 is chosen; D6 remediation of 8 pre-existing harness failures also gated
 
-## Empty-set UX envelope
-Filed 2026-04-14 during ARR fix session. Distinction between value=0
-(Farm emitted a zero triple) and ∅ (Farm emitted no triples) is now
-preserved in code, but the user-facing envelope is shared: both flow
-through `WidgetData { value, formatted_value, trend, sparkline_data }`
-where null-value widgets surface as "No data for X". The two states
-warrant distinct UX — real zero should render "0" or "$0" with trend,
-empty set should render an honest "not generated for this entity"
-indicator. Proposed shape: add `status: "ok" | "empty" | "error"` and
-`reason` fields to widget responses, wire through the React renderer.
-Separate design — needs UX discussion before code.
+7. 2026-04-15 | migrated from H2 format | n/a | Farm arr.ending is identical across entities: direct DCL query confirms HelixEdge-0X4F and SysLabs-ANYC both return `arr.ending` series `89.61, 96.05, 102.95, 110.35, 116.91...` for 2024 quarters — byte-identical. NLQ resolves to $152.3M regardless of entity, which is correct given Farm's output. This is a Farm data-generation concern, not an NLQ concern. Entity-agnostic ARR resolution works; entity-specific values are Farm's responsibility per RACI. (date unknown, migration default) | severity: degraded | blocking: cross-entity divergence in Farm's arr.ending generation (Farm-owned per RACI; NLQ cannot fix)
 
-## burn_multiple division-by-zero
-`metric_concept_map.yaml:426` defines `burn_multiple` as
-`cash_flow.net_burn / revenue.recurring`. If Farm emits
-`revenue.recurring = 0` (or the concept is absent), the derived
-formula divides by zero. Current derived-metric path in
-`dcl_semantic_client_v2.py:get_derived_metric` does not guard. Needs
-a decision: return null with reason="undefined", return infinity,
-or fall back to a warning flag. Separate from the ARR fix — this is
-a derived-metric robustness question, not a concept-mapping one.
+8. 2026-04-15 | filed during multi-year revenue fix | routes.py:_try_multi_metric_query period_re | Unsupported period literal forms in the multi-period classifier: the classifier only accepts `^20\d\d$` and `^20\d\d-Q[1-4]$`. Forms that fall through to the LLM path at step 14 (or misclassify entirely): `FY2024` (fiscal-year prefix), `2024 Q2` (space-separated quarter), `Q2 2024` (quarter-first), `2024-2026` (year range), `last 3 years` (relative window). Intentional scope for the multi-year fix — the narrow regex prevents false positives on metric tokens that contain digits. Replacement: extend the classifier with explicit patterns per form, OR introduce a dedicated period-parser with an enum of supported shapes. Do not widen the regex ad-hoc; each form needs its own normalization to a canonical `time_range`. | severity: degraded | blocking: users asking for multi-period series in any of these forms get LLM-path fallback, not the deterministic DCL fan-out
 
-## ME-boundary cleanup in NLQ
-NLQ must remain entity-agnostic. Any vertical-specific or
-multi-entity logic belongs in Convergence or Farm generators, not in
-NLQ metric maps, test cases, or resolver code. Ongoing vigilance:
-any future code or test that assumes an entity's vertical should be
-flagged as a RACI violation (ME concerns live in Convergence per
-v7.0). NLQ pre-commit hook already enforces this for SE-only
-patterns.
-
-## tests/harness/test_cases.yaml — pre-existing entity contamination
-Filed 2026-04-15. The harness fixture file has 31 entities pinned to
-the legacy ME-era seed names plus matching comment references. The
-SE-only pre-commit hook now blocks any modification to this file
-because the file body still contains those forbidden patterns. The
-comment-strip task in this session was abandoned mid-flight — only
-metric_concept_map.yaml + dashboard_data_resolver.py + this doc were
-committed. Two paths forward:
-  1. Hook scope fix — compare added lines vs full file, allow edits
-     that don't introduce new forbidden patterns. Lower-risk; keeps
-     fixtures stable.
-  2. Full fixture rewrite — replace legacy names → SE entity_id
-     (e.g. HelixEdge-0X4F at ~$124M scale), recalibrate every value
-     range against current Farm output via DCL queries. Also
-     resolves 8 pre-existing harness failures (PL_001-004,
-     PERIOD_001-002, ALIAS_003, CLARIFY_002 all silently return null
-     with the legacy entity name). Higher-effort but addresses D6.
-Needs direction.
-
-## Farm arr.ending is identical across entities
-Direct DCL query confirms `HelixEdge-0X4F` and `SysLabs-ANYC` both
-return `arr.ending` series `89.61, 96.05, 102.95, 110.35, 116.91...`
-for 2024 quarters — byte-identical. NLQ fix resolves to $152.3M
-regardless of entity, which is correct given Farm's output. Farm
-data generation concern, not NLQ. Entity-agnostic ARR resolution
-works; entity-specific values are Farm's responsibility.
+9. 2026-04-15 | filed during multi-year revenue fix | src/nlq/knowledge/synonyms.py:~888 normalize_metric | `normalize_metric` legacy fallback returns input lowercased on miss — silent A1 violation. Function is "try match, else return input.lower()". Any caller treating the return as a canonical metric name will accept arbitrary garbage (year literals, free text, typos) as a valid metric, which is what originally let `['revenue_for_2024', '2025', '2026']` pass the decomposer. Fix: replace legacy fallback with `raise UnknownMetricError(token)`, audit all callers to expect the raise, update tests. Routed around in multi-year-revenue fix via `get_all_metrics()` set intersection — the root cause is still live for every other caller. | severity: degraded | blocking: every caller of `normalize_metric` silently accepts unknown tokens as metrics; additional decomposer-style bugs latent across the codebase
