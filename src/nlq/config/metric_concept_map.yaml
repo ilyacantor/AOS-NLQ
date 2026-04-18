@@ -42,7 +42,7 @@ renewal_revenue:
   unit: "usd"
 
 bookings:
-  concept: "revenue.bookings"
+  concept: "sales.bookings.total"
   property: "amount"
   type: direct
   unit: "usd"

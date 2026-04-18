@@ -410,6 +410,27 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
               })()}
             </g>
 
+            {/* Orbital rings — drawn before nodes so circles eclipse the line at their position */}
+            {(['inner', 'middle', 'outer'] as const)
+              .filter(ring => data.nodes.some(n =>
+                (ring === 'inner' && n.match_type === 'exact') ||
+                (ring === 'middle' && n.match_type === 'potential') ||
+                (ring === 'outer' && n.match_type === 'hypothesis')
+              ))
+              .map(ring => (
+                <circle
+                  key={`orbit-${ring}`}
+                  cx={centerX}
+                  cy={centerY}
+                  r={ringRadii[ring]}
+                  fill="none"
+                  stroke="#475569"
+                  strokeWidth={1}
+                  opacity={0.45}
+                />
+              ))
+            }
+
             {/* Nodes */}
             {data.nodes.map((node, nodeIndex) => {
               const pos = getNodePosition(node.id, nodeIndex);

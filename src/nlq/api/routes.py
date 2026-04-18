@@ -481,7 +481,7 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None, entity
         """Build a period data dict by querying DCL for each metric."""
         metrics_to_query = [
             "revenue", "gross_margin_pct", "operating_margin_pct", "net_income",
-            "cash", "arr", "burn_multiple", "pipeline", "win_rate_pct",
+            "cash", "arr", "burn_multiple", "pipeline", "bookings", "win_rate_pct",
             "churn_rate_pct", "nrr", "sales_cycle_days", "quota_attainment_pct",
             "new_logo_revenue", "headcount", "revenue_per_employee",
             "magic_number", "cac_payback_months", "ltv_cac", "attrition_rate_pct",
@@ -594,6 +594,7 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None, entity
     elif persona == "CRO":
         metrics = [
             ("pipeline", "Pipeline", period_data.get('pipeline'), "M", Domain.GROWTH),
+            ("bookings", "Bookings", period_data.get('bookings'), "M", Domain.GROWTH),
             ("win_rate_pct", "Win Rate", period_data.get('win_rate_pct'), "%", Domain.GROWTH),
             ("churn_rate_pct", "Churn", period_data.get('churn_rate_pct'), "%", Domain.GROWTH),
             ("nrr", "NRR", period_data.get('nrr'), "%", Domain.GROWTH),
@@ -602,7 +603,7 @@ def _handle_dashboard_query(question: str, persona: Optional[str] = None, entity
             ("new_logo_revenue", "New Logo Revenue", period_data.get('new_logo_revenue'), "M", Domain.GROWTH),
         ]
         text_lines.append(f"**CRO Dashboard ({period})**")
-        text_lines.append(f"Pipeline: ${period_data.get('pipeline')}M | Win Rate: {period_data.get('win_rate_pct')}%")
+        text_lines.append(f"Pipeline: ${period_data.get('pipeline')}M | Bookings: ${period_data.get('bookings')}M | Win Rate: {period_data.get('win_rate_pct')}%")
         text_lines.append(f"Churn: {period_data.get('churn_rate_pct')}% | NRR: {period_data.get('nrr')}%")
         text_lines.append(f"Sales Cycle: {period_data.get('sales_cycle_days')} days | Quota: {period_data.get('quota_attainment_pct')}%")
 
