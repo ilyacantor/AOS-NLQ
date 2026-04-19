@@ -42,9 +42,6 @@ DEFAULT_BASE_URL = "https://aos-nlq.onrender.com"
 NLQ_ENDPOINT = "/api/v1/query"
 CACHE_CLEAR_ENDPOINT = "/api/v1/rag/cache/clear"
 HEALTH_ENDPOINT = "/api/v1/health"
-MAI_ENGAGE_ENDPOINT = "/api/reports/mai/engage"
-MAI_MESSAGE_ENDPOINT = "/api/reports/mai/{engagement_id}/message"
-MAI_STATUS_ENDPOINT = "/api/reports/mai/{engagement_id}/status"
 TIMEOUT = 45.0
 SLOW_THRESHOLD_S = 10.0
 
@@ -263,7 +260,7 @@ class ResponseExtractor:
                     return None
             return obj
 
-        # ── Generic top-level (for mai responses) ─────────────────────
+        # ── Generic top-level ────────────────────────────────────────
         if field_name in response:
             return response[field_name]
 
