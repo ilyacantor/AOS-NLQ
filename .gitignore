@@ -65,3 +65,4 @@ dist/
 # Screenshots
 *.png
 test-results/
+.env.development
