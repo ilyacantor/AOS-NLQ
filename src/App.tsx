@@ -99,7 +99,6 @@ const quickActions = [
   'hi',
   'why did rev incr',
   '2025 KPIs in dash',
-  '2026 forecast',
   'pipeline',
   'whats the margin',
   'are we profitable',
@@ -108,6 +107,7 @@ const quickActions = [
   'how are we doing',
   'nrr',
   'arr',
+  '2026 forecast',
 ]
 
 function getInitialView(): ViewMode {
