@@ -328,7 +328,7 @@ class RelatedMetric(BaseModel):
     metric: str = Field(..., description="Canonical metric name")
     display_name: str = Field(..., description="Human-readable label")
     value: Optional[float] = Field(default=None, description="Metric value")
-    formatted_value: str = Field(..., description="Formatted display value")
+    formatted_value: Optional[str] = Field(default=None, description="Formatted display value; None when DCL has no data for this metric+entity+period")
     period: str = Field(..., description="Time period")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score")
     match_type: str = Field(..., description="exact, potential, or hypothesis")

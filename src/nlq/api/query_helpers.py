@@ -355,9 +355,9 @@ def breakdown_to_galaxy_response(result: NLQResponse, question: str) -> IntentMa
                     metric = result.resolved_metric or "unknown"
                     unit = get_metric_unit(metric) if result.resolved_metric else "$"
                     if unit == "%":
-                        fmt = f"{round(value, 1)}%" if value is not None else "N/A"
+                        fmt = f"{round(value, 1)}%" if value is not None else None
                     else:
-                        fmt = f"${round(value, 1)}M" if value is not None else "N/A"
+                        fmt = f"${round(value, 1)}M" if value is not None else None
                     nodes.append(IntentNode(
                         id=node_id,
                         metric=metric,

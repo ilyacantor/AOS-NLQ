@@ -27,18 +27,50 @@ from src.nlq.models.response import (
 )
 
 
-def _query_dcl_value(metric: str, period: str) -> Optional[Any]:
-    """Query a metric value from DCL.
+def _query_dcl_value(metric: str, period: str, entity_id: Optional[str] = None) -> Optional[Any]:
+    """Query a metric value from DCL with the same period/granularity semantics
+    as ``routes.py``'s entity-aware ``get_val`` helper.
 
-    When DCL returns multiple data points (e.g. 4 quarters for an annual
-    query), this function aggregates correctly:
+    Annual period (e.g. ``"2026"``): query the current quarter at quarterly
+    granularity first, fall back to annual. Mirrors how the answer text is
+    computed so the Data Points panel does not show ``"-"`` while the answer
+    text shows a real number.
+
+    Quarterly period (e.g. ``"2026-Q2"``): query at quarterly granularity, fall
+    back to a bare period query.
+
+    Aggregates when DCL returns multiple data points:
     - Additive metrics (revenue, counts): summed
     - Non-additive metrics (pct, ratio, score, days): averaged
+
+    Pass ``entity_id`` so DCL scopes the query to the user's entity. Without it,
+    the lookup is entity-blind and returns None for any partition that doesn't
+    happen to be the global default — which is what produced the literal "N/A"
+    in the Data Points panel for related/context nodes.
     """
+    import re
+    from src.nlq.core.dates import current_quarter
     from src.nlq.services.dcl_client_router import get_routed_client
     dcl_client = get_routed_client()
 
-    result = dcl_client.query(metric=metric, time_range={"period": period})
+    is_annual = bool(re.match(r"^20\d{2}$", str(period)))
+    if is_annual:
+        result = dcl_client.query(
+            metric=metric,
+            time_range={"period": current_quarter(), "granularity": "quarterly"},
+            entity_id=entity_id,
+        )
+        if result.get("error") or not result.get("data"):
+            result = dcl_client.query(metric=metric, time_range={"period": period}, entity_id=entity_id)
+    else:
+        result = dcl_client.query(
+            metric=metric,
+            time_range={"period": period, "granularity": "quarterly"},
+            entity_id=entity_id,
+        )
+        if result.get("error") or not result.get("data"):
+            result = dcl_client.query(metric=metric, time_range={"period": period}, entity_id=entity_id)
+
     if result.get("error"):
         return None
     data = result.get("data", [])
@@ -57,10 +89,15 @@ def _query_dcl_value(metric: str, period: str) -> Optional[Any]:
     return None
 
 
-def format_value(metric: str, value: Any) -> str:
-    """Format a metric value for display based on its unit type."""
+def format_value(metric: str, value: Any) -> Optional[str]:
+    """Format a metric value for display based on its unit type.
+
+    Returns None when value is None — callers should let the FE render the
+    placeholder. Returning the literal string "N/A" here used to bake into
+    formatted_value and rendered verbatim in the Data Points panel.
+    """
     if value is None:
-        return "N/A"
+        return None
 
     # Guard against non-numeric values (e.g. dicts from breakdown queries)
     if not isinstance(value, (int, float)):
@@ -118,6 +155,7 @@ def generate_nodes_for_point_query(
     metric: str,
     value: Any,
     period: str,
+    entity_id: Optional[str] = None,
 ) -> List[IntentNode]:
     """
     Generate nodes for a direct point query.
@@ -131,6 +169,7 @@ def generate_nodes_for_point_query(
         metric: The queried metric
         value: The metric value
         period: The time period
+        entity_id: Scope the related/context DCL lookups to this entity
 
     Returns:
         List of IntentNode objects
@@ -160,7 +199,7 @@ def generate_nodes_for_point_query(
     # Related nodes (POTENTIAL, middle ring)
     related_metrics = get_related_metrics(metric, limit=3)
     for i, related in enumerate(related_metrics):
-        related_value = _query_dcl_value(related, period)
+        related_value = _query_dcl_value(related, period, entity_id=entity_id)
         rel_confidence = bounded_confidence(0.70 - (i * 0.05))
         rel_quality = data_quality * 0.9
 
@@ -183,7 +222,7 @@ def generate_nodes_for_point_query(
     # Context nodes (HYPOTHESIS, outer ring)
     context_metrics = get_context_metrics(metric, limit=2)
     for i, ctx in enumerate(context_metrics):
-        ctx_value = _query_dcl_value(ctx, period)
+        ctx_value = _query_dcl_value(ctx, period, entity_id=entity_id)
         ctx_confidence = bounded_confidence(0.45 - (i * 0.10))
         ctx_quality = data_quality * 0.8
 
@@ -210,6 +249,7 @@ def generate_nodes_for_ambiguous_query(
     ambiguity_type: AmbiguityType,
     candidates: List[str],
     period: str,
+    entity_id: Optional[str] = None,
 ) -> List[IntentNode]:
     """
     Generate nodes for an ambiguous query.
@@ -223,6 +263,7 @@ def generate_nodes_for_ambiguous_query(
         ambiguity_type: The type of ambiguity
         candidates: List of candidate metrics
         period: The time period
+        entity_id: Scope DCL lookups to this entity
 
     Returns:
         List of IntentNode objects
@@ -232,7 +273,7 @@ def generate_nodes_for_ambiguous_query(
     if ambiguity_type == AmbiguityType.VAGUE_METRIC:
         # Multiple candidates, all POTENTIAL (no single EXACT)
         for i, metric in enumerate(candidates):
-            value = _query_dcl_value(metric, period)
+            value = _query_dcl_value(metric, period, entity_id=entity_id)
             confidence = 0.80  # All equal confidence
 
             nodes.append(IntentNode(
@@ -255,7 +296,7 @@ def generate_nodes_for_ambiguous_query(
         if candidates:
             context_metrics = get_context_metrics(candidates[0], limit=2)
             for i, ctx in enumerate(context_metrics):
-                ctx_value = _query_dcl_value(ctx, period)
+                ctx_value = _query_dcl_value(ctx, period, entity_id=entity_id)
                 ctx_confidence = bounded_confidence(0.45 - (i * 0.05))
 
                 nodes.append(IntentNode(
@@ -277,7 +318,7 @@ def generate_nodes_for_ambiguous_query(
     elif ambiguity_type == AmbiguityType.BROAD_REQUEST:
         # Multiple metrics, all EXACT (user asked for everything)
         for i, metric in enumerate(candidates):
-            value = _query_dcl_value(metric, period)
+            value = _query_dcl_value(metric, period, entity_id=entity_id)
             conf = bounded_confidence(0.95 - (i * 0.03))
 
             nodes.append(IntentNode(
@@ -300,7 +341,7 @@ def generate_nodes_for_ambiguous_query(
         # Burn rate applies but profitable companies don't report discretely
         # Show COGS and SG&A as the actual cost metrics
         for i, metric in enumerate(candidates):  # candidates are ["cogs", "sga"]
-            value = _query_dcl_value(metric, period)
+            value = _query_dcl_value(metric, period, entity_id=entity_id)
             # Both are EXACT matches since they directly answer what "burn rate" means for profitable co
             match_type = MatchType.EXACT
             conf = bounded_confidence(0.85 - (i * 0.05))
@@ -340,7 +381,7 @@ def generate_nodes_for_ambiguous_query(
     else:
         # Default: Primary candidate as EXACT, rest as POTENTIAL
         for i, metric in enumerate(candidates):
-            value = _query_dcl_value(metric, period)
+            value = _query_dcl_value(metric, period, entity_id=entity_id)
             match_type = MatchType.EXACT if i == 0 else MatchType.POTENTIAL
             confidence = 0.90 if i == 0 else bounded_confidence(0.75 - (i * 0.05))
 
@@ -371,6 +412,7 @@ def generate_nodes_for_comparison_query(
     value2: Any,
     difference: float,
     pct_change: Optional[float],
+    entity_id: Optional[str] = None,
 ) -> List[IntentNode]:
     """
     Generate nodes for a comparison query.
@@ -450,7 +492,7 @@ def generate_nodes_for_comparison_query(
     # Related context nodes (HYPOTHESIS)
     related_metrics = get_related_metrics(metric, limit=2)
     for i, related in enumerate(related_metrics):
-        rel_value = _query_dcl_value(related, period1)
+        rel_value = _query_dcl_value(related, period1, entity_id=entity_id)
         ctx_confidence = bounded_confidence(0.45 - (i * 0.10))
 
         nodes.append(IntentNode(
@@ -546,6 +588,7 @@ def generate_nodes_for_aggregation_query(
 def generate_nodes_for_breakdown_query(
     breakdown: dict,
     period: str,
+    entity_id: Optional[str] = None,
 ) -> List[IntentNode]:
     """
     Generate nodes for a breakdown query.
@@ -589,7 +632,7 @@ def generate_nodes_for_breakdown_query(
         first_metric = list(breakdown.keys())[0]
         context_metrics = get_context_metrics(first_metric, limit=2)
         for i, ctx in enumerate(context_metrics):
-            ctx_value = _query_dcl_value(ctx, period)
+            ctx_value = _query_dcl_value(ctx, period, entity_id=entity_id)
             ctx_confidence = bounded_confidence(0.45 - (i * 0.10))
 
             nodes.append(IntentNode(

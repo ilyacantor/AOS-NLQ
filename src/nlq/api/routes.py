@@ -2896,6 +2896,7 @@ def _handle_ambiguous_query_text(
         ambiguity_type,
         candidates,
         _resolved_period,
+        entity_id=entity_id,
     )
     related_metrics = _nodes_to_related_metrics(nodes)
 
