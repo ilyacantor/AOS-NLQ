@@ -44,6 +44,31 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [nodeStates, setNodeStates] = useState<Map<string, NodeState>>(new Map());
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
+  const [tableWidth, setTableWidth] = useState<number | null>(null);
+  const tableMeasureRef = useRef<HTMLDivElement | null>(null);
+
+  // Measure the inner <table> directly. The DataTable wrapper has overflow-hidden,
+  // which collapses its own intrinsic max-content; offsetWidth on the <table> reports
+  // the true natural width regardless of ancestor overflow.
+  useEffect(() => {
+    const container = tableMeasureRef.current;
+    if (!container) {
+      setTableWidth(null);
+      return;
+    }
+    const compute = () => {
+      const tableEl = container.querySelector('table');
+      if (!tableEl) return;
+      const w = tableEl.offsetWidth;
+      if (w > 0) setTableWidth(w);
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(container);
+    const tableEl = container.querySelector('table');
+    if (tableEl) ro.observe(tableEl);
+    return () => ro.disconnect();
+  }, [data.nodes, leftPanelOpen]);
 
   // Auto-open left panel when any query result arrives (close only for funny/easter egg responses)
   useEffect(() => {
@@ -661,21 +686,25 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
         </button>
 
         {/* Left Panel - Text Response & Data Table (collapsible, collapsed on load) */}
+        {/* Width is driven by the Data Points table (measured via ResizeObserver), clamped [293, 640]. */}
         <div
-          className={`flex-shrink-0 flex flex-col border-r border-slate-800 bg-slate-900/30 transition-all duration-300 overflow-hidden ${
-            leftPanelOpen ? 'w-fit min-w-[293px] max-w-[640px]' : 'w-0'
-          }`}
+          className="flex-shrink-0 flex flex-col border-r border-slate-800 bg-slate-900/30 transition-all duration-300 overflow-hidden"
+          style={
+            leftPanelOpen
+              ? { width: Math.max(293, (tableWidth ?? 0) + 25) }
+              : { width: 0 }
+          }
         >
           {/* Text Answer - Top Left */}
           {data.text_response && !isFunnyResponse && (
-            <div className="p-4 border-b border-slate-800/50 min-w-[293px] max-w-[640px]">
+            <div className="p-4 border-b border-slate-800/50">
               <div className="flex items-center gap-2 mb-2">
                 <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                   Answer
                 </h3>
                 <ProvenanceBadge provenance={data.provenance} compact />
               </div>
-              <p className="text-slate-200 text-sm leading-relaxed">
+              <p className="text-slate-200 text-sm leading-relaxed break-words">
                 {data.text_response}
               </p>
               {data.needs_clarification && data.clarification_prompt && (
@@ -686,15 +715,15 @@ export const GalaxyView: React.FC<GalaxyViewProps> = ({
             </div>
           )}
 
-          {/* Data Table - Below Text Answer. Expand to fit columns; no horizontal scroll. */}
+          {/* Data Table - Below Text Answer. tableMeasureRef wraps the table; we measure the inner <table>'s offsetWidth (natural). */}
           {hasMultipleDataElements && (
-            <div className="flex-1 overflow-y-auto p-3 min-w-[293px] max-w-[640px]">
+            <div ref={tableMeasureRef} className="flex-1 overflow-y-auto p-3">
               <DataTable nodes={data.nodes} title="Data Points" />
             </div>
           )}
 
           {/* Legend at bottom of left panel */}
-          <div className="mt-auto border-t border-slate-800/50 min-w-[293px] max-w-[640px]">
+          <div className="mt-auto border-t border-slate-800/50">
             <GalaxyLegend compact />
           </div>
         </div>
