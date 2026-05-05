@@ -27,20 +27,20 @@ export const DataTable: React.FC<DataTableProps> = ({ nodes, title }) => {
           </h4>
         </div>
       )}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <div>
+        <table className="w-auto text-sm">
           <thead>
             <tr className="bg-slate-800/30">
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
                 Metric
               </th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
+              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
                 Value
               </th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">
+              <th className="px-3 py-2 text-center text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
                 Period
               </th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">
+              <th className="px-3 py-2 text-center text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
                 Conf
               </th>
             </tr>
@@ -65,7 +65,7 @@ export const DataTable: React.FC<DataTableProps> = ({ nodes, title }) => {
                       ${node.match_type === 'exact' ? 'bg-emerald-900/10' : ''}
                     `}
                   >
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <span
                           className="w-2 h-2 rounded-full flex-shrink-0"
@@ -77,17 +77,17 @@ export const DataTable: React.FC<DataTableProps> = ({ nodes, title }) => {
                               : '#6b7280'
                           }}
                         />
-                        <span className="text-slate-300 truncate">
+                        <span className="text-slate-300">
                           {node.display_name}
                         </span>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
                       <span className="text-white font-medium">
                         {node.formatted_value || formatValue(node.value, { unit: node.unit ?? undefined })}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
                       <span className="text-slate-400 text-xs">
                         {node.period || '-'}
                       </span>
