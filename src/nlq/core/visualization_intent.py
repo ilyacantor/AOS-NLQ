@@ -399,6 +399,15 @@ PERSONA_METRICS = {
     "CTO": ["uptime_pct", "p1_incidents", "deployment_frequency", "mttr_p1_hours", "open_bugs"],
     "CHRO": ["headcount", "attrition_rate_pct", "hires", "offer_acceptance_rate_pct", "time_to_fill", "enps"],
     "CS": ["nrr", "churn_rate_pct", "customer_count", "nps", "csat"],
+    "CCO": [
+        "cloud_spend_monthly_total",
+        "cloud_spend_by_service",
+        "cloud_underutilized_count",
+        "cloud_savings_opportunities_count",
+        "cloud_savings_opportunities_amount",
+        "cloud_spend_by_team",
+        "cloud_spend_trend",
+    ],
 }
 
 
@@ -545,9 +554,23 @@ def _extract_metrics_from_query(query: str, persona: Optional[str] = None) -> Tu
         elif any(term in q for term in ["customer dashboard", "cs dashboard", "success dashboard"]):
             persona_metrics_list = list(PERSONA_METRICS["CS"])
             persona_detected = "CS"
+        elif any(term in q for term in [
+            "cloud cost optimization", "cloud cost dashboard",
+            "cco dashboard", "finops dashboard", "cloud spend dashboard",
+        ]):
+            persona_metrics_list = list(PERSONA_METRICS["CCO"])
+            persona_detected = "CCO"
 
     if persona_metrics_list:
-        if metrics:
+        # CCO is a dedicated finops persona — its metric set is namespaced
+        # under cloud_spend.* and does not overlap with general metrics. Any
+        # incidental matches (e.g. "cloud_spend") from the semantic resolver
+        # belong to the wrong concept namespace, so replace rather than merge.
+        if persona_detected == "CCO":
+            metrics = list(persona_metrics_list)
+            extraction_method = f"persona_default:{persona_detected}"
+            logger.info(f"[METRIC_EXTRACTION] Using {persona_detected} persona metrics (override): {metrics}")
+        elif metrics:
             # Merge: keep resolved metrics, fill remaining slots from persona defaults
             for pm in persona_metrics_list:
                 if pm not in metrics and len(metrics) < 4:

@@ -600,22 +600,45 @@ first_response_hours:
 # ─── Tech / Engineering ───────────────────────────────────────────
 
 uptime_pct:
-  concept: "service.uptime"
+  concept: "uptime_pct.overall"
   property: "rate"
   type: direct
   unit: "pct"
+  aliases: ["uptime", "availability_pct", "uptime_percent"]
 
 downtime_hours:
-  concept: "service.downtime"
+  concept: "infrastructure.downtime"
   property: "hours"
   type: direct
   unit: "hours"
 
 deploys_per_week:
-  concept: "service.deploys"
+  concept: "deploy_frequency.quarterly"
   property: "count"
   type: direct
   unit: "count"
+  aliases: ["deploy_frequency", "deployment_frequency", "deploys"]
+
+p1_incidents:
+  concept: "incident_count.p1"
+  property: "count"
+  type: direct
+  unit: "count"
+  aliases: ["incident_count", "incidents", "p1"]
+
+uptime_by_service:
+  concept: "uptime_by_service.auth-api"
+  property: "rate"
+  type: direct
+  unit: "pct"
+  aliases: ["service_uptime_breakdown", "uptime_per_service"]
+
+uptime_trend:
+  concept: "uptime_trend.quarterly"
+  property: "rate"
+  type: direct
+  unit: "pct"
+  aliases: ["availability_trend"]
 
 security_vulns:
   concept: "service.security_vulns"
@@ -648,16 +671,17 @@ critical_bugs:
   unit: "count"
 
 mttr_p1_hours:
-  concept: "service.mttr_p1"
+  concept: "infrastructure.mttr.p1"
   property: "hours"
   type: direct
   unit: "hours"
 
 sprint_velocity:
-  concept: "service.sprint_velocity"
+  concept: "sprint_velocity.team"
   property: "points"
   type: direct
   unit: "points"
+  aliases: ["velocity", "team_velocity"]
 
 features_shipped:
   concept: "service.features_shipped"
@@ -674,10 +698,65 @@ implementation_days:
   unit: "days"
 
 cloud_spend:
-  concept: "vendor.cloud_spend"
+  concept: "cloud_spend.summary"
+  property: "total_cost"
+  type: direct
+  unit: "usd"
+  aliases: ["monthly_cloud_spend", "total_cloud_spend"]
+
+# ─── Cloud Cost Optimization (WP11b) — backed by cloud_spend.* triples ────
+
+cloud_spend_monthly_total:
+  concept: "cloud_spend.summary"
+  property: "total_cost"
+  type: direct
+  unit: "usd"
+  aliases: ["monthly_cloud_spend", "cloud_spend_total", "total_monthly_cloud_spend"]
+
+cloud_underutilized_count:
+  concept: "cloud_spend.utilization"
+  property: "underutilized_count"
+  type: direct
+  unit: "count"
+  aliases: ["underutilized_resources", "idle_resource_count", "underutilized_resource_count"]
+
+cloud_savings_opportunities_count:
+  concept: "cloud_spend.savings"
+  property: "opportunity_count"
+  type: direct
+  unit: "count"
+  aliases: ["savings_opportunities", "rightsizing_count", "identified_savings_opportunities"]
+
+cloud_savings_opportunities_amount:
+  concept: "cloud_savings_opportunities_amount.summary"
   property: "amount"
   type: direct
   unit: "usd"
+  aliases: ["identified_savings", "potential_savings", "savings_amount"]
+
+# Top-services dimensional breakdown: bar chart resolver looks for
+# concept "<metric>.by_<dimension>" with property=<dimension_value>.
+# cloud_spend_total + dimension=service → concept "cloud_spend.by_service".
+cloud_spend_by_service:
+  concept: "cloud_spend_by_service.top_service"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["spend_by_service", "top_services_by_spend"]
+
+cloud_spend_by_team:
+  concept: "cloud_spend_by_team.top_team"
+  property: "amount"
+  type: direct
+  unit: "usd"
+  aliases: ["spend_by_team", "team_cost_attribution"]
+
+cloud_spend_trend:
+  concept: "cloud_spend.summary"
+  property: "total_cost"
+  type: direct
+  unit: "usd"
+  aliases: ["monthly_spend_trend", "cloud_spend_over_time"]
 
 cloud_spend_pct_revenue:
   type: derived

@@ -58,7 +58,7 @@ interface QueryHistoryItem {
 }
 
 type ViewMode = 'galaxy' | 'dashboard' | 'guide'
-type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO'
+type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO' | 'CCO'
 type PanelTab = 'History' | 'Learning' | 'Data Gaps' | 'Trace'
 
 const personaOptions: { label: string; value: Persona; query: string; refinePresets: string[] }[] = [
@@ -91,6 +91,12 @@ const personaOptions: { label: string; value: Persona; query: string; refinePres
     value: 'CHRO',
     query: 'Show me a people dashboard with total headcount KPI, turnover rate KPI, time to hire trend, employee satisfaction KPI, and engagement breakdown',
     refinePresets: ['Add training hours card', 'Show hiring trend', 'Break down by department', 'Add retention rate']
+  },
+  {
+    label: 'Cloud Cost Optimization',
+    value: 'CCO',
+    query: 'Show me a cloud cost optimization dashboard with total monthly cloud spend KPI, top 5 services by spend bar chart, underutilized resource count KPI, identified savings opportunities count KPI, identified savings amount KPI, spend by team donut, and monthly cloud spend trend line',
+    refinePresets: ['Which team spends most?', 'Show idle EC2 instances', 'Add savings by type breakdown', 'Filter to production']
   },
 ]
 
