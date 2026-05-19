@@ -26,7 +26,7 @@ layout:
   padding: 24
 
 time_range:
-  period: Q3 2025
+  period: Q3-2025
   granularity: quarterly
 
 widgets:
@@ -38,7 +38,7 @@ widgets:
         - metric: ar_outstanding_usd
           format: $0.0M
       time:
-        period: Q3 2025
+        period: Q3-2025
         granularity: quarterly
     position:
       column: 1
@@ -61,7 +61,7 @@ widgets:
           sort_by: aging_bucket
           sort_order: asc
       time:
-        period: Q3 2025
+        period: Q3-2025
         granularity: quarterly
     position:
       column: 4
@@ -81,7 +81,7 @@ widgets:
       dimensions:
         - dimension: source_system
       time:
-        period: Q3 2025
+        period: Q3-2025
         granularity: quarterly
     position:
       column: 9
@@ -101,10 +101,10 @@ widgets:
         - dimension: source_system
         - dimension: aging_bucket
       time:
-        period: Q3 2025
+        period: Q3-2025
         granularity: quarterly
       filters:
-        aging_bucket: ">90"
+        aging_bucket: "90+"
     position:
       column: 1
       row: 5

@@ -70,6 +70,41 @@ async def get_dashboard(dashboard_id: str) -> DashboardSchema:
     return dashboard
 
 
+@router.get("/dashboard/{dashboard_id}/resolved")
+async def get_dashboard_resolved(dashboard_id: str) -> Dict[str, Any]:
+    """WS-5 B3: returns the dashboard schema plus resolved widget data.
+
+    For persona dashboards (id prefix `persona_`), tile data resolves
+    through the AAM cross-source-query endpoint — every widget data
+    point carries per-row provenance from the AOS-MCP envelope.
+
+    Dynamic dashboards (`dash_<8hex>` IDs) are not supported by this
+    endpoint today; use /api/v1/query for those.
+    """
+    dashboard = _dashboard_cache.get(dashboard_id)
+    if not dashboard:
+        raise HTTPException(status_code=404, detail=f"Dashboard {dashboard_id} not found")
+    if not dashboard_id.startswith("persona_"):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"/dashboard/{{id}}/resolved is for persona dashboards only "
+                f"(id prefix 'persona_'). Got: {dashboard_id!r}. Use /api/v1/query "
+                f"for dynamic dashboards."
+            ),
+        )
+    from src.nlq.services.persona_dashboard_resolver import PersonaDashboardResolver
+    try:
+        resolver = PersonaDashboardResolver()
+        widget_data = resolver.resolve(dashboard)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    return {
+        "schema": dashboard.model_dump(),
+        "widget_data": widget_data,
+    }
+
+
 class DashboardFilterRequest(BaseModel):
     """Request model for cross-widget filtering."""
     dashboard_id: str = Field(..., description="Dashboard ID to filter")
