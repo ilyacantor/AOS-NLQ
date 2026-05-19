@@ -28,8 +28,26 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# In-memory cache for generated dashboards (in production, use Redis or DB)
+# In-memory cache for dashboards.
+#   - Dynamic dashboards generated from NL queries land here keyed by
+#     `dash_<8hex>` IDs (legacy code path).
+#   - Persona dashboards (WS-5 B1) land here keyed by stable IDs like
+#     `persona_finops` via load_persona_dashboards() at startup.
+# Both shapes coexist; the existing GET /api/v1/dashboard/{id} endpoint
+# serves either kind transparently.
 _dashboard_cache: Dict[str, DashboardSchema] = {}
+
+
+def populate_persona_cache(dashboards: Dict[str, DashboardSchema]) -> None:
+    """WS-5 B1: invoked from main.py startup_event with the result of
+    load_persona_dashboards(). Idempotent — re-invoking replaces the
+    persona entries but does not touch dynamic `dash_<8hex>` entries."""
+    for dashboard_id, dashboard in dashboards.items():
+        _dashboard_cache[dashboard_id] = dashboard
+    logger.info(
+        "dashboard_routes: persona cache populated with %d dashboards: %s",
+        len(dashboards), sorted(dashboards.keys()),
+    )
 
 
 # _resolve_widget_data removed — only used by deleted generate_dashboard/refine_dashboard

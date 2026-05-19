@@ -112,6 +112,19 @@ async def startup_event():
 
     init_call_counter(persist=False)
 
+    # WS-5 B1: load persona dashboards from src/nlq/config/personas/*.yaml
+    # into _dashboard_cache so GET /api/v1/dashboard/persona_<x> serves
+    # stable persona views (e.g. persona_finops). Failures raise loudly
+    # per A1 — degraded mode is not acceptable for the demo path.
+    try:
+        from src.nlq.services.persona_dashboards import load_persona_dashboards
+        from src.nlq.api.dashboard_routes import populate_persona_cache
+        persona_dashboards = load_persona_dashboards()
+        populate_persona_cache(persona_dashboards)
+    except Exception as exc:
+        logger.error("FATAL: persona dashboard load failed: %s", exc)
+        raise
+
     asyncio.create_task(_deferred_init())
 
     logger.info("AOS-NLQ server accepting requests (services initializing in background)")

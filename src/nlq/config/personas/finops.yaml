@@ -1,0 +1,129 @@
+# FinOps persona dashboard — Combined Q3 AR aging across NetSuite + Sage Intacct.
+#
+# WS-5 B1: authoring infrastructure. Tile data bindings declared but the
+# resolver (B2/B3) hasn't wired them to live cross-source DCL queries
+# yet. As of B1, this YAML loads into _dashboard_cache and renders as a
+# tile shell; tile data resolves to placeholder until B3.
+#
+# Canonical demo question (v3 §3.5):
+#   "Show me combined Q3 AR aging across both entities, with vendors
+#    that appear in both books flagged for consolidation."
+
+id: persona_finops
+title: FinOps — Combined AR Aging (Q3)
+description: >
+  Cross-entity AR aging summary across NetSuite (Workato) and Sage Intacct
+  (Boomi). Drill any row for source-record provenance.
+source_query: Show me combined Q3 AR aging across both entities, with vendors that appear in both books flagged for consolidation.
+confidence: 1.0
+version: 1
+refresh_interval: 0
+
+layout:
+  columns: 12
+  row_height: 80
+  gap: 16
+  padding: 24
+
+time_range:
+  period: Q3 2025
+  granularity: quarterly
+
+widgets:
+  - id: total_ar_outstanding_kpi
+    type: kpi_card
+    title: Total AR Outstanding (combined)
+    data:
+      metrics:
+        - metric: ar_outstanding_usd
+          format: $0.0M
+      time:
+        period: Q3 2025
+        granularity: quarterly
+    position:
+      column: 1
+      row: 1
+      col_span: 3
+      row_span: 2
+    kpi_config:
+      show_trend: true
+      show_sparkline: true
+
+  - id: ar_by_aging_bucket_chart
+    type: bar_chart
+    title: AR by Aging Bucket
+    data:
+      metrics:
+        - metric: ar_outstanding_usd
+          format: $0.0M
+      dimensions:
+        - dimension: aging_bucket
+          sort_by: aging_bucket
+          sort_order: asc
+      time:
+        period: Q3 2025
+        granularity: quarterly
+    position:
+      column: 4
+      row: 1
+      col_span: 5
+      row_span: 4
+    chart_config:
+      show_legend: true
+
+  - id: ar_by_source_chart
+    type: donut_chart
+    title: AR by Source System
+    data:
+      metrics:
+        - metric: ar_outstanding_usd
+          format: $0.0M
+      dimensions:
+        - dimension: source_system
+      time:
+        period: Q3 2025
+        granularity: quarterly
+    position:
+      column: 9
+      row: 1
+      col_span: 4
+      row_span: 4
+
+  - id: overdue_invoices_table
+    type: data_table
+    title: Invoices over 90 days
+    data:
+      metrics:
+        - metric: invoice_amount_usd
+          format: $0.0K
+      dimensions:
+        - dimension: customer_name
+        - dimension: source_system
+        - dimension: aging_bucket
+      time:
+        period: Q3 2025
+        granularity: quarterly
+      filters:
+        aging_bucket: ">90"
+    position:
+      column: 1
+      row: 5
+      col_span: 8
+      row_span: 4
+
+  - id: cross_book_vendor_overlap_table
+    type: data_table
+    title: Vendors appearing in both books
+    description: Vendor consolidation opportunities. Identity-resolved at confidence >= 0.94.
+    data:
+      metrics:
+        - metric: ap_outstanding_usd
+          format: $0.0K
+      dimensions:
+        - dimension: vendor_name
+        - dimension: identity_confidence
+    position:
+      column: 9
+      row: 5
+      col_span: 4
+      row_span: 4
