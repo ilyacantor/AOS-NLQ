@@ -719,7 +719,17 @@ class DashboardDataResolver:
                             value = 0
 
                 if label and value is not None:
-                    breakdown.append({"label": str(label), "value": round(value, 2)})
+                    point = {"label": str(label), "value": round(value, 2)}
+                    # WS-5 B2: per-data-point provenance threading. When
+                    # the DCL response carries per-triple provenance, keep
+                    # it on the data point so the drill-through can show
+                    # which source / pipe / fabric produced the number.
+                    # Aggregated `self._provenance` (the badge data) is
+                    # separate and unaffected.
+                    prov = _extract_per_item_provenance(item)
+                    if prov:
+                        point["provenance"] = prov
+                    breakdown.append(point)
                     total += value
 
         for item in breakdown:
@@ -747,6 +757,28 @@ class DashboardDataResolver:
             return f"{int(value):,}"
         else:
             return f"{round(value, 1)}"
+
+
+# =============================================================================
+# WS-5 B2 — per-triple provenance helpers
+# =============================================================================
+
+_PROVENANCE_FIELDS = (
+    "source_system", "source_field", "pipe_id",
+    "fabric_plane", "confidence_score",
+)
+
+
+def _extract_per_item_provenance(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Pull the 5-field provenance dict off one DCL response item.
+
+    Returns None when the item has no provenance at all (legacy DCL
+    response shape or aggregated row). Returns a dict with whichever
+    of the 5 fields the item carried — partial provenance is honest
+    surfacing (A1: don't fabricate missing fields).
+    """
+    prov = {f: item.get(f) for f in _PROVENANCE_FIELDS if item.get(f) is not None}
+    return prov or None
 
 
 def resolve_dashboard_with_data(
