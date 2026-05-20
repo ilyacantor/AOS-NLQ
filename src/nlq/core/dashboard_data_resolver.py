@@ -773,6 +773,10 @@ class DashboardDataResolver:
 _PROVENANCE_FIELDS = (
     "source_system", "source_field", "pipe_id",
     "fabric_plane", "confidence_score",
+    # R5: resolution chain — WS-5 dropped these at the NLQ tile. canonical_id
+    # is the entity-resolution key; resolution_method/resolution_confidence
+    # record how and how confidently the triple was resolved to it.
+    "canonical_id", "resolution_method", "resolution_confidence",
 )
 
 

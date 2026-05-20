@@ -121,7 +121,7 @@ widgets:
           format: $0.0K
       dimensions:
         - dimension: vendor_name
-        - dimension: identity_confidence
+        - dimension: resolution_confidence
     position:
       column: 9
       row: 5

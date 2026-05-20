@@ -30,6 +30,7 @@ from typing import Any, Optional
 
 import httpx
 
+from src.nlq.config import get_tenant_id
 from src.nlq.models.dashboard_schema import DashboardSchema, Widget, WidgetType
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,7 @@ class PersonaDashboardResolver:
         self,
         *,
         aam_base_url: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> None:
         # AAM_BASE_URL points at the AAM service (default localhost:8002 in dev).
         # A1: missing AAM_BASE_URL when persona resolution is attempted raises.
@@ -66,6 +68,14 @@ class PersonaDashboardResolver:
                 "PersonaDashboardResolver: AAM_BASE_URL not set. Cannot route "
                 "tile data through AAM cross-source-query (A1: fail loud)."
             )
+        # I2: the AAM cross-source-query endpoint is tenant-scoped (R2) — a
+        # tenant_id is required on every call. Resolve from AOS_TENANT_ID when
+        # the caller did not pass one; get_tenant_id() raises if none exists.
+        self._tenant_id = tenant_id or get_tenant_id()
+        # entity_id is data-derived: collected from the AAM cross-source
+        # responses during resolve(). The route stamps the I2 pair from
+        # tenant_id + resolved_entity_id.
+        self._entity_ids_seen: set[str] = set()
 
     def resolve(self, schema: DashboardSchema) -> dict[str, Any]:
         """Resolve every widget in the dashboard. Returns
@@ -96,6 +106,15 @@ class PersonaDashboardResolver:
                 }
         return widget_data
 
+    @property
+    def resolved_entity_id(self) -> Optional[str]:
+        """The entity_id observed across the AAM cross-source responses
+        during resolve(). Exactly one distinct non-null id → that id;
+        disagreement or no data → None. The route stamps this as the I2
+        entity_id alongside tenant_id."""
+        ids = {e for e in self._entity_ids_seen if e}
+        return next(iter(ids)) if len(ids) == 1 else None
+
     def _resolve_widget(self, widget: Widget) -> dict[str, Any]:
         """One widget → its data dict. Format depends on widget type."""
         metric_name = self._primary_metric(widget)
@@ -117,6 +136,11 @@ class PersonaDashboardResolver:
         triples = triples_response.get("triples", []) or []
         sources = triples_response.get("sources", {}) or {}
         missing = triples_response.get("missing_sources", []) or []
+        # I2: AAM echoes the entity_id its sources resolved to — accumulate
+        # it so the route can stamp the identity pair on the response.
+        eid = triples_response.get("entity_id")
+        if eid:
+            self._entity_ids_seen.add(eid)
 
         widget_type = widget.type if isinstance(widget.type, str) else widget.type.value
 
@@ -154,6 +178,7 @@ class PersonaDashboardResolver:
         limit_per_source: int = 2000,
     ) -> dict[str, Any]:
         params: list[tuple[str, Any]] = [
+            ("tenant_id", self._tenant_id),
             ("domain", domain),
             ("limit_per_source", limit_per_source),
         ]
@@ -354,6 +379,10 @@ class PersonaDashboardResolver:
 _PROVENANCE_FIELDS = (
     "source_system", "source_field", "pipe_id",
     "fabric_plane", "confidence_score",
+    # R5: resolution chain — WS-5 dropped these at the NLQ tile. canonical_id
+    # is the entity-resolution key; resolution_method/resolution_confidence
+    # record how and how confidently the triple was resolved to it.
+    "canonical_id", "resolution_method", "resolution_confidence",
 )
 
 

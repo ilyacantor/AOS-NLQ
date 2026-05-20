@@ -93,15 +93,36 @@ async def get_dashboard_resolved(dashboard_id: str) -> Dict[str, Any]:
                 f"for dynamic dashboards."
             ),
         )
+    from src.nlq.config import get_tenant_id
+    from src.nlq.services.dcl_semantic_client import set_entity_id
     from src.nlq.services.persona_dashboard_resolver import PersonaDashboardResolver
+
+    # I2: tenant_id is resolved at the route boundary — missing → 422 before
+    # any AAM fan-out, so identity never degrades downstream.
     try:
-        resolver = PersonaDashboardResolver()
+        tenant_id = get_tenant_id()
+    except RuntimeError as tid_err:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "missing_tenant_id", "message": str(tid_err)},
+        )
+
+    try:
+        resolver = PersonaDashboardResolver(tenant_id=tenant_id)
         widget_data = resolver.resolve(dashboard)
+        entity_id = resolver.resolved_entity_id
+        # I6: keep the persona route's entity ContextVar handling identical
+        # to the main /query path so any downstream read resolves correctly.
+        set_entity_id(entity_id)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        set_entity_id(None)
     return {
         "schema": dashboard.model_dump(),
         "widget_data": widget_data,
+        "tenant_id": tenant_id,
+        "entity_id": entity_id,
     }
 
 
