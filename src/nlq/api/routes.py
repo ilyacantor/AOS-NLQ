@@ -5505,7 +5505,10 @@ async def reconciliation():
     browse_cache: Dict[tuple, list] = {}  # (domain, entity_id, period) -> triples
 
     try:
-        batch_body: Dict[str, Any] = {"domains": sorted(all_domains)}
+        from src.nlq.config import get_tenant_id  # R3: browse-batch is tenant-scoped
+        batch_body: Dict[str, Any] = {
+            "tenant_id": get_tenant_id(), "domains": sorted(all_domains),
+        }
         if all_entity_ids:
             batch_body["entity_ids"] = sorted(all_entity_ids)
         r = client.post(f"{dcl_url}/api/dcl/triples/browse-batch", json=batch_body)

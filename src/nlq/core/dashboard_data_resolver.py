@@ -15,6 +15,7 @@ from src.nlq.core.dates import current_year, current_quarter
 
 from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
 from src.nlq.services.dcl_semantic_client import get_entity_id
+from src.nlq.config import get_tenant_id
 from src.nlq.knowledge.schema import get_metric_unit
 from src.nlq.knowledge.display import get_display_name
 from src.nlq.knowledge.synonyms import normalize_metric
@@ -525,7 +526,10 @@ class DashboardDataResolver:
         try:
             resp = v2._http.post(
                 "/api/dcl/triples/browse-batch",
-                json={"domains": [domain], "entity_ids": [entity_id]},
+                json={
+                    "tenant_id": get_tenant_id(),  # R3: browse-batch is tenant-scoped
+                    "domains": [domain], "entity_ids": [entity_id],
+                },
             )
         except Exception as exc:
             logger.warning("Triple breakdown browse-batch error: %s", exc)
@@ -595,7 +599,10 @@ class DashboardDataResolver:
         try:
             resp = v2._http.post(
                 "/api/dcl/triples/browse-batch",
-                json={"domains": [domain], "entity_ids": [entity_id]},
+                json={
+                    "tenant_id": get_tenant_id(),  # R3: browse-batch is tenant-scoped
+                    "domains": [domain], "entity_ids": [entity_id],
+                },
             )
         except Exception as exc:
             logger.warning("Map browse-batch error: %s", exc)

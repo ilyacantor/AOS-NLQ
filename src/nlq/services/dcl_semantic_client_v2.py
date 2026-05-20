@@ -26,6 +26,7 @@ from src.nlq.services.dcl_semantic_client import (
     _last_data_source_ctx,
     _last_provenance_ctx,
 )
+from src.nlq.config import get_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +198,10 @@ class DCLSemanticClientV2:
             if cached and now < cached[0]:
                 return cached[1]
 
-        params: Dict[str, Any] = {"domain": domain, "limit": limit}
+        # R3: DCL /api/dcl/triples/browse is tenant-scoped — tenant_id required.
+        params: Dict[str, Any] = {
+            "tenant_id": get_tenant_id(), "domain": domain, "limit": limit,
+        }
         if entity_id:
             params["entity_id"] = entity_id
         if period:
@@ -922,7 +926,10 @@ class DCLSemanticClientV2:
         batch_hit_live_dcl = False
         if all_domains:
             try:
-                body: Dict[str, Any] = {"domains": sorted(all_domains)}
+                # R3: browse-batch is tenant-scoped — tenant_id required.
+                body: Dict[str, Any] = {
+                    "tenant_id": get_tenant_id(), "domains": sorted(all_domains),
+                }
                 if entity_id:
                     body["entity_ids"] = [entity_id]
                 if period:
@@ -1089,7 +1096,10 @@ class DCLSemanticClientV2:
         all_triples: List[Dict[str, Any]] = []
         if all_domains:
             try:
-                body: Dict[str, Any] = {"domains": sorted(all_domains)}
+                # R3: browse-batch is tenant-scoped — tenant_id required.
+                body: Dict[str, Any] = {
+                    "tenant_id": get_tenant_id(), "domains": sorted(all_domains),
+                }
                 if entity_id:
                     body["entity_ids"] = [entity_id]
                 resp = self._http.post("/api/dcl/triples/browse-batch", json=body)

@@ -55,6 +55,22 @@ def first_entity_id(nlq_client):
     return entities[0]["entity_id"]
 
 
+@pytest.fixture(scope="module")
+def tenant_id(nlq_client, first_entity_id):
+    """R3: DCL /triples/browse endpoints now require tenant_id for scoping.
+    Resolve the demo tenant from an NLQ response — NLQ echoes the I2 pair."""
+    resp = nlq_client.post(
+        "/api/v1/query",
+        json={"question": "What is revenue?", "entity_id": first_entity_id},
+    )
+    assert resp.status_code == 200, (
+        f"NLQ query failed while resolving tenant_id: {resp.text[:300]}"
+    )
+    tid = resp.json().get("tenant_id")
+    assert tid, "NLQ response carried no tenant_id — cannot scope DCL browse (I2)"
+    return tid
+
+
 def _nlq_query(nlq_client, question: str, entity_id: str = None) -> dict:
     """Post a natural language question to NLQ and return the response."""
     payload = {"question": question}
@@ -114,9 +130,10 @@ class TestRevenueQuery:
             f"Expected data_source='dcl_v2' or 'dcl'. Got source='{source}'"
         )
 
-    def test_revenue_via_dcl_triples(self, dcl_client):
+    def test_revenue_via_dcl_triples(self, dcl_client, tenant_id):
         """Cross-check: DCL v2 triples have revenue data."""
         resp = dcl_client.get("/api/dcl/triples/browse", params={
+            "tenant_id": tenant_id,
             "domain": "revenue",
             "property": "amount",
             "limit": 10,
