@@ -25,17 +25,22 @@ import { test, expect, request as pwRequest } from 'playwright/test';
 test('Trust Badge: live query renders Verified or Simulation, never "No Data"', async ({
   page,
 }) => {
-  // Step 1: Fetch first entity using a standalone APIRequestContext that
-  // does NOT share the page's browser context. Using page.request here
-  // dies with "Target page, context or browser has been closed" under
-  // the --single-process Chromium WSL2 config.
+  // Step 1: pick a revenue-bearing SE-shape snapshot from /api/v1/snapshots
+  // so the trust-badge query has data to resolve. Using a standalone
+  // APIRequestContext that does NOT share the page's browser context.
+  // Using page.request here dies with "Target page, context or browser has
+  // been closed" under the --single-process Chromium WSL2 config.
   const apiContext = await pwRequest.newContext();
-  const entitiesResp = await apiContext.get('http://localhost:8005/api/v1/entities');
-  expect(entitiesResp.ok()).toBeTruthy();
-  const entitiesBody = await entitiesResp.json();
-  const entities = entitiesBody.entities || [];
-  expect(entities.length, 'no entities registered — pipeline not ingested').toBeGreaterThan(0);
-  const entityId: string = entities[0].entity_id;
+  const snapsResp = await apiContext.get('http://localhost:8005/api/v1/snapshots');
+  expect(snapsResp.status()).toBeLessThan(300);
+  const allSnaps: Array<{ entity_id: string; dcl_ingest_id: string; total_rows: number }> =
+    (await snapsResp.json()).snapshots || [];
+  const revenueSnap = allSnaps.find(
+    (s) => !s.entity_id.startsWith('finops-demo') && s.total_rows >= 5000,
+  );
+  expect(revenueSnap, 'no revenue-bearing SE-shape snapshot in tenant').toBeDefined();
+  const entityId: string = revenueSnap!.entity_id;
+  const snapshotId: string = revenueSnap!.dcl_ingest_id;
   await apiContext.dispose();
 
   // Step 2: Abort non-localhost network so external CDN calls don't hang,
@@ -46,11 +51,19 @@ test('Trust Badge: live query renders Verified or Simulation, never "No Data"', 
   });
   await page.goto('/', { waitUntil: 'load' });
 
+  // Pin the snapshot so identity resolves to the SE-shape entity regardless
+  // of which snapshot the finops dispatch has pushed to star most recently.
+  await page.locator('#snapshot-selector').selectOption(snapshotId);
+  await expect(page.locator('#snapshot-selector')).toHaveValue(snapshotId);
+  await expect(
+    page.locator('[data-role="snapshot-follow-state"]').first(),
+  ).toHaveText('pinned', { timeout: 5_000 });
+
   const searchInput = page.locator('#nlq-search-input');
   await expect(searchInput).toBeVisible({ timeout: 15_000 });
 
-  // Step 3: Type the revenue query naming the real entity so the backend
-  // doesn't hit the _resolve_entity_id fallback.
+  // Step 3: Type the revenue query naming the snapshot's entity so the
+  // backend doesn't hit the _resolve_entity_id fallback.
   const question = `What is ${entityId} revenue for 2026 Q2?`;
   await searchInput.fill(question);
 
