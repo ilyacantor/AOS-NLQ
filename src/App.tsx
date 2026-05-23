@@ -7,7 +7,7 @@ import { DebugTracePanel } from './components/DebugTracePanel'
 import { DataPipelineStatus } from './components/DataPipelineStatus'
 import { ProductTour } from './components/ProductTour'
 import { LandingPage } from './components/LandingPage'
-import { useSnapshot } from './contexts/SnapshotContext'
+import { useSurfaceSnapshot } from './contexts/SnapshotContext'
 import { SnapshotSelector } from './components/SnapshotSelector'
 
 // Lazy-load the three view components — only the active view's code is downloaded
@@ -173,13 +173,15 @@ function App() {
   const [financialStatementData, setFinancialStatementData] = useState<any>(null)
   const [salesFunnelData, setSalesFunnelData] = useState<any>(null)
   const sessionId = useSessionId()
-  const { selectedSnapshot } = useSnapshot()
-
-  // PR 2: Dashboards view entity selector. Populated from /api/v1/entities on
-  // mount. Defaults to null — the user must pick before querying. No silent
-  // default in the UI (I4: operators never type IDs; I2: no silent fallback).
-  const [registeredEntities, setRegisteredEntities] = useState<Array<{ entity_id: string; display_name: string }>>([])
-  const [selectedDashboardEntityId, setSelectedDashboardEntityId] = useState<string | null>(null)
+  // Per-surface snapshot selection (follow-latest / pin). Ask and Dashboard are
+  // independent surfaces — pinning one leaves the other untouched. Identity for
+  // every query is the active surface's effective snapshot's entity_id.
+  const askSurface = useSurfaceSnapshot()
+  const dashSurface = useSurfaceSnapshot()
+  const askEntityId = askSurface.effective?.entity_id ?? null
+  const dashEntityId = dashSurface.effective?.entity_id ?? null
+  const askSnapshotId = askSurface.effective?.dcl_ingest_id ?? null
+  const dashSnapshotId = dashSurface.effective?.dcl_ingest_id ?? null
 
   const queryRef = useRef(query)
   queryRef.current = query
@@ -255,28 +257,6 @@ function App() {
     return () => clearInterval(timer)
   }, [liveDataAvailable])
 
-  // Fetch the current run's entity on mount. SE mode = one entity per run;
-  // auto-select it so every query carries entity_id without the user typing
-  // anything. The dropdown still shows it on Dashboard view for visibility.
-  useEffect(() => {
-    const loadEntities = async () => {
-      try {
-        const res = await fetch('/api/v1/entities')
-        if (res.ok) {
-          const data = await res.json()
-          const list = Array.isArray(data.entities) ? data.entities : []
-          setRegisteredEntities(list)
-          if (list.length > 0) {
-            setSelectedDashboardEntityId(list[0].entity_id)
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load entities for dashboard dropdown:', err)
-      }
-    }
-    loadEntities()
-  }, [])
-
   // Submit query — ONE endpoint, ONE path: /api/v1/query
   const submitQuery = useCallback(async (queryText: string) => {
     if (!queryText.trim()) return
@@ -291,18 +271,23 @@ function App() {
     const startTime = performance.now()
 
     try {
-      // SE mode: always send the current run's entity_id (auto-selected on
-      // mount). Works the same on Ask and Dashboard — no text parsing, no
-      // 422 for "unknown entity".
+      // Identity = the active surface's effective snapshot's entity_id +
+      // dcl_ingest_id (follow-latest by default, or whatever this surface is
+      // pinned to). Both must flow to the backend so query resolution and
+      // provenance are scoped to the same point-in-time.
+      const activeEntityId = viewMode === 'dashboard' ? dashEntityId : askEntityId
+      const activeSnapshotId = viewMode === 'dashboard' ? dashSnapshotId : askSnapshotId
       const queryBody: Record<string, unknown> = {
         question: queryText,
         reference_date: new Date().toISOString().split('T')[0],
         session_id: sessionId,
         persona: selectedPersona,
-        snapshot_id: selectedSnapshot?.dcl_ingest_id || undefined,
       }
-      if (selectedDashboardEntityId) {
-        queryBody.entity_id = selectedDashboardEntityId
+      if (activeEntityId) {
+        queryBody.entity_id = activeEntityId
+      }
+      if (activeSnapshotId) {
+        queryBody.snapshot_id = activeSnapshotId
       }
       const res = await fetchWithRetry('/api/v1/query', {
         method: 'POST',
@@ -479,7 +464,7 @@ function App() {
     setIsLoading(false)
     refreshLLMStats()
     setHistoryVersion(v => v + 1)
-  }, [sessionId, selectedPersona, selectedSnapshot, viewMode, selectedDashboardEntityId])
+  }, [sessionId, selectedPersona, viewMode, askEntityId, dashEntityId])
 
   // ── Parent iframe communication ────────────────────────────────────
   // Listens for postMessage commands from the AOS platform shell.
@@ -536,15 +521,19 @@ function App() {
     }
   }, [submitQuery])
 
-  // Load default dashboard when user first navigates to the Dashboard tab
-  // AND has picked an entity from the dropdown. PR 2: no auto-load on bare
-  // Dashboards visit — the entity must be selected first, which matches I2
-  // (no silent default) and I4 (operator picks from a dropdown).
+  // A snapshot change on the Dashboard surface (follow-latest advanced, or the
+  // operator pinned/switched) re-arms the default-dashboard load below.
+  useEffect(() => {
+    setHasLoadedDefaultDashboard(false)
+  }, [dashEntityId])
+
+  // Load the default dashboard on first arrival at the Dashboard tab, and again
+  // whenever the Dashboard surface's snapshot changes (re-armed above).
   useEffect(() => {
     if (
       viewMode === 'dashboard' &&
       !hasLoadedDefaultDashboard &&
-      selectedDashboardEntityId
+      dashEntityId
     ) {
       setHasLoadedDefaultDashboard(true)
       const personaConfig = personaOptions.find(p => p.value === selectedPersona)
@@ -552,7 +541,7 @@ function App() {
         submitQuery(personaConfig.query)
       }
     }
-  }, [viewMode, hasLoadedDefaultDashboard, selectedPersona, selectedDashboardEntityId, submitQuery])
+  }, [viewMode, hasLoadedDefaultDashboard, selectedPersona, dashEntityId, submitQuery])
 
   // Handle form submit
   const handleSubmit = useCallback(() => {
@@ -809,31 +798,8 @@ function App() {
 
           <div className="flex items-center gap-4 text-slate-500 text-sm">
             <DataPipelineStatus />
-            {viewMode === 'galaxy' && <SnapshotSelector />}
-            {/* PR 2: Dashboards entity selector — I4 (operators never type IDs)
-                 + I2 (no silent fallback). Defaults to null; user must pick. */}
-            {viewMode === 'dashboard' && (
-              <div className="flex items-center gap-2">
-                <label htmlFor="dashboard-entity-selector" className="text-slate-500 text-xs">Entity:</label>
-                <select
-                  id="dashboard-entity-selector"
-                  value={selectedDashboardEntityId ?? ''}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    setSelectedDashboardEntityId(v === '' ? null : v)
-                    // When user picks an entity, trigger the default dashboard load
-                    setHasLoadedDefaultDashboard(false)
-                  }}
-                  className="bg-slate-800 text-slate-200 text-xs rounded px-2 py-1 border border-slate-700 focus:border-cyan-400 focus:outline-none"
-                >
-                  {registeredEntities.map((ent) => (
-                    <option key={ent.entity_id} value={ent.entity_id}>
-                      {ent.display_name || ent.entity_id}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            {viewMode === 'galaxy' && <SnapshotSelector surface={askSurface} />}
+            {viewMode === 'dashboard' && <SnapshotSelector surface={dashSurface} />}
             <LLMCallCounter />
             {lastDuration && <span className="text-slate-400">{lastDuration}</span>}
             <button
@@ -865,7 +831,7 @@ function App() {
           {/* Results Area */}
           <div className="flex-1 overflow-hidden">
             {/* Dashboard View - Always uses DashboardRenderer with full controls */}
-            {viewMode === 'dashboard' && !selectedDashboardEntityId && (
+            {viewMode === 'dashboard' && !dashEntityId && (
               // Empty state: no entity in the current run. Run the pipeline.
               <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center px-6">
                 <div className="text-lg font-medium mb-2">No entities available.</div>
@@ -874,7 +840,7 @@ function App() {
                 </div>
               </div>
             )}
-            {viewMode === 'dashboard' && selectedDashboardEntityId && (
+            {viewMode === 'dashboard' && dashEntityId && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center"><svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>}>
               <div className="h-full overflow-hidden flex flex-col">
                 {/* DashboardRenderer - Full builder functionality with integrated persona selector */}
@@ -892,7 +858,7 @@ function App() {
                     onPersonaChange={(value) => handlePersonaSelect(value as Persona)}
                     isGenerating={isGeneratingDashboard}
                     sessionId={sessionId}
-                    entityId={selectedDashboardEntityId}
+                    entityId={dashEntityId}
                   />
                 </div>
 

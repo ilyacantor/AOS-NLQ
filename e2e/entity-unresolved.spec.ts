@@ -1,29 +1,36 @@
 /**
- * Ask view auto-uses the current run's entity_id (set on mount from
- * /api/v1/entities). A simple question like "What is revenue?" must
- * resolve and render — no "Unknown entity" 422, no typed entity names.
+ * Ask view auto-uses the active snapshot's entity_id (App.tsx:181
+ * `askEntityId = askSurface.effective?.entity_id`). A simple question like
+ * "What is revenue?" must resolve and render — no "Unknown entity" 422,
+ * no typed entity names.
  *
- * SE mode = one entity per run. The frontend picks list[0] automatically.
+ * Identity is snapshot-driven. The frontend reads /api/v1/snapshots, picks
+ * the latest by run_timestamp (the ★ option), and the resulting entity_id
+ * is the one the request body carries.
  *
  * B17 gate — the UI is the pass/fail.
  *
  * Requires: NLQ backend (8005) + frontend (3005) + DCL (8004) running,
- * at least one entity registered in the current run.
+ * with at least one snapshot in the current tenant.
  */
 
 import { test, expect, request as pwRequest } from 'playwright/test';
 
-test('Ask view auto-resolves the current-run entity without typing', async ({ page }) => {
-  // Step 1: fetch the currently-registered entity from the backend so we
-  // know what the frontend should have auto-selected.
+test('Ask view auto-resolves the current snapshot entity without typing', async ({ page }) => {
+  // Step 1: read the latest snapshot's entity_id from the backend — that
+  // is what the frontend should have auto-selected via the SnapshotContext.
   const api = await pwRequest.newContext();
-  const entitiesResp = await api.get('http://localhost:8005/api/v1/entities');
-  expect(entitiesResp.ok()).toBeTruthy();
-  const registeredIds: string[] = (
-    (await entitiesResp.json()).entities || []
-  ).map((e: { entity_id: string }) => e.entity_id);
-  expect(registeredIds.length, 'no entities registered in the current run').toBeGreaterThan(0);
-  const currentEntity = registeredIds[0];
+  const snapshotsResp = await api.get('http://localhost:8005/api/v1/snapshots');
+  expect(snapshotsResp.status()).toBeLessThan(300);
+  const snapshotList: Array<{ entity_id: string; run_timestamp: string; dcl_ingest_id: string }> =
+    (await snapshotsResp.json()).snapshots || [];
+  expect(snapshotList.length, 'no snapshots in current tenant').toBeGreaterThan(0);
+  // computeLatest mirrors SnapshotContext.tsx:26 — max(run_timestamp).
+  const latestSnapshot = snapshotList.reduce((newest, s) =>
+    new Date(s.run_timestamp).getTime() > new Date(newest.run_timestamp).getTime() ? s : newest
+  );
+  const currentEntity = latestSnapshot.entity_id;
+  const currentSnapshotId = latestSnapshot.dcl_ingest_id;
   await api.dispose();
 
   await page.route('**/*', (route, request) => {
@@ -31,17 +38,17 @@ test('Ask view auto-resolves the current-run entity without typing', async ({ pa
     else route.abort();
   });
 
-  // Wait for /api/v1/entities to complete during page load — the frontend
-  // auto-selects the first entity from this response, and we need that
-  // state to be settled before we submit a query.
-  const [entitiesLoaded] = await Promise.all([
+  // Wait for /api/v1/snapshots — the SnapshotContext hydrates from this
+  // response, and the page must be settled before we submit a query so
+  // that body.entity_id and body.snapshot_id reflect the active surface.
+  const [snapshotsLoaded] = await Promise.all([
     page.waitForResponse(
-      (res) => res.url().includes('/api/v1/entities') && res.request().method() === 'GET',
+      (res) => res.url().includes('/api/v1/snapshots') && res.request().method() === 'GET',
       { timeout: 15_000 },
     ),
     page.goto('/', { waitUntil: 'load' }),
   ]);
-  expect(entitiesLoaded.ok()).toBeTruthy();
+  expect(snapshotsLoaded.status()).toBeLessThan(300);
 
   const searchInput = page.locator('#nlq-search-input');
   await expect(searchInput).toBeVisible({ timeout: 15_000 });
@@ -61,12 +68,17 @@ test('Ask view auto-resolves the current-run entity without typing', async ({ pa
     searchInput.press('Enter'),
   ]);
 
-  // The request body must carry entity_id for the current run.
+  // The request body must carry entity_id + snapshot_id auto-selected
+  // from the active surface's effective snapshot (App.tsx:181, 282).
   const requestBody = JSON.parse(queryResponse.request().postData() || '{}');
   expect(
     requestBody.entity_id,
-    'Ask must send entity_id auto-selected from /api/v1/entities',
+    'Ask must send entity_id auto-derived from the latest snapshot',
   ).toBe(currentEntity);
+  expect(
+    requestBody.snapshot_id,
+    'Ask must send snapshot_id from the active snapshot selector',
+  ).toBe(currentSnapshotId);
 
   // The response must NOT be 422. No "Unknown entity".
   expect(

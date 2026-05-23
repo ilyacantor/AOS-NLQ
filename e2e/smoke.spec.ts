@@ -67,12 +67,16 @@ test.describe('AOS-NLQ Smoke Test', () => {
     await expect(dashboardTab).toBeVisible();
     await dashboardTab.click();
 
-    // Dashboards auto-selects the current-run entity on mount (SE mode).
-    const entitySelector = page.locator('#dashboard-entity-selector');
-    await expect(entitySelector).toBeVisible({ timeout: 10_000 });
-    await expect(entitySelector.locator('option').first()).toBeAttached({ timeout: 10_000 });
-    const firstEntityValue = await entitySelector.locator('option').first().getAttribute('value');
-    expect(firstEntityValue, 'dropdown must have at least one entity option').toBeTruthy();
+    // Dashboard identity is snapshot-driven (SnapshotContext per-surface).
+    // The visible dropdowns on this view are the persona selector and the
+    // snapshot selector — both must be present and populated.
+    const personaSelect = page.locator('#dashboard-persona-select');
+    await expect(personaSelect).toBeVisible({ timeout: 15_000 });
+    await expect(personaSelect.locator('option').first()).toBeAttached({ timeout: 10_000 });
+    const firstPersonaValue = await personaSelect.locator('option').first().getAttribute('value');
+    expect(firstPersonaValue, 'persona dropdown must have at least one option').toMatch(/\S/);
+    const snapshotSelect = page.locator('#snapshot-selector');
+    await expect(snapshotSelect).toBeVisible({ timeout: 10_000 });
 
     // ── Step 3: Wait for the dashboard grid to render ──
     // Clicking Dashboard triggers generateDashboard → /api/v1/query/dashboard.

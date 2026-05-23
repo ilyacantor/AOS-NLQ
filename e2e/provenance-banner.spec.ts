@@ -18,7 +18,18 @@ test('Provenance banner: visible on Dashboard, hidden on Ask', async ({ page }) 
     else route.abort();
   });
 
-  await page.goto('/', { waitUntil: 'load' });
+  // Register the pipeline/status response wait BEFORE goto — DataPipelineStatus
+  // mounts once in the header at page load and fetches immediately; subsequent
+  // polls don't fire for 30s. Catching the mount-time fetch is the only way to
+  // assert the response shape without racing the FAST_POLL_INTERVAL.
+  const [pipelineStatusResp] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().includes('/pipeline/status') && res.status() < 300,
+      { timeout: 30_000 },
+    ),
+    page.goto('/', { waitUntil: 'load' }),
+  ]);
+  expect(pipelineStatusResp.status()).toBeLessThan(300);
 
   // Wait for data to load
   await page.waitForTimeout(2_000);
@@ -36,33 +47,42 @@ test('Provenance banner: visible on Dashboard, hidden on Ask', async ({ page }) 
   // ── 3. Dashboard: provenance banner visible ──
   await page.locator('#nav-tab-dashboard').click();
 
-  // Dashboards view auto-selects the current-run entity on mount — no
-  // placeholder, no user pick required.
-  const dashboardEntitySelector = page.locator('#dashboard-entity-selector');
-  await expect(dashboardEntitySelector).toBeVisible({ timeout: 10_000 });
-  await expect(dashboardEntitySelector.locator('option').first()).toBeAttached({ timeout: 10_000 });
-  const firstEntityValue = await dashboardEntitySelector.locator('option').first().getAttribute('value');
-  expect(firstEntityValue, 'dropdown must have at least one entity option').toBeTruthy();
+  // Dashboard identity is now snapshot-driven (SnapshotContext.useSurfaceSnapshot
+  // for the dashboard surface). The persona selector is the operator-visible
+  // dropdown on this view; the entity is the active snapshot's entity_id.
+  const personaSelect = page.locator('#dashboard-persona-select');
+  await expect(personaSelect).toBeVisible({ timeout: 15_000 });
+  await expect(personaSelect.locator('option').first()).toBeAttached({ timeout: 10_000 });
+  const firstPersonaValue = await personaSelect.locator('option').first().getAttribute('value');
+  expect(firstPersonaValue, 'persona dropdown must have at least one option').toMatch(/\S/);
+  // Dashboard's snapshot selector mirrors Ask's — same per-surface context.
+  const dashSnapshotSelect = page.locator('#snapshot-selector');
+  await expect(dashSnapshotSelect).toBeVisible({ timeout: 10_000 });
 
-  // Wait for pipeline_status response (banner depends on it)
-  await page.waitForResponse(
-    (res) => res.url().includes('/pipeline/status') && res.status() === 200,
-    { timeout: 15_000 },
-  );
+  // Pipeline status was already fetched at page-mount (see Promise.all above).
+  // Give the banner a moment to render against the cached response.
   await page.waitForTimeout(1_000);
 
-  // Banner shows snapshot name (human-readable per I2/I4) and timestamp
-  // snapshot_name may be null if DCL snapshots are unavailable — check Updated: as baseline
-  await expect(page.locator('text=Updated:')).toBeVisible({ timeout: 10_000 });
-  const snapshotLabel = page.locator('text=Snapshot:');
-  if (await snapshotLabel.isVisible()) {
-    // Verify no raw UUID is displayed (I2/I4 compliance)
-    const snapshotText = await snapshotLabel.locator('..').textContent();
-    const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-    expect(snapshotText, 'Snapshot label must not contain raw UUID').not.toMatch(uuidPattern);
-    console.log('[provenance] Dashboard banner: snapshot_name visible, no UUID');
-  } else {
-    console.log('[provenance] Dashboard banner: snapshot_name not available (DCL snapshots empty)');
-  }
-  console.log('[provenance] Dashboard banner visible with provenance data');
+  // Provenance now surfaces directly on the snapshot selector option label
+  // (SnapshotSelector.tsx:20 `optionLabel` returns "[★ ]<name> -- <relative
+  // time> -- <total_rows> triples"). The selected ★ option carries the
+  // active snapshot's name, age, and row count — that IS the dashboard's
+  // provenance line for I2/I4 (entity_id business key, never raw UUID).
+  const selectedOption = page.locator('#snapshot-selector option').first();
+  const selectedText = (await selectedOption.textContent()) || '';
+  expect(selectedText, 'selected snapshot option must be ★-marked (the latest)').toMatch(/^★/);
+  expect(selectedText, 'selected snapshot label must carry relative time').toMatch(
+    /\d+\s*(s|m|h|d|just now)/,
+  );
+  expect(selectedText, 'selected snapshot label must carry triple count').toMatch(/triples?/);
+  // I2/I4 — no raw UUID anywhere in the visible snapshot label.
+  const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  expect(selectedText, 'snapshot label must not contain raw UUID').not.toMatch(uuidPattern);
+
+  // The "Live" indicator (DataPipelineStatus) confirms the pipeline status
+  // banner is rendered and showing connected state.
+  await expect(page.getByRole('button', { name: /^Live$|^Offline$/ })).toBeVisible({
+    timeout: 10_000,
+  });
+  console.log(`[provenance] Dashboard snapshot label: ${selectedText}`);
 });

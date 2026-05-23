@@ -38,16 +38,39 @@ test.describe('Ask view — Data Points panel does not render "N/A"', () => {
       else route.abort();
     });
 
-    const [entitiesLoaded] = await Promise.all([
+    // The frontend derives entity_id from the active snapshot now
+    // (App.tsx:181 askEntityId = askSurface.effective?.entity_id).
+    // Waiting for /api/v1/snapshots ensures the SnapshotContext is hydrated
+    // and the search input is interactive before we type.
+    const [snapshotsLoaded] = await Promise.all([
       page.waitForResponse(
-        (res) => res.url().includes('/api/v1/entities') && res.request().method() === 'GET',
+        (res) => res.url().includes('/api/v1/snapshots') && res.request().method() === 'GET',
         { timeout: 15_000 },
       ),
       page.goto('/', { waitUntil: 'load' }),
     ]);
-    expect(entitiesLoaded.status()).toBe(200);
+    expect(snapshotsLoaded.status()).toBe(200);
 
     const searchInput = page.locator('#nlq-search-input');
+
+    // Margin query needs an SE-shape snapshot (revenue, cogs, margin triples).
+    // The finops-demo-co cron pushes new ★ snapshots every ~10s that have no
+    // financial model. Operator selects a revenue-supporting snapshot — this
+    // is the snapshot dropdown's "drives query identity" contract under load.
+    const snapshotsBody = await snapshotsLoaded.json();
+    const allSnaps: Array<{ entity_id: string; dcl_ingest_id: string; total_rows: number }> =
+      snapshotsBody.snapshots || [];
+    const revenueSnap = allSnaps.find(
+      (s) => !s.entity_id.startsWith('finops-demo') && s.total_rows >= 5000,
+    );
+    if (revenueSnap) {
+      await page.locator('#snapshot-selector').selectOption(revenueSnap.dcl_ingest_id);
+      await expect(page.locator('#snapshot-selector')).toHaveValue(revenueSnap.dcl_ingest_id);
+      await expect(
+        page.locator('[data-role="snapshot-follow-state"]').first(),
+      ).toHaveText('pinned', { timeout: 5_000 });
+    }
+
     // Filling a missing input throws — this both finds the input and asserts it's interactive.
     await searchInput.fill('whats the margin');
     await expect(searchInput).toHaveValue('whats the margin');
