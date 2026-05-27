@@ -52,6 +52,37 @@ def _lookup(prefetched: Dict[str, Optional[float]], metric: str, period: str) ->
     return prefetched.get(f"{canonical}|{period}")
 
 
+def _year_quarters(year: str) -> set:
+    """Return the four quarter-period strings for a calendar year.
+
+    E.g. _year_quarters("2025") -> {"2025-Q1", "2025-Q2", "2025-Q3", "2025-Q4"}.
+    Used to scope per-quarter triples to a single reference year, matching the
+    annual-period semantics of the KPI card path.
+    """
+    return {f"{year}-Q{q}" for q in (1, 2, 3, 4)}
+
+
+# Units whose triple values are denominated in millions of dollars. The KPI
+# path keeps these as-is and renders "$NNN.NM" via DashboardDataResolver.
+# _format_value; widgets that hand raw numbers to the frontend's
+# formatCurrency (which expects whole dollars) must scale to dollars first.
+_MILLIONS_UNITS = {"USD millions", "$M"}
+
+
+def _to_display_dollars(metric: str, value: float) -> float:
+    """Scale a metric value to whole dollars for frontend currency formatting.
+
+    Revenue and other "USD millions" triples carry values like 318.89 meaning
+    $318.89M. The frontend formatCurrency() treats its argument as whole
+    dollars, so a millions-denominated value must be multiplied by 1e6 before
+    it reaches a widget that formats client-side. Non-millions metrics pass
+    through unchanged.
+    """
+    if get_metric_unit(metric) in _MILLIONS_UNITS:
+        return value * 1_000_000
+    return value
+
+
 class DashboardDataResolver:
     """
     Resolves dashboard widget data from DCL.
@@ -613,11 +644,19 @@ class DashboardDataResolver:
 
         triples = resp.json().get("triples_by_domain", {}).get(domain, [])
 
-        # Aggregate: region → total value across all periods
+        # Region triples are stored per quarter (12 quarters across 3 years).
+        # Scope to the reference year's four quarters — the same annual-period
+        # semantics the KPI card uses — so the map total matches the Revenue
+        # KPI for that year rather than summing all 12 quarters.
+        year_quarters = _year_quarters(reference_year)
+
+        # Aggregate: region → total value for the reference year
         totals: Dict[str, float] = {}
         for t in triples:
             concept = t.get("concept", "")
             if not concept.startswith(prefix):
+                continue
+            if t.get("period") not in year_quarters:
                 continue
             region = concept[len(prefix):]
             raw = t.get("value")
@@ -632,9 +671,11 @@ class DashboardDataResolver:
 
         for region_name, value in totals.items():
             percentage = (value / grand_total * 100) if grand_total > 0 else 0
+            # Emit whole-dollar values so the MapWidget's client-side
+            # formatCurrency renders the same magnitude the KPI card shows.
             regions.append({
                 "region": region_name.upper(),
-                "value": round(value, 2),
+                "value": round(_to_display_dollars(metric, value), 2),
                 "percentage": round(percentage, 1),
             })
 
@@ -643,7 +684,9 @@ class DashboardDataResolver:
         return {
             "loading": False,
             "map_data": {
-                "total": round(grand_total, 2),
+                # grand_total is in metric-native units; scale to whole
+                # dollars to match the per-region values above.
+                "total": round(_to_display_dollars(metric, grand_total), 2),
                 "metric": metric,
                 "regions": regions,
             },
