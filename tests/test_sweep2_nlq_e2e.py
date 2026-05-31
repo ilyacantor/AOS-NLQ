@@ -16,7 +16,7 @@ import pytest
 import httpx
 
 NLQ_BASE = "http://localhost:8005"
-DCL_BASE = "http://localhost:8004"
+DCL_BASE = "http://localhost:8104"
 
 
 @pytest.fixture(scope="module")

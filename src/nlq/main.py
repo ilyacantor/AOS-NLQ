@@ -110,7 +110,7 @@ async def startup_event():
             raise RuntimeError(
                 "FATAL: DCL_API_URL environment variable is not set. "
                 "NLQ requires a DCL endpoint to serve queries. "
-                "Set DCL_API_URL to the DCL service URL (e.g. http://localhost:8004). "
+                "Set DCL_API_URL to the DCL service URL (e.g. http://localhost:8104). "
                 "For demo-only mode with local data, set NLQ_ALLOW_NO_DCL=1."
             )
 

@@ -12,7 +12,7 @@ Per CLAUDE.md:
 - B13: Failures show what the user would see
 
 Prerequisites:
-- DCL running at localhost:8004 with v2 endpoints live
+- DCL running at localhost:8104 with v2 endpoints live
 - NLQ running at localhost:8005
 - Pipeline has run (fresh ingest data available)
 """
@@ -23,7 +23,7 @@ import httpx
 import pytest
 
 
-DCL_URL = os.environ.get("DCL_API_URL", "http://localhost:8004")
+DCL_URL = os.environ.get("DCL_API_URL", "http://localhost:8104")
 NLQ_URL = os.environ.get("NLQ_API_URL", "http://localhost:8005")
 
 

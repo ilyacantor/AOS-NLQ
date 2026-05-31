@@ -7,7 +7,7 @@ validating the Farm → DCL → NLQ dual-entity pipeline end-to-end.
 
 RULES:
   1. HTTP only — no cross-repo Python imports
-  2. No fact_base.json — never imported, read, or referenced
+  2. No demo-data fallback — live pipeline only; no removed seed file imported, read, or referenced
   3. Loud failures — every fail prints expected vs actual, endpoint, latency
   4. Exit code 0 = all pass, 1 = any fail
 
@@ -159,7 +159,7 @@ class PipelineHarness:
     def __init__(
         self,
         farm_url: str = "http://localhost:8003",
-        dcl_url: str = "http://localhost:8004",
+        dcl_url: str = "http://localhost:8104",
         nlq_url: str = "http://localhost:8005",
         run_id: Optional[str] = None,
         verbose: bool = False,
@@ -666,7 +666,7 @@ def main() -> None:
         description="Pipeline Integration Test Harness (PI_001–PI_021 + PI_002B)",
     )
     parser.add_argument("--farm-url", default="http://localhost:8003")
-    parser.add_argument("--dcl-url", default="http://localhost:8004")
+    parser.add_argument("--dcl-url", default="http://localhost:8104")
     parser.add_argument("--nlq-url", default="http://localhost:8005")
     parser.add_argument("--run-id", default=None,
                         help="Farm run_id (or auto-captured from PI_001)")

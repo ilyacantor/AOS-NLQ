@@ -33,7 +33,7 @@ class EntityRegistry:
         """
         self._dcl_base_url = (
             dcl_base_url
-            or os.environ.get("DCL_API_URL", "http://localhost:8004")
+            or os.environ.get("DCL_API_URL", "http://localhost:8104")
         ).rstrip("/")
         self._cache: Optional[list[dict]] = None
         self._cache_expires: float = 0.0

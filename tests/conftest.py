@@ -15,6 +15,12 @@ from typing import Dict, List
 from unittest.mock import MagicMock
 
 import pytest
+from dotenv import load_dotenv
+
+# Load aos-dev config so the suite touches ONLY dev: DCL :8104, aos-dev
+# Supabase. :8004 is PROD — never. override=True forces dev even if a prod
+# value leaked into the shell, so `pytest` cannot accidentally hit prod.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env.development", override=True)
 
 
 # Fixed reference date for all tests - ensures reproducibility

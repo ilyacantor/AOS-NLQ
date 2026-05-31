@@ -10,7 +10,7 @@ import httpx
 import pytest
 
 NLQ_URL = os.getenv("NLQ_URL", "http://localhost:8005")
-DCL_URL = os.getenv("DCL_API_URL", "http://localhost:8004")
+DCL_URL = os.getenv("DCL_API_URL", "http://localhost:8104")
 
 _dcl_client = httpx.Client(base_url=DCL_URL, timeout=15.0)
 
