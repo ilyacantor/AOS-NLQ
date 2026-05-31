@@ -8,11 +8,14 @@ B1 invariants:
   3. populate_persona_cache() seeds _dashboard_cache; the existing
      GET /api/v1/dashboard/{id} endpoint serves persona IDs identically
      to the dynamic dash_<8hex> IDs.
-  4. Empty config dir → empty dict + warning log; missing config dir →
-     FileNotFoundError (A1, fail-loud on infra gap vs author gap).
+  4. Empty OR missing config dir → empty dict. No file-based persona
+     dashboards is a valid state: FinOps is a domain, not a persona
+     (AAM Blueprint v3.1 decision (d)), and the persona-dashboard model is
+     runtime-generated. Not a silent fallback (A1) — there is genuinely
+     nothing to load and dashboards are served by the runtime path.
   5. Duplicate dashboard ID across YAML files raises ValueError loudly.
-  6. The shipped finops.yaml validates and has the expected tile count
-     for the canonical AR-aging demo question.
+  6. Malformed / schema-invalid persona YAMLs that DO exist still raise at
+     load time (author gap), not at request time.
 """
 from __future__ import annotations
 
@@ -27,29 +30,28 @@ from src.nlq.services import persona_dashboards as pd_mod
 from src.nlq.services.persona_dashboards import load_persona_dashboards
 
 
-def test_load_finops_persona_dashboard():
-    """The shipped config/personas/finops.yaml loads cleanly."""
+def test_no_file_based_personas_shipped():
+    """finops.yaml was deleted (AAM Blueprint v3.1 decision (d): FinOps is a
+    domain, not a persona). No persona YAMLs ship by default, so loading the
+    real config/personas dir yields {} — and never the deleted persona_finops."""
     loaded = load_persona_dashboards()
-    assert "persona_finops" in loaded
-    finops = loaded["persona_finops"]
-    assert isinstance(finops, DashboardSchema)
-    assert finops.title.startswith("FinOps")
-    # AR aging dashboard has at least one KPI + one chart + drill table
-    widget_types = {w.type for w in finops.widgets}
-    assert "kpi_card" in widget_types
-    assert "bar_chart" in widget_types
-    assert "data_table" in widget_types
-    assert len(finops.widgets) >= 4
+    assert loaded == {}
+    assert "persona_finops" not in loaded
 
 
 def test_populate_persona_cache_seeds_dashboard_cache():
-    """After populate_persona_cache, GET /api/v1/dashboard/{id} can
-    return the persona dashboard."""
+    """populate_persona_cache seeds _dashboard_cache so GET /api/v1/dashboard/
+    {id} can serve a persona dashboard. Uses a synthetic schema since no
+    persona YAMLs ship after the finops.yaml deletion."""
     _dashboard_cache.clear()
-    populate_persona_cache(load_persona_dashboards())
-    assert "persona_finops" in _dashboard_cache
-    cached = _dashboard_cache["persona_finops"]
-    assert isinstance(cached, DashboardSchema)
+    synthetic = {
+        "persona_demo": DashboardSchema(
+            id="persona_demo", title="Demo", source_query="x", widgets=[],
+        )
+    }
+    populate_persona_cache(synthetic)
+    assert "persona_demo" in _dashboard_cache
+    assert isinstance(_dashboard_cache["persona_demo"], DashboardSchema)
 
 
 def test_populate_persona_cache_preserves_dynamic_entries():
@@ -62,21 +64,30 @@ def test_populate_persona_cache_preserves_dynamic_entries():
         widgets=[],
     )
     _dashboard_cache["dash_abc12345"] = dyn
-    populate_persona_cache(load_persona_dashboards())
+    persona = {
+        "persona_demo": DashboardSchema(
+            id="persona_demo", title="Demo", source_query="x", widgets=[],
+        )
+    }
+    populate_persona_cache(persona)
     assert "dash_abc12345" in _dashboard_cache  # dynamic preserved
-    assert "persona_finops" in _dashboard_cache  # persona added
+    assert "persona_demo" in _dashboard_cache    # persona added
 
 
-def test_missing_config_dir_raises(tmp_path, monkeypatch):
-    """Pointing the loader at a non-existent dir must fail loudly per A1."""
+def test_missing_config_dir_returns_empty_dict(tmp_path, monkeypatch):
+    """A missing personas dir is a valid state, not an infra gap: no file-based
+    persona dashboards ship after the finops.yaml deletion and dashboards are
+    runtime-generated (AAM Blueprint v3.1 decision (d)). The loader returns {}
+    instead of raising. This is the intentional contract change, not a weakened
+    assertion — an absent dir genuinely means 'no persona YAMLs', which is
+    correct now. YAMLs that DO exist but are malformed still raise (below)."""
     monkeypatch.setattr(pd_mod, "_PERSONA_CONFIG_DIR", tmp_path / "does_not_exist")
-    with pytest.raises(FileNotFoundError, match="persona config dir missing"):
-        load_persona_dashboards()
+    assert load_persona_dashboards() == {}
 
 
 def test_empty_config_dir_returns_empty_dict(tmp_path, monkeypatch):
-    """Empty (but present) config dir is acceptable — no persona
-    dashboards loaded, but no error. Operator gets a warning log."""
+    """Empty (but present) config dir is acceptable — no persona dashboards
+    loaded, no error (info log)."""
     monkeypatch.setattr(pd_mod, "_PERSONA_CONFIG_DIR", tmp_path)
     result = load_persona_dashboards()
     assert result == {}

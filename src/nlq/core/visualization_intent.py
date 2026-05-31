@@ -392,22 +392,20 @@ def _resolve_for_viz(phrase: str, semantic_client, local_only: bool = True) -> O
 # Persona metric packs — authoritative metric lists per persona.
 # When the request includes an explicit persona, these are used unconditionally
 # instead of keyword detection from query text.
+#
+# cloud_spend is a FinOps-DOMAIN metric, not a persona (AAM Blueprint v3.1
+# decision (d); DCL config/persona_domains.yaml lists cloud_spend under both
+# the CTO and CFO domains). There is no FinOps/CCO persona. The metric is
+# routed to the personas the domain serves, ranked by primacy:
+#   - CTO  → primary   (2nd KPI, prominent on the technology dashboard)
+#   - CFO  → secondary (4th KPI, below the headline P&L lines)
 PERSONA_METRICS = {
-    "CFO": ["revenue", "gross_margin_pct", "arr", "ebitda", "net_income", "operating_profit"],
+    "CFO": ["revenue", "gross_margin_pct", "net_income", "cloud_spend", "ebitda", "arr", "operating_profit"],
     "CRO": ["arr", "bookings", "pipeline", "nrr", "win_rate_pct", "quota_attainment_pct", "sales_cycle_days", "revenue"],
     "COO": ["headcount", "revenue_per_employee", "magic_number", "cac_payback_months", "ltv_cac", "attrition_rate_pct"],
-    "CTO": ["uptime_pct", "p1_incidents", "deployment_frequency", "mttr_p1_hours", "open_bugs"],
+    "CTO": ["uptime_pct", "cloud_spend", "p1_incidents", "deployment_frequency", "mttr_p1_hours", "open_bugs"],
     "CHRO": ["headcount", "attrition_rate_pct", "hires", "offer_acceptance_rate_pct", "time_to_fill", "enps"],
     "CS": ["nrr", "churn_rate_pct", "customer_count", "nps", "csat"],
-    "CCO": [
-        "cloud_spend_monthly_total",
-        "cloud_spend_by_service",
-        "cloud_underutilized_count",
-        "cloud_savings_opportunities_count",
-        "cloud_savings_opportunities_amount",
-        "cloud_spend_by_team",
-        "cloud_spend_trend",
-    ],
 }
 
 
@@ -554,23 +552,9 @@ def _extract_metrics_from_query(query: str, persona: Optional[str] = None) -> Tu
         elif any(term in q for term in ["customer dashboard", "cs dashboard", "success dashboard"]):
             persona_metrics_list = list(PERSONA_METRICS["CS"])
             persona_detected = "CS"
-        elif any(term in q for term in [
-            "cloud cost optimization", "cloud cost dashboard",
-            "cco dashboard", "finops dashboard", "cloud spend dashboard",
-        ]):
-            persona_metrics_list = list(PERSONA_METRICS["CCO"])
-            persona_detected = "CCO"
 
     if persona_metrics_list:
-        # CCO is a dedicated finops persona — its metric set is namespaced
-        # under cloud_spend.* and does not overlap with general metrics. Any
-        # incidental matches (e.g. "cloud_spend") from the semantic resolver
-        # belong to the wrong concept namespace, so replace rather than merge.
-        if persona_detected == "CCO":
-            metrics = list(persona_metrics_list)
-            extraction_method = f"persona_default:{persona_detected}"
-            logger.info(f"[METRIC_EXTRACTION] Using {persona_detected} persona metrics (override): {metrics}")
-        elif metrics:
+        if metrics:
             # Merge: keep resolved metrics, fill remaining slots from persona defaults
             for pm in persona_metrics_list:
                 if pm not in metrics and len(metrics) < 4:

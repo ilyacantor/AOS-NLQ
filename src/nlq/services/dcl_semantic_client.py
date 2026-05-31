@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from src.nlq.core.dates import current_quarter, current_year
+from src.nlq.services.provenance import prov_from_triple
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import httpx
@@ -1390,6 +1391,23 @@ class DCLSemanticClient:
             "quality_score": metadata.get("quality_score"),
             "mode": metadata.get("mode") or ("Ingest" if dcl_source == "ingest" else None),
         }
+
+        # Per-triple provenance — brings Ask to parity with the Dashboards path
+        # (AAM Blueprint v3.1 §9.2: "NLQ Ask carries only run-level provenance —
+        # bring it to per-triple to match Dashboards"). Each DCL data row is a
+        # contributing triple; surface whatever per-triple provenance fields it
+        # carries, using the same extractor the dashboard resolvers use. Partial
+        # provenance is honest (A1) — never fabricated, never back-filled from
+        # the run-level source. Full 5-field population on the /api/dcl/query
+        # path is the DCL-side gap tracked in nlq_deferred_work.md#19; this
+        # NLQ-side plumbing activates automatically once those fields arrive.
+        per_triple = [
+            p
+            for row in normalized["data"]
+            if isinstance(row, dict) and (p := prov_from_triple(row)) is not None
+        ]
+        if per_triple:
+            normalized["run_provenance"]["per_triple"] = per_triple
 
         # Carry over entity resolution and conflict data when present
         for key in ("entity", "conflicts", "temporal_warning"):

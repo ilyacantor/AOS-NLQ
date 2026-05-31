@@ -704,7 +704,11 @@ cloud_spend:
   unit: "usd"
   aliases: ["monthly_cloud_spend", "total_cloud_spend"]
 
-# ─── Cloud Cost Optimization (WP11b) — backed by cloud_spend.* triples ────
+# ─── FinOps / cloud-spend domain metrics — backed by cloud_spend.* triples ───
+# FinOps is a domain, not a persona (AAM Blueprint v3.1 decision (d)). These
+# metrics surface via the CTO (primary) / CFO (secondary) dashboards through
+# the persona-domain mapping in DCL config/persona_domains.yaml — there is no
+# CCO/FinOps persona. The metric definitions remain queryable in Ask.
 
 cloud_spend_monthly_total:
   concept: "cloud_spend.summary"

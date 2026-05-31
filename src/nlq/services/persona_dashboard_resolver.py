@@ -32,6 +32,7 @@ import httpx
 
 from src.nlq.config import get_tenant_id
 from src.nlq.models.dashboard_schema import DashboardSchema, Widget, WidgetType
+from src.nlq.services.provenance import PROVENANCE_FIELDS
 
 logger = logging.getLogger(__name__)
 
@@ -376,12 +377,13 @@ class PersonaDashboardResolver:
         return None
 
 
+# The 5 canonical provenance fields (PROVENANCE_FIELDS, shared) plus the R5
+# resolution chain. canonical_id is the entity-resolution key;
+# resolution_method/resolution_confidence record how and how confidently the
+# triple was resolved to it. WS-5 dropped these at the NLQ tile (see
+# nlq_deferred_work.md#21).
 _PROVENANCE_FIELDS = (
-    "source_system", "source_field", "pipe_id",
-    "fabric_plane", "confidence_score",
-    # R5: resolution chain — WS-5 dropped these at the NLQ tile. canonical_id
-    # is the entity-resolution key; resolution_method/resolution_confidence
-    # record how and how confidently the triple was resolved to it.
+    *PROVENANCE_FIELDS,
     "canonical_id", "resolution_method", "resolution_confidence",
 )
 

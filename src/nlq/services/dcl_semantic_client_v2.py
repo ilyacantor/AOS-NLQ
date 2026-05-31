@@ -26,6 +26,7 @@ from src.nlq.services.dcl_semantic_client import (
     _last_data_source_ctx,
     _last_provenance_ctx,
 )
+from src.nlq.services.provenance import prov_from_triple
 from src.nlq.config import get_tenant_id
 
 logger = logging.getLogger(__name__)
@@ -340,7 +341,7 @@ class DCLSemanticClientV2:
                 "for metric=%s concept=%s — emitting mode=None",
                 result.get("metric_name"), result.get("concept"),
             )
-        _last_provenance_ctx.set({
+        prov_ctx = {
             "entity_id": result.get("entity_id"),
             "source_system": source_system,
             "source_systems": [source_system] if source_system else [],
@@ -349,7 +350,22 @@ class DCLSemanticClientV2:
             "confidence_score": result.get("confidence_score"),
             "confidence_tier": result.get("confidence_tier"),
             "mode": mode,
-        })
+        }
+        # Per-triple provenance — bring single-metric Ask to parity with the
+        # Dashboards path (AAM Blueprint v3.1 §9.2). The contributing browse
+        # triples carry the per-triple fields (source_system, source_field,
+        # pipe_id, fabric_plane, confidence_score); surface one provenance dict
+        # per triple, using the shared extractor. Partial provenance is honest
+        # (A1) — Farm triples may carry null source_field/pipe_id, and those
+        # fields are then simply absent rather than fabricated.
+        per_triple = [
+            p
+            for t in (result.get("_provenance_triples") or [])
+            if isinstance(t, dict) and (p := prov_from_triple(t)) is not None
+        ]
+        if per_triple:
+            prov_ctx["per_triple"] = per_triple
+        _last_provenance_ctx.set(prov_ctx)
 
     @staticmethod
     def _mark_live_read(
@@ -502,6 +518,8 @@ class DCLSemanticClientV2:
             "metric_name": metric_name,
             "concept": concept,
             "_live_triple": True,
+            # The contributing triple, for per-triple provenance (§9.2).
+            "_provenance_triples": [triple],
         }
 
     def _get_metric_annual(
@@ -545,10 +563,12 @@ class DCLSemanticClientV2:
         with ThreadPoolExecutor(max_workers=4) as pool:
             results = list(pool.map(propagate_context(_fetch_quarter), quarters))
 
+        contributing_triples: List[Dict[str, Any]] = []
         for r in results:
             if r is not None:
                 values.append(r[0])
                 last_triple = r[1]
+                contributing_triples.append(r[1])
 
         # If no quarterly data found, try period=None (period-agnostic data)
         if not values:
@@ -579,6 +599,7 @@ class DCLSemanticClientV2:
                         "metric_name": metric_name,
                         "concept": concept,
                         "_live_triple": True,
+                        "_provenance_triples": [triple],
                     }
 
         if not values:
@@ -609,6 +630,8 @@ class DCLSemanticClientV2:
             "concept": concept,
             "quarters_found": len(values),
             "_live_triple": True,
+            # One contributing triple per quarter, for per-triple provenance (§9.2).
+            "_provenance_triples": contributing_triples,
         }
 
     def get_metric_timeseries(

@@ -15,6 +15,7 @@ from src.nlq.core.dates import current_year, current_quarter
 
 from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
 from src.nlq.services.dcl_semantic_client import get_entity_id
+from src.nlq.services.provenance import PROVENANCE_FIELDS, prov_from_triple
 from src.nlq.config import get_tenant_id
 from src.nlq.knowledge.schema import get_metric_unit
 from src.nlq.knowledge.display import get_display_name
@@ -813,26 +814,27 @@ class DashboardDataResolver:
 # WS-5 B2 — per-triple provenance helpers
 # =============================================================================
 
+# The 5 canonical provenance fields (PROVENANCE_FIELDS, shared) plus the R5
+# resolution chain. canonical_id is the entity-resolution key;
+# resolution_method/resolution_confidence record how and how confidently the
+# triple was resolved to it. WS-5 dropped these at the NLQ tile (see
+# nlq_deferred_work.md#21).
 _PROVENANCE_FIELDS = (
-    "source_system", "source_field", "pipe_id",
-    "fabric_plane", "confidence_score",
-    # R5: resolution chain — WS-5 dropped these at the NLQ tile. canonical_id
-    # is the entity-resolution key; resolution_method/resolution_confidence
-    # record how and how confidently the triple was resolved to it.
+    *PROVENANCE_FIELDS,
     "canonical_id", "resolution_method", "resolution_confidence",
 )
 
 
 def _extract_per_item_provenance(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Pull the 5-field provenance dict off one DCL response item.
+    """Pull the per-triple provenance dict off one DCL response item.
 
     Returns None when the item has no provenance at all (legacy DCL
-    response shape or aggregated row). Returns a dict with whichever
-    of the 5 fields the item carried — partial provenance is honest
-    surfacing (A1: don't fabricate missing fields).
+    response shape or aggregated row). Returns a dict with whichever of
+    the canonical + R5 fields the item carried — partial provenance is
+    honest surfacing (A1: don't fabricate missing fields). Delegates to
+    the shared extractor so Ask and the dashboards stay in lockstep.
     """
-    prov = {f: item.get(f) for f in _PROVENANCE_FIELDS if item.get(f) is not None}
-    return prov or None
+    return prov_from_triple(item, _PROVENANCE_FIELDS)
 
 
 def resolve_dashboard_with_data(

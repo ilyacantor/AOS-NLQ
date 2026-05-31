@@ -58,14 +58,14 @@ interface QueryHistoryItem {
 }
 
 type ViewMode = 'galaxy' | 'dashboard' | 'guide'
-type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO' | 'CCO'
+type Persona = 'CFO' | 'CRO' | 'COO' | 'CTO' | 'CHRO'
 type PanelTab = 'History' | 'Learning' | 'Data Gaps' | 'Trace'
 
 const personaOptions: { label: string; value: Persona; query: string; refinePresets: string[] }[] = [
   {
     label: 'CFO',
     value: 'CFO',
-    query: 'Show me a finance dashboard with revenue KPI, gross margin percent KPI, operating margin trend, net income KPI, EBITDA KPI, and cash KPI',
+    query: 'Show me a finance dashboard with revenue KPI, gross margin percent KPI, net income KPI, cloud spend KPI, EBITDA KPI, operating margin trend, and cash KPI',
     refinePresets: ['Add EBITDA margin card', 'Show revenue trend', 'Add operating margin KPI', 'Show net margin trend']
   },
   {
@@ -83,7 +83,7 @@ const personaOptions: { label: string; value: Persona; query: string; refinePres
   {
     label: 'CTO',
     value: 'CTO',
-    query: 'Show me a technology dashboard with uptime percent KPI, P1 incidents KPI, deploys per week trend, sprint velocity KPI, and MTTR breakdown',
+    query: 'Show me a technology dashboard with uptime percent KPI, cloud spend KPI, P1 incidents KPI, deploys per week trend, sprint velocity KPI, and MTTR breakdown',
     refinePresets: ['Which service has the best SLO?', 'Show tech debt trend', 'Add features shipped', 'Filter to Platform']
   },
   {
@@ -91,12 +91,6 @@ const personaOptions: { label: string; value: Persona; query: string; refinePres
     value: 'CHRO',
     query: 'Show me a people dashboard with total headcount KPI, turnover rate KPI, time to hire trend, employee satisfaction KPI, and engagement breakdown',
     refinePresets: ['Add training hours card', 'Show hiring trend', 'Break down by department', 'Add retention rate']
-  },
-  {
-    label: 'Cloud Cost Optimization',
-    value: 'CCO',
-    query: 'Show me a cloud cost optimization dashboard with total monthly cloud spend KPI, top 5 services by spend bar chart, underutilized resource count KPI, identified savings opportunities count KPI, identified savings amount KPI, spend by team donut, and monthly cloud spend trend line',
-    refinePresets: ['Which team spends most?', 'Show idle EC2 instances', 'Add savings by type breakdown', 'Filter to production']
   },
 ]
 
