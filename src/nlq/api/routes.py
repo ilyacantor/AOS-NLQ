@@ -1789,8 +1789,12 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None, entit
     if display_unit == "USD thousands":
         formatted = f"${round(value, 1)}K"
         answer = f"{display_name} for {requested_period} is {formatted}"
-    elif display_unit in ("USD millions", "USD", "$"):
+    elif display_unit == "USD millions":
         formatted = f"${round(value, 1)}M"
+        answer = f"{display_name} for {requested_period} is {formatted}"
+    elif display_unit in ("USD", "$"):
+        # Plain-dollar metrics (e.g. cloud_spend total) — not millions.
+        formatted = f"${value:,.2f}"
         answer = f"{display_name} for {requested_period} is {formatted}"
     elif display_unit == "%":
         formatted = f"{round(value, 1)}%"
@@ -2040,6 +2044,17 @@ def _try_multi_metric_query(question: str) -> Optional[NLQResponse]:
             break
         if not matched:
             i += 1
+
+    # A cloud-spend question must not be shattered into financial siblings: the
+    # prefix-match fallback spuriously maps "monthly"->mrr and "total"->revenue,
+    # so "total monthly cloud spend" decomposes to [revenue, mrr, cloud_spend]
+    # and 422s when revenue/mrr are absent for a cloud-only entity. When the
+    # question is about cloud spend and a cloud-spend metric matched, route to
+    # the single cloud-spend metric (fall through to the simple-metric path).
+    if "cloud" in lowered and any(
+        m.startswith("cloud_spend") or m.startswith("cloud_") for _, m in metrics
+    ):
+        return None
 
     is_multi_period = len(metrics) == 1 and len(periods_found) >= 2
     is_multi_metric = len(metrics) >= 2

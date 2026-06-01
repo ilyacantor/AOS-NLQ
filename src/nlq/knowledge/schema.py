@@ -712,7 +712,9 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         name="cloud_spend",
         display_name="Cloud Spend",
         metric_type=MetricType.CURRENCY,
-        unit="USD millions",
+        # Cloud-spend triples carry actual dollar totals (cloud_spend.summary.
+        # total_cost = Σ monthly_cost_usd), not millions — render as plain USD.
+        unit="USD",
         description="Cloud infrastructure spend"
     ),
     "cloud_spend_pct_revenue": MetricDefinition(
