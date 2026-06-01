@@ -11,8 +11,11 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from dotenv import load_dotenv
-load_dotenv()  # Load .env into os.environ before any service reads env vars
+# Env loading + dev/prod env-class guard (aam_deferred_work.md #45): DEV by
+# default; refuses a mixed or accidental-prod config rather than silently
+# reverting NLQ to prod on a bare `pm2 restart`. Must run before service imports.
+from src.nlq.env_guard import load_and_guard_env
+load_and_guard_env()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
