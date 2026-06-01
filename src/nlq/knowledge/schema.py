@@ -717,6 +717,27 @@ FINANCIAL_SCHEMA: Dict[str, MetricDefinition] = {
         unit="USD",
         description="Cloud infrastructure spend"
     ),
+    "cloud_spend_by_service": MetricDefinition(
+        name="cloud_spend_by_service",
+        display_name="Top Cloud Service Spend",
+        metric_type=MetricType.CURRENCY,
+        unit="USD",
+        description="Highest-spend cloud service (actual dollars)"
+    ),
+    "cloud_spend_by_team": MetricDefinition(
+        name="cloud_spend_by_team",
+        display_name="Top Cloud Team Spend",
+        metric_type=MetricType.CURRENCY,
+        unit="USD",
+        description="Highest-spend cost center / team (actual dollars)"
+    ),
+    "cloud_savings_opportunities_amount": MetricDefinition(
+        name="cloud_savings_opportunities_amount",
+        display_name="Identified Cloud Savings",
+        metric_type=MetricType.CURRENCY,
+        unit="USD",
+        description="Total identified rightsizing savings (actual dollars)"
+    ),
     "cloud_spend_pct_revenue": MetricDefinition(
         name="cloud_spend_pct_revenue",
         display_name="Cloud Spend % Revenue",
