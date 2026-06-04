@@ -1840,22 +1840,6 @@ def _has_explicit_period(question: str) -> bool:
     return False
 
 
-def _entity_aware_dashboard(schema):
-    """Entity-aware generation: drop dashboard tiles whose concept the CURRENT entity
-    does not carry, so no absent/speculative tile is shown. Scoped to the same entity
-    the resolver uses (get_entity_id()) and its tenant (tenant-from-entity). Tiles whose
-    concept exists but fails to resolve are kept — only genuinely-absent ones are dropped."""
-    from src.nlq.core.dashboard_entity_filter import filter_dashboard_to_entity
-    from src.nlq.services.dcl_semantic_client import get_entity_id
-    from src.nlq.config import tenant_for_query
-    eid = get_entity_id()
-    try:
-        return filter_dashboard_to_entity(schema, eid, tenant_for_query(eid))
-    except Exception as exc:  # never let the filter break dashboard generation
-        logger.warning("Entity-aware dashboard filter skipped (%s): %s", eid, exc)
-        return schema
-
-
 def _build_combined_metric_result(metric: str, period: Optional[str] = None, filters: Optional[dict] = None) -> Optional['SimpleMetricResult']:
     """Consolidate the entities under DCL's current entity's tenant (sum additive,
     average non-additive).
@@ -4706,7 +4690,6 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
                         requirements=viz_requirements,
                         debug_info=debug_info,
                     )
-                    dashboard_schema = _entity_aware_dashboard(dashboard_schema)
                     data_resolver = DashboardDataResolver()
                     widget_data = data_resolver.resolve_dashboard_data(
                         dashboard_schema,
@@ -4966,7 +4949,6 @@ async def _query_impl(request: NLQRequest, _request_entity_id: str) -> NLQRespon
                     requirements=viz_requirements,
                     debug_info=debug_info,
                 )
-                dashboard_schema = _entity_aware_dashboard(dashboard_schema)
 
                 # Resolve real data from fact base
                 data_resolver = DashboardDataResolver()
