@@ -765,10 +765,12 @@ cloud_spend_trend:
 cloud_spend_pct_revenue:
   type: derived
   unit: "pct"
-  formula: "vendor.cloud_spend / revenue.total * 100"
+  # Canonical (dcl/SCHEMA_CONTRACT.md): derive from the two concepts BOTH the
+  # fabric and SE paths emit; the old vendor.cloud_spend component had no producer.
+  formula: "cloud_spend.summary.total_cost / revenue.total.amount * 100"
   components:
-    - concept: "vendor.cloud_spend"
-      property: "amount"
+    - concept: "cloud_spend.summary"
+      property: "total_cost"
     - concept: "revenue.total"
       property: "amount"
 
