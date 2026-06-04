@@ -168,13 +168,13 @@ sga:
   formula: "opex.sales_marketing + opex.general_admin"
 
 selling_expenses:
-  concept: "opex.selling"
+  concept: "opex.sales_marketing"
   property: "amount"
   type: direct
   unit: "usd"
 
 g_and_a_expenses:
-  concept: "opex.g_and_a"
+  concept: "opex.general_admin"
   property: "amount"
   type: direct
   unit: "usd"
@@ -327,7 +327,7 @@ change_in_ap:
   unit: "usd"
 
 change_in_deferred_rev:
-  concept: "cash_flow.operating.change_in_deferred_revenue"
+  concept: "cash_flow.operating.change_in_deferred_rev"
   property: "amount"
   type: direct
   unit: "usd"
@@ -454,8 +454,8 @@ magic_number:
       property: "amount"
 
 ltv_cac:
-  concept: "service.ltv_cac"
-  property: "ratio"
+  concept: "customer.ltv_cac_ratio"
+  property: "rate"
   type: direct
   unit: "ratio"
 
@@ -518,20 +518,20 @@ sales_cycle_days:
   unit: "days"
 
 quota_attainment_pct:
-  concept: "customer.quota_attainment"
+  concept: "sales.quota_attainment"
   property: "rate"
   type: direct
   unit: "pct"
   aliases: ["quota_attainment"]
 
 avg_deal_size:
-  concept: "customer.avg_deal_size"
+  concept: "sales.avg_deal_size"
   property: "amount"
   type: direct
   unit: "usd"
 
 new_logos:
-  concept: "customer.new_logos"
+  concept: "customer.count.new"
   property: "count"
   type: direct
   unit: "count"
@@ -546,14 +546,14 @@ customer_count:
 # ─── Retention ─────────────────────────────────────────────────────
 
 churn_rate_pct:
-  concept: "customer.churn_rate"
+  concept: "customer.gross_churn_rate"
   property: "rate"
   type: direct
   unit: "pct"
   aliases: ["churn_rate", "churn"]
 
 logo_churn_pct:
-  concept: "customer.logo_churn"
+  concept: "customer.logo_churn_rate"
   property: "rate"
   type: direct
   unit: "pct"
@@ -574,7 +574,7 @@ nps:
   unit: "score"
 
 csat:
-  concept: "customer.csat"
+  concept: "support.csat"
   property: "score"
   type: direct
   unit: "score"
@@ -586,13 +586,13 @@ support_tickets:
   unit: "count"
 
 resolution_hours:
-  concept: "service.resolution_time"
+  concept: "support.resolution_time"
   property: "hours"
   type: direct
   unit: "hours"
 
 first_response_hours:
-  concept: "service.first_response"
+  concept: "support.first_response_time"
   property: "hours"
   type: direct
   unit: "hours"
@@ -647,7 +647,7 @@ security_vulns:
   unit: "count"
 
 tech_debt_pct:
-  concept: "service.tech_debt"
+  concept: "engineering.tech_debt_rate"
   property: "rate"
   type: direct
   unit: "pct"
@@ -684,7 +684,7 @@ sprint_velocity:
   aliases: ["velocity", "team_velocity"]
 
 features_shipped:
-  concept: "service.features_shipped"
+  concept: "engineering.features_shipped"
   property: "count"
   type: direct
   unit: "count"
