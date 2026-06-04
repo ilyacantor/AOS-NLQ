@@ -1799,7 +1799,9 @@ def _build_simple_metric_result(metric: str, period: Optional[str] = None, entit
     elif display_unit == "%":
         formatted = f"{round(value, 1)}%"
         answer = f"{display_name} for {requested_period} is {formatted}"
-    elif display_unit in ("count", ""):
+    elif display_unit in ("count", "") or canonical_unit == "count":
+        # Count metrics are integers — display unit may be a count-like alias
+        # (customers, tickets, people, …) that canonicalizes to "count".
         formatted = f"{int(value):,}"
         answer = f"{display_name} for {requested_period} is {formatted}"
     else:
