@@ -1,7 +1,9 @@
 """
 Unit tests for tenant_id alignment (U1-U8).
 
-Tests the get_tenant_id() resolution logic in isolation.
+Tests the get_tenant_id() resolution logic in isolation. NLQ mirrors DCL:
+the active tenant is DCL's most-recent run (config._current_tenant_from_dcl),
+with AOS_TENANT_ID only as a fallback when DCL is unreachable.
 """
 
 import os
@@ -20,79 +22,55 @@ def clean_cache():
     reset_tenant_cache()
 
 
-class TestU1_EnvVarResolution:
-    """U1: AOS_TENANT_ID env var is resolved first."""
+class TestU1_DclResolution:
+    """U1: the active tenant is DCL's current run (primary path)."""
 
-    def test_env_var_returned(self):
-        with patch.dict(os.environ, {"AOS_TENANT_ID": "AeroFlow-K3OA"}):
+    def test_dcl_current_returned(self):
+        with patch("src.nlq.config._current_tenant_from_dcl", return_value="AeroFlow-K3OA"):
             assert get_tenant_id() == "AeroFlow-K3OA"
 
-    def test_env_var_arbitrary_string(self):
-        with patch.dict(os.environ, {"AOS_TENANT_ID": "my-custom-tenant"}):
-            assert get_tenant_id() == "my-custom-tenant"
+    def test_dcl_wins_over_env(self):
+        """DCL is primary — AOS_TENANT_ID no longer pins."""
+        with patch("src.nlq.config._current_tenant_from_dcl", return_value="DclWins"), \
+             patch.dict(os.environ, {"AOS_TENANT_ID": "EnvLoses"}):
+            assert get_tenant_id() == "DclWins"
 
 
-class TestU2_FileResolution:
-    """U2: Falls back to most recent data/tenants/*.json."""
+class TestU2_EnvFallback:
+    """U2: AOS_TENANT_ID is the fallback when DCL is unreachable."""
 
-    def test_file_fallback(self):
-        env = {k: v for k, v in os.environ.items() if k != "AOS_TENANT_ID"}
-        with patch.dict(os.environ, env, clear=True):
-            # Should find aeroflow_k3oa.json
-            tid = get_tenant_id()
-            assert isinstance(tid, str)
-            assert len(tid) > 0
+    def test_env_fallback_when_dcl_down(self):
+        with patch("src.nlq.config._current_tenant_from_dcl", return_value=None), \
+             patch.dict(os.environ, {"AOS_TENANT_ID": "FallbackTenant"}):
+            assert get_tenant_id() == "FallbackTenant"
 
 
 class TestU3_RuntimeError:
-    """U3: RuntimeError when no tenant can be determined."""
+    """U3: RuntimeError when neither DCL nor env resolves."""
 
-    def test_no_env_no_files_raises(self, tmp_path):
+    def test_no_dcl_no_env_raises(self):
         env = {k: v for k, v in os.environ.items() if k != "AOS_TENANT_ID"}
-        with patch.dict(os.environ, env, clear=True):
-            # Patch the tenants directory to an empty temp dir
-            empty_dir = tmp_path / "tenants"
-            empty_dir.mkdir()
-            with patch("src.nlq.config.Path") as mock_path:
-                mock_file = mock_path.return_value.resolve.return_value
-                mock_file.parent.parent.parent.__truediv__.return_value.__truediv__.return_value = empty_dir
-                # Simpler approach: directly patch module internals
-                import src.nlq.config as cfg
-                orig = cfg.get_tenant_id
-
-                def patched():
-                    cfg._tenant_id_cache = None
-                    env_tid = os.environ.get("AOS_TENANT_ID")
-                    if env_tid:
-                        return env_tid
-                    if empty_dir.is_dir():
-                        files = sorted(empty_dir.glob("*.json"))
-                        if files:
-                            return files[0].stem
-                    raise RuntimeError("Cannot determine tenant_id")
-
-                cfg.get_tenant_id = patched
-                try:
-                    with pytest.raises(RuntimeError, match="Cannot determine tenant_id"):
-                        cfg.get_tenant_id()
-                finally:
-                    cfg.get_tenant_id = orig
+        with patch("src.nlq.config._current_tenant_from_dcl", return_value=None), \
+             patch.dict(os.environ, env, clear=True):
+            with pytest.raises(RuntimeError, match="Cannot determine tenant_id"):
+                get_tenant_id()
 
 
 class TestU4_CacheBehavior:
-    """U4: Cached after first call, reset clears it."""
+    """U4: TTL cache — follows DCL, served from cache within the window."""
 
-    def test_cached(self):
-        with patch.dict(os.environ, {"AOS_TENANT_ID": "T1"}):
+    def test_cached_within_ttl(self):
+        with patch("src.nlq.config._current_tenant_from_dcl", return_value="T1") as m:
             first = get_tenant_id()
             second = get_tenant_id()
-            assert first is second  # same object from cache
+            assert first == second == "T1"
+            assert m.call_count == 1  # second served from the TTL cache
 
     def test_reset_and_re_resolve(self):
-        with patch.dict(os.environ, {"AOS_TENANT_ID": "T1"}):
+        with patch("src.nlq.config._current_tenant_from_dcl", return_value="T1"):
             assert get_tenant_id() == "T1"
         reset_tenant_cache()
-        with patch.dict(os.environ, {"AOS_TENANT_ID": "T2"}):
+        with patch("src.nlq.config._current_tenant_from_dcl", return_value="T2"):
             assert get_tenant_id() == "T2"
 
 

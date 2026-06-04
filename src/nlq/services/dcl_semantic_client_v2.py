@@ -27,9 +27,16 @@ from src.nlq.services.dcl_semantic_client import (
     _last_provenance_ctx,
 )
 from src.nlq.services.provenance import prov_from_triple
-from src.nlq.config import get_tenant_id
+from src.nlq.config import tenant_for_query
 
 logger = logging.getLogger(__name__)
+
+# Sentinel "period" for atemporal metrics — triples stored with period=NULL
+# ("current state": cloud_spend.* aggregates, headcount, etc.). The single-metric
+# path retries without a period filter; the batch path (get_all_metrics_by_period)
+# keys these under this sentinel so the dashboard resolver can find them when no
+# quarterly value exists. Must not collide with any real period string.
+ATEMPORAL_PERIOD = "__atemporal__"
 
 
 class MetricsBatchResult(dict):
@@ -201,7 +208,7 @@ class DCLSemanticClientV2:
 
         # R3: DCL /api/dcl/triples/browse is tenant-scoped — tenant_id required.
         params: Dict[str, Any] = {
-            "tenant_id": get_tenant_id(), "domain": domain, "limit": limit,
+            "tenant_id": tenant_for_query(entity_id), "domain": domain, "limit": limit,
         }
         if entity_id:
             params["entity_id"] = entity_id
@@ -951,7 +958,7 @@ class DCLSemanticClientV2:
             try:
                 # R3: browse-batch is tenant-scoped — tenant_id required.
                 body: Dict[str, Any] = {
-                    "tenant_id": get_tenant_id(), "domains": sorted(all_domains),
+                    "tenant_id": tenant_for_query(entity_id), "domains": sorted(all_domains),
                 }
                 if entity_id:
                     body["entity_ids"] = [entity_id]
@@ -1121,7 +1128,7 @@ class DCLSemanticClientV2:
             try:
                 # R3: browse-batch is tenant-scoped — tenant_id required.
                 body: Dict[str, Any] = {
-                    "tenant_id": get_tenant_id(), "domains": sorted(all_domains),
+                    "tenant_id": tenant_for_query(entity_id), "domains": sorted(all_domains),
                 }
                 if entity_id:
                     body["entity_ids"] = [entity_id]
@@ -1149,12 +1156,17 @@ class DCLSemanticClientV2:
         for t in all_triples:
             concept = t.get("concept", "")
             domain = concept.split(".")[0] if concept else ""
-            period = t.get("period", "")
-            if domain and period:
-                triples_by_domain_period.setdefault((domain, period), []).append(t)
+            if not domain:
+                continue
+            # Atemporal triples (period=NULL: cloud_spend.* aggregates, etc.) key
+            # under the sentinel so they survive the by-period grouping — the old
+            # `if domain and period` dropped them, hiding them from the dashboard.
+            period = t.get("period") or ATEMPORAL_PERIOD
+            triples_by_domain_period.setdefault((domain, period), []).append(t)
 
-        # Get all unique periods
-        all_periods = sorted({t.get("period") for t in all_triples if t.get("period")})
+        # Get all unique periods, including the atemporal sentinel when any
+        # period=NULL triples were returned (so cloud_spend.* aggregates resolve).
+        all_periods = sorted({(t.get("period") or ATEMPORAL_PERIOD) for t in all_triples if t.get("concept")})
 
         # Extract metrics per period
         results = MetricsBatchResult()

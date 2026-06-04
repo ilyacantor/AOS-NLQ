@@ -153,13 +153,17 @@ class TestRevenueQuery:
 class TestEntityScoped:
     """get_metric('revenue', entity_id='...') returns entity-specific revenue."""
 
-    def test_entity_scoped_via_nlq(self, nlq_client, dcl_client):
-        # Get entity names from DCL overview
-        overview = dcl_client.get("/api/dcl/triples/overview").json()
-        entities = [e["entity_id"] for e in overview.get("entities", [])]
-        assert len(entities) > 0, "No entities in DCL triples overview"
-
-        entity = entities[0]
+    def test_entity_scoped_via_nlq(self, nlq_client, first_entity_id):
+        # Pick the entity from NLQ's own entity list (first_entity_id), the
+        # queryable, DCL-sourced, richest-first roster NLQ exposes — the same source
+        # the sibling tests use. The raw DCL /triples/overview ranks by is_active
+        # triple count, which in the pre-rebuild dev store surfaces stale "ghost"
+        # entities (flagged-active triples no longer in any current run, e.g.
+        # finops-demo-co) that NLQ correctly answers as "insufficient data". Those
+        # are not a valid target for an entity-scoped answerability check. Ghost
+        # exclusion from the roster is a post-store-rebuild cleanup — see
+        # nlq_deferred_work.md.
+        entity = first_entity_id
         result = _nlq_query(
             nlq_client,
             f"What is {entity}'s revenue?",

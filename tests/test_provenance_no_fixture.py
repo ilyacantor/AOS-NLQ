@@ -113,23 +113,36 @@ def test_response_provenance_source_systems_is_list(client, first_entity_id):
     )
 
 
+def _entity_tenant_from_dcl(entity_id):
+    """Ground truth: the tenant an entity's triples live under, read from DCL's
+    runs at test time. Runs come back most-recent-first, so the first run naming the
+    entity is its current tenant (entity↔tenant 1:1). Returns None if DCL has no run
+    for it. This is the expected value the response must echo — never hardcoded, never
+    AOS_TENANT_ID (B8/B10)."""
+    dcl_url = os.environ.get("DCL_API_URL", "http://localhost:8104").rstrip("/")
+    resp = httpx.get(f"{dcl_url}/api/dcl/triples/runs", timeout=10.0)
+    resp.raise_for_status()
+    for run in resp.json().get("runs", []):
+        if entity_id in (run.get("entity_summary") or {}):
+            return run.get("tenant_id")
+    return None
+
+
 def test_response_carries_tenant_id(client, first_entity_id):
-    """I2: every /query response must carry a non-empty tenant_id UUID.
+    """I2 + tenant-from-entity: a /query response carries the QUERIED entity's tenant.
 
-    Sourced from AOS_TENANT_ID env var via config.get_tenant_id() and
-    backfilled at the routes.py boundary symmetric to entity_id.
-
-    Requires AOS_TENANT_ID to be set in the test environment. A bare
-    dev machine without the env var cannot verify the backfill source,
-    so the test fails loud on setup rather than silently skipping the
-    cross-check (B4 — no passing on technicality).
+    NLQ answers any named entity by resolving its tenant (entity↔tenant 1:1) and
+    echoes it on the response. The expected tenant is DCL ground truth — the tenant
+    the entity's triples actually live under, read from /api/dcl/triples/runs at test
+    time (never hardcoded, never the AOS_TENANT_ID env pin, which is now only a
+    DCL-unreachable fallback). A mismatch means NLQ scoped the query to the wrong
+    tenant — e.g. whichever entity DCL currently shows — the exact bug
+    tenant-from-entity fixes.
     """
-    env_tid = os.environ.get("AOS_TENANT_ID", "").strip()
-    assert env_tid, (
-        "AOS_TENANT_ID env var is required to run this test — it is the "
-        "canonical source per I6 rule 4 and this test verifies the backfill "
-        "stamps the env var value onto the response. Set AOS_TENANT_ID "
-        "before running pytest."
+    expected_tid = _entity_tenant_from_dcl(first_entity_id)
+    assert expected_tid, (
+        f"DCL has no run for entity {first_entity_id!r} — cannot establish the "
+        f"ground-truth tenant. Ingest the entity before running this test."
     )
     data = _post_revenue_query(client, first_entity_id)
     tid = data.get("tenant_id")
@@ -137,7 +150,8 @@ def test_response_carries_tenant_id(client, first_entity_id):
     assert _UUID_RE.match(tid), (
         f"response.tenant_id must be a UUID, got {tid!r}"
     )
-    assert tid == env_tid, (
-        f"response.tenant_id ({tid!r}) must match AOS_TENANT_ID env var "
-        f"({env_tid!r}). Mismatch indicates a backfill source drift."
+    assert tid == expected_tid, (
+        f"User queried entity {first_entity_id!r}. Its tenant in DCL is "
+        f"{expected_tid!r}, but the response carried {tid!r}. NLQ scoped the query "
+        f"to the wrong tenant — tenant-from-entity resolution failed (I2/I6)."
     )

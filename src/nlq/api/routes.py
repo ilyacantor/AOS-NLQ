@@ -1841,18 +1841,33 @@ def _has_explicit_period(question: str) -> bool:
 
 
 def _build_combined_metric_result(metric: str, period: Optional[str] = None, filters: Optional[dict] = None) -> Optional['SimpleMetricResult']:
-    """Query all registered entities, sum additive metrics or average non-additive."""
-    from src.nlq.knowledge.schema import is_additive_metric
-    from src.nlq.core.entity_registry import get_entity_registry
+    """Consolidate the entities under DCL's current entity's tenant (sum additive,
+    average non-additive).
 
-    registry = get_entity_registry()
+    "combined" is the consolidated view of what DCL currently shows (follow-DCL),
+    scoped to the current tenant's entities — NOT the whole cross-tenant roster. The
+    roster spans every tenant (80+ entities); summing across them is semantically
+    wrong (cross-tenant) and a per-entity query storm. Scoping to the current tenant
+    restores the original single-context consolidation."""
+    from src.nlq.knowledge.schema import is_additive_metric
+    from src.nlq.config import dcl_entities_ranked, get_tenant_id
+
     try:
-        entity_ids = registry.get_entity_ids_sync()
-    except ConnectionError as e:
-        logger.error(f"Cannot build combined metric — DCL unreachable: {e}")
+        current_tenant = get_tenant_id()
+    except RuntimeError as e:
         raise RuntimeError(
-            f"Cannot build combined metric for '{metric}' — DCL entity registry unreachable: {e}"
+            f"Cannot build combined metric for '{metric}' — no current tenant: {e}"
         ) from e
+
+    roster = dcl_entities_ranked()
+    if not roster:
+        # Empty roster means DCL is unreachable / has no runs — fail loud (A1), do
+        # not silently return an empty combined result.
+        raise RuntimeError(
+            f"Cannot build combined metric for '{metric}' — DCL entity registry "
+            f"unreachable or has no ingest runs."
+        )
+    entity_ids = [eid for eid, tid in roster if tid == current_tenant]
 
     if not entity_ids:
         return None
@@ -4256,13 +4271,32 @@ async def query(request: NLQRequest) -> NLQResponse:
     Returns the answer with confidence score bounded [0.0, 1.0].
     Provenance is applied once at this boundary via _ensure_provenance.
     """
-    from src.nlq.config import get_tenant_id as _get_env_tenant_id
+    from src.nlq.config import get_tenant_id, tenant_for_entity
 
     _request_entity_id = _resolve_entity_id(request)
-    # I2: tenant_id comes from AOS_TENANT_ID; missing → 422 at the route
-    # boundary before any DCL fan-out (no identity degradation downstream).
+    # Tenant-from-entity: NLQ answers any NAMED entity by resolving ITS tenant
+    # (entity↔tenant 1:1), and defaults to DCL's current entity only when none is
+    # named. Scoped here, before any DCL fan-out, so identity never degrades
+    # downstream (I2/I6). Missing/unknown identity fails loud (422) — never a
+    # silent fall-through to another tenant's data (A1).
     try:
-        _request_tenant_id = _get_env_tenant_id()
+        if _request_entity_id and _request_entity_id != "combined":
+            _request_tenant_id = tenant_for_entity(_request_entity_id)
+            if not _request_tenant_id:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "error": "unknown_entity",
+                        "message": (
+                            f"Entity '{_request_entity_id}' is not known to DCL — no "
+                            "tenant could be resolved for it. Pick an entity from "
+                            "GET /api/v1/entities."
+                        ),
+                    },
+                )
+        else:
+            # No single entity named (or 'combined') → DCL's current entity.
+            _request_tenant_id = get_tenant_id()
     except RuntimeError as _tid_err:
         raise HTTPException(
             status_code=422,
@@ -5522,17 +5556,39 @@ async def reconciliation():
     browse_cache: Dict[tuple, list] = {}  # (domain, entity_id, period) -> triples
 
     try:
-        from src.nlq.config import get_tenant_id  # R3: browse-batch is tenant-scoped
-        batch_body: Dict[str, Any] = {
-            "tenant_id": get_tenant_id(), "domains": sorted(all_domains),
-        }
-        if all_entity_ids:
-            batch_body["entity_ids"] = sorted(all_entity_ids)
-        r = client.post(f"{dcl_url}/api/dcl/triples/browse-batch", json=batch_body)
-        if r.status_code != 200:
-            raise RuntimeError(f"browse-batch returned HTTP {r.status_code}: {r.text[:300]}")
-        batch_data = r.json()
-        triples_by_domain = batch_data.get("triples_by_domain", {})
+        from src.nlq.config import tenant_for_entity, get_tenant_id
+        # Reconciliation spans every entity in Farm's ground truth, and each entity
+        # is read from the tenant its triples actually live under (entity↔tenant
+        # 1:1) — not whichever entity DCL currently shows. Group by tenant and issue
+        # one browse-batch per tenant: a single call while the SE entities share one
+        # tenant, fanning out correctly once they are split 1:1. An entity with no
+        # resolvable tenant aborts loudly — never a silent scope to the current
+        # tenant's data (A1).
+        entities_by_tenant: Dict[str, list] = {}
+        for eid in sorted(all_entity_ids):
+            tid = tenant_for_entity(eid)
+            if not tid:
+                raise RuntimeError(
+                    f"entity '{eid}' has no resolvable tenant in DCL — it must be "
+                    f"ingested before it can be reconciled."
+                )
+            entities_by_tenant.setdefault(tid, []).append(eid)
+        # No entity named anywhere → reconcile against the current entity's tenant.
+        if not entities_by_tenant:
+            entities_by_tenant[get_tenant_id()] = []
+
+        triples_by_domain: Dict[str, list] = {}
+        _triple_count = 0
+        for tid, eids in entities_by_tenant.items():
+            batch_body: Dict[str, Any] = {"tenant_id": tid, "domains": sorted(all_domains)}
+            if eids:
+                batch_body["entity_ids"] = eids
+            r = client.post(f"{dcl_url}/api/dcl/triples/browse-batch", json=batch_body)
+            if r.status_code != 200:
+                raise RuntimeError(f"browse-batch returned HTTP {r.status_code}: {r.text[:300]}")
+            for domain, triples in r.json().get("triples_by_domain", {}).items():
+                triples_by_domain.setdefault(domain, []).extend(triples)
+                _triple_count += len(triples)
 
         # Group into browse_cache by (domain, entity_id, period)
         for domain, triples in triples_by_domain.items():
@@ -5541,7 +5597,7 @@ async def reconciliation():
                 period = t.get("period")
                 if period:
                     browse_cache.setdefault((domain, eid, period), []).append(t)
-        print(f"[RECON] batch-browse returned {batch_data.get('total_count', 0)} triples across {len(triples_by_domain)} domains (1 HTTP call)", flush=True)
+        print(f"[RECON] batch-browse returned {_triple_count} triples across {len(triples_by_domain)} domains ({len(entities_by_tenant)} tenant call(s))", flush=True)
     except Exception as exc:
         print(f"[RECON] batch-browse failed: {exc}", flush=True)
         raise RuntimeError(

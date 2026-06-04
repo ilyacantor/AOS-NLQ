@@ -11,8 +11,6 @@ import os
 import time
 from typing import Optional
 
-import httpx
-
 logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 300  # 5 minutes
@@ -37,60 +35,46 @@ class EntityRegistry:
         ).rstrip("/")
         self._cache: Optional[list[dict]] = None
         self._cache_expires: float = 0.0
-        self._client = httpx.Client(timeout=10.0)
 
     def _fetch_entities_from_dcl(self) -> list[dict]:
-        """Fetch entity list from DCL's engagement endpoint.
+        """Fetch the full entity list from DCL — every entity an operator can name.
 
-        Parses the flat ``entities`` array returned by DCL.
-        Passes tenant_id from AOS_TENANT_ID to handle multi-tenant DCL.
+        NLQ answers any named entity by resolving its tenant (entity↔tenant 1:1), so
+        the registry is the whole nameable universe, not one tenant's slice. The list
+        comes from config.dcl_entities_ranked() — the SAME active-run index that
+        resolves tenant-from-entity — so the entities shown are exactly the ones NLQ
+        can answer, richest (most current data) first. That shared source is why the
+        first entity is always a queryable one and never a stale "ghost": list order
+        and tenant resolution can't drift apart. The "current entity when none is
+        named" default stays config.get_tenant_id()'s job at query time; the registry
+        does not scope to it.
 
-        MUST NOT fall back to hardcoded values. If DCL is unreachable,
-        raises ConnectionError with message naming the DCL URL and what failed.
+        MUST NOT fall back to hardcoded values. If DCL is unreachable, raises
+        ConnectionError naming the DCL URL — config returns an empty roster rather
+        than fabricating one.
         """
-        engagement_url = f"{self._dcl_base_url}/api/dcl/triples/engagement"
-        params = {}
-        tenant_id = os.environ.get("AOS_TENANT_ID", "").strip()
-        if tenant_id:
-            params["tenant_id"] = tenant_id
-        try:
-            resp = self._client.get(engagement_url, params=params)
-        except httpx.ConnectError:
+        from ..config import dcl_entities_ranked
+
+        # Pass this registry's configured DCL URL so an instance constructed against
+        # a specific (or unreachable) DCL reads from THAT one, not the env default.
+        ranked = dcl_entities_ranked(self._dcl_base_url)
+        if not ranked:
             raise ConnectionError(
-                f"EntityRegistry could not reach DCL at {engagement_url} — "
-                f"connection refused. Ensure DCL backend is running at "
+                f"EntityRegistry could not load entities from DCL at "
+                f"{self._dcl_base_url}/api/dcl/triples/runs — DCL is unreachable or "
+                f"has no ingest runs. Ensure DCL backend is running at "
                 f"{self._dcl_base_url}."
             )
-        except httpx.TimeoutException:
-            raise ConnectionError(
-                f"EntityRegistry timed out waiting for DCL at {engagement_url}. "
-                f"DCL may be overloaded or unreachable."
-            )
-
-        if resp.status_code != 200:
-            raise ConnectionError(
-                f"EntityRegistry got HTTP {resp.status_code} from {engagement_url}: "
-                f"{resp.text[:200]}"
-            )
-
-        data = resp.json()
-        entities = []
 
         def _format_name(eid: str) -> str:
             if any(c.isupper() for c in eid) or "-" in eid:
                 return eid
             return eid.replace("_", " ").title()
 
-        for item in data.get("entities", []):
-            eid = item.get("id")
-            if not eid:
-                continue
-            entities.append({
-                "entity_id": eid,
-                "display_name": item.get("display_name") or _format_name(eid),
-            })
-
-        return entities
+        return [
+            {"entity_id": eid, "display_name": _format_name(eid)}
+            for eid, _tenant in ranked
+        ]
 
     # ── Sync accessors (for use in sync code paths) ──────────────────────
 

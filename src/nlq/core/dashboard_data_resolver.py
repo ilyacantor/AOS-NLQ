@@ -15,8 +15,9 @@ from src.nlq.core.dates import current_year, current_quarter
 
 from src.nlq.services.dcl_client_router import get_routed_client as get_semantic_client
 from src.nlq.services.dcl_semantic_client import get_entity_id
+from src.nlq.services.dcl_semantic_client_v2 import ATEMPORAL_PERIOD
 from src.nlq.services.provenance import PROVENANCE_FIELDS, prov_from_triple
-from src.nlq.config import get_tenant_id
+from src.nlq.config import tenant_for_query
 from src.nlq.knowledge.schema import get_metric_unit
 from src.nlq.knowledge.display import get_display_name
 from src.nlq.knowledge.synonyms import normalize_metric
@@ -260,6 +261,12 @@ class DashboardDataResolver:
             non_none = [v for v in qvals if v is not None]
             if non_none:
                 value = sum(non_none)
+
+        if value is None:
+            # Atemporal metrics (cloud_spend.* aggregates, etc.) carry period=NULL
+            # and are batched under the sentinel key — no quarter will match, so
+            # fall back to the atemporal value before declaring "No data".
+            value = _lookup(prefetched, metric, ATEMPORAL_PERIOD)
 
         if value is None:
             return {"loading": False, "error": f"No data for '{metric}'"}
@@ -559,7 +566,7 @@ class DashboardDataResolver:
             resp = v2._http.post(
                 "/api/dcl/triples/browse-batch",
                 json={
-                    "tenant_id": get_tenant_id(),  # R3: browse-batch is tenant-scoped
+                    "tenant_id": tenant_for_query(entity_id),  # entity's tenant (1:1), current when unnamed
                     "domains": [domain], "entity_ids": [entity_id],
                 },
             )
@@ -632,7 +639,7 @@ class DashboardDataResolver:
             resp = v2._http.post(
                 "/api/dcl/triples/browse-batch",
                 json={
-                    "tenant_id": get_tenant_id(),  # R3: browse-batch is tenant-scoped
+                    "tenant_id": tenant_for_query(entity_id),  # entity's tenant (1:1), current when unnamed
                     "domains": [domain], "entity_ids": [entity_id],
                 },
             )
