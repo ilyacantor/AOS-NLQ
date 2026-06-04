@@ -49,6 +49,11 @@ def load_and_guard_env() -> str:
     Call once, before any NLQ service module reads os.environ.
     """
     want_prod = os.environ.get("AOS_ENV", "").strip().lower() in ("prod", "production")
+    # A pre-set AOS_TENANT_ID (an operator scoping a run at a specific entity's
+    # tenant) is OPERATIONAL, not a dev/prod class choice — it must survive the
+    # .env.development overlay below, which load_dotenv(override=True) would
+    # otherwise clobber with the file's default tenant.
+    _pin_tenant = os.environ.get("AOS_TENANT_ID", "").strip()
 
     base = _REPO_ROOT / ".env"
     if base.is_file():
@@ -58,6 +63,8 @@ def load_and_guard_env() -> str:
         if dev.is_file():
             # Dev overlay wins over the base — DCL :8104 + aos-dev.
             load_dotenv(dev, override=True)
+    if _pin_tenant:
+        os.environ["AOS_TENANT_ID"] = _pin_tenant  # operator scoping wins over the files
 
     dcl = os.environ.get("DCL_API_URL", "")
     db = os.environ.get("SUPABASE_URL", "") + " " + os.environ.get("DATABASE_URL", "")

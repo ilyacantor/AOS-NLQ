@@ -10,11 +10,15 @@
 # mixed or unguarded-prod config). To run PROD, launch with AOS_ENV=prod and .env only.
 set -euo pipefail
 cd "$(dirname "$0")/.." || exit 1
+# A pre-set AOS_TENANT_ID (e.g. to scope NLQ at a specific demo entity's tenant)
+# wins over the .env files. Capture it before sourcing, restore it after.
+_PIN_TENANT="${AOS_TENANT_ID:-}"
 set -a
 # shellcheck disable=SC1091
 source .env 2>/dev/null || true            # prod base (DB creds, shared keys)
 source .env.development 2>/dev/null || true # dev overlay WINS — DCL :8104 + aos-dev
 set +a
+[ -n "$_PIN_TENANT" ] && export AOS_TENANT_ID="$_PIN_TENANT"
 # shellcheck disable=SC1091
 source .venv/bin/activate 2>/dev/null || true
 exec python3 -m uvicorn src.nlq.main:app --host 0.0.0.0 --port 8005 --reload
