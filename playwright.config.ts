@@ -17,7 +17,10 @@ export default defineConfig({
         '--disable-gpu',
         '--disable-dev-shm-usage',
         '--disable-software-rasterizer',
-        '--single-process',
+        // '--single-process' removed: it SIGTRAP-crashes chromium on
+        // consecutive launches under WSL2 ("Target page, context or browser
+        // has been closed" before any assertion) — the aam#55 failure class.
+        // Every other repo's suite runs this chromium without the flag.
       ],
     },
   },
