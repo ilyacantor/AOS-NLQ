@@ -18,7 +18,7 @@ import time
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
@@ -36,14 +36,20 @@ _tenant_cache_ts: float = 0.0
 # get_tenant_id() (called per request) does not hit DCL on every call.
 _TENANT_FOLLOW_TTL_S = 15.0
 
+# ONE cached read of DCL's most-recent ingest run (top of GET /api/dcl/triples/runs).
+# BOTH tenant resolution (_current_tenant_from_dcl) and run-identity display
+# (current_run_from_dcl — the pipeline status light) derive from this single cached
+# fetch, on the same follow cadence as tenant. So a status poll adds NO DCL round-trip
+# over what tenant resolution already does, and the run NLQ displays is provably the
+# run NLQ queries against (same source, same cache).
+_current_run_cache: Optional[Dict[str, Any]] = None
+_current_run_cache_ts: float = 0.0
 
-def _current_tenant_from_dcl() -> Optional[str]:
-    """The tenant of DCL's most-recent ingest run — "whatever entity DCL shows".
 
-    NLQ mirrors DCL: the active entity is whatever was last ingested (the top of
-    GET /api/dcl/triples/runs). This is what lets a fresh pipeline run appear in
-    NLQ without a restart. Returns None if DCL is unreachable or has no runs (the
-    caller decides whether that is fatal) — no silent fabrication of a tenant.
+def _fetch_top_run_from_dcl() -> Optional[Dict[str, Any]]:
+    """Raw, uncached read of DCL's most-recent ingest run (top of
+    GET /api/dcl/triples/runs). Returns the full run dict, or None if DCL is
+    unreachable / has no runs. Callers go through current_run_from_dcl() for caching.
     """
     import httpx
 
@@ -55,9 +61,66 @@ def _current_tenant_from_dcl() -> Optional[str]:
         resp.raise_for_status()
         data = resp.json()
         runs = data.get("runs", data if isinstance(data, list) else [])
-        return (runs[0].get("tenant_id") or None) if runs else None
+        return runs[0] if runs else None
     except (httpx.HTTPError, ValueError, KeyError, IndexError):
         return None
+
+
+def current_run_from_dcl() -> Optional[Dict[str, Any]]:
+    """Identity of DCL's most-recent ingest run — read from the RUNS surface, never
+    from DCL's /api/health payload.
+
+    DCL's /api/health carries a `last_run_id`, but health endpoints are liveness
+    probes, not data contracts (dcl#69): that id lags or diverges from the actual
+    most-recent ingest run — verified empirically, the health `last_run_id` is not
+    even present in the runs list. Run identity is therefore read from the SAME
+    ordered surface get_tenant_id() and the entity index already follow
+    (GET /api/dcl/triples/runs), so the run NLQ displays in its status light matches
+    the run NLQ actually resolves queries against.
+
+    Cached for _TENANT_FOLLOW_TTL_S and shared with _current_tenant_from_dcl(): one
+    runs fetch backs both tenant resolution and the status light, so no caller pays a
+    duplicate round-trip. On a transient DCL miss the last good read is served rather
+    than flapping to None; only a cold miss (never resolved) returns None — the caller
+    decides whether that is fatal. No silent fabrication.
+
+    Returns {dcl_ingest_id, tenant_id, tenant_label, timestamp} for the top
+    (most-recent) run. dcl_ingest_id is the namespaced run identifier
+    (I1: never a bare run_id).
+    """
+    global _current_run_cache, _current_run_cache_ts
+
+    now = time.monotonic()
+    if _current_run_cache is not None and (now - _current_run_cache_ts) < _TENANT_FOLLOW_TTL_S:
+        return _current_run_cache
+
+    top = _fetch_top_run_from_dcl()
+    if top is not None:
+        _current_run_cache = {
+            "dcl_ingest_id": top.get("dcl_ingest_id"),
+            "tenant_id": top.get("tenant_id"),
+            "tenant_label": top.get("tenant_label"),
+            "timestamp": top.get("timestamp"),
+        }
+        _current_run_cache_ts = now
+        return _current_run_cache
+
+    # DCL momentarily unreachable but we resolved before → serve the last known
+    # current run rather than flapping to None (mirrors get_tenant_id's behavior).
+    return _current_run_cache
+
+
+def _current_tenant_from_dcl() -> Optional[str]:
+    """The tenant of DCL's most-recent ingest run — "whatever entity DCL shows".
+
+    NLQ mirrors DCL: the active entity is whatever was last ingested (the top of
+    GET /api/dcl/triples/runs). Derives from the shared cached current-run read
+    (current_run_from_dcl) so tenant resolution and the status light never issue two
+    separate runs fetches. Returns None if DCL is unreachable or has no runs (the
+    caller decides whether that is fatal) — no silent fabrication of a tenant.
+    """
+    run = current_run_from_dcl()
+    return (run.get("tenant_id") or None) if run else None
 
 
 def get_tenant_id() -> Optional[str]:
@@ -107,9 +170,11 @@ def get_tenant_id() -> Optional[str]:
 
 
 def reset_tenant_cache() -> None:
-    """Clear the cached tenant ID + entity index. For testing only."""
+    """Clear the cached tenant ID + current-run + entity index. For testing only."""
     global _tenant_id_cache, _tenant_cache_ts, _entity_index, _entity_index_ts
+    global _current_run_cache, _current_run_cache_ts
     _tenant_id_cache, _tenant_cache_ts = None, 0.0
+    _current_run_cache, _current_run_cache_ts = None, 0.0
     _entity_index, _entity_index_ts = None, 0.0
 
 

@@ -141,9 +141,14 @@ async def pipeline_status() -> PipelineStatusResponse:
     except (RuntimeError, KeyError, TypeError, AttributeError, OSError, ConnectionError) as e:
         logger.warning("DCL catalog check failed in pipeline_status: %s", e)
 
-    # Provenance: from health response (real-time) + catalog ingest summary
-    last_dcl_ingest_id = health.get("last_dcl_ingest_id")
-    last_run_timestamp = health.get("last_updated")
+    # Run identity from the RUNS surface (dcl#69) — NOT the health payload.
+    # check_dcl_health() above is liveness only (connected/mode). The current-run
+    # id + timestamp the status light shows must match the run NLQ resolves queries
+    # against, which follows GET /api/dcl/triples/runs (config.current_run_from_dcl).
+    from src.nlq.config import current_run_from_dcl
+    current_run = current_run_from_dcl() or {}
+    last_dcl_ingest_id = current_run.get("dcl_ingest_id")
+    last_run_timestamp = current_run.get("timestamp")
     last_source_systems = None
     freshness_display = None
     snapshot_name = None

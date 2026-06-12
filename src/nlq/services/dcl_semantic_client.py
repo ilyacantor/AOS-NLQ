@@ -748,12 +748,18 @@ class DCLSemanticClient:
     def check_dcl_health(self) -> Dict[str, Any]:
         """Check DCL reachability and mode via its health endpoint.
 
+        LIVENESS ONLY. The /api/health payload is a liveness probe, not a data
+        contract (dcl#69): NLQ does NOT read run identity from it. The health
+        payload's `last_run_id` lags/diverges from the authoritative runs surface
+        (verified: it can be absent from the runs list entirely) and is
+        intentionally ignored here — current-run identity is read from
+        GET /api/dcl/triples/runs via config.current_run_from_dcl().
+
         Returns dict with:
           connected: bool — DCL responded to health check
           phase: str|None — DCL startup phase (ready, warming, degraded)
           data_mode: str|None — DCL data mode (Empty, Ingest, Farm, AAM)
-          last_run_id: str|None — last DCL run ID
-          last_updated: str|None — last mode change timestamp
+          last_updated: str|None — last mode change timestamp (liveness, not a run ts)
           error: str|None — error message if not connected
         """
         if not self.dcl_url:
@@ -770,11 +776,12 @@ class DCLSemanticClient:
                     "error": f"DCL health returned HTTP {resp.status_code}",
                 }
             body = resp.json()
+            # NOTE: body["last_run_id"] is deliberately NOT read — run identity
+            # comes from the runs surface, not this liveness payload (dcl#69).
             return {
                 "connected": True,
                 "phase": body.get("phase"),
                 "data_mode": body.get("data_mode"),
-                "last_dcl_ingest_id": body.get("last_run_id"),
                 "last_updated": body.get("last_updated"),
                 "error": body.get("error"),
             }
