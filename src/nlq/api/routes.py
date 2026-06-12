@@ -2019,6 +2019,15 @@ def _try_multi_metric_query(question: str) -> Optional[NLQResponse]:
         "show", "me", "give", "tell", "what", "whats",
         "is", "are", "was", "were", "for", "in", "during", "over",
         "the", "our", "and", "please", "about", "a", "to",
+        # Function/quantifier words that are NOT metrics but which
+        # normalize_metric's DCL fuzzy spuriously maps to one (prefix/word
+        # overlap): "of"->offer_acceptance_rate_pct, "total"->revenue,
+        # "monthly"->mrr, "annual"->arr. Leaving them in shatters natural
+        # phrases — "cost of goods sold"->[cogs, offer_acceptance_rate_pct],
+        # "total operating expenses"->[revenue, opex] — into false multi-metric
+        # queries that 422. They carry no metric signal here (granularity is
+        # resolved separately), so strip them before extraction.
+        "of", "total", "monthly", "annual", "quarterly", "ttm",
     }
 
     raw = (question or "").strip().rstrip("?")

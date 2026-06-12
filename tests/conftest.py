@@ -27,6 +27,40 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env.development", overrid
 REFERENCE_DATE = date(2026, 1, 27)
 
 
+@pytest.fixture(autouse=True)
+def _dcl_singleton_isolation():
+    """Test isolation for the DCL client singletons.
+
+    get_semantic_client / get_semantic_client_v2 / get_routed_client each cache a
+    client built against whatever DCL_API_URL was set at first call. A test that
+    monkeypatches DCL_API_URL (e.g. test_e2e_graph_resolution's `executor` fixture
+    sets a mock URL, then QueryExecutor() -> get_routed_client() builds the v2/old
+    clients against it) poisons those singletons for the rest of the session — so
+    later tests doing a real browse get an unreachable client and no data
+    (manifests as map_widget KeyError 'map_data', etc.).
+
+    Before each test, drop any singleton whose target no longer matches the live
+    DCL_API_URL so it is rebuilt against the real env. Cheap: resets only on a
+    mismatch (the rare poisoned case), never on the common path.
+    """
+    import src.nlq.services.dcl_semantic_client as _v1
+    import src.nlq.services.dcl_semantic_client_v2 as _v2
+    import src.nlq.services.dcl_client_router as _router
+
+    current = (os.environ.get("DCL_API_URL") or "").rstrip("/")
+    v2c = getattr(_v2, "_v2_client", None)
+    v1c = getattr(_v1, "_semantic_client", None)
+    stale = (
+        (v2c is not None and getattr(v2c, "base_url", current) != current)
+        or (v1c is not None and getattr(v1c, "dcl_url", current) != current)
+    )
+    if stale:
+        _v2._v2_client = None
+        _v1._semantic_client = None
+        _router._routed_client = None
+    yield
+
+
 @pytest.fixture
 def reference_date() -> date:
     """Fixed reference date for testing relative periods."""

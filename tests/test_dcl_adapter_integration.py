@@ -737,6 +737,9 @@ class TestEndToEndDCLQuery:
 
     def test_full_pipeline_no_dcl_raises(self, monkeypatch):
         """No DCL URL → query() raises RuntimeError (A1: no silent fallback)."""
+        # conftest loads .env.development which sets DCL_API_URL; the constructor
+        # falls back to it when dcl_base_url=None, so unset it to assert "no DCL".
+        monkeypatch.delenv("DCL_API_URL", raising=False)
         monkeypatch.setenv("NLQ_ALLOW_NO_DCL", "1")
         client = DCLSemanticClient(dcl_base_url=None)
 

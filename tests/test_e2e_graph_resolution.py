@@ -462,6 +462,10 @@ class TestDCLClientResolveViaGraph:
 
     def test_local_mode_returns_unavailable(self, monkeypatch):
         """Client without DCL URL returns can_answer=False."""
+        # conftest loads .env.development which sets DCL_API_URL; unset it so the
+        # client is genuinely DCL-less (else it reaches the graph endpoint and
+        # returns "no sources found" instead of the local "unavailable" reason).
+        monkeypatch.delenv("DCL_API_URL", raising=False)
         monkeypatch.setenv("NLQ_ALLOW_NO_DCL", "1")
         client = DCLSemanticClient(dcl_base_url=None)
         result = client.resolve_via_graph(concepts=["revenue"])

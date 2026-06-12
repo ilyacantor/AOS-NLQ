@@ -36,16 +36,47 @@ def get_se_entity_id() -> str:
     return active[0]["entity_id"]
 
 
+_ENTITY_TENANT: dict = {}
+
+
+def tenant_for_entity(entity_id: str) -> str:
+    """Resolve an entity's tenant (entity↔tenant 1:1) from DCL's active runs.
+
+    DCL's bitemporal store enforces identity on /triples/browse — tenant_id is
+    required (a 422 otherwise). Ground-truth reads must therefore scope to the
+    entity's own tenant, the same pairing NLQ resolves, read from the runs
+    surface (not the mutable config follow-cache, so it is order-independent).
+    """
+    if entity_id in _ENTITY_TENANT:
+        return _ENTITY_TENANT[entity_id]
+    resp = _dcl_client.get("/api/dcl/triples/runs", params={"limit": 500})
+    resp.raise_for_status()
+    for run in resp.json().get("runs", []):
+        if not run.get("is_active"):
+            continue
+        if entity_id in (run.get("entity_summary") or {}):
+            tid = run.get("tenant_id")
+            if tid:
+                _ENTITY_TENANT[entity_id] = tid
+                return tid
+    raise AssertionError(
+        f"No active DCL run names entity {entity_id!r} — cannot resolve its tenant "
+        f"(entity↔tenant 1:1). Run the pipeline so the entity has current data."
+    )
+
+
 def get_gt_value(concept: str, entity_id: str, period: str, property: str = "amount") -> float:
     """Query ground truth from DCL's browse API.
 
     Browse filters by domain prefix (LIKE '{domain}.%'), so we pass the
-    top-level domain and then match the exact concept client-side.
+    top-level domain and then match the exact concept client-side. tenant_id is
+    required by DCL's identity-enforced browse (1:1 with entity_id).
     """
     domain = concept.split(".")[0]
     resp = _dcl_client.get(
         "/api/dcl/triples/browse",
         params={
+            "tenant_id": tenant_for_entity(entity_id),
             "domain": domain,
             "entity_id": entity_id,
             "period": period,

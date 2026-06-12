@@ -58,8 +58,8 @@ AAM_INGEST_PAYLOAD = {
 }
 
 # What DCL returns from POST /api/dcl/query AFTER ingesting AAM data (Path B)
-# This is the exact shape DCL's query engine produces when it reads from the
-# ingest buffer rather than fact_base.json
+# This is the exact shape DCL's query engine produces when it reads from
+# ingested (live) data.
 DCL_QUERY_RESPONSE_PATH_B = {
     "metric": "revenue",
     "metric_name": "Revenue",
@@ -90,7 +90,7 @@ DCL_QUERY_RESPONSE_PATH_B = {
     ],
 }
 
-# What DCL returns when querying fact_base.json fallback (Path A — no Runner data)
+# What DCL returns on the empty / no-ingest path (Path A — no Runner data)
 DCL_QUERY_RESPONSE_PATH_A = {
     "metric": "revenue",
     "metric_name": "Revenue",
@@ -611,6 +611,10 @@ class TestErrorPathContracts:
 
     def test_no_dcl_url_raises(self, monkeypatch):
         """No DCL URL → query() raises RuntimeError (A1: no silent fallback)."""
+        # The dev env sets DCL_API_URL (conftest loads .env.development); the
+        # constructor falls back to it when dcl_base_url=None, so the "no DCL"
+        # precondition only holds if we unset it here.
+        monkeypatch.delenv("DCL_API_URL", raising=False)
         monkeypatch.setenv("NLQ_ALLOW_NO_DCL", "1")
         client = DCLSemanticClient(dcl_base_url=None)
         with pytest.raises(RuntimeError, match="DCL_API_URL not configured"):

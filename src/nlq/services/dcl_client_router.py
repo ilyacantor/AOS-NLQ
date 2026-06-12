@@ -230,24 +230,26 @@ class DCLClientRouter:
                 logger.error(f"DCL v2 HTTP error for metric '{metric}': {e}")
                 return {"error": str(e), "status": "error", "data_source": "dcl_v2"}
 
-        # Metric not in v2 concept map — use old client
-        # This is NOT a silent fallback: we log it explicitly so we can
-        # identify metrics that need to be added to the concept map.
-        logger.info(
-            f"Metric '{metric}' not in v2 metric_concept_map — "
-            f"routing to legacy DCL client"
+        # Metric not in the v2 concept map. The legacy v1 path (old.query →
+        # /api/dcl/query) is RETIRED for data: it reads an ingest buffer the
+        # bitemporal store no longer populates, so it only ever returns
+        # "buffer empty (mode='Farm')" — a misleading error that hides the real
+        # cause (the metric simply isn't mapped). Fail loud and accurate instead
+        # of round-tripping a dead endpoint. (dcl#69-era residue; the v1 query
+        # path produces no data against the current store.)
+        logger.warning(
+            f"Metric '{metric}' not in v2 metric_concept_map — no v2 data path, "
+            f"and the legacy v1 /api/dcl/query path is retired (produces no data "
+            f"against the bitemporal store)."
         )
-        return self.old.query(
-            metric=metric,
-            dimensions=dimensions,
-            filters=filters,
-            time_range=time_range,
-            grain=grain,
-            order_by=order_by,
-            limit=limit,
-            tenant_id=tenant_id,
-            entity_id=entity_id,
-        )
+        return {
+            "error": (
+                f"Metric '{metric}' is not resolvable: it is absent from the v2 "
+                f"concept map and the legacy v1 query path is retired."
+            ),
+            "status": "no_data",
+            "data_source": "dcl_v2",
+        }
 
     # ------------------------------------------------------------------
     # Combined entity aggregation

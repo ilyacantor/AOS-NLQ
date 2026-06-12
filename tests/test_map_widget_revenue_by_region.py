@@ -31,7 +31,6 @@ import pytest
 
 os.environ.setdefault("DCL_API_URL", "http://localhost:8104")
 
-from src.nlq.config import get_tenant_id
 from src.nlq.core.dashboard_data_resolver import (
     DashboardDataResolver,
     _to_display_dollars,
@@ -47,12 +46,35 @@ REFERENCE_YEAR = "2025"
 REGION_PREFIX = "revenue.by_region."
 
 
+def _active_runs() -> list[dict]:
+    """DCL's active ingest runs (runs-API) — a STABLE source for the entity↔tenant
+    pair. get_tenant_id()'s follow-cache can be poisoned by other tests via the
+    AOS_TENANT_ID fallback (then this module browses the wrong tenant and 422s),
+    so we read identity straight from the runs surface, the same pairing the
+    resolver resolves via tenant_for_query."""
+    resp = httpx.get(f"{DCL_URL}/api/dcl/triples/runs", params={"limit": 500}, timeout=20.0)
+    resp.raise_for_status()
+    runs = resp.json().get("runs", [])
+    if not runs:
+        pytest.skip("DCL has no ingest runs — run the pipeline first")
+    return runs
+
+
+def _tenant_for_entity(entity_id: str) -> str:
+    """Entity's tenant (entity↔tenant 1:1) from the active runs — order-independent."""
+    for run in _active_runs():
+        if run.get("is_active") and entity_id in (run.get("entity_summary") or {}):
+            return run["tenant_id"]
+    raise AssertionError(f"No active DCL run names entity {entity_id!r}")
+
+
 def _dcl_revenue_triples(entity_id: str) -> list[dict]:
-    """Pull every revenue-domain triple for an entity straight from DCL."""
+    """Pull every revenue-domain triple for an entity straight from DCL, scoped to
+    the entity's own tenant (1:1, identity-enforced browse — matches the resolver)."""
     resp = httpx.get(
         f"{DCL_URL}/api/dcl/triples/browse",
         params={
-            "tenant_id": get_tenant_id(),
+            "tenant_id": _tenant_for_entity(entity_id),
             "entity_id": entity_id,
             "domain": "revenue",
             "limit": 500,
@@ -64,28 +86,25 @@ def _dcl_revenue_triples(entity_id: str) -> list[dict]:
 
 
 def _discover_region_entity() -> str:
-    """Find an entity that actually carries revenue.by_region triples.
-
-    Discovered at runtime rather than hardcoded so the test survives a
-    data refresh. Skips the suite if DCL is down or has no region data.
+    """The current-run entity (what NLQ defaults to), provided it carries
+    revenue.by_region triples. Read from the runs API so it is stable across test
+    ordering. Skips if DCL is down or the current entity has no region data.
     """
     try:
-        resp = httpx.get(
-            f"{DCL_URL}/api/dcl/triples/browse",
-            params={"tenant_id": get_tenant_id(), "domain": "revenue", "limit": 500},
-            timeout=20.0,
-        )
-        resp.raise_for_status()
+        runs = _active_runs()
     except (httpx.HTTPError, OSError) as exc:
         pytest.skip(f"DCL not reachable at {DCL_URL}: {exc}")
-    triples = resp.json().get("triples", [])
-    for t in triples:
+    ents = [e for e in (runs[0].get("entity_summary") or {}) if e != "combined"]
+    if not ents:
+        pytest.skip("Current DCL run names no single entity")
+    entity = ents[0]
+    for t in _dcl_revenue_triples(entity):
         concept = t.get("concept") or ""
         # revenue.by_region.{region} has exactly two dots; exclude the
         # nested revenue.new_logo.by_region.* family (three dots).
         if concept.startswith(REGION_PREFIX) and concept.count(".") == 2:
-            return t["entity_id"]
-    pytest.skip("No entity in DCL carries revenue.by_region triples")
+            return entity
+    pytest.skip(f"Current entity {entity} carries no revenue.by_region triples")
 
 
 @pytest.fixture(scope="module")
@@ -221,10 +240,14 @@ def test_map_values_are_whole_dollars_not_raw_millions(map_result, ground_truth)
         f"Map total {total} is not whole-dollar scaled — raw millions value "
         f"would render as a few thousand dollars via formatCurrency"
     )
-    # Exact: total dollars == 2025 revenue.total millions * 1e6.
-    assert total == pytest.approx(
-        ground_truth["total_2025_millions"] * 1_000_000, abs=1.0
-    )
+    # The map total is the sum of the regions it displays (enforced by
+    # test_map_regions_sum_to_map_total), so its ground truth is the sum of the
+    # by_region values — NOT revenue.total. Farm allocates per-region revenue
+    # with independent 2dp rounding, so Σ(by_region) sits ~$10K under
+    # revenue.total at $1.3B scale; the by-region map legitimately totals its
+    # regions, and asserting against revenue.total would chase Farm's rounding.
+    expected_region_sum = sum(ground_truth["region_totals_millions"].values())
+    assert total == pytest.approx(expected_region_sum * 1_000_000, abs=1.0)
     for region in map_result["map_data"]["regions"]:
         assert region["value"] > 1_000_000, (
             f"{region['region']} value {region['value']} not whole-dollar scaled"
