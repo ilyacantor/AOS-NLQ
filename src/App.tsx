@@ -537,6 +537,20 @@ function App() {
     }
   }, [viewMode, hasLoadedDefaultDashboard, selectedPersona, dashEntityId, submitQuery])
 
+  // Auto-run a default Ask query on first arrival at the galaxy view (and again
+  // when the Ask surface's snapshot changes), so the galaxy populates on page
+  // turn instead of showing an empty input. Mirrors the Dashboard auto-load above.
+  const [hasLoadedDefaultGalaxy, setHasLoadedDefaultGalaxy] = useState(false)
+  useEffect(() => {
+    setHasLoadedDefaultGalaxy(false)
+  }, [askEntityId])
+  useEffect(() => {
+    if (viewMode === 'galaxy' && !hasLoadedDefaultGalaxy && askEntityId) {
+      setHasLoadedDefaultGalaxy(true)
+      submitQuery('whats the margin')
+    }
+  }, [viewMode, hasLoadedDefaultGalaxy, askEntityId, submitQuery])
+
   // Handle form submit
   const handleSubmit = useCallback(() => {
     const currentQuery = queryRef.current
