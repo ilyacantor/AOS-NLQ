@@ -51,6 +51,8 @@ dist/
 # Local config (keep .env.example)
 .env.local
 .env.*.local
+.env.*
+!.env.example
 .vite/
 
 # Local agent state
