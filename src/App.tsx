@@ -678,7 +678,9 @@ function App() {
         {/* Mobile Header Row */}
         <div className="flex items-center justify-between px-4 py-3 md:hidden">
           <div className="flex items-center gap-2">
-            <span className="text-cyan-400 text-xl font-bold">NLQ</span>
+            <img src="/onta-lockup-dark.png" alt="Onta" className="h-5 w-auto" />
+            <span className="text-slate-100 text-xl font-light tracking-tight">Intelligence</span>
+            <span className="text-slate-400 text-xs font-medium hidden sm:inline">NLQ</span>
             <DataPipelineStatus />
           </div>
           <div className="flex items-center gap-2">
@@ -770,8 +772,9 @@ function App() {
         <div className="hidden md:flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-cyan-400 text-2xl font-bold">NLQ</span>
-              <span className="text-slate-300 text-lg font-normal hidden lg:inline">Natural Language Query</span>
+              <img src="/onta-lockup-dark.png" alt="Onta" className="h-6 w-auto" />
+              <span className="text-slate-100 text-2xl font-light tracking-tight">Intelligence</span>
+              <span className="text-slate-400 text-sm font-medium hidden lg:inline">NLQ &amp; Dashboards</span>
             </div>
 
             {/* View Mode Toggle */}
