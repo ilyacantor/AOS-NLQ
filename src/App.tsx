@@ -679,7 +679,7 @@ function App() {
         <div className="flex items-center justify-between px-4 py-3 md:hidden">
           <div className="flex items-center gap-2">
             <img src="/onta-lockup-dark.png" alt="Onta" className="h-5 w-auto" />
-            <span className="text-slate-100 text-xl font-light tracking-tight relative" style={{ top: '-4px' }}>Intelligence</span>
+            <span className="text-slate-100 text-xl font-light tracking-tight">Intelligence</span>
             <DataPipelineStatus />
           </div>
           <div className="flex items-center gap-2">
@@ -772,7 +772,7 @@ function App() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <img src="/onta-lockup-dark.png" alt="Onta" className="h-6 w-auto" />
-              <span className="text-slate-100 text-2xl font-light tracking-tight relative" style={{ top: '-5px' }}>Intelligence</span>
+              <span className="text-slate-100 text-2xl font-light tracking-tight">Intelligence</span>
             </div>
 
             {/* View Mode Toggle */}
