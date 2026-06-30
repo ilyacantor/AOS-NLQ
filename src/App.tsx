@@ -680,7 +680,6 @@ function App() {
           <div className="flex items-center gap-2">
             <img src="/onta-lockup-dark.png" alt="Onta" className="h-5 w-auto" />
             <span className="text-slate-100 text-xl font-light tracking-tight">Intelligence</span>
-            <span className="text-slate-400 text-xs font-medium hidden sm:inline">NLQ</span>
             <DataPipelineStatus />
           </div>
           <div className="flex items-center gap-2">
@@ -774,7 +773,6 @@ function App() {
             <div className="flex items-center gap-2">
               <img src="/onta-lockup-dark.png" alt="Onta" className="h-6 w-auto" />
               <span className="text-slate-100 text-2xl font-light tracking-tight">Intelligence</span>
-              <span className="text-slate-400 text-sm font-medium hidden lg:inline">NLQ &amp; Dashboards</span>
             </div>
 
             {/* View Mode Toggle */}
