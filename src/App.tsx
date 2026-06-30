@@ -678,7 +678,7 @@ function App() {
         {/* Mobile Header Row */}
         <div className="flex items-center justify-between px-4 py-3 md:hidden">
           <div className="flex items-center gap-2">
-            <img src="/onta-lockup-dark.png" alt="Onta" className="h-5 w-auto" />
+            <img src="/onta-lockup-dark.png" alt="Onta" className="h-5 w-auto relative" style={{ top: '4px' }} />
             <span className="text-slate-100 text-xl font-light tracking-tight">Intelligence</span>
             <DataPipelineStatus />
           </div>
@@ -771,7 +771,7 @@ function App() {
         <div className="hidden md:flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <img src="/onta-lockup-dark.png" alt="Onta" className="h-6 w-auto" />
+              <img src="/onta-lockup-dark.png" alt="Onta" className="h-6 w-auto relative" style={{ top: '5px' }} />
               <span className="text-slate-100 text-2xl font-light tracking-tight">Intelligence</span>
             </div>
 
