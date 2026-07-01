@@ -677,8 +677,8 @@ function App() {
       <header className="border-b border-slate-800 relative z-[60]">
         {/* Mobile Header Row */}
         <div className="flex items-center justify-between px-4 py-3 md:hidden">
-          <div className="flex items-center gap-2">
-            <img src="/onta-intelligence-dark.png" alt="Onta Intelligence" className="h-8 w-auto" />
+          <div className="flex items-center gap-2 shrink-0">
+            <img src="/onta-intelligence-dark.png" alt="Onta Intelligence" className="h-8 w-auto shrink-0" />
             <DataPipelineStatus />
           </div>
           <div className="flex items-center gap-2">
@@ -769,8 +769,8 @@ function App() {
         {/* Desktop Header Row */}
         <div className="hidden md:flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <img src="/onta-intelligence-dark.png" alt="Onta Intelligence" className="h-12 w-auto" />
+            <div className="flex items-center gap-2 shrink-0">
+              <img src="/onta-intelligence-dark.png" alt="Onta Intelligence" className="h-12 w-auto shrink-0" />
             </div>
 
             {/* View Mode Toggle */}
